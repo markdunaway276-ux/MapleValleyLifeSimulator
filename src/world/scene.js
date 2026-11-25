@@ -1,5 +1,17 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { generateHouse } from './buildings.js';
+
+function disposeGroup(group) {
+  const materials = new Set();
+  group.traverse((o) => {
+    if (o.geometry) o.geometry.dispose();
+    const m = o.material;
+    if (!m) return;
+    (Array.isArray(m) ? m : [m]).forEach((mat) => materials.add(mat));
+  });
+  materials.forEach((m) => m.dispose());
+}
 
 export function createScene(quality) {
   const scene = new THREE.Scene();
@@ -14,25 +26,22 @@ export function createScene(quality) {
   ground.receiveShadow = quality.shadows;
   scene.add(ground);
 
-  // House body
-  const houseGeo = new THREE.BoxGeometry(6, 4, 8);
-  const houseMat = new THREE.MeshStandardMaterial({ color: 0xd2b48c });
-  const house = new THREE.Mesh(houseGeo, houseMat);
-  house.position.set(0, 2, -10);
-  house.castShadow = quality.shadows;
-  house.receiveShadow = quality.shadows;
+  // Fallback procedural house. The Kenney GLB is the main house; this group
+  // stays only while the model loads, or if the load fails.
+  const house = generateHouse({
+    width: 6,
+    height: 4,
+    depth: 8,
+    roofType: 'pyramid',
+    wallColor: 0xd2b48c,
+    roofColor: 0x8b4513,
+    hasDoor: false,
+    shadows: quality.shadows
+  });
+  house.position.set(0, 0, -10);
   scene.add(house);
 
-  // Roof
-  const roofGeo = new THREE.ConeGeometry(5, 3, 4);
-  const roofMat = new THREE.MeshStandardMaterial({ color: 0x8b4513 });
-  const roof = new THREE.Mesh(roofGeo, roofMat);
-  roof.position.set(0, 5.5, -10);
-  roof.rotation.y = Math.PI / 4;
-  roof.castShadow = quality.shadows;
-  scene.add(roof);
-
-  // Door
+  // Standalone interactable door (kept independent of the fallback / GLB house)
   const doorGeo = new THREE.BoxGeometry(1.4, 2.4, 0.1);
   const doorMat = new THREE.MeshStandardMaterial({ color: 0x654321 });
   const door = new THREE.Mesh(doorGeo, doorMat);
@@ -41,6 +50,21 @@ export function createScene(quality) {
   scene.add(door);
   door.userData.isDoor = true;
   door.userData.open = false;
+
+  // A second generated house so the generator is visible next to the GLB.
+  // Placed to the east, rotated to face the player spawn at (0, 1.6, 5).
+  const generatedHouse = generateHouse({
+    width: 5,
+    depth: 6,
+    height: 3.5,
+    roofType: 'gable',
+    wallColor: 0xa8c5e0,
+    windowCount: 4,
+    shadows: quality.shadows
+  });
+  generatedHouse.position.set(12, 0, -10);
+  generatedHouse.rotation.y = Math.atan2(0 - 12, 5 - (-10));
+  scene.add(generatedHouse);
 
   // Lighting
   const ambient = new THREE.AmbientLight(0xffffff, 0.6);
@@ -63,8 +87,8 @@ export function createScene(quality) {
 
   scene.userData.door = door;
 
-  // Real house model (Kenney City Kit Suburban, CC0). The procedural box house,
-  // roof and door above stay as a fallback until the model has loaded.
+  // Real house model (Kenney City Kit Suburban, CC0). The procedural house
+  // and the standalone door above stay as a fallback until the model has loaded.
   const HOUSE_URL = './assets/models/house_type02.glb'; // relative to the page, so it works under the Pages subpath
   const HOUSE_CENTER = new THREE.Vector3(0, 0, -10);    // same spot as the old box house
   const HOUSE_TARGET = { x: 6.5, z: 8 };                // approximate footprint in metres
@@ -98,11 +122,9 @@ export function createScene(quality) {
       });
       scene.add(model);
 
-      // Swap out the placeholder box house + roof
+      // Swap out the placeholder procedural house
       scene.remove(house);
-      scene.remove(roof);
-      houseGeo.dispose(); houseMat.dispose();
-      roofGeo.dispose(); roofMat.dispose();
+      disposeGroup(house);
 
       // Fit the interactable door over the model's own front door
       model.updateMatrixWorld(true);
