@@ -3,6 +3,7 @@ import { createScene } from './world/scene.js';
 import { createPlayer } from './core/player.js';
 import { setupInput } from './core/input.js';
 import { createInventory } from './ui/inventory.js';
+import { STARTER_ITEMS } from './data/items.js';
 import { loadSave, saveGame } from './systems/save.js';
 
 const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || window.innerWidth < 800;
@@ -31,7 +32,8 @@ if (saveData.position) {
 const instructions = document.getElementById('instructions');
 const inventory = createInventory({
   canvas: renderer.domElement,
-  isStarted: () => instructions.classList.contains('hidden')
+  isStarted: () => instructions.classList.contains('hidden'),
+  items: STARTER_ITEMS
 });
 setupInput(player, isMobile, { isInventoryOpen: () => inventory.isOpen() });
 

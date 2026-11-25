@@ -2,8 +2,14 @@
  * Basic HTML inventory panel. Items live in an array of slotCount entries
  * (null when empty). Each slot has data-index and a render() method so
  * real items and drag-and-drop can be added later without rewriting the UI.
+ *
+ * Click or tap a slot to select it and show its details. Selection is kept
+ * when the panel is closed and reopened.
  */
+import { createItem, formatItemCount, ITEM_DEFS } from '../data/items.js';
+
 const STYLE_ID = 'inventory-styles';
+const HINT = 'Tap an item to see details';
 
 const CSS = `
 #inventory-toggle {
@@ -42,7 +48,7 @@ body.mobile #inventory-toggle { display: block; }
 .inventory-overlay.is-open { display: flex; }
 
 .inventory-panel {
-  width: min(92vw, 520px);
+  width: min(94vw, 680px);
   max-height: 90vh;
   overflow: auto;
   background: rgba(16, 16, 18, 0.92);
@@ -81,6 +87,23 @@ body.mobile #inventory-toggle { display: block; }
   outline: none;
 }
 
+.inventory-body {
+  display: flex;
+  flex-direction: column;
+  gap: clamp(10px, 2vmin, 16px);
+}
+@media (min-width: 600px) {
+  .inventory-body {
+    flex-direction: row;
+    align-items: stretch;
+  }
+  .inventory-grid { flex: 1 1 auto; }
+  .inventory-detail {
+    flex: 0 0 200px;
+    width: 200px;
+  }
+}
+
 .inventory-grid {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
@@ -104,6 +127,10 @@ body.mobile #inventory-toggle { display: block; }
   border: 1px solid rgba(255, 255, 255, 0.2);
   border-radius: 8px;
   overflow: hidden;
+  cursor: pointer;
+  touch-action: manipulation;
+  user-select: none;
+  -webkit-user-select: none;
 }
 .inventory-slot:hover, .inventory-slot:focus {
   border-color: rgba(255, 255, 255, 0.55);
@@ -111,6 +138,11 @@ body.mobile #inventory-toggle { display: block; }
   outline: none;
 }
 .inventory-slot.filled { border-color: rgba(255, 255, 255, 0.4); }
+.inventory-slot.selected {
+  border-color: #f3d27a;
+  background: rgba(243, 210, 122, 0.14);
+  box-shadow: 0 0 0 2px rgba(243, 210, 122, 0.55);
+}
 .inventory-slot img, .inventory-slot .inventory-swatch {
   width: 70%;
   height: 70%;
@@ -138,6 +170,51 @@ body.mobile #inventory-toggle { display: block; }
   text-shadow: 0 1px 2px #000;
   pointer-events: none;
 }
+
+.inventory-detail {
+  box-sizing: border-box;
+  min-height: 88px;
+  padding: clamp(10px, 1.8vmin, 14px);
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 4px;
+}
+.inventory-detail-hint,
+.inventory-detail-empty {
+  margin: 0;
+  color: rgba(255, 255, 255, 0.65);
+  font-size: 14px;
+}
+.inventory-detail-top {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.inventory-detail-icon {
+  font-size: 28px;
+  line-height: 1;
+  flex: 0 0 auto;
+}
+.inventory-detail-name {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 650;
+}
+.inventory-detail-count {
+  margin: 0;
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.75);
+}
+.inventory-detail-desc {
+  margin: 6px 0 0;
+  font-size: 13px;
+  line-height: 1.4;
+  color: rgba(255, 255, 255, 0.82);
+}
 `;
 
 function ensureStyles() {
@@ -146,6 +223,20 @@ function ensureStyles() {
   style.id = STYLE_ID;
   style.textContent = CSS;
   document.head.appendChild(style);
+}
+
+function normalizeItem(entry) {
+  if (!entry) return null;
+  if (entry.id && ITEM_DEFS[entry.id]) {
+    const { id, ...extras } = entry;
+    return createItem(id, extras);
+  }
+  return { ...entry };
+}
+
+function shouldShowCount(item) {
+  if (!item || item.count == null) return false;
+  return item.id === 'cash' || item.count > 1;
 }
 
 function renderSlot(slot, item) {
@@ -181,10 +272,10 @@ function renderSlot(slot, item) {
     slot.appendChild(label);
   }
 
-  if (item.count != null && item.count > 1) {
+  if (shouldShowCount(item)) {
     const count = document.createElement('span');
     count.className = 'inventory-count';
-    count.textContent = String(item.count);
+    count.textContent = formatItemCount(item);
     slot.appendChild(count);
   }
 }
@@ -193,12 +284,15 @@ export function createInventory({
   slotCount = 16,
   container = document.body,
   canvas = null,
-  isStarted = null
+  isStarted = null,
+  items: initialItems = null,
+  onSelect = null
 } = {}) {
   ensureStyles();
 
   const items = Array.from({ length: slotCount }, () => null);
   let opened = false;
+  let selected = -1;
 
   const toggleBtn = document.createElement('button');
   toggleBtn.id = 'inventory-toggle';
@@ -227,8 +321,15 @@ export function createInventory({
   closeBtn.textContent = '\u00d7';
   header.append(title, closeBtn);
 
+  const body = document.createElement('div');
+  body.className = 'inventory-body';
+
   const grid = document.createElement('div');
   grid.className = 'inventory-grid';
+
+  const detail = document.createElement('div');
+  detail.className = 'inventory-detail';
+  detail.setAttribute('aria-live', 'polite');
 
   const slots = [];
   for (let i = 0; i < slotCount; i++) {
@@ -236,13 +337,15 @@ export function createInventory({
     slot.className = 'inventory-slot';
     slot.dataset.index = String(i);
     slot.tabIndex = 0;
+    slot.setAttribute('role', 'button');
     slot.render = () => renderSlot(slot, items[i]);
     slot.render();
     grid.appendChild(slot);
     slots.push(slot);
   }
 
-  panel.append(header, grid);
+  body.append(grid, detail);
+  panel.append(header, body);
   overlay.appendChild(panel);
   container.append(toggleBtn, overlay);
 
@@ -252,6 +355,87 @@ export function createInventory({
 
   function started() {
     return typeof isStarted === 'function' ? !!isStarted() : true;
+  }
+
+  function renderDetail() {
+    detail.replaceChildren();
+    if (selected < 0) {
+      const hint = document.createElement('p');
+      hint.className = 'inventory-detail-hint';
+      hint.textContent = HINT;
+      detail.appendChild(hint);
+      return;
+    }
+
+    const item = items[selected];
+    if (!item) {
+      const empty = document.createElement('p');
+      empty.className = 'inventory-detail-empty';
+      empty.textContent = 'Empty slot';
+      detail.appendChild(empty);
+      return;
+    }
+
+    const top = document.createElement('div');
+    top.className = 'inventory-detail-top';
+    if (item.icon && !/^(https?:|data:|blob:|\.\/|\.\.\/|\/)/.test(String(item.icon))) {
+      const icon = document.createElement('div');
+      icon.className = 'inventory-detail-icon';
+      icon.textContent = item.icon;
+      top.appendChild(icon);
+    } else if (item.icon) {
+      const img = document.createElement('img');
+      img.className = 'inventory-detail-icon';
+      img.src = item.icon;
+      img.alt = item.name || '';
+      top.appendChild(img);
+    } else if (item.color) {
+      const swatch = document.createElement('span');
+      swatch.className = 'inventory-swatch inventory-detail-icon';
+      swatch.style.background = item.color;
+      top.appendChild(swatch);
+    }
+
+    const heading = document.createElement('div');
+    const name = document.createElement('h3');
+    name.className = 'inventory-detail-name';
+    name.textContent = item.name || 'Item';
+    heading.appendChild(name);
+    if (item.count != null) {
+      const count = document.createElement('p');
+      count.className = 'inventory-detail-count';
+      count.textContent = formatItemCount(item);
+      heading.appendChild(count);
+    }
+    top.appendChild(heading);
+    detail.appendChild(top);
+
+    if (item.description) {
+      const desc = document.createElement('p');
+      desc.className = 'inventory-detail-desc';
+      desc.textContent = item.description;
+      detail.appendChild(desc);
+    }
+  }
+
+  function selectSlot(index) {
+    if (index == null || index === -1) {
+      selected = -1;
+    } else {
+      const i = Number(index);
+      if (i < 0 || i >= slotCount || Number.isNaN(i)) return;
+      selected = i;
+    }
+    slots.forEach((s, i) => s.classList.toggle('selected', i === selected));
+    renderDetail();
+    const payload = selected < 0 ? { index: -1, item: null } : { index: selected, item: items[selected] };
+    if (typeof onSelect === 'function') onSelect(payload);
+    window.dispatchEvent(new CustomEvent('inventory-select', { detail: payload }));
+  }
+
+  function getSelected() {
+    if (selected < 0) return null;
+    return { index: selected, item: items[selected] };
   }
 
   function open() {
@@ -285,13 +469,51 @@ export function createInventory({
 
   function setItem(index, item) {
     if (index < 0 || index >= slotCount) return;
-    items[index] = item || null;
+    items[index] = normalizeItem(item);
     slots[index].render();
+    if (selected === index) renderDetail();
   }
 
   function getItems() {
     return items.slice();
   }
+
+  if (initialItems) {
+    initialItems.forEach((entry, i) => {
+      if (i < slotCount) {
+        items[i] = normalizeItem(entry);
+        slots[i].render();
+      }
+    });
+  }
+  renderDetail();
+
+  function onSlotActivate(e) {
+    e.stopPropagation();
+    selectSlot(Number(e.currentTarget.dataset.index));
+  }
+  slots.forEach((slot) => {
+    // click covers mouse and (because document touch handlers do not
+    // preventDefault) the synthetic click that follows a mobile tap.
+    // pointerup handles touch in case the click is suppressed; skip
+    // mouse here so we do not select twice (pointerup + click).
+    let choseOnPointer = false;
+    slot.addEventListener('pointerup', (e) => {
+      if (e.pointerType === 'mouse') return;
+      choseOnPointer = true;
+      onSlotActivate(e);
+    });
+    slot.addEventListener('click', (e) => {
+      if (choseOnPointer) { choseOnPointer = false; return; }
+      onSlotActivate(e);
+    });
+    slot.addEventListener('keydown', (e) => {
+      if (e.code === 'Enter' || e.code === 'Space') {
+        e.preventDefault();
+        selectSlot(Number(slot.dataset.index));
+      }
+    });
+  });
 
   closeBtn.addEventListener('click', (e) => {
     e.stopPropagation();
@@ -325,6 +547,8 @@ export function createInventory({
     isOpen,
     setItem,
     getItems,
+    selectSlot,
+    getSelected,
     element: overlay
   };
 }
