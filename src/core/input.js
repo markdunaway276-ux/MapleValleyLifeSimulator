@@ -1,9 +1,21 @@
-export function setupInput(player, isMobile) {
+export function setupInput(player, isMobile, { isInventoryOpen } = {}) {
   const keys = player.keys;
+  const blocked = () => isInventoryOpen && isInventoryOpen();
+
+  function clearMotion() {
+    keys.forward = keys.back = keys.left = keys.right = keys.jump = false;
+    player.mouseX = 0;
+    player.mouseY = 0;
+    player.joystickX = 0;
+    player.joystickY = 0;
+  }
+  window.addEventListener('inventory-open', clearMotion);
+
 
   if (isMobile) document.body.classList.add('mobile');
 
   document.addEventListener('keydown', (e) => {
+    if (blocked()) return;
     switch (e.code) {
       case 'KeyW': case 'ArrowUp': keys.forward = true; break;
       case 'KeyS': case 'ArrowDown': keys.back = true; break;
@@ -25,6 +37,7 @@ export function setupInput(player, isMobile) {
   });
 
   document.addEventListener('mousemove', (e) => {
+    if (blocked()) return;
     if (document.pointerLockElement) {
       player.mouseX = e.movementX;
       player.mouseY = e.movementY;
@@ -39,12 +52,23 @@ export function setupInput(player, isMobile) {
     let lookTouch = null;
     let lastLookX = 0, lastLookY = 0;
 
+    window.addEventListener('inventory-open', () => {
+      joystickActive = false;
+      lookTouch = null;
+      if (knob) {
+        knob.style.left = '35px';
+        knob.style.top = '35px';
+      }
+    });
+
     joystick.addEventListener('touchstart', (e) => {
+      if (blocked()) return;
       e.preventDefault();
       joystickActive = true;
       updateJoystick(e.touches[0]);
     });
     joystick.addEventListener('touchmove', (e) => {
+      if (blocked()) return;
       e.preventDefault();
       if (joystickActive) updateJoystick(e.touches[0]);
     });
@@ -74,6 +98,7 @@ export function setupInput(player, isMobile) {
     }
 
     document.addEventListener('touchstart', (e) => {
+      if (blocked()) return;
       if (e.target === joystick || joystick.contains(e.target)) return;
       if (e.touches.length === 1) {
         lookTouch = e.touches[0].identifier;
@@ -82,6 +107,7 @@ export function setupInput(player, isMobile) {
       }
     });
     document.addEventListener('touchmove', (e) => {
+      if (blocked()) return;
       for (const t of e.changedTouches) {
         if (t.identifier === lookTouch) {
           player.mouseX = t.clientX - lastLookX;
