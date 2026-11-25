@@ -17,7 +17,11 @@ const quality = {
 const renderer = new THREE.WebGLRenderer({ antialias: !isMobile });
 renderer.setPixelRatio(quality.pixelRatio);
 renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.1;
 renderer.shadowMap.enabled = quality.shadows;
+if (quality.shadows) renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 document.body.appendChild(renderer.domElement);
 
 const scene = createScene(quality);
