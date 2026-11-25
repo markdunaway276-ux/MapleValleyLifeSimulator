@@ -41,6 +41,15 @@ window.addEventListener('resize', () => {
   renderer.setSize(window.innerWidth, window.innerHeight);
 });
 
+// Interact only when close to door
+const door = scene.userData.door;
+window.addEventListener('interact', () => {
+  if (door && player.position.distanceTo(door.position) < 3) {
+    door.userData.open = !door.userData.open;
+    door.rotation.y = door.userData.open ? Math.PI / 2 : 0;
+  }
+});
+
 let lastTime = performance.now();
 function animate() {
   requestAnimationFrame(animate);

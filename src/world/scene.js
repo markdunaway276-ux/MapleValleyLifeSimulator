@@ -13,7 +13,7 @@ export function createScene(quality) {
   ground.receiveShadow = quality.shadows;
   scene.add(ground);
 
-  // Simple house (placeholder — later swap with your Quaternius / Elbolilloduro models)
+  // House body
   const houseGeo = new THREE.BoxGeometry(6, 4, 8);
   const houseMat = new THREE.MeshStandardMaterial({ color: 0xd2b48c });
   const house = new THREE.Mesh(houseGeo, houseMat);
@@ -30,6 +30,16 @@ export function createScene(quality) {
   roof.rotation.y = Math.PI / 4;
   roof.castShadow = quality.shadows;
   scene.add(roof);
+
+  // Door
+  const doorGeo = new THREE.BoxGeometry(1.4, 2.4, 0.1);
+  const doorMat = new THREE.MeshStandardMaterial({ color: 0x654321 });
+  const door = new THREE.Mesh(doorGeo, doorMat);
+  door.position.set(0, 1.2, -6);
+  door.castShadow = quality.shadows;
+  scene.add(door);
+  door.userData.isDoor = true;
+  door.userData.open = false;
 
   // Lighting
   const ambient = new THREE.AmbientLight(0xffffff, 0.6);
@@ -50,5 +60,6 @@ export function createScene(quality) {
   }
   scene.add(sun);
 
+  scene.userData.door = door;
   return scene;
 }
