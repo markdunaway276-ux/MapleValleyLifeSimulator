@@ -65,6 +65,24 @@ body.mobile #debug-menu .dm-key { display: none; }
 #debug-menu .dm-danger.is-armed { background: #7a1f1a; border-color: #ff6b61; }
 #debug-menu .dm-foot { margin: 10px 4px 0; font-size: 12px; color: #8b8b95; }
 
+
+#debug-menu .dm-section { margin-top: 8px; border: 1px solid #44444c; border-radius: 10px; background: #222228; overflow: hidden; }
+#debug-menu .dm-section-toggle {
+  box-sizing: border-box; width: 100%; min-height: 52px; padding: 8px 14px; margin: 0;
+  display: flex; align-items: center; justify-content: space-between; gap: 10px; text-align: left;
+  background: #2a2a30; border: 0; border-bottom: 1px solid #44444c;
+}
+#debug-menu .dm-chevron { flex: 0 0 auto; font-size: 18px; color: #c8c8d0; transition: transform 0.15s; }
+#debug-menu .dm-section.is-open .dm-chevron { transform: rotate(180deg); }
+#debug-menu .dm-sublist { display: none; padding: 0 8px 8px; }
+#debug-menu .dm-section.is-open .dm-sublist { display: block; }
+#debug-menu .dm-subrow {
+  box-sizing: border-box; width: 100%; min-height: 48px; margin-top: 6px; padding: 8px 14px;
+  display: flex; align-items: center; justify-content: space-between; gap: 10px; text-align: left;
+  background: #2a2a30; border: 1px solid #3a3a44; border-radius: 10px; font-weight: 600;
+}
+#debug-menu .dm-subrow:active { background: #35353d; }
+
 #debug-toast {
   position: fixed; left: 50%; bottom: max(80px, 18vh); transform: translateX(-50%); z-index: 65;
   max-width: 90vw; padding: 8px 14px; border-radius: 8px; font: 600 14px system-ui, sans-serif; color: #fff;
@@ -85,13 +103,13 @@ function ensureStyles() {
 export const MENU_ITEMS = [
   { id: 'overlay', type: 'toggle', label: 'FPS & position overlay', key: 'F3' },
   { id: 'collision', type: 'toggle', label: 'Collision boxes', key: 'F4' },
+  { id: 'highlight', type: 'toggle', label: 'Highlight interactables', key: 'Shift+F4' },
   { id: 'perf', type: 'toggle', label: 'Perf stats (draw calls)', key: 'Shift+F3' },
   { id: 'screenshot', type: 'action', label: 'Screenshot + markup', key: 'F9' },
-  { id: 'teleport', type: 'action', label: 'Teleport to street start', key: 'F8' },
   { id: 'clearSave', type: 'action', label: 'Clear saved game', key: 'Shift+F8 twice', danger: true }
 ];
 
-export function createDebugMenu({ actions, getState, onOpen = () => {}, onClose = () => {}, container = document.body }) {
+export function createDebugMenu({ actions, getState, getTeleports = () => [], onOpen = () => {}, onClose = () => {}, container = document.body }) {
   ensureStyles();
 
   const button = document.createElement('button');
@@ -173,17 +191,70 @@ export function createDebugMenu({ actions, getState, onOpen = () => {}, onClose 
       }
       rows[item.id] = { row, label, item };
       panel.appendChild(row);
+      if (item.id === 'screenshot') panel.appendChild(buildTeleportSection());
     }
 
     const foot = document.createElement('div');
     foot.className = 'dm-foot';
-    foot.textContent = 'Keys: F2 or ` menu • F3 overlay • Shift+F3 perf • F4 collision • F8 teleport • Shift+F8 clear save • F9 screenshot';
+    foot.textContent = 'Keys: F2 or ` menu • F3 overlay • Shift+F3 perf • F4 collision • Shift+F4 highlight • F8 street start • Shift+F8 clear save • F9 screenshot';
     panel.appendChild(foot);
 
     root.appendChild(panel);
     root.addEventListener('click', (e) => { if (e.target === root) close(); });
     root.addEventListener('touchstart', (e) => e.stopPropagation(), { passive: true });
     container.appendChild(root);
+  }
+
+
+  function buildTeleportSection() {
+    const section = document.createElement('div');
+    section.className = 'dm-section is-open';
+    section.dataset.item = 'teleports';
+    const toggle = document.createElement('button');
+    toggle.type = 'button';
+    toggle.className = 'dm-section-toggle';
+    toggle.setAttribute('aria-expanded', 'true');
+    const title = document.createElement('span');
+    title.className = 'dm-label';
+    title.textContent = 'Teleport';
+    const chev = document.createElement('span');
+    chev.className = 'dm-chevron';
+    chev.textContent = '▾';
+    toggle.append(title, chev);
+    toggle.addEventListener('click', () => {
+      const open = !section.classList.contains('is-open');
+      section.classList.toggle('is-open', open);
+      toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+    });
+    const list = document.createElement('div');
+    list.className = 'dm-sublist';
+    const presets = getTeleports() || [];
+    for (const p of presets) {
+      const row = document.createElement('button');
+      row.type = 'button';
+      row.className = 'dm-subrow';
+      row.dataset.item = p.id;
+      row.dataset.teleport = p.id;
+      const label = document.createElement('span');
+      label.className = 'dm-label';
+      label.textContent = p.label;
+      if (p.key) {
+        const key = document.createElement('span');
+        key.className = 'dm-key';
+        key.textContent = p.key;
+        label.appendChild(key);
+      }
+      row.appendChild(label);
+      row.addEventListener('click', () => {
+        close();
+        if (typeof actions.teleportTo === 'function') actions.teleportTo(p.id);
+        else if (p.id === 'street-start' && actions.teleport) actions.teleport();
+      });
+      rows[p.id] = { row, label, item: p };
+      list.appendChild(row);
+    }
+    section.append(toggle, list);
+    return section;
   }
 
   function resetConfirm() {
@@ -210,7 +281,7 @@ export function createDebugMenu({ actions, getState, onOpen = () => {}, onClose 
   function refresh() {
     if (!root) return;
     const state = getState();
-    for (const id of ['overlay', 'collision', 'perf']) {
+    for (const id of ['overlay', 'collision', 'highlight', 'perf']) {
       if (rows[id]) rows[id].row.setAttribute('aria-checked', state[id] ? 'true' : 'false');
     }
   }

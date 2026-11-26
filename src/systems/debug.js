@@ -1,4 +1,6 @@
 import { createCollisionViz } from './collisionViz.js';
+import { createInteractableHighlight } from './interactableHighlight.js';
+import { TELEPORT_PRESETS, resolveTeleport } from './teleports.js';
 import { createDebugOverlay } from '../ui/debugOverlay.js';
 import { createDebugMenu } from '../ui/debugMenu.js';
 import { createFeedback, snapshotCanvas } from '../ui/feedback.js';
@@ -8,8 +10,11 @@ import { createFeedback, snapshotCanvas } from '../ui/feedback.js';
  *   - corner "Debug" button (visible after Start) -> touch-friendly menu
  *   - FPS / position / quality-tier overlay, perf stats (draw calls, triangles)
  *   - collision visualizer
+ *   - interactable highlighter (doors + scene.userData.interactables)
  *   - screenshot + markup (src/ui/feedback.js)
- *   - teleport to street start, clear save (with confirm)
+ *   - teleport list (street start, doors, street ends, parked car)
+ *   - clear save (with confirm)
+ * Further ideas: DEBUG-TODO.md
  * While nothing is toggled on, update() only compares one boolean per frame.
  *
  * Keys (desktop; also on Mac via fn):
@@ -17,6 +22,7 @@ import { createFeedback, snapshotCanvas } from '../ui/feedback.js';
  *   F3        FPS / position / tier overlay
  *   Shift+F3  perf stats (draw calls, triangles, geometries, textures)
  *   F4        collision visualizer
+ *   Shift+F4  interactable highlighter
  *   F8        teleport to street start
  *   Shift+F8  clear saved game (press twice within 4 s to confirm)
  *   F9        screenshot + markup
@@ -27,6 +33,7 @@ export const DEBUG_KEYS = {
   overlay: 'F3',
   perf: 'Shift+F3',
   collision: 'F4',
+  highlight: 'Shift+F4',
   teleport: 'F8',
   clearSave: 'Shift+F8 (twice)',
   screenshot: 'F9'
@@ -59,11 +66,12 @@ export function createDebug({
   container = document.body,
   now = () => performance.now()
 }) {
-  const state = { overlay: false, collision: false, perf: false };
+  const state = { overlay: false, collision: false, highlight: false, perf: false };
   const tier = quality.tier || (isMobile ? 'mobile' : 'desktop');
 
   let overlay = null;
   let viz = null;
+  let highlighter = null;
   let frames = 0;
   let lastTick = 0;
   let fps = 0;
@@ -74,12 +82,15 @@ export function createDebug({
     actions: {
       overlay: () => toggleOverlay(),
       collision: () => toggleCollision(),
+      highlight: () => toggleHighlight(),
       perf: () => togglePerf(),
       screenshot: () => screenshot(),
       teleport: () => teleportToStart(),
+      teleportTo: (id) => teleportTo(id),
       clearSave: () => clearSave()
     },
     getState: () => state,
+    getTeleports: () => TELEPORT_PRESETS,
     onOpen: modalOpened,
     onClose: modalClosed,
     container
@@ -94,7 +105,7 @@ export function createDebug({
   });
 
   function active() {
-    return state.overlay || state.collision || state.perf;
+    return state.overlay || state.collision || state.highlight || state.perf;
   }
 
   function isModalOpen() {
@@ -156,6 +167,7 @@ export function createDebug({
       }
     }
     if (state.collision && viz) lines.push(`colliders ${viz.count()}`);
+    if (state.highlight && highlighter) lines.push(`interactables ${highlighter.count()}`);
     return lines.join('\n');
   }
 
@@ -204,22 +216,28 @@ export function createDebug({
     return state.collision;
   }
 
-  function teleportToStart({ save = true, quiet = false } = {}) {
-    const s = getSpawn();
-    let x = s.x;
-    let z = s.z;
-    const world = getWorld();
-    if (world && typeof world.resolvePosition === 'function') {
-      const r = world.resolvePosition(x, z, player.radius || 0.32);
-      x = r.x;
-      z = r.z;
+  function toggleHighlight(next = !state.highlight) {
+    state.highlight = !!next;
+    if (state.highlight) {
+      if (!highlighter) highlighter = createInteractableHighlight({ scene, getPlayer: () => player });
+      highlighter.enable();
+      highlighter.update(player.position);
+    } else if (highlighter) {
+      highlighter.disable();
     }
-    player.position.set(x, s.y, z);
+    restartClock();
+    refreshOverlay();
+    menu.refresh();
+    return state.highlight;
+  }
+
+  function applyPose(x, y, z, yaw = 0, { save = true } = {}) {
+    player.position.set(x, y, z);
     if (player.velocity && typeof player.velocity.set === 'function') player.velocity.set(0, 0, 0);
     player.onGround = true;
     if (player.rotation) {
       player.rotation.x = 0;
-      player.rotation.y = 0;
+      player.rotation.y = yaw;
     }
     if (camera) {
       camera.position.copy(player.position);
@@ -231,8 +249,29 @@ export function createDebug({
       saveApi.saveGame({ position: { x: player.position.x, y: player.position.y, z: player.position.z } });
     }
     if (viz && viz.isEnabled()) viz.updatePlayer(player.position);
-    if (!quiet) menu.toast('Teleported to street start');
-    return { x, y: s.y, z };
+    if (highlighter && highlighter.isEnabled()) highlighter.update(player.position);
+    return { x, y, z, yaw };
+  }
+
+  function teleportTo(id, { save = true, quiet = false } = {}) {
+    const world = getWorld();
+    const pose = resolveTeleport(id, scene, world, player.radius || 0.32);
+    if (!pose) {
+      if (!quiet) menu.toast('Could not teleport there');
+      return null;
+    }
+    applyPose(pose.x, pose.y, pose.z, pose.yaw, { save });
+    if (!quiet) menu.toast('Teleported to ' + pose.label);
+    return pose;
+  }
+
+  function teleportToStart(opts = {}) {
+    const result = teleportTo('street-start', opts);
+    if (result && opts.quiet) return { x: result.x, y: result.y, z: result.z };
+    if (result) return { x: result.x, y: result.y, z: result.z, yaw: result.yaw };
+    // Fallback if the preset list is missing.
+    const s = getSpawn();
+    return applyPose(s.x, s.y, s.z, 0, { save: opts.save !== false });
   }
 
   /** Remove the saved game and put the player back at the street start. The next autosave writes a fresh save. */
@@ -291,7 +330,7 @@ export function createDebug({
         break;
       case 'F4':
         e.preventDefault();
-        toggleCollision();
+        if (e.shiftKey) toggleHighlight(); else toggleCollision();
         break;
       case 'F8':
         e.preventDefault();
@@ -317,6 +356,7 @@ export function createDebug({
     if (!active()) return;
     frames++;
     if (viz && viz.isEnabled()) viz.updatePlayer(player.position);
+    if (highlighter && highlighter.isEnabled()) highlighter.update(player.position);
     const t = now();
     const dt = t - lastTick;
     if (dt >= TEXT_REFRESH_MS) {
@@ -324,6 +364,7 @@ export function createDebug({
       frames = 0;
       lastTick = t;
       if (viz && viz.isEnabled()) viz.sync();
+      if (highlighter && highlighter.isEnabled()) highlighter.sync();
       refreshOverlay();
     }
   }
@@ -336,6 +377,7 @@ export function createDebug({
   function dispose() {
     window.removeEventListener('keydown', onKeyDown);
     if (viz) viz.disable();
+    if (highlighter) highlighter.disable();
   }
 
   return {
@@ -347,7 +389,9 @@ export function createDebug({
     toggleOverlay,
     togglePerf,
     toggleCollision,
+    toggleHighlight,
     teleportToStart,
+    teleportTo,
     clearSave,
     requestClearSave,
     screenshot,
@@ -358,6 +402,7 @@ export function createDebug({
     update,
     refresh,
     dispose,
-    captionMeta
+    captionMeta,
+    get highlighter() { return highlighter; }
   };
 }
