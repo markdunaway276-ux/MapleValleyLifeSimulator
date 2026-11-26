@@ -13,6 +13,7 @@ export function setupInput(player, isMobile, { isInventoryOpen } = {}) {
   window.addEventListener('debug-modal-open', clearMotion);
   window.addEventListener('sleep-start', clearMotion);
   window.addEventListener('phone-open', clearMotion);
+  window.addEventListener('pause-open', clearMotion);
 
 
   if (isMobile) document.body.classList.add('mobile');
@@ -68,6 +69,7 @@ export function setupInput(player, isMobile, { isInventoryOpen } = {}) {
     window.addEventListener('debug-modal-open', resetTouch);
     window.addEventListener('sleep-start', resetTouch);
     window.addEventListener('phone-open', resetTouch);
+    window.addEventListener('pause-open', resetTouch);
 
     joystick.addEventListener('touchstart', (e) => {
       if (blocked()) return;
