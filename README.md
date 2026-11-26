@@ -18,6 +18,7 @@ Modular Three.js web game. Runs in any browser (PC + phone).
 Push any change and the link updates in ~1 minute. Open it on your phone anytime.
 
 ## Structure
+- `vendor/three/` — a copy of three.js r169 (the build plus the add-ons the game uses), so the game loads offline and never depends on the unpkg CDN; `index.html`'s import map points here (see `vendor/README.md` before importing a new add-on)
 - `src/main.js` — entry, quality detection, loop
 - `src/core/` — player + input, and phone / tablet detection (`device.js`: goes by the device, not the window width; add `?mobile=1` or `?mobile=0` to the URL to force one or the other while testing)
 - `src/world/` — scene building (`interior.js` = the walk-in interior of the main house: floors, partitions, furniture, doorway colliders; `pickups.js` = snack and mailbox; `vending.js` = sidewalk vending machine; `playerBody.js` = the first-person stand-in body; `npc.js` = sidewalk neighbours; `props.js` = the car model; `rain.js` = the light-rain streaks; `palette.js` = every world colour, surface preset, bevel / AO size and the renderer + shadow tuning; `shapes.js` = rounded boxes; `surfaces.js` = the per-vertex roughness material hook and baked foot AO; `parts.js` = the merged-geometry `Parts` builder; `textures.js` = the tiling canvas ground, road and sidewalk textures; `contact.js` = the contact-shadow blobs; `details.js` = door slabs, window glass and the main-house frames; `street.js` = the street layout and surface heights)
