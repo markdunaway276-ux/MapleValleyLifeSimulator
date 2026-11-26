@@ -232,7 +232,7 @@ window.addEventListener('interact', () => {
       picked: !!ud.picked,
       letterTaken: !!(ud.mail && ud.mail.letterTaken)
     };
-    activateTarget(target, { inventory, scene, player, sfx, sleep: () => sleeper.start(), work: () => worker.start() });
+    activateTarget(target, { inventory, scene, player, sfx, money, toast: (msg) => hudMoney.toast(msg), sleep: () => sleeper.start(), work: () => worker.start() });
     cueInteract(sfx, target, before);
     prompt.update();
     if (!sleeper.isSleeping() && !worker.isWorking()) saveGame(gameState());

@@ -7,6 +7,7 @@ import { createDesk } from '../systems/work.js';
 import { scatterTrees, TREE_PLACEMENTS } from './trees.js';
 import { createParkedCar } from './props.js';
 import { createSnackPickup, createMailbox, MAILBOX_SPAWN, SNACK_SPAWN, mailboxCollider } from './pickups.js';
+import { createVendingMachine, VENDING_SPAWN, vendingCollider } from './vending.js';
 import { createColliderWorld } from '../systems/collision.js';
 import { createHingedDoor } from '../systems/doors.js';
 import { createWorldState } from '../systems/interactables.js';
@@ -450,6 +451,21 @@ export function createScene(quality) {
     }
   });
   scene.userData.mailbox = mailbox;
+
+  const vending = createVendingMachine({ shadows: quality.shadows });
+  vending.position.set(VENDING_SPAWN.x, 0, VENDING_SPAWN.z);
+  pickups.add(vending);
+  colliders.addHouse(vendingCollider(vending));
+  scene.userData.interactables.push({
+    id: 'vending',
+    kind: 'vending',
+    object: vending,
+    getPoint: () => {
+      vending.updateMatrixWorld(true);
+      return vending.localToWorld(vending.userData.interactLocal.clone());
+    }
+  });
+  scene.userData.vending = vending;
 
   // Real house model (Kenney City Kit Suburban, CC0). The procedural house
   // and the standalone door above stay as a fallback until the model has loaded.

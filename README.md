@@ -20,9 +20,9 @@ Push any change and the link updates in ~1 minute. Open it on your phone anytime
 ## Structure
 - `src/main.js` — entry, quality detection, loop
 - `src/core/` — player + input
-- `src/world/` — scene building (`interior.js` = the walk-in interior of the main house: floors, partitions, furniture, doorway colliders; `pickups.js` = snack and mailbox)
-- `src/data/` — item definitions (`items.js`) and job definitions (`jobs.js`)
-- `src/systems/` — save, collision, doors, interactables, game clock (`time.js`), sound (`sfx.js`), sleep (`sleep.js`), needs (`needs.js`), money (`money.js`), work (`work.js`), and optional debug tools (`debug.js`, `collisionViz.js`)
+- `src/world/` — scene building (`interior.js` = the walk-in interior of the main house: floors, partitions, furniture, doorway colliders; `pickups.js` = snack and mailbox; `vending.js` = sidewalk vending machine)
+- `src/data/` — item definitions (`items.js`), job definitions (`jobs.js`) and shop stock (`shops.js`)
+- `src/systems/` — save, collision, doors, interactables, game clock (`time.js`), sound (`sfx.js`), sleep (`sleep.js`), needs (`needs.js`), money (`money.js`), work (`work.js`), shops (`shop.js`), and optional debug tools (`debug.js`, `collisionViz.js`)
 - `src/ui/` — inventory, door prompt, HUD screenshot button (`hudScreenshot.js`), HUD clock, mute, needs and cash (`hudClock.js`, `hudMute.js`, `hudNeeds.js`, `hudMoney.js`), and debug UI (`debugMenu.js`, `debugOverlay.js`, `feedback.js`)
 
 ## Main house interior
@@ -50,6 +50,10 @@ A small desk with a laptop sits against the east wall of the main house's front 
 
 ## Sleep
 Walk up to the bed in the main house's west bedroom and press E (or tap the prompt) to sleep. The screen fades to black, the game clock jumps to 07:00 the next morning (or the same day's 07:00 if it is still earlier than that), and you fade back in with a short "You slept." toast. Lighting and the HUD clock update immediately, and the new time is saved. A quiet sleep sound plays. Later systems (for example Energy) can listen for the `maple-slept` event or an `onSlept` hook.
+
+
+## Vending
+A small vending machine stands on the south sidewalk west of the main house's front door (the mailbox is on the east side), clear of the door path and the parked car. Walk up and press E (or tap the prompt: **Press E to buy Snack ($5)** / **Tap to buy Snack ($5)**). If you can afford it, $5 is spent, a Snack is added to your bag (it stacks), and you get a "-$5 · Snack" toast with a short vending sound. If you cannot, you see "Not enough cash." and nothing changes. The machine's front panel stays lit at night. Stock is defined in `src/data/shops.js` so later items or shops can plug in; cash and the bag are saved as usual.
 
 ## Pickups
 A snack sits on the dining table inside the main house: walk up and press E (or tap the prompt) to add it to your bag — it stacks with the snacks you already have, then disappears from the table and stays gone after a save and reload. A mailbox stands on the sidewalk in front of the house (east of the front door). Opening it toggles the lid and, the first time, gives you a Letter. Once per in-game day a small cash letter ($5–$15) also arrives; opening the mailbox collects it. Daily mail hooks into the mailbox's `userData.mail` (`pending`, `onOpen`) without changing this path.
