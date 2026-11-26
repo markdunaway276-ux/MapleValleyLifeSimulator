@@ -6,13 +6,15 @@ import { formatCash } from '../../systems/money.js';
 import { renderStyleApp } from './style.js';
 import { renderCalendarApp } from './calendar.js';
 import { renderSkillsApp } from './skills.js';
+import { renderMessagesApp } from './messages.js';
 
 export const PHONE_APPS = [
   {
     id: 'messages',
     name: 'Messages',
     icon: '💬',
-    placeholder: 'No new messages.'
+    placeholder: 'No new messages.',
+    render: renderMessagesApp
   },
   {
     id: 'bank',

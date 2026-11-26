@@ -106,7 +106,8 @@ export function createWorldState(scene) {
         letter: !!state.taken.letter,
         mailboxOpen: !!(mb && mb.userData && mb.userData.open),
         mailPending: mail && Array.isArray(mail.pending) ? mail.pending.map((p) => ({ ...p })) : [],
-        lastMailDay: mail && mail.lastMailDay != null ? mail.lastMailDay : 0
+        lastMailDay: mail && mail.lastMailDay != null ? mail.lastMailDay : 0,
+        emptyStreak: mail && mail.emptyStreak != null ? mail.emptyStreak | 0 : 0
       };
     },
     apply(data) {
@@ -121,6 +122,7 @@ export function createWorldState(scene) {
         mb.userData.mail.letterTaken = !!state.taken.letter;
         if (Array.isArray(pickups.mailPending)) mb.userData.mail.pending = pickups.mailPending.map((p) => ({ ...p }));
         if (pickups.lastMailDay != null) mb.userData.mail.lastMailDay = pickups.lastMailDay;
+        if (pickups.emptyStreak != null) mb.userData.mail.emptyStreak = pickups.emptyStreak | 0;
         if (pickups.mailboxOpen && !mb.userData.open) {
           mb.userData.open = true;
           if (typeof mb.userData.applyPose === 'function') mb.userData.applyPose(true);

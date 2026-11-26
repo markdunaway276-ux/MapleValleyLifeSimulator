@@ -18,7 +18,8 @@ import { createHudMute } from './ui/hudMute.js';
 import { createSleep } from './systems/sleep.js';
 import { createNeeds } from './systems/needs.js';
 import { createHudNeeds } from './ui/hudNeeds.js';
-import { createMoney, extractCashFromItems, attachMailboxMoney, queueDailyMail } from './systems/money.js';
+import { createMoney, extractCashFromItems, attachMailboxMoney } from './systems/money.js';
+import { queueMail, createInbox } from './data/mail.js';
 import { createHudMoney } from './ui/hudMoney.js';
 import { createWork } from './systems/work.js';
 import { createPhone } from './ui/phone/phone.js';
@@ -112,6 +113,9 @@ const bagCash = extractCashFromItems(fromSaveBag ? saveData.inventory : []);
 const money = createMoney();
 if (saveData.money != null) money.apply(saveData);
 else if (fromSaveBag && bagCash.cash) money.set(bagCash.cash);
+
+const inbox = createInbox();
+if (saveData.inbox) inbox.apply(saveData.inbox);
 
 const appearance = createAppearance();
 if (saveData.appearance) appearance.apply(saveData);
@@ -247,7 +251,9 @@ phone = createPhone({
   getWeather: () => weather.get(),
   onWeatherChange: (fn) => weather.onChange(fn),
   getSkills: () => skills.get(),
-  onSkillsChange: (fn) => skills.onChange(fn)
+  onSkillsChange: (fn) => skills.onChange(fn),
+  getInbox: () => inbox.get(),
+  onInboxChange: (fn) => inbox.onChange(fn)
 });
 
 dialogue = createDialogue({
@@ -331,13 +337,21 @@ attachMailboxMoney({
   mailbox,
   money,
   sfx,
-  toast: (msg) => hudMoney.toast(msg)
+  toast: (msg) => hudMoney.toast(msg),
+  inbox,
+  inventory
 });
 window.addEventListener('maple-new-day', (e) => {
   const mail = mailbox && mailbox.userData && mailbox.userData.mail;
   const day = e && e.detail && e.detail.day;
-  queueDailyMail(mail, day);
+  queueMail(mail, day);
+  if (!sleeper.isSleeping() && !worker.isWorking()) saveGame(gameState());
 });
+{
+  const mailState = mailbox && mailbox.userData && mailbox.userData.mail;
+  const dayNow = clock.getTime().day;
+  if (mailState && dayNow >= 2 && mailState.lastMailDay !== dayNow) queueMail(mailState, dayNow);
+}
 
 const prompt = createInteractPrompt({
   isMobile,
@@ -379,7 +393,8 @@ function gameState() {
     money: money.serialize(),
     appearance: appearance.serialize(),
     weather: weather.serialize(),
-    skills: skills.serialize()
+    skills: skills.serialize(),
+    inbox: inbox.serialize()
   };
 }
 

@@ -192,6 +192,38 @@ body.mobile #hud-phone {
   font: 15px/1.45 system-ui, sans-serif;
   color: rgba(255, 255, 255, 0.82);
 }
+.phone-messages {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 0 0 8px;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+.phone-message {
+  box-sizing: border-box;
+  min-height: 44px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.08);
+}
+.phone-message-from {
+  font: 650 14px/1.3 system-ui, sans-serif;
+}
+.phone-message-day {
+  margin-top: 2px;
+  font: 600 11px/1.2 system-ui, sans-serif;
+  color: rgba(255, 255, 255, 0.62);
+}
+.phone-message-body {
+  margin: 6px 0 0;
+  font: 14px/1.45 system-ui, sans-serif;
+  color: rgba(255, 255, 255, 0.9);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
 .phone-bank-label {
   margin: 4px 0 0;
   font: 600 13px/1.2 system-ui, sans-serif;
@@ -258,7 +290,9 @@ export function createPhone({
   getWeather = null,
   onWeatherChange = null,
   getSkills = null,
-  onSkillsChange = null
+  onSkillsChange = null,
+  getInbox = null,
+  onInboxChange = null
 } = {}) {
   ensureStyles();
 
@@ -330,6 +364,8 @@ export function createPhone({
     onWeatherChange: typeof onWeatherChange === 'function' ? onWeatherChange : null,
     getSkills: typeof getSkills === 'function' ? getSkills : null,
     onSkillsChange: typeof onSkillsChange === 'function' ? onSkillsChange : null,
+    getInbox: typeof getInbox === 'function' ? getInbox : null,
+    onInboxChange: typeof onInboxChange === 'function' ? onInboxChange : null,
     clock: clock || null
   };
 

@@ -2,9 +2,10 @@
  * Player cash for Maple Valley. One wallet (not an inventory stack).
  * Later systems (work, vending) can call get, add, spend, canAfford, or onChange.
  *
- * Daily mail: once per in-game day (time.js newDay / maple-new-day) a payment
- * of MAIL_MIN–MAIL_MAX is queued on the mailbox's userData.mail.pending.
- * Opening the mailbox collects it (the first-time Letter is unchanged).
+ * Daily mail: once per in-game day the live game rolls a weighted table
+ * (src/data/mail.js) onto the mailbox's userData.mail.pending. Opening the
+ * mailbox collects it (the first-time Letter is unchanged). queueDailyMail
+ * and mailAmountForDay remain the original cash-only helpers.
  */
 
 export const STARTING_CASH = 50;
@@ -69,22 +70,56 @@ export function collectPendingMail(mail) {
   return items;
 }
 
-/** Hook mailbox.userData.mail.onOpen to pay pending cash, toast, and play sfx. */
-export function attachMailboxMoney({ mailbox, money, sfx, toast } = {}) {
+/**
+ * Hook mailbox.userData.mail.onOpen to collect pending daily mail.
+ * Cash still goes through money.add with a "+$X" toast and the cash cue.
+ * Messages are toasted and stored in the optional inbox; items go to the
+ * inventory (or ctx.inventory). The first-time Letter is unchanged.
+ */
+export function attachMailboxMoney({ mailbox, money, sfx, toast, inbox, inventory } = {}) {
   if (!mailbox || !mailbox.userData) return null;
   if (!mailbox.userData.mail) mailbox.userData.mail = { letterTaken: false, pending: [] };
   const mail = mailbox.userData.mail;
-  mail.onOpen = () => {
+  mail.onOpen = (ctx = {}) => {
     const collected = collectPendingMail(mail);
+    const toastFn = typeof (ctx && ctx.toast) === 'function' ? ctx.toast : toast;
+    const inv = (ctx && ctx.inventory) || inventory;
+    const box = (ctx && ctx.inbox) || inbox;
     let total = 0;
+    const leftover = [];
     for (let i = 0; i < collected.length; i++) {
       const item = collected[i];
-      if (item && item.type === 'cash') total += Number(item.amount) || 0;
+      if (!item) continue;
+      if (item.type === 'cash') {
+        total += Number(item.amount) || 0;
+        continue;
+      }
+      if (item.type === 'message') {
+        if (box && typeof box.add === 'function') box.add(item);
+        if (typeof toastFn === 'function') {
+          const from = item.from || 'Mail';
+          const body = item.body || '';
+          toastFn(body ? (from + ': ' + body) : ('Mail from ' + from));
+        }
+        continue;
+      }
+      if (item.type === 'item') {
+        const id = item.itemId || item.id;
+        const added = inv && typeof inv.addItem === 'function' ? inv.addItem(id, item.count || 1) : null;
+        if (!added) {
+          leftover.push(item);
+          continue;
+        }
+        if (sfx && typeof sfx.play === 'function') sfx.play('pickup');
+        if (typeof toastFn === 'function') toastFn('Got a ' + ((added && added.name) || id));
+        continue;
+      }
     }
+    if (leftover.length) mail.pending = leftover.concat(mail.pending || []);
     if (total > 0 && money && typeof money.add === 'function') {
       money.add(total);
       if (sfx && typeof sfx.play === 'function') sfx.play('cash');
-      if (typeof toast === 'function') toast('+' + formatCash(total));
+      if (typeof toastFn === 'function') toastFn('+' + formatCash(total));
     }
   };
   return mail;
