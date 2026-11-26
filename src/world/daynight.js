@@ -5,40 +5,48 @@ import { wrapMinutes, MINUTES_PER_DAY } from '../systems/time.js';
 export const LIGHT_UPDATE_HZ = 8;
 export const LIGHT_UPDATE_INTERVAL = 1 / LIGHT_UPDATE_HZ;
 
-// 10:00 matches the scene's original daylight (sky, hemi, ambient, sun).
+// Midday: slightly cooler sky, warmer but less blown-out sun, richer ground bounce.
 const DAY = {
-  skyTop: 0x4e9ad8,
-  skyBottom: 0xd4ecfa,
-  fog: 0xd4ecfa,
-  hemiSky: 0x9ecbff,
-  hemiGround: 0x3d6b32,
-  hemiInt: 0.5,
-  ambient: 0xfff4e8,
-  ambientInt: 0.2,
-  sun: 0xffe2b8,
-  sunInt: 1.25,
+  skyTop: 0x3a7ab0,
+  skyBottom: 0xb8d4e8,
+  fog: 0xb8d4e8,
+  hemiSky: 0x7eb0d8,
+  hemiGround: 0x2a4a28,
+  hemiInt: 0.42,
+  ambient: 0xe8dcc8,
+  ambientInt: 0.14,
+  sun: 0xffd8a0,
+  sunInt: 1.05,
   sunPos: [22, 32, 16],
-  exponent: 0.7,
+  exponent: 0.75,
   interior: 0
 };
 
 export const LIGHT_KEYS = [
-  { m: 0, skyTop: 0x0b1020, skyBottom: 0x151a2c, fog: 0x151a2c, hemiSky: 0x3a4a70, hemiGround: 0x1a2418, hemiInt: 0.16, ambient: 0x1c2438, ambientInt: 0.08, sun: 0xc8d4ff, sunInt: 0.08, sunPos: [-8, 22, -24], exponent: 1.1, interior: 1 },
-  { m: 4 * 60, skyTop: 0x0b1020, skyBottom: 0x151a2c, fog: 0x151a2c, hemiSky: 0x3a4a70, hemiGround: 0x1a2418, hemiInt: 0.16, ambient: 0x1c2438, ambientInt: 0.08, sun: 0xc8d4ff, sunInt: 0.08, sunPos: [-4, 20, -24], exponent: 1.1, interior: 1 },
-  { m: 5 * 60 + 30, skyTop: 0x6a4a7a, skyBottom: 0xf0a078, fog: 0xe89870, hemiSky: 0xd8a090, hemiGround: 0x3a4a28, hemiInt: 0.28, ambient: 0xffd0b0, ambientInt: 0.12, sun: 0xff9060, sunInt: 0.35, sunPos: [36, 6, 8], exponent: 0.8, interior: 0.7 },
-  { m: 7 * 60, skyTop: 0x6aa8d8, skyBottom: 0xf0d8b8, fog: 0xe8d4b8, hemiSky: 0xb8d8ff, hemiGround: 0x3d6b32, hemiInt: 0.42, ambient: 0xfff0d8, ambientInt: 0.16, sun: 0xffd0a0, sunInt: 0.85, sunPos: [30, 18, 14], exponent: 0.7, interior: 0.2 },
+  // Deep night — cool blue-grey, low fill, soft moon-like sun
+  { m: 0, skyTop: 0x080c18, skyBottom: 0x10182a, fog: 0x10182a, hemiSky: 0x2a3a58, hemiGround: 0x121810, hemiInt: 0.12, ambient: 0x141c2c, ambientInt: 0.06, sun: 0xa8b8e0, sunInt: 0.06, sunPos: [-8, 22, -24], exponent: 1.15, interior: 1 },
+  { m: 4 * 60, skyTop: 0x080c18, skyBottom: 0x10182a, fog: 0x10182a, hemiSky: 0x2a3a58, hemiGround: 0x121810, hemiInt: 0.12, ambient: 0x141c2c, ambientInt: 0.06, sun: 0xa8b8e0, sunInt: 0.06, sunPos: [-4, 20, -24], exponent: 1.15, interior: 1 },
+  // Dawn — muted purple/orange, restrained intensity
+  { m: 5 * 60 + 30, skyTop: 0x5a3a68, skyBottom: 0xd88860, fog: 0xc87858, hemiSky: 0xc09080, hemiGround: 0x2e3a22, hemiInt: 0.24, ambient: 0xe8b898, ambientInt: 0.1, sun: 0xee8050, sunInt: 0.3, sunPos: [36, 6, 8], exponent: 0.85, interior: 0.7 },
+  // Morning
+  { m: 7 * 60, skyTop: 0x5a98c0, skyBottom: 0xd8c8a8, fog: 0xd0c0a0, hemiSky: 0xa0c8e8, hemiGround: 0x2a4a28, hemiInt: 0.36, ambient: 0xe8d8c0, ambientInt: 0.12, sun: 0xffc890, sunInt: 0.75, sunPos: [30, 18, 14], exponent: 0.75, interior: 0.2 },
+  // Midday
   { m: 10 * 60, ...DAY },
-  { m: 13 * 60, skyTop: 0x5aa8e6, skyBottom: 0xcfe8fa, fog: 0xcfe8fa, hemiSky: 0xa8d4ff, hemiGround: 0x3d6b32, hemiInt: 0.58, ambient: 0xfff6ee, ambientInt: 0.22, sun: 0xfff0d0, sunInt: 1.4, sunPos: [8, 40, 18], exponent: 0.65, interior: 0 },
-  { m: 17 * 60 + 30, skyTop: 0xe08a4a, skyBottom: 0xf0c08a, fog: 0xe8b878, hemiSky: 0xf0c090, hemiGround: 0x4a5a28, hemiInt: 0.38, ambient: 0xffd8b0, ambientInt: 0.16, sun: 0xffb060, sunInt: 0.9, sunPos: [-26, 14, 14], exponent: 0.7, interior: 0.25 },
-  { m: 19 * 60 + 30, skyTop: 0x2a3a6a, skyBottom: 0xc07050, fog: 0x8a5060, hemiSky: 0xc08070, hemiGround: 0x2a3a20, hemiInt: 0.22, ambient: 0xffb090, ambientInt: 0.1, sun: 0xff7040, sunInt: 0.22, sunPos: [-30, 4, 10], exponent: 0.85, interior: 0.7 },
-  { m: 21 * 60, skyTop: 0x101628, skyBottom: 0x1a2238, fog: 0x1a2238, hemiSky: 0x3a4a70, hemiGround: 0x1a2418, hemiInt: 0.16, ambient: 0x1c2438, ambientInt: 0.08, sun: 0xc8d4ff, sunInt: 0.1, sunPos: [-16, 20, -22], exponent: 1.05, interior: 1 },
-  { m: MINUTES_PER_DAY, skyTop: 0x0b1020, skyBottom: 0x151a2c, fog: 0x151a2c, hemiSky: 0x3a4a70, hemiGround: 0x1a2418, hemiInt: 0.16, ambient: 0x1c2438, ambientInt: 0.08, sun: 0xc8d4ff, sunInt: 0.08, sunPos: [-8, 22, -24], exponent: 1.1, interior: 1 }
+  // Early afternoon — slightly brighter but still controlled
+  { m: 13 * 60, skyTop: 0x4a98d0, skyBottom: 0xb8d8ec, fog: 0xb8d8ec, hemiSky: 0x90c0e8, hemiGround: 0x2a4a28, hemiInt: 0.48, ambient: 0xeee4d4, ambientInt: 0.16, sun: 0xffe8c0, sunInt: 1.15, sunPos: [8, 40, 18], exponent: 0.7, interior: 0 },
+  // Golden hour — warmer, deeper
+  { m: 17 * 60 + 30, skyTop: 0xc07038, skyBottom: 0xd8a068, fog: 0xc89058, hemiSky: 0xd8a878, hemiGround: 0x3a4820, hemiInt: 0.32, ambient: 0xe8c090, ambientInt: 0.12, sun: 0xffa048, sunInt: 0.75, sunPos: [-26, 14, 14], exponent: 0.75, interior: 0.25 },
+  // Dusk
+  { m: 19 * 60 + 30, skyTop: 0x1e2a52, skyBottom: 0xa05840, fog: 0x704050, hemiSky: 0xa87060, hemiGround: 0x1e2e18, hemiInt: 0.18, ambient: 0xe09870, ambientInt: 0.08, sun: 0xee6030, sunInt: 0.18, sunPos: [-30, 4, 10], exponent: 0.9, interior: 0.7 },
+  // Evening into night
+  { m: 21 * 60, skyTop: 0x0c1220, skyBottom: 0x141c30, fog: 0x141c30, hemiSky: 0x2a3a58, hemiGround: 0x121810, hemiInt: 0.12, ambient: 0x141c2c, ambientInt: 0.06, sun: 0xa8b8e0, sunInt: 0.08, sunPos: [-16, 20, -22], exponent: 1.1, interior: 1 },
+  { m: MINUTES_PER_DAY, skyTop: 0x080c18, skyBottom: 0x10182a, fog: 0x10182a, hemiSky: 0x2a3a58, hemiGround: 0x121810, hemiInt: 0.12, ambient: 0x141c2c, ambientInt: 0.06, sun: 0xa8b8e0, sunInt: 0.06, sunPos: [-8, 22, -24], exponent: 1.15, interior: 1 }
 ];
 
-const INTERIOR_DAY_INTENSITY = 14;
-const INTERIOR_NIGHT_INTENSITY = 26;
-const INTERIOR_EMISSIVE_DAY = new THREE.Color(0x2a251d);
-const INTERIOR_EMISSIVE_NIGHT = new THREE.Color(0x5a4e3c);
+const INTERIOR_DAY_INTENSITY = 12;
+const INTERIOR_NIGHT_INTENSITY = 22;
+const INTERIOR_EMISSIVE_DAY = new THREE.Color(0x221e18);
+const INTERIOR_EMISSIVE_NIGHT = new THREE.Color(0x4a4030);
 
 const _a = new THREE.Color();
 const _b = new THREE.Color();
