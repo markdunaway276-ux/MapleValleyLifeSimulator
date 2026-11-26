@@ -27,7 +27,25 @@ export const LOOK = {
    */
   shadow: { type: 'PCFSoft', mapSize: 2048, extent: 38, near: 1, far: 110, bias: -0.0003, normalBias: 0.03, radius: 2.5 },
   /** Fog starts and ends this fraction of the camera far plane away (was 0.55 / 0.98). */
-  fog: { near: 0.42, far: 0.96 }
+  fog: { near: 0.42, far: 0.96 },
+  /**
+   * Rustic film grade, applied after tone mapping (post.js). It darkens and earths the
+   * colour tone only; light levels stay in daynight.js. Desktop runs it as a shader pass;
+   * phones (no post) get the `mobileFilter` CSS approximation plus a vignette overlay.
+   */
+  grade: {
+    gain: 0.92,          // overall darkening of the image
+    curve: 0.35,         // filmic S-curve strength (0 = none)
+    saturation: 0.82,    // below 1 = earthier, less "video game" colour
+    shadowTint: [-0.012, 0.006, 0.018],   // cool olive-teal in the shadows
+    highlightTint: [0.045, 0.018, -0.035], // warm amber in the highlights
+    fade: 0.035,         // lifted, warm film blacks
+    fadeColor: [0.10, 0.075, 0.05],
+    vignette: 0.75,      // corner darkening
+    grain: 0.035,        // animated film grain (0 = off)
+    mobileFilter: 'sepia(0.24) saturate(0.78) contrast(1.08) brightness(0.9)',
+    mobileVignette: 'radial-gradient(ellipse at center, rgba(0,0,0,0) 45%, rgba(22,13,4,0.55) 100%)'
+  }
 };
 
 // --------------------------------------------------------------- shapes ----

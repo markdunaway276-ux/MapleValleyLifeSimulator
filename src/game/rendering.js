@@ -27,7 +27,7 @@ export function createRenderer({ isMobile }) {
 /** Camera, desktop-only post-processing, resize handling and draw(). */
 export function createView({ renderer, scene, quality }) {
   const camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.1, quality.far);
-  // Desktop-only post-processing: soft vignette + mild contrast/saturation.
+  // Rustic film grade: a shader pass on desktop, a CSS approximation on phones (post.js).
   const post = createPost({ renderer, scene, camera, enabled: quality.post });
 
   window.addEventListener('resize', () => {
