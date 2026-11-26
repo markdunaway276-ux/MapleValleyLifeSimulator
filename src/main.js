@@ -28,10 +28,24 @@ const scene = createScene(quality);
 const camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.1, quality.far);
 const player = createPlayer(camera, scene);
 
+const spawn = scene.userData.spawn || { x: 0, y: 1.6, z: -1.15 };
 const saveData = loadSave();
 if (saveData.position) {
   player.position.set(saveData.position.x, saveData.position.y, saveData.position.z);
 }
+// A saved position may be inside a house (older spawns). Push out, or reset to spawn.
+if (scene.userData.colliders) {
+  const out = scene.userData.colliders.unstick(
+    player.position.x,
+    player.position.z,
+    player.radius,
+    spawn
+  );
+  player.position.x = out.x;
+  player.position.z = out.z;
+  if (out.reset) player.position.y = spawn.y;
+}
+camera.position.copy(player.position);
 
 const instructions = document.getElementById('instructions');
 const inventory = createInventory({

@@ -1,8 +1,10 @@
 import * as THREE from 'three';
+import { PLAYER_RADIUS } from '../systems/collision.js';
 
 export function createPlayer(camera, scene) {
   const player = {
     position: new THREE.Vector3(0, 1.6, -1.15),
+    radius: PLAYER_RADIUS,
     velocity: new THREE.Vector3(),
     rotation: new THREE.Euler(0, 0, 0, 'YXZ'),
     speed: 4.5,
@@ -61,7 +63,15 @@ export function createPlayer(camera, scene) {
       this.onGround = true;
     }
 
-    this.position.add(move);
+    const world = scene.userData && scene.userData.colliders;
+    if (world && typeof world.resolveMove === 'function') {
+      const resolved = world.resolveMove(this.position.x, this.position.z, move.x, move.z, this.radius);
+      this.position.x = resolved.x;
+      this.position.z = resolved.z;
+    } else {
+      this.position.x += move.x;
+      this.position.z += move.z;
+    }
     camera.position.copy(this.position);
   };
 

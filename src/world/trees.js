@@ -114,6 +114,7 @@ export function createTree(options = {}) {
   // A slight yaw so a row of trees does not look copied
   group.rotation.y = rng() * Math.PI * 2;
   group.userData.radius = radius;
+  group.userData.trunkRadius = trunkR;
   group.userData.pine = pine;
   return group;
 }

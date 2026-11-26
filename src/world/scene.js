@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { generateHouse } from './buildings.js';
 import { scatterTrees, TREE_PLACEMENTS } from './trees.js';
+import { createColliderWorld } from '../systems/collision.js';
 
 function disposeGroup(group) {
   const materials = new Set();
@@ -211,6 +212,8 @@ function createSkyDome(quality) {
 
 export function createScene(quality) {
   const scene = new THREE.Scene();
+  const colliders = createColliderWorld();
+  scene.userData.colliders = colliders;
   const horizon = new THREE.Color(0xd4ecfa);
   scene.background = horizon;
   scene.fog = new THREE.Fog(horizon, quality.far * 0.55, quality.far * 0.98);
@@ -283,6 +286,8 @@ export function createScene(quality) {
   });
   house.position.set(0, 0, -10);
   scene.add(house);
+  // Temporary collider for the fallback house; replaced (not duplicated) when the GLB loads.
+  colliders.addHouse({ id: 'main-house', x: 0, z: -10, width: 9.5, depth: 10, rotY: 0 });
 
   // Standalone interactable door (kept independent of the fallback / GLB house).
   // Sized like a normal door (~1 × 2 m) and placed on the fallback's front face.
@@ -319,6 +324,14 @@ export function createScene(quality) {
     h.position.set(lot.x, 0, lot.z);
     h.rotation.y = lot.rotY;
     scene.add(h);
+    colliders.addHouse({
+      id: lot.name,
+      x: lot.x,
+      z: lot.z,
+      width: lot.width,
+      depth: lot.depth,
+      rotY: lot.rotY
+    });
     return h;
   });
   scene.userData.streetHouses = streetHouses;
@@ -354,6 +367,14 @@ export function createScene(quality) {
 
   const trees = scatterTrees(scene, TREE_PLACEMENTS, quality);
   scene.userData.trees = trees;
+  trees.forEach((tree, i) => {
+    colliders.addTree({
+      id: `tree-${i}`,
+      x: tree.position.x,
+      z: tree.position.z,
+      radius: tree.userData.trunkRadius
+    });
+  });
 
   scene.userData.door = door;
   scene.userData.street = STREET;
@@ -408,6 +429,17 @@ export function createScene(quality) {
       const doorH = d.h * s;
       door.scale.set(doorW / 1.0, doorH / 2.0, 1);
       door.position.set(doorWorld.x, doorH / 2, doorWorld.z + 0.06);
+
+      // Replace the fallback collider with the Kenney footprint. Front (maxZ) is
+      // inset to the door slab so the porch stays walkable and the door is in range.
+      const kenneyBox = new THREE.Box3().setFromObject(model);
+      colliders.addHouse({
+        id: 'main-house',
+        minX: kenneyBox.min.x,
+        maxX: kenneyBox.max.x,
+        minZ: kenneyBox.min.z,
+        maxZ: door.position.z
+      });
     },
     undefined,
     (err) => {
