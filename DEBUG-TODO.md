@@ -2,7 +2,7 @@
 
 Optional ideas for later, when they would help testing. Everything already in the Debug menu is off by default (see `src/systems/debug.js`).
 
-- Time-of-day slider — scrub morning / noon / evening / night lighting without waiting.
+- Time-of-day slider — done: Debug menu now has a time slider plus pause and speed controls (see `src/systems/time.js`).
 - Inventory debug (add/remove items, give money) — drop test items into the bag and adjust cash.
 - On-screen console log viewer (for phone) — a scrollable log overlay so errors are visible without a desktop inspector.
 - Draw-call / triangle counter — partially done: Debug menu → Perf stats (Shift+F3) already shows draw calls, triangles, geometries and textures. A dedicated always-on counter or a more detailed breakdown could still be added later.

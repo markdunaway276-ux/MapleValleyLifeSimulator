@@ -10,6 +10,9 @@ import { updateDoors } from './systems/doors.js';
 import { nearestActionTarget, activateTarget } from './systems/interactables.js';
 import { updatePickups } from './world/pickups.js';
 import { createDebug } from './systems/debug.js';
+import { createClock } from './systems/time.js';
+import { createDayNight } from './world/daynight.js';
+import { createHudClock } from './ui/hudClock.js';
 
 const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || window.innerWidth < 800;
 
@@ -52,6 +55,12 @@ if (scene.userData.colliders) {
 }
 camera.position.copy(player.position);
 
+const clock = createClock();
+if (saveData.time) clock.apply(saveData);
+const dayNight = createDayNight({ scene, quality });
+dayNight.apply(clock.getTime());
+clock.on('newDay', (e) => window.dispatchEvent(new CustomEvent('maple-new-day', { detail: e })));
+
 const instructions = document.getElementById('instructions');
 const inventory = createInventory({
   canvas: renderer.domElement,
@@ -69,10 +78,23 @@ const debug = createDebug({
   isMobile,
   isStarted: () => instructions.classList.contains('hidden'),
   isInventoryOpen: () => inventory.isOpen(),
-  saveApi: { saveGame, clearSave }
+  saveApi: { saveGame, clearSave },
+  clock
 });
 const uiBlocked = () => inventory.isOpen() || debug.isModalOpen();
 setupInput(player, isMobile, { isInventoryOpen: uiBlocked });
+
+const hudClock = createHudClock();
+function syncClockHud() {
+  const show = instructions.classList.contains('hidden') && !uiBlocked();
+  hudClock.setVisible(show);
+  if (show) hudClock.update(clock.getTime());
+}
+clock.on('change', (t) => hudClock.update(t));
+window.addEventListener('inventory-open', syncClockHud);
+window.addEventListener('inventory-close', syncClockHud);
+window.addEventListener('debug-modal-open', syncClockHud);
+window.addEventListener('debug-modal-close', syncClockHud);
 
 const prompt = createInteractPrompt({
   isMobile,
@@ -88,6 +110,7 @@ document.getElementById('start').onclick = () => {
   if (!isMobile && !inventory.isOpen()) renderer.domElement.requestPointerLock();
   prompt.update();
   debug.refresh();
+  syncClockHud();
 };
 
 window.addEventListener('resize', () => {
@@ -100,7 +123,8 @@ function gameState() {
   return {
     position: { x: player.position.x, y: player.position.y, z: player.position.z },
     inventory: inventory.serialize(),
-    pickups: scene.userData.world ? scene.userData.world.serialize() : undefined
+    pickups: scene.userData.world ? scene.userData.world.serialize() : undefined,
+    time: clock.serialize()
   };
 }
 
@@ -121,9 +145,11 @@ function animate() {
   const delta = Math.min((now - lastTime) / 1000, 0.1);
   lastTime = now;
 
+  if (instructions.classList.contains('hidden')) clock.tick(delta);
   player.update(delta);
   updateDoors(scene.userData.doors, delta);
   updatePickups(scene.userData.interactables, delta);
+  dayNight.update(delta, clock.getTime());
   prompt.update();
   renderer.render(scene, camera);
   debug.update();

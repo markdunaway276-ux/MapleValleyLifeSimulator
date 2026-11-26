@@ -16,6 +16,7 @@ import { createHudScreenshotButton } from '../ui/hudScreenshot.js';
  *   - screenshot + markup (src/ui/feedback.js)
  *   - teleport list (street start, doors, street ends, parked car)
  *   - clear save (with confirm)
+ *   - time-of-day slider, pause and speed (when a game clock is passed in)
  * Further ideas: DEBUG-TODO.md
  * While nothing is toggled on, update() only compares one boolean per frame.
  *
@@ -65,6 +66,7 @@ export function createDebug({
   getSpawn = () => (scene.userData && scene.userData.spawn) || { x: 0, y: 1.6, z: -1.15 },
   getWorld = () => scene.userData && scene.userData.colliders,
   saveApi = {},
+  clock = null,
   container = document.body,
   now = () => performance.now()
 }) {
@@ -93,6 +95,7 @@ export function createDebug({
     },
     getState: () => state,
     getTeleports: () => TELEPORT_PRESETS,
+    getClock: clock ? () => clock : null,
     onOpen: modalOpened,
     onClose: modalClosed,
     container
@@ -158,6 +161,7 @@ export function createDebug({
       `facing ${facingDegrees()}° (yaw)`,
       `tier ${tier}`,
       `view ${window.innerWidth}x${window.innerHeight}`,
+      clock ? clock.getTime().label : null,
       localTimestamp()
     ];
   }
@@ -370,6 +374,7 @@ export function createDebug({
       menu.setButtonVisible(started);
     }
     syncHud();
+    if (menu.isOpen() && clock) menu.refreshTime();
     if (!active()) return;
     frames++;
     if (viz && viz.isEnabled()) viz.updatePlayer(player.position);

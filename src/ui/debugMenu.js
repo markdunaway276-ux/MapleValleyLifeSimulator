@@ -90,6 +90,18 @@ body.mobile #debug-menu .dm-key { display: none; }
   opacity: 0; transition: opacity 0.2s ease; text-align: center;
 }
 #debug-toast.is-visible { opacity: 1; }
+#debug-menu .dm-time { padding: 10px 14px 12px; }
+#debug-menu .dm-time-label { font-weight: 600; margin: 0 0 6px; }
+#debug-menu .dm-time input[type=range] {
+  display: block; width: 100%; height: 44px; margin: 0; padding: 0; cursor: pointer;
+  accent-color: #3fbf6a; background: transparent;
+}
+#debug-menu .dm-time-row { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
+#debug-menu .dm-time-row button {
+  min-height: 44px; min-width: 52px; padding: 8px 10px; font-weight: 600;
+  background: #2a2a30; border: 1px solid #44444c; border-radius: 10px;
+}
+#debug-menu .dm-time-row button[aria-pressed="true"] { background: #1f6f3a; border-color: #3fbf6a; }
 `;
 
 function ensureStyles() {
@@ -109,7 +121,7 @@ export const MENU_ITEMS = [
   { id: 'clearSave', type: 'action', label: 'Clear saved game', key: 'Shift+F8 twice', danger: true }
 ];
 
-export function createDebugMenu({ actions, getState, getTeleports = () => [], onOpen = () => {}, onClose = () => {}, container = document.body }) {
+export function createDebugMenu({ actions, getState, getTeleports = () => [], getClock = null, onOpen = () => {}, onClose = () => {}, container = document.body }) {
   ensureStyles();
 
   const button = document.createElement('button');
@@ -193,6 +205,8 @@ export function createDebugMenu({ actions, getState, getTeleports = () => [], on
       panel.appendChild(row);
       if (item.id === 'screenshot') panel.appendChild(buildTeleportSection());
     }
+
+    if (typeof getClock === 'function') panel.appendChild(buildTimeSection());
 
     const foot = document.createElement('div');
     foot.className = 'dm-foot';
@@ -278,12 +292,101 @@ export function createDebugMenu({ actions, getState, getTeleports = () => [], on
     actions.clearSave();
   }
 
+  let timeEls = null;
+
+  function buildTimeSection() {
+    const section = document.createElement('div');
+    section.className = 'dm-section is-open';
+    section.dataset.item = 'time';
+    const toggle = document.createElement('button');
+    toggle.type = 'button';
+    toggle.className = 'dm-section-toggle';
+    toggle.setAttribute('aria-expanded', 'true');
+    const title = document.createElement('span');
+    title.className = 'dm-label';
+    title.textContent = 'Time of day';
+    const chev = document.createElement('span');
+    chev.className = 'dm-chevron';
+    chev.textContent = '▾';
+    toggle.append(title, chev);
+    const body = document.createElement('div');
+    body.className = 'dm-sublist dm-time';
+    const label = document.createElement('div');
+    label.className = 'dm-time-label';
+    label.dataset.timeLabel = '1';
+    const slider = document.createElement('input');
+    slider.type = 'range';
+    slider.min = '0';
+    slider.max = '1439';
+    slider.step = '1';
+    slider.setAttribute('aria-label', 'Time of day');
+    slider.addEventListener('pointerdown', (e) => e.stopPropagation());
+    slider.addEventListener('input', () => {
+      const clock = getClock && getClock();
+      if (clock) clock.setTime(Number(slider.value));
+    });
+    const row = document.createElement('div');
+    row.className = 'dm-time-row';
+    const pauseBtn = document.createElement('button');
+    pauseBtn.type = 'button';
+    pauseBtn.dataset.timeAction = 'pause';
+    pauseBtn.addEventListener('click', () => {
+      const clock = getClock && getClock();
+      if (!clock) return;
+      clock.setPaused(!clock.isPaused());
+      refreshTime();
+    });
+    row.appendChild(pauseBtn);
+    const speeds = [1, 4, 16, 60];
+    const speedBtns = speeds.map((mult) => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.dataset.timeScale = String(mult);
+      b.textContent = mult === 1 ? '1×' : mult + '×';
+      b.addEventListener('click', () => {
+        const clock = getClock && getClock();
+        if (!clock) return;
+        clock.setScale(60 * mult);
+        refreshTime();
+      });
+      row.appendChild(b);
+      return b;
+    });
+    body.append(label, slider, row);
+    toggle.addEventListener('click', () => {
+      const open = !section.classList.contains('is-open');
+      section.classList.toggle('is-open', open);
+      toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+    });
+    section.append(toggle, body);
+    timeEls = { section, label, slider, pauseBtn, speedBtns };
+    refreshTime();
+    return section;
+  }
+
+  function refreshTime() {
+    if (!timeEls || typeof getClock !== 'function') return;
+    const clock = getClock();
+    if (!clock) return;
+    const t = clock.getTime();
+    timeEls.label.textContent = t.label + (t.paused ? '  (paused)' : '');
+    if (document.activeElement !== timeEls.slider) timeEls.slider.value = String(Math.floor(t.minutes));
+    timeEls.pauseBtn.textContent = t.paused ? 'Resume' : 'Pause';
+    timeEls.pauseBtn.setAttribute('aria-pressed', t.paused ? 'true' : 'false');
+    const scale = clock.getScale();
+    for (const b of timeEls.speedBtns) {
+      const on = Math.abs(scale - 60 * Number(b.dataset.timeScale)) < 1e-6;
+      b.setAttribute('aria-pressed', on ? 'true' : 'false');
+    }
+  }
+
   function refresh() {
     if (!root) return;
     const state = getState();
     for (const id of ['overlay', 'collision', 'highlight', 'perf']) {
       if (rows[id]) rows[id].row.setAttribute('aria-checked', state[id] ? 'true' : 'false');
     }
+    refreshTime();
   }
 
   function open() {
@@ -337,6 +440,7 @@ export function createDebugMenu({ actions, getState, getTeleports = () => [], on
     open,
     close,
     refresh,
+    refreshTime,
     toast,
     setButtonVisible,
     isOpen: () => opened,
