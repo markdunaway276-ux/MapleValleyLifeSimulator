@@ -432,6 +432,11 @@ export function createScene(quality) {
         if (o.isMesh) {
           o.castShadow = quality.shadows;
           o.receiveShadow = quality.shadows;
+          // The roof and walls are single-sided. By default three only puts a mesh's
+          // back faces into the shadow map, so a single-sided roof cast no shadow and
+          // the sun shone straight through it onto the interior floor.
+          const mats = Array.isArray(o.material) ? o.material : [o.material];
+          mats.forEach((m) => { if (m) m.shadowSide = THREE.DoubleSide; });
         }
       });
       gradeMainHouse(model);

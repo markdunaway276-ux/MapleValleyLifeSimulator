@@ -26,6 +26,8 @@ export {
   CHAIR_SIZE, CHAIR_DEFS
 };
 
+/** How close (metres from your eyes to the seat) the sit prompt appears. Doors use 3 m. */
+export const SIT_RANGE = 1.7;
 export const SIT_EYE_HEIGHT = 1.1;
 export const SIT_EASE = 0.45;
 /** Energy restored per game hour while sitting (slow; a full night's sleep still wins). */
@@ -176,7 +178,8 @@ export function registerSitInteractables(scene) {
       added.push(obj);
       continue;
     }
-    list.push({ id, kind: 'sit', object: obj });
+    // Seats need you close: about an arm's length, not the 3 m door reach.
+    list.push({ id, kind: 'sit', object: obj, range: SIT_RANGE });
     if (scene.userData.sit) obj.userData.sit = scene.userData.sit;
     added.push(obj);
   }

@@ -45,12 +45,13 @@ export const LIGHT_KEYS = [
   { m: MINUTES_PER_DAY, skyTop: 0x080c18, skyBottom: 0x10182a, fog: 0x10182a, hemiSky: 0x2a3a58, hemiGround: 0x121810, hemiInt: 0.12, ambient: 0x141c2c, ambientInt: 0.06, sun: 0xa8b8e0, sunInt: 0.06, sunPos: [-8, 22, -24], exponent: 1.15, interior: 1 }
 ];
 
-export const INTERIOR_DAY_INTENSITY = 12;
-export const INTERIOR_NIGHT_INTENSITY = 22;
+// Raised once the roof cast a proper shadow (sun no longer leaks onto the floor).
+export const INTERIOR_DAY_INTENSITY = 24;
+export const INTERIOR_NIGHT_INTENSITY = 30;
 /** Dim fill when the wall switch is off at night — dark but still readable. */
 export const INTERIOR_OFF_DAY_INTENSITY = 0;
 export const INTERIOR_OFF_NIGHT_INTENSITY = 5;
-export const INTERIOR_EMISSIVE_DAY = new THREE.Color(0x221e18);
+export const INTERIOR_EMISSIVE_DAY = new THREE.Color(0x3a342a);
 export const INTERIOR_EMISSIVE_NIGHT = new THREE.Color(0x4a4030);
 export const INTERIOR_EMISSIVE_OFF_NIGHT = new THREE.Color(0x1c1a16);
 

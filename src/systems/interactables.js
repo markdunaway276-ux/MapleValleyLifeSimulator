@@ -116,9 +116,12 @@ export function nearestActionTarget(scene, position, range = INTERACT_RANGE) {
   const doors = (scene.userData && scene.userData.doors) || [];
   for (let i = 0; i < doors.length; i++) candidates.push(doors[i]);
   const extras = enabledInteractables(scene);
+  // An entry may set its own, shorter reach (`range`, metres from the eye).
+  const reach = new Map();
   for (let i = 0; i < extras.length; i++) {
     const obj = extras[i].object || extras[i];
     if (obj && !candidates.includes(obj)) candidates.push(obj);
+    if (obj && Number(extras[i].range) > 0) reach.set(obj, Math.min(range, Number(extras[i].range)));
   }
   const world = scene.userData && scene.userData.colliders;
   const p = new THREE.Vector3();
@@ -126,7 +129,7 @@ export function nearestActionTarget(scene, position, range = INTERACT_RANGE) {
   let bestD = range;
   for (let i = 0; i < candidates.length; i++) {
     const dist = position.distanceTo(targetInteractPoint(candidates[i], p));
-    if (dist < bestD && hasLineOfReach(world, position, p)) {
+    if (dist < bestD && dist <= (reach.get(candidates[i]) ?? range) && hasLineOfReach(world, position, p)) {
       best = candidates[i];
       bestD = dist;
     }

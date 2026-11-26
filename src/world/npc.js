@@ -55,6 +55,8 @@ export function createNpc(def, { scene, shadows = false } = {}) {
   let idle = 0;
   let phase = 0;
   let yaw = walkYaw(dir);
+  // What they do while paused at the end of the route ('idle' or 'phone').
+  let restPose = 'idle';
 
   const body = createPlaceholderBody({
     scene,
@@ -195,6 +197,7 @@ export function createNpc(def, { scene, shadows = false } = {}) {
           mode = 'idle';
           idle = patrol.idle || 2.5;
           dir = -dir;
+          restPose = Math.random() < 0.4 ? 'phone' : 'idle';
         }
         phase = 0;
       } else {
@@ -207,7 +210,7 @@ export function createNpc(def, { scene, shadows = false } = {}) {
     const bob = !model && mode === 'walk' ? Math.abs(Math.sin(phase)) * 0.04 : 0;
     applyPose(bob);
     const walking = mode === 'walk';
-    animate(walking ? 'walk' : 'idle', seconds, walking ? (patrol.speed || 0.8) / WALK_CLIP_SPEED : 1);
+    animate(walking ? 'walk' : restPose, seconds, walking ? (patrol.speed || 0.8) / WALK_CLIP_SPEED : 1);
   }
 
   function dispose() {
