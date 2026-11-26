@@ -13,7 +13,7 @@
  */
 
 import { ensureMenuStyles, el, button, heading, renderSettings } from './menuKit.js';
-import { SLOT_COUNT, getActiveSlot, setActiveSlot, readSlot, clearSlot, freezeSaves } from '../systems/save.js';
+import { SLOT_COUNT, getGameSlot, setActiveSlot, readSlot, clearSlot, freezeSaves } from '../systems/save.js';
 
 const READY_FLAG = 'mapleValleyLife_slotReady';
 
@@ -72,10 +72,19 @@ export function createTitleScreen({
   const go = (p) => { page = p; pendingOverwrite = null; render(); };
 
   function switchTo(slot, note) {
+    if (setActiveSlot(slot) === null) {
+      showStorageError();
+      return;
+    }
     freezeSaves();
-    setActiveSlot(slot);
     try { sessionStorage.setItem(READY_FLAG, note); } catch { /* fine */ }
     location.reload();
+  }
+
+  function showStorageError() {
+    if (!panel.querySelector('.mv-storage-error')) {
+      panel.append(el('p', { class: 'mv-note mv-storage-error', text: 'Could not update the save slot. Check your browser storage settings.' }));
+    }
   }
 
   function start() {
@@ -85,7 +94,7 @@ export function createTitleScreen({
 
   function renderMain() {
     panel.append(heading('Maple Valley', 'A small-town life simulator'));
-    const active = getActiveSlot();
+    const active = getGameSlot();
     const data = readSlot(active);
     if (readyNote) panel.append(el('p', { class: 'mv-note', text: readyNote }));
     if (data) panel.append(button('Continue', start, { primary: true, sub: `Slot ${active} · ${slotSummary(data)}` }));
@@ -97,7 +106,7 @@ export function createTitleScreen({
 
   function renderSlots(kind) {
     panel.append(heading(kind === 'new' ? 'New game' : 'Load game', kind === 'new' ? 'Pick a slot to start fresh in' : 'Pick a save to play'));
-    const active = getActiveSlot();
+    const active = getGameSlot();
     for (let n = 1; n <= SLOT_COUNT; n++) {
       const data = readSlot(n);
       const label = `Slot ${n}` + (n === active ? ' (current)' : '');
@@ -113,8 +122,10 @@ export function createTitleScreen({
         const confirm = pendingOverwrite === n;
         panel.append(button(confirm ? `Tap again to erase ${label}` : label, () => {
           if (data && !confirm) { pendingOverwrite = n; render(); return; }
-          freezeSaves();
-          clearSlot(n);
+          if (!clearSlot(n)) {
+            showStorageError();
+            return;
+          }
           switchTo(n, `New game ready in slot ${n}. Press Start new game to begin.`);
         }, { danger: confirm, sub: data ? slotSummary(data) + ' — will be erased' : 'Empty' }));
       }

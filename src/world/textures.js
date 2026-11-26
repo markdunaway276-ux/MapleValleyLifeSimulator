@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { STREET } from './street.js';
 import { GROUND, TEXTURE } from './palette.js';
 
 /**
@@ -149,7 +150,9 @@ export function createRoadTexture(quality = {}) {
   const ctx = canvas.getContext('2d');
   const img = ctx.createImageData(along, across);
   const data = img.data;
-  const mid = across / 2;
+  const parkingPaint = [174, 174, 163];
+  const parkingEdge = STREET.parkingLaneWidth / STREET.roadWidth;
+  const laneCenter = (parkingEdge + 0.5) / 2;
   const period = along / TEXTURE.road.dashes;
   const dash = period * 0.4;
 
@@ -159,24 +162,28 @@ export function createRoadTexture(quality = {}) {
 
   for (let y = 0; y < across; y++) {
     const fy = y / across;
-    // Two tyre lanes (centred a quarter of the way in from each kerb).
-    const lane = Math.exp(-(((fy - 0.27) / 0.1) ** 2)) + Math.exp(-(((fy - 0.73) / 0.1) ** 2));
+    const lane = Math.exp(-(((fy - laneCenter) / 0.07) ** 2))
+      + Math.exp(-(((fy - (1 - laneCenter)) / 0.07) ** 2));
+    const centerLine = Math.abs(fy - 0.5) <= 0.85 / across;
+    const parkingLine = Math.min(Math.abs(fy - parkingEdge), Math.abs(fy - (1 - parkingEdge))) <= 0.65 / across;
     const kerb = smooth(0.1, 0, fy) + smooth(0.9, 1, fy);
     for (let x = 0; x < along; x++) {
       const n = tileNoise(x / 16, y / 8, along / 16, across / 8, 41) * 0.55 + hash2(x, y, 6) * 0.45;
       const grit = hash2(x, y, 8);
-      let tone = n * 16 + lane * GROUND.roadWear + kerb * GROUND.roadGrit;
-      if (grit > 0.94) tone += 11;
-      else if (grit < 0.04) tone -= 8;
-      if (crack[y * along + x]) tone -= 20;
+      let tone = n * 10 + lane * GROUND.roadWear + kerb * GROUND.roadGrit;
+      if (grit > 0.94) tone += 7;
+      else if (grit < 0.04) tone -= 5;
+      if (crack[y * along + x]) tone -= 12;
       let r = GROUND.road[0] + tone;
       let g = GROUND.road[1] + tone;
       let b = GROUND.road[2] + tone * 0.94;
-      if ((x % period) < dash && Math.abs(y - mid) <= 1.5) {
+      if (parkingLine || (centerLine && (x % period) < dash)) {
         const wear = 0.74 + tileNoise(x / 4, y / 4, along / 4, across / 4, 53) * 0.26;
-        r = GROUND.line[0] * wear;
-        g = GROUND.line[1] * wear;
-        b = GROUND.line[2] * wear;
+        const paint = parkingLine ? parkingPaint : GROUND.line;
+        const coverage = grit < 0.07 ? 0.42 : 0.91;
+        r += (paint[0] * wear - r) * coverage;
+        g += (paint[1] * wear - g) * coverage;
+        b += (paint[2] * wear - b) * coverage;
       }
       const i = (y * along + x) * 4;
       data[i] = clamp255(r);
@@ -186,7 +193,7 @@ export function createRoadTexture(quality = {}) {
     }
   }
   ctx.putImageData(img, 0, 0);
-  return finishTexture(canvas, { anisotropy: hi ? 4 : 1 });
+  return finishTexture(canvas, { anisotropy: hi ? 4 : 2 });
 }
 
 /**

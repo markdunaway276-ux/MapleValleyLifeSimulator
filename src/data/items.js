@@ -39,6 +39,24 @@ export const ITEM_DEFS = {
     stackable: true,
     use: { action: 'eat', label: 'Eat', need: 'hunger', amount: HUNGER_SNACK, sfx: 'eat' }
   },
+  apple: {
+    id: 'apple',
+    name: 'Apple',
+    icon: '🍎',
+    description: 'A fresh apple from the corner shop.',
+    color: '#9f4037',
+    stackable: true,
+    use: { action: 'eat', label: 'Eat', need: 'hunger', amount: 20, sfx: 'eat' }
+  },
+  sandwich: {
+    id: 'sandwich',
+    name: 'Sandwich',
+    icon: '🥪',
+    description: 'A wrapped sandwich from the corner shop.',
+    color: '#ae8652',
+    stackable: true,
+    use: { action: 'eat', label: 'Eat', need: 'hunger', amount: 55, sfx: 'eat' }
+  },
   letter: {
     id: 'letter',
     name: 'Letter',

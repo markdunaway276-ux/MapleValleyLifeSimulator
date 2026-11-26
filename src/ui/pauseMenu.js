@@ -71,6 +71,15 @@ export function createPauseMenu({
 
   const go = (p) => { page = p; render(); };
 
+  function fullscreenLabel() {
+    return document.fullscreenElement ? 'Exit full screen' : 'Full screen';
+  }
+
+  document.addEventListener('fullscreenchange', () => {
+    const control = panel.querySelector('#maple-fullscreen');
+    if (control) control.textContent = fullscreenLabel();
+  });
+
   function renderMain() {
     const clock = getClock();
     const t = clock && clock.getTime ? clock.getTime() : null;
@@ -80,6 +89,18 @@ export function createPauseMenu({
     panel.append(button('Stats', () => go('stats')));
     panel.append(button('Settings', () => go('settings')));
     const note = el('div', { class: 'mv-note' });
+    if (document.fullscreenEnabled && document.documentElement.requestFullscreen) {
+      const fullscreen = button(fullscreenLabel(), async () => {
+        try {
+          if (document.fullscreenElement) await document.exitFullscreen();
+          else await document.documentElement.requestFullscreen();
+        } catch {
+          note.textContent = 'Could not switch fullscreen mode.';
+        }
+      });
+      fullscreen.id = 'maple-fullscreen';
+      panel.append(fullscreen);
+    }
     panel.append(button('Save game', () => {
       try { if (typeof save === 'function') save(); note.textContent = 'Game saved.'; } catch { note.textContent = 'Could not save.'; }
     }));

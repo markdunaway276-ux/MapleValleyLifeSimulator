@@ -14,6 +14,15 @@ export const SHOP_DEFS = [
     stock: [
       { item: 'snack', name: 'Snack', price: VENDING_PRICE, count: 1, sfx: 'vending' }
     ]
+  },
+  {
+    id: 'corner-shop',
+    name: 'Maple Lane Market',
+    stock: [
+      { item: 'apple', name: 'Apple', price: 3, sfx: 'cash' },
+      { item: 'snack', name: 'Snack', price: 5, sfx: 'cash' },
+      { item: 'sandwich', name: 'Sandwich', price: 7, sfx: 'cash' }
+    ]
   }
 ];
 

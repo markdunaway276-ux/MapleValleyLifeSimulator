@@ -34,12 +34,19 @@ export function startLoop(g) {
     else if (mode.sitting()) g.sitter.update(delta, { blocked: mode.uiBlocked() });
     else player.update(delta);
     g.playerBody.update(player);
-    g.npcs.update(delta, { player, talkingId: g.dialogue.isOpen() ? g.dialogue.currentNpc() : null });
-    g.weather.update(delta, clock.getTime());
+    const currentTime = clock.getTime();
+    g.weather.update(delta, currentTime);
+    const rain = g.weather.rainAmount();
+    g.npcs.update(delta, {
+      player,
+      talkingId: g.dialogue.currentNpc(),
+      minutes: currentTime.minutes,
+      raining: rain >= 0.25
+    });
     g.weather.applyFog(scene, quality);
     const indoor = isInsideMainHouse(scene, player.position);
-    g.rain.update(delta, { position: player.position, intensity: g.weather.rainAmount(), indoor });
-    if (typeof g.sfx.setRain === 'function') g.sfx.setRain(g.weather.rainAmount(), { indoor });
+    g.rain.update(delta, { position: player.position, intensity: rain, indoor });
+    if (typeof g.sfx.setRain === 'function') g.sfx.setRain(rain, { indoor });
     g.sleeper.update(delta);
     g.worker.update(delta);
     if (started && !busy) {
@@ -72,7 +79,10 @@ export function startLoop(g) {
     if (g.tvSet) g.tvSet.update(delta, { position: player.position, indoor });
     updateDoors(scene.userData.doors, delta);
     updatePickups(scene.userData.interactables, delta);
-    g.dayNight.update(delta, clock.getTime());
+    const time = clock.getTime();
+    g.dayNight.update(delta, time);
+    scene.userData.frontYard?.update(time.totalMinutes);
+    scene.userData.streetlights.update(time.minutes);
     g.prompt.update();
     g.minimap.update(delta);
     g.view.draw();
@@ -81,5 +91,7 @@ export function startLoop(g) {
   frame();
 
   // Auto-save every 10 seconds
-  setInterval(() => g.save(), 10000);
+  setInterval(() => {
+    if (mode.started()) g.save();
+  }, 10000);
 }

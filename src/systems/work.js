@@ -136,21 +136,22 @@ export function createWork({
 
   let overlay = null;
   let fillEl = null;
+  let labelEl = null;
   if (container && typeof document !== 'undefined') {
     overlay = document.createElement('div');
     overlay.id = 'work-overlay';
     overlay.setAttribute('aria-hidden', 'true');
     const card = document.createElement('div');
     card.id = 'work-card';
-    const label = document.createElement('div');
-    label.className = 'work-label';
-    label.textContent = 'Working…';
+    labelEl = document.createElement('div');
+    labelEl.className = 'work-label';
+    labelEl.textContent = 'Working…';
     const track = document.createElement('div');
     track.className = 'work-track';
     fillEl = document.createElement('div');
     fillEl.className = 'work-fill';
     track.appendChild(fillEl);
-    card.append(label, track);
+    card.append(labelEl, track);
     overlay.appendChild(card);
     container.appendChild(overlay);
   }
@@ -229,6 +230,7 @@ export function createWork({
       if (typeof window !== 'undefined') window.dispatchEvent(new Event('work-end'));
       return true;
     }
+    if (labelEl) labelEl.textContent = jobDef.label || 'Working…';
     phase = 'running';
     acc = 0;
     setProgress(0, true);
@@ -247,7 +249,7 @@ export function createWork({
 
   function dispose() {
     if (overlay) overlay.remove();
-    overlay = fillEl = null;
+    overlay = fillEl = labelEl = null;
     phase = 'idle';
     acc = 0;
     current = null;

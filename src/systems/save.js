@@ -1,3 +1,5 @@
+import { widenSavedSidewalkZ, widenSavedStreetZ } from '../world/street.js';
+
 const BASE_KEY = 'mapleValleyLife_save';
 
 /**
@@ -23,8 +25,13 @@ export function getActiveSlot() {
 export function setActiveSlot(slot) {
   const ls = storage();
   const n = Math.min(SLOT_COUNT, Math.max(1, Math.floor(Number(slot)) || 1));
-  try { if (ls) ls.setItem(ACTIVE_SLOT_KEY, String(n)); } catch { /* blocked */ }
-  return n;
+  try {
+    if (!ls) return null;
+    ls.setItem(ACTIVE_SLOT_KEY, String(n));
+    return n;
+  } catch {
+    return null;
+  }
 }
 
 /** The raw save in a slot (no migration), or null if it is empty / unreadable. */
@@ -42,7 +49,7 @@ export function readSlot(slot) {
 
 export function clearSlot(slot) {
   const ls = storage();
-  try { if (ls) ls.removeItem(keyForSlot(slot)); return true; } catch { return false; }
+  try { if (!ls) return false; ls.removeItem(keyForSlot(slot)); return true; } catch { return false; }
 }
 
 // Set while the page is about to reload into another slot, so a late autosave
@@ -51,14 +58,20 @@ let frozen = false;
 export function freezeSaves() { frozen = true; }
 
 /** The active slot's storage key. */
-function currentKey() { return keyForSlot(getActiveSlot()); }
+let gameSlot;
+export function getGameSlot() {
+  gameSlot ??= getActiveSlot();
+  return gameSlot;
+}
+
+function currentKey() { return keyForSlot(getGameSlot()); }
 
 /**
  * Bump this whenever the save's shape changes, and add a matching step to
  * MIGRATIONS below that turns a save of the previous version into the new one.
  * Saves from before versioning count as version 0.
  */
-export const SAVE_VERSION = 1;
+export const SAVE_VERSION = 4;
 
 /**
  * MIGRATIONS[n] upgrades a version n-1 save to version n. Each step gets a
@@ -80,8 +93,24 @@ const MIGRATIONS = {
       if (data.money == null && cash > 0) data.money = cash;
     }
     return data;
-  }
+  },
+  2: (data) => widenSavedPositions(data, 4, 7),
+  3: (data) => widenSavedPositions(data, 7, 14),
+  4: (data) => remapSavedPositions(data, widenSavedSidewalkZ)
 };
+
+function widenSavedPositions(data, fromWidth, toWidth) {
+  return remapSavedPositions(data, (z) => widenSavedStreetZ(z, fromWidth, toWidth));
+}
+
+function remapSavedPositions(data, remapZ) {
+  for (const point of [data.position, data.car]) {
+    if (point && Number.isFinite(point.z)) {
+      point.z = remapZ(point.z);
+    }
+  }
+  return data;
+}
 
 function storage() {
   try {

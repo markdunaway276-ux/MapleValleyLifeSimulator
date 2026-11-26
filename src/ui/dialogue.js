@@ -99,7 +99,8 @@ export function createDialogue({
   canOpen = null,
   onBeforeOpen = null,
   getTime = null,
-  getWeather = null
+  getWeather = null,
+  getExtraPages = null
 } = {}) {
   ensureStyles();
 
@@ -133,7 +134,10 @@ export function createDialogue({
   nextBtn.type = 'button';
   nextBtn.className = 'dialogue-next';
   nextBtn.textContent = 'Next';
-  row.append(closeBtn, nextBtn);
+  const actionBtn = document.createElement('button');
+  actionBtn.type = 'button';
+  actionBtn.className = 'dialogue-next';
+  row.append(closeBtn, nextBtn, actionBtn);
   panel.append(nameEl, linesEl, row);
   overlay.appendChild(panel);
   if (container) container.appendChild(overlay);
@@ -166,6 +170,8 @@ export function createDialogue({
     nextBtn.disabled = last;
     nextBtn.setAttribute('aria-disabled', last ? 'true' : 'false');
     nextBtn.hidden = last;
+    actionBtn.hidden = !page?.action;
+    actionBtn.textContent = page?.action?.label ?? '';
   }
 
   function open(id, ctx = {}) {
@@ -178,6 +184,7 @@ export function createDialogue({
     const tree = getDialogue(id, { time, period: time && time.period, weather });
     name = tree.name;
     pages = tree.pages && tree.pages.length ? tree.pages : [{ lines: ['…'] }];
+    pages.push(...(getExtraPages?.(id) ?? []));
     index = 0;
     npcId = id;
     opened = true;
@@ -228,6 +235,15 @@ export function createDialogue({
     e.stopPropagation();
     next();
   });
+  actionBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    const page = pages[index];
+    if (page?.action?.run()) {
+      pages[index] = { lines: page.response };
+      paint();
+      (nextBtn.hidden ? closeBtn : nextBtn).focus();
+    }
+  });
   overlay.addEventListener('click', (e) => {
     if (e.target === overlay) close();
   });
@@ -243,6 +259,7 @@ export function createDialogue({
       return;
     }
     if (e.code === 'Enter' || e.code === 'Space') {
+      if (row.contains(e.target) && e.target.tagName === 'BUTTON') return;
       e.preventDefault();
       if (e.repeat) return;
       if (index < pages.length - 1) next();

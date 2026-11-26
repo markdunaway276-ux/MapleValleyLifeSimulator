@@ -71,3 +71,37 @@ test('clearSave removes the save', () => {
   clearSave();
   assert.deepEqual(loadSave(), {});
 });
+
+test('a running tab keeps saving to the slot it loaded after another tab changes the selection', async () => {
+  const tabOne = await import('../src/systems/save.js?tab=one');
+  const tabTwo = await import('../src/systems/save.js?tab=two');
+
+  tabOne.saveGame({ money: 50 });
+  tabTwo.setActiveSlot(2);
+  tabTwo.saveGame({ money: 100 });
+  tabOne.saveGame({ money: 60 });
+
+  assert.equal(tabOne.loadSave().money, 60);
+  assert.equal(tabTwo.loadSave().money, 100);
+  tabOne.clearSave();
+  assert.equal(tabOne.readSlot(1), null);
+  assert.equal(tabTwo.readSlot(2).money, 100);
+});
+
+test('street upgrades move north-side saves and keep a position inside the south frontage', () => {
+  const old = { version: 1, money: 12, position: { x: 20, y: 1.6, z: 4 }, car: { x: 1, z: -5, rotY: 0 } };
+  store.set(SAVE_KEY, JSON.stringify(old));
+  assert.deepEqual(loadSave(), { ...old, version: SAVE_VERSION, position: { ...old.position, z: 15.4 } });
+  assert.equal(loadSave().position.z, 15.4);
+  assert.deepEqual(JSON.parse(store.get(SAVE_KEY + '_backup_v1')), old);
+});
+
+test('a seven-metre road save moves only once to the widened sidewalk layout', () => {
+  const old = { version: 2, position: { x: 20, y: 1.6, z: 7 }, car: { x: 6, z: 2.8 } };
+  store.set(SAVE_KEY, JSON.stringify(old));
+  const next = loadSave();
+  assert.equal(next.position.z, 15.4);
+  assert.ok(Math.abs(next.car.z - 9.45) < 1e-9);
+  assert.deepEqual(loadSave(), next);
+  assert.deepEqual(JSON.parse(store.get(SAVE_KEY + '_backup_v2')), old);
+});

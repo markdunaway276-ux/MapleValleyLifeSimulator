@@ -4,14 +4,15 @@
  * plug in without rewriting the interact path.
  */
 
+import { NORTH_FRONTAGE_OFFSET, STREET } from '../world/street.js';
+
 export const NPC_RADIUS = 0.32;
 export const NPC_NOTICE_RANGE = 3.2;
 export const NPC_TALK_RANGE = 3;
 
 /**
  * South sidewalk, toward the street so the loop stays clear of the
- * mailbox (2, -4.4), the vending machine (-2, -4.29) and the parked car
- * on the north side. Sidewalk covers z ≈ -3.15..-4.65; this line is z=-3.5.
+ * mailbox, vending machine and the parked car on the north side.
  */
 export const SAM_PATROL = {
   z: -3.5,
@@ -23,11 +24,10 @@ export const SAM_PATROL = {
 };
 
 /**
- * North sidewalk, across the street from your house (road z -3.15..0.85,
- * so this sidewalk covers z ≈ 0.85..2.35). It stays west of the parked car.
+ * North sidewalk, across the street from your house and west of the parked car.
  */
 export const JUNE_PATROL = {
-  z: 1.6,
+  z: STREET.roadCenterZ + STREET.roadWidth / 2 + STREET.sidewalkWidth / 2,
   x0: -7,
   x1: 3.5,
   startX: -3,
@@ -57,7 +57,15 @@ export const NPC_DEFS = [
     radius: NPC_RADIUS,
     noticeRange: NPC_NOTICE_RANGE,
     talkRange: NPC_TALK_RANGE,
-    patrol: SAM_PATROL
+    patrol: SAM_PATROL,
+    routine: {
+      walks: [[7, 11], [16, 19]],
+      outdoorHours: [7, 20],
+      restX: SAM_PATROL.x0,
+      home: { x: -13, z: -5.5 },
+      sidewalk: 'south sidewalk',
+      homeLabel: 'southwest house porch'
+    }
   },
   {
     id: 'june',
@@ -75,7 +83,15 @@ export const NPC_DEFS = [
     radius: NPC_RADIUS,
     noticeRange: NPC_NOTICE_RANGE,
     talkRange: NPC_TALK_RANGE,
-    patrol: JUNE_PATROL
+    patrol: JUNE_PATROL,
+    routine: {
+      walks: [[9, 13], [17, 21]],
+      outdoorHours: [8, 21],
+      restX: JUNE_PATROL.x1,
+      home: { x: -13, z: 2.08 + NORTH_FRONTAGE_OFFSET },
+      sidewalk: 'north sidewalk',
+      homeLabel: 'northwest house entrance'
+    }
   }
 ];
 

@@ -54,12 +54,12 @@ export function setupInput(player, isMobile, { isInventoryOpen } = {}) {
   if (isMobile) {
     const joystick = document.getElementById('joystick');
     const knob = document.getElementById('joystick-knob');
-    let joystickActive = false;
+    let joystickTouch = null;
     let lookTouch = null;
     let lastLookX = 0, lastLookY = 0;
 
     const resetTouch = () => {
-      joystickActive = false;
+      joystickTouch = null;
       lookTouch = null;
       if (knob) {
         knob.style.left = '35px';
@@ -75,21 +75,31 @@ export function setupInput(player, isMobile, { isInventoryOpen } = {}) {
     joystick.addEventListener('touchstart', (e) => {
       if (blocked()) return;
       e.preventDefault();
-      joystickActive = true;
-      updateJoystick(e.touches[0]);
+      if (joystickTouch !== null) return;
+      const touch = e.changedTouches[0];
+      joystickTouch = touch.identifier;
+      updateJoystick(touch);
     });
     joystick.addEventListener('touchmove', (e) => {
       if (blocked()) return;
       e.preventDefault();
-      if (joystickActive) updateJoystick(e.touches[0]);
+      for (const touch of e.changedTouches) {
+        if (touch.identifier === joystickTouch) updateJoystick(touch);
+      }
     });
-    joystick.addEventListener('touchend', () => {
-      joystickActive = false;
-      player.joystickX = 0;
-      player.joystickY = 0;
-      knob.style.left = '35px';
-      knob.style.top = '35px';
-    });
+
+    function releaseJoystick(e) {
+      for (const touch of e.changedTouches) {
+        if (touch.identifier !== joystickTouch) continue;
+        joystickTouch = null;
+        player.joystickX = 0;
+        player.joystickY = 0;
+        knob.style.left = '35px';
+        knob.style.top = '35px';
+      }
+    }
+    joystick.addEventListener('touchend', releaseJoystick);
+    joystick.addEventListener('touchcancel', releaseJoystick);
 
     function updateJoystick(touch) {
       const rect = joystick.getBoundingClientRect();
@@ -112,27 +122,29 @@ export function setupInput(player, isMobile, { isInventoryOpen } = {}) {
       if (blocked()) return;
       if (e.target.closest && e.target.closest('#inventory, #inventory-toggle, #interact-prompt, #hud-screenshot, #phone, .debug-ui, .hud-ui')) return;
       if (e.target === joystick || joystick.contains(e.target)) return;
-      if (e.touches.length === 1) {
-        lookTouch = e.touches[0].identifier;
-        lastLookX = e.touches[0].clientX;
-        lastLookY = e.touches[0].clientY;
-      }
+      if (lookTouch !== null) return;
+      const touch = e.changedTouches[0];
+      lookTouch = touch.identifier;
+      lastLookX = touch.clientX;
+      lastLookY = touch.clientY;
     });
     document.addEventListener('touchmove', (e) => {
       if (blocked()) return;
       for (const t of e.changedTouches) {
         if (t.identifier === lookTouch) {
-          player.mouseX = t.clientX - lastLookX;
-          player.mouseY = t.clientY - lastLookY;
+          player.mouseX += t.clientX - lastLookX;
+          player.mouseY += t.clientY - lastLookY;
           lastLookX = t.clientX;
           lastLookY = t.clientY;
         }
       }
     });
-    document.addEventListener('touchend', (e) => {
+    function releaseLook(e) {
       for (const t of e.changedTouches) {
         if (t.identifier === lookTouch) lookTouch = null;
       }
-    });
+    }
+    document.addEventListener('touchend', releaseLook);
+    document.addEventListener('touchcancel', releaseLook);
   }
 }
