@@ -105,6 +105,13 @@ body.mobile #debug-menu .dm-key { display: none; }
   background: #2a2a30; border: 1px solid #44444c; border-radius: 10px;
 }
 #debug-menu .dm-time-row button[aria-pressed="true"] { background: #1f6f3a; border-color: #3fbf6a; }
+#debug-menu .dm-needs { padding: 10px 14px 12px; }
+#debug-menu .dm-needs-label { font-weight: 600; margin: 0 0 8px; }
+#debug-menu .dm-needs-row { display: flex; gap: 6px; flex-wrap: wrap; }
+#debug-menu .dm-needs-row button {
+  min-height: 44px; min-width: 72px; padding: 8px 10px; font-weight: 600;
+  background: #2a2a30; border: 1px solid #44444c; border-radius: 10px;
+}
 `;
 
 function ensureStyles() {
@@ -124,7 +131,7 @@ export const MENU_ITEMS = [
   { id: 'clearSave', type: 'action', label: 'Clear saved game', key: 'Shift+F8 twice', danger: true }
 ];
 
-export function createDebugMenu({ actions, getState, getTeleports = () => [], getClock = null, getSfx = null, onOpen = () => {}, onClose = () => {}, container = document.body }) {
+export function createDebugMenu({ actions, getState, getTeleports = () => [], getClock = null, getSfx = null, getNeeds = null, onOpen = () => {}, onClose = () => {}, container = document.body }) {
   ensureStyles();
 
   const button = document.createElement('button');
@@ -211,6 +218,7 @@ export function createDebugMenu({ actions, getState, getTeleports = () => [], ge
 
     if (typeof getClock === 'function') panel.appendChild(buildTimeSection());
     if (typeof getSfx === 'function') panel.appendChild(buildSoundSection());
+    if (typeof getNeeds === 'function') panel.appendChild(buildNeedsSection());
 
     const foot = document.createElement('div');
     foot.className = 'dm-foot';
@@ -442,7 +450,71 @@ export function createDebugMenu({ actions, getState, getTeleports = () => [], ge
     }
   }
 
+  let needsEls = null;
+
+  function buildNeedsSection() {
+    const section = document.createElement('div');
+    section.className = 'dm-section is-open';
+    section.dataset.item = 'needs';
+    const toggle = document.createElement('button');
+    toggle.type = 'button';
+    toggle.className = 'dm-section-toggle';
+    toggle.setAttribute('aria-expanded', 'true');
+    const title = document.createElement('span');
+    title.className = 'dm-label';
+    title.textContent = 'Needs';
+    const chev = document.createElement('span');
+    chev.className = 'dm-chevron';
+    chev.textContent = '▾';
+    toggle.append(title, chev);
+    const body = document.createElement('div');
+    body.className = 'dm-sublist dm-needs';
+    const label = document.createElement('div');
+    label.className = 'dm-needs-label';
+    const row = document.createElement('div');
+    row.className = 'dm-needs-row';
+    const refillBtn = document.createElement('button');
+    refillBtn.type = 'button';
+    refillBtn.dataset.needsAction = 'refill';
+    refillBtn.textContent = 'Refill';
+    refillBtn.addEventListener('click', () => {
+      const needs = getNeeds && getNeeds();
+      if (needs && typeof needs.refill === 'function') needs.refill();
+      refreshNeeds();
+    });
+    const drainBtn = document.createElement('button');
+    drainBtn.type = 'button';
+    drainBtn.dataset.needsAction = 'drain';
+    drainBtn.textContent = 'Drain';
+    drainBtn.addEventListener('click', () => {
+      const needs = getNeeds && getNeeds();
+      if (needs && typeof needs.drain === 'function') needs.drain();
+      refreshNeeds();
+    });
+    row.append(refillBtn, drainBtn);
+    body.append(label, row);
+    toggle.addEventListener('click', () => {
+      const open = !section.classList.contains('is-open');
+      section.classList.toggle('is-open', open);
+      toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+    });
+    section.append(toggle, body);
+    needsEls = { section, label, refillBtn, drainBtn };
+    refreshNeeds();
+    return section;
+  }
+
+  function refreshNeeds() {
+    if (!needsEls || typeof getNeeds !== 'function') return;
+    const needs = getNeeds();
+    if (!needs || typeof needs.get !== 'function') return;
+    const snap = needs.get();
+    const parts = (snap.items || []).map((it) => it.name + ' ' + Math.round(it.value));
+    needsEls.label.textContent = parts.length ? parts.join('  ·  ') : 'Needs';
+  }
+
   function refresh() {
+
     if (!root) return;
     const state = getState();
     for (const id of ['overlay', 'collision', 'highlight', 'perf']) {
@@ -450,6 +522,7 @@ export function createDebugMenu({ actions, getState, getTeleports = () => [], ge
     }
     refreshTime();
     refreshMute();
+    refreshNeeds();
   }
 
   function open() {
@@ -505,6 +578,7 @@ export function createDebugMenu({ actions, getState, getTeleports = () => [], ge
     refresh,
     refreshTime,
     refreshMute,
+    refreshNeeds,
     toast,
     setButtonVisible,
     isOpen: () => opened,

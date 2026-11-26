@@ -1,3 +1,5 @@
+import { HUNGER_SNACK } from '../systems/needs.js';
+
 /**
  * Item definitions and starter loadout for the inventory.
  * Inventory slots store instances: a def plus a count (and later, unique state).
@@ -33,7 +35,8 @@ export const ITEM_DEFS = {
     icon: '🍫',
     description: 'A couple of packed snacks for the road.',
     color: '#c47a3a',
-    stackable: true
+    stackable: true,
+    use: { action: 'eat', label: 'Eat', need: 'hunger', amount: HUNGER_SNACK, sfx: 'eat' }
   },
   letter: {
     id: 'letter',

@@ -215,6 +215,25 @@ body.mobile #inventory-toggle { display: block; }
   line-height: 1.4;
   color: rgba(255, 255, 255, 0.82);
 }
+.inventory-use {
+  box-sizing: border-box;
+  margin: 10px 0 0;
+  min-height: 44px;
+  padding: 8px 14px;
+  font: 600 14px system-ui, sans-serif;
+  color: #fff;
+  background: #2e6b3f;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  border-radius: 8px;
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  align-self: flex-start;
+}
+.inventory-use:hover, .inventory-use:focus {
+  background: #37824c;
+  outline: none;
+}
 `;
 
 function ensureStyles() {
@@ -286,7 +305,8 @@ export function createInventory({
   canvas = null,
   isStarted = null,
   items: initialItems = null,
-  onSelect = null
+  onSelect = null,
+  onUse = null
 } = {}) {
   ensureStyles();
 
@@ -416,6 +436,21 @@ export function createInventory({
       desc.textContent = item.description;
       detail.appendChild(desc);
     }
+
+    const use = item.use || (ITEM_DEFS[item.id] && ITEM_DEFS[item.id].use);
+    if (use) {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'inventory-use';
+      btn.textContent = use.label || 'Use';
+      btn.setAttribute('aria-label', use.label || 'Use');
+      btn.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        useItem(selected);
+      });
+      detail.appendChild(btn);
+    }
   }
 
   function selectSlot(index) {
@@ -497,6 +532,39 @@ export function createInventory({
     items[empty] = createItem(id, { count: n });
     slots[empty].render();
     return items[empty];
+  }
+
+  /** Remove `count` of the item in `index`. Drops the slot when the stack hits 0. */
+  function consume(index, count = 1) {
+    if (index < 0 || index >= slotCount) return null;
+    const item = items[index];
+    if (!item) return null;
+    const n = Math.max(1, Number(count) || 1);
+    const next = (item.count || 1) - n;
+    const id = item.id;
+    if (next <= 0) {
+      items[index] = null;
+      slots[index].render();
+      if (selected === index) renderDetail();
+      return { id, count: 0, removed: true };
+    }
+    items[index] = normalizeItem({ ...item, count: next });
+    slots[index].render();
+    if (selected === index) renderDetail();
+    return items[index];
+  }
+
+  function useItem(index = selected) {
+    if (index == null || index < 0 || index >= slotCount) return null;
+    const item = items[index];
+    if (!item) return null;
+    const use = item.use || (ITEM_DEFS[item.id] && ITEM_DEFS[item.id].use);
+    if (!use) return null;
+    const consumed = consume(index, 1);
+    const detail = { item, use, index, consumed };
+    if (typeof onUse === 'function') onUse(detail);
+    window.dispatchEvent(new CustomEvent('inventory-use', { detail }));
+    return consumed;
   }
 
   function serialize() {
@@ -581,6 +649,8 @@ export function createInventory({
     setItem,
     getItems,
     addItem,
+    consume,
+    useItem,
     serialize,
     loadItems,
     selectSlot,

@@ -16,6 +16,8 @@ import { createHudClock } from './ui/hudClock.js';
 import { createSfx, cueInteract } from './systems/sfx.js';
 import { createHudMute } from './ui/hudMute.js';
 import { createSleep } from './systems/sleep.js';
+import { createNeeds } from './systems/needs.js';
+import { createHudNeeds } from './ui/hudNeeds.js';
 
 const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || window.innerWidth < 800;
 
@@ -66,11 +68,19 @@ clock.on('newDay', (e) => window.dispatchEvent(new CustomEvent('maple-new-day', 
 
 const sfx = createSfx({ getTime: () => clock.getTime(), getScene: () => scene });
 
+const needs = createNeeds();
+if (saveData.needs) needs.apply(saveData);
+
 const instructions = document.getElementById('instructions');
 const inventory = createInventory({
   canvas: renderer.domElement,
   isStarted: () => instructions.classList.contains('hidden'),
-  items: Array.isArray(saveData.inventory) ? saveData.inventory : STARTER_ITEMS
+  items: Array.isArray(saveData.inventory) ? saveData.inventory : STARTER_ITEMS,
+  onUse: ({ use }) => {
+    if (use && use.need) needs.add(use.need, use.amount || 0);
+    if (use && use.sfx) sfx.play(use.sfx);
+    saveGame(gameState());
+  }
 });
 if (scene.userData.world) scene.userData.world.apply(saveData);
 // Optional debug tools (all off by default; see src/systems/debug.js for keys)
@@ -85,7 +95,8 @@ const debug = createDebug({
   isInventoryOpen: () => inventory.isOpen(),
   saveApi: { saveGame, clearSave },
   clock,
-  sfx
+  sfx,
+  needs
 });
 const sleeper = createSleep({
   clock,
@@ -107,15 +118,19 @@ const hudMute = createHudMute({
   isMuted: () => sfx.isMuted(),
   onToggle: () => sfx.toggleMuted()
 });
+const hudNeeds = createHudNeeds({ getNeeds: () => needs.get() });
 function syncClockHud() {
   const show = instructions.classList.contains('hidden') && !uiBlocked();
   hudClock.setVisible(show);
   if (show) hudClock.update(clock.getTime());
   hudMute.setVisible(show);
   hudMute.refresh();
+  hudNeeds.setVisible(show);
+  if (show) hudNeeds.update();
 }
 clock.on('change', (t) => hudClock.update(t));
 sfx.on('mute', () => hudMute.refresh());
+needs.onChange(() => hudNeeds.update());
 window.addEventListener('inventory-open', syncClockHud);
 window.addEventListener('inventory-close', syncClockHud);
 window.addEventListener('debug-modal-open', syncClockHud);
@@ -125,6 +140,9 @@ window.addEventListener('sleep-start', () => {
   syncClockHud();
 });
 window.addEventListener('sleep-end', syncClockHud);
+window.addEventListener('maple-slept', (e) => {
+  needs.applySleep(e.detail || {});
+});
 
 const prompt = createInteractPrompt({
   isMobile,
@@ -155,7 +173,8 @@ function gameState() {
     position: { x: player.position.x, y: player.position.y, z: player.position.z },
     inventory: inventory.serialize(),
     pickups: scene.userData.world ? scene.userData.world.serialize() : undefined,
-    time: clock.serialize()
+    time: clock.serialize(),
+    needs: needs.serialize()
   };
 }
 
@@ -185,6 +204,7 @@ function animate() {
 
   const started = instructions.classList.contains('hidden');
   const sleeping = sleeper.isSleeping();
+  const timeBefore = started && !sleeping ? clock.getTime().totalMinutes : null;
   if (started && !sleeping) clock.tick(delta);
   const prevX = player.position.x;
   const prevZ = player.position.z;
@@ -192,6 +212,8 @@ function animate() {
   sleeper.update(delta);
   if (started && !sleeping) {
     const moved = Math.hypot(player.position.x - prevX, player.position.z - prevZ);
+    const gameMinutes = clock.getTime().totalMinutes - timeBefore;
+    if (gameMinutes > 0) needs.update(gameMinutes, { moving: moved > 0.02 });
     sfx.update(delta, {
       x: player.position.x,
       z: player.position.z,

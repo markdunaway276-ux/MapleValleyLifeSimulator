@@ -21,8 +21,8 @@ Push any change and the link updates in ~1 minute. Open it on your phone anytime
 - `src/main.js` — entry, quality detection, loop
 - `src/core/` — player + input
 - `src/world/` — scene building (`interior.js` = the walk-in interior of the main house: floors, partitions, furniture, doorway colliders; `pickups.js` = snack and mailbox)
-- `src/systems/` — save, collision, doors, interactables, game clock (`time.js`), sound (`sfx.js`), sleep (`sleep.js`), and optional debug tools (`debug.js`, `collisionViz.js`)
-- `src/ui/` — inventory, door prompt, HUD screenshot button (`hudScreenshot.js`), HUD clock and mute (`hudClock.js`, `hudMute.js`), and debug UI (`debugMenu.js`, `debugOverlay.js`, `feedback.js`)
+- `src/systems/` — save, collision, doors, interactables, game clock (`time.js`), sound (`sfx.js`), sleep (`sleep.js`), needs (`needs.js`), and optional debug tools (`debug.js`, `collisionViz.js`)
+- `src/ui/` — inventory, door prompt, HUD screenshot button (`hudScreenshot.js`), HUD clock, mute and needs (`hudClock.js`, `hudMute.js`, `hudNeeds.js`), and debug UI (`debugMenu.js`, `debugOverlay.js`, `feedback.js`)
 
 ## Main house interior
 Open the front door (walk up and use the prompt) and walk in: a front room (sofa, dining table + chairs), a bedroom and a kitchen. The interior is a few merged single-sided meshes (2 draw calls, no shadow casters) plus one warm point light on desktop only. The doorway collider is open only while the door is open (and never traps you if the door is closed while you stand in it). Exterior and other houses are unchanged.
@@ -34,6 +34,10 @@ A slow day/night cycle (one game day lasts 24 real minutes) tints the sky, fog a
 ## Sound
 Footsteps change on grass, the road or sidewalk, and the main-house floor. Opening or closing a door (and the mailbox lid) has its own sound, and picking up the snack or the letter plays a short pickup chime. A very quiet ambient loop (soft wind and birds by day, crickets at night) follows the game clock. All of this is synthesized with the Web Audio API — there are no audio files to download. Sound unlocks when you press Start (required on a phone), and a small mute button sits under the camera button; the same mute toggle is in the Debug menu and is remembered in localStorage. Later systems can call `sfx.play('pickup')` (or `'sleep'`, `'eat'`, `'cash'`, `'vending'`, `'car'`).
 
+
+
+## Hunger and Energy
+Two needs, Hunger and Energy, sit as compact bars under the info card (top-left). Both run from 0 to 100 and are saved with your game. Hunger falls slowly with game time (a full bar lasts 24 game hours). Energy falls a little faster (20 game hours at rest, 50% quicker while you walk). Sleeping restores Energy to full; Hunger still ticks down for the hours you slept, so you may wake a bit hungry. Open the bag, select a Snack, and tap **Eat** to restore 40 Hunger (the stack goes down by one, and a short eat sound plays). The bars turn amber at 25 or below; nothing else happens when they hit 0 (no death or penalties yet). Later systems can call `get`, `set`, `add` or `onChange` (for example, work can drain Energy). The Debug menu has Refill and Drain buttons.
 
 ## Sleep
 Walk up to the bed in the main house's west bedroom and press E (or tap the prompt) to sleep. The screen fades to black, the game clock jumps to 07:00 the next morning (or the same day's 07:00 if it is still earlier than that), and you fade back in with a short "You slept." toast. Lighting and the HUD clock update immediately, and the new time is saved. A quiet sleep sound plays. Later systems (for example Energy) can listen for the `maple-slept` event or an `onSlept` hook.
@@ -54,6 +58,7 @@ After pressing Start a small **Debug** button appears in the bottom-right corner
 - Teleport list: street start, front of my house, inside my house, each neighbour door (SW, SE, NW, NE), west/east ends of the street, by the parked car
 - Time of day: a slider plus pause and speed (1×, 4×, 16×, 60×)
 - Sound: mute (same control as the HUD mute button; remembered in localStorage)
+- Needs: refill or drain Hunger and Energy
 - Clear saved game (tap twice to confirm; you are returned to the street start)
 
 Desktop shortcuts: `F2` or `` ` `` menu • `F3` overlay • `Shift+F3` perf stats • `F4` collision boxes • `Shift+F4` highlight interactables • `F8` teleport to street start • `Shift+F8` clear save (press twice within 4 s) • `F9` screenshot + markup. In the markup dialog: `Esc` cancels, `Ctrl/Cmd+Enter` saves.
@@ -62,6 +67,6 @@ A short list of later debug ideas lives in `DEBUG-TODO.md`.
 
 ## Next steps
 - Replace the placeholder house with your CC0 Quaternius / Elbolilloduro models
-- Add more systems (economy, needs, jobs)
+- Add more systems (economy, jobs)
 - Improve touch controls and on-screen buttons for mobile
 - Add a quality toggle in settings
