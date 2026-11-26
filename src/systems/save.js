@@ -16,3 +16,15 @@ export function saveGame(data) {
     console.warn('Save failed', e);
   }
 }
+
+export function clearSave() {
+  try {
+    localStorage.removeItem(KEY);
+    return true;
+  } catch (e) {
+    console.warn('Clear save failed', e);
+    return false;
+  }
+}
+
+export const SAVE_KEY = KEY;

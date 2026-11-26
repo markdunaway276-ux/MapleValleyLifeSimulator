@@ -10,6 +10,7 @@ export function setupInput(player, isMobile, { isInventoryOpen } = {}) {
     player.joystickY = 0;
   }
   window.addEventListener('inventory-open', clearMotion);
+  window.addEventListener('debug-modal-open', clearMotion);
 
 
   if (isMobile) document.body.classList.add('mobile');
@@ -52,14 +53,16 @@ export function setupInput(player, isMobile, { isInventoryOpen } = {}) {
     let lookTouch = null;
     let lastLookX = 0, lastLookY = 0;
 
-    window.addEventListener('inventory-open', () => {
+    const resetTouch = () => {
       joystickActive = false;
       lookTouch = null;
       if (knob) {
         knob.style.left = '35px';
         knob.style.top = '35px';
       }
-    });
+    };
+    window.addEventListener('inventory-open', resetTouch);
+    window.addEventListener('debug-modal-open', resetTouch);
 
     joystick.addEventListener('touchstart', (e) => {
       if (blocked()) return;
@@ -99,7 +102,7 @@ export function setupInput(player, isMobile, { isInventoryOpen } = {}) {
 
     document.addEventListener('touchstart', (e) => {
       if (blocked()) return;
-      if (e.target.closest && e.target.closest('#inventory, #inventory-toggle, #interact-prompt')) return;
+      if (e.target.closest && e.target.closest('#inventory, #inventory-toggle, #interact-prompt, .debug-ui')) return;
       if (e.target === joystick || joystick.contains(e.target)) return;
       if (e.touches.length === 1) {
         lookTouch = e.touches[0].identifier;

@@ -4,9 +4,10 @@ import { createPlayer } from './core/player.js';
 import { setupInput } from './core/input.js';
 import { createInventory } from './ui/inventory.js';
 import { STARTER_ITEMS } from './data/items.js';
-import { loadSave, saveGame } from './systems/save.js';
+import { loadSave, saveGame, clearSave } from './systems/save.js';
 import { createInteractPrompt, INTERACT_RANGE } from './ui/interactPrompt.js';
 import { nearestDoor, toggleDoor, updateDoors } from './systems/doors.js';
+import { createDebug } from './systems/debug.js';
 
 const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || window.innerWidth < 800;
 
@@ -55,12 +56,25 @@ const inventory = createInventory({
   isStarted: () => instructions.classList.contains('hidden'),
   items: STARTER_ITEMS
 });
-setupInput(player, isMobile, { isInventoryOpen: () => inventory.isOpen() });
+// Optional debug tools (all off by default; see src/systems/debug.js for keys)
+const debug = createDebug({
+  renderer,
+  scene,
+  camera,
+  player,
+  quality: { tier: isMobile ? 'mobile' : 'desktop', ...quality },
+  isMobile,
+  isStarted: () => instructions.classList.contains('hidden'),
+  isInventoryOpen: () => inventory.isOpen(),
+  saveApi: { saveGame, clearSave }
+});
+const uiBlocked = () => inventory.isOpen() || debug.isModalOpen();
+setupInput(player, isMobile, { isInventoryOpen: uiBlocked });
 
 const prompt = createInteractPrompt({
   isMobile,
   isStarted: () => instructions.classList.contains('hidden'),
-  isInventoryOpen: () => inventory.isOpen(),
+  isInventoryOpen: uiBlocked,
   getTarget: () => nearestDoor(scene.userData.doors, player.position, INTERACT_RANGE),
   player,
   range: INTERACT_RANGE
@@ -70,6 +84,7 @@ document.getElementById('start').onclick = () => {
   instructions.classList.add('hidden');
   if (!isMobile && !inventory.isOpen()) renderer.domElement.requestPointerLock();
   prompt.update();
+  debug.refresh();
 };
 
 window.addEventListener('resize', () => {
@@ -98,6 +113,7 @@ function animate() {
   updateDoors(scene.userData.doors, delta);
   prompt.update();
   renderer.render(scene, camera);
+  debug.update();
 }
 animate();
 
