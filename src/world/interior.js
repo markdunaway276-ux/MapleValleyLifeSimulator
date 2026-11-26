@@ -62,6 +62,26 @@ export const COOK_SIZE = { width: 0.9, height: 0.88, depth: 0.66 };
 /** Interact point on the north (room) side of the cook station. */
 export const COOK_INTERACT = { x: 3.15, y: 0.92, z: -13.55 };
 
+/** Front-room sofa against the west wall, facing into the room (+x). */
+export const SOFA_CENTER = { x: KENNEY_INNER.west + 0.45, y: 0, z: -7.65 };
+export const SOFA_SIZE = { width: 0.9, height: 0.88, depth: 1.5 };
+/** Interact point on the east (room) side of the sofa. */
+export const SOFA_INTERACT = { x: KENNEY_INNER.west + 0.9 + 0.35, y: 0.7, z: -7.65 };
+export const SOFA_SEAT = { x: KENNEY_INNER.west + 0.55, y: 1.1, z: -7.65, yaw: -Math.PI / 2 };
+export const SOFA_STAND = { x: KENNEY_INNER.west + 0.9 + 0.45, z: -7.65 };
+
+/**
+ * Dining chairs at the front-room table (chair1, chair2) and the kitchen
+ * table (chair3, chair4). `facing` is the direction the sitter looks.
+ */
+export const CHAIR_SIZE = { width: 0.42, height: 0.7, depth: 0.42 };
+export const CHAIR_DEFS = [
+  { id: 'chair1', x: -2.3, z: -7.7, facing: '+x' },
+  { id: 'chair2', x: -0.8, z: -7.7, facing: '-x' },
+  { id: 'chair3', x: 2.0, z: -12.15, facing: '+z' },
+  { id: 'chair4', x: 2.0, z: -10.45, facing: '-z' }
+];
+
 const WALL = 0xe9dfc9;
 const WALL_SHADE = 0xded2b8;
 const FLOOR = 0x9a7048;

@@ -5,6 +5,7 @@ import { buildMainHouseInterior, removePaintedFrontDoor, BED_CENTER, DESK_CENTER
 import { createBed } from '../systems/sleep.js';
 import { createDesk } from '../systems/work.js';
 import { createCook } from '../systems/skills.js';
+import { createSeats } from '../systems/sit.js';
 import { scatterTrees, TREE_PLACEMENTS } from './trees.js';
 import { createParkedCar } from './props.js';
 import { createSnackPickup, createMailbox, MAILBOX_SPAWN, SNACK_SPAWN, mailboxCollider } from './pickups.js';
@@ -593,8 +594,12 @@ export function createScene(quality) {
       cook.position.set(COOK_CENTER.x, COOK_CENTER.y, COOK_CENTER.z);
       pickups.add(cook);
       scene.userData.cook = cook;
-      // Registered as an interactable by registerCookInteractable (main.js),
-      // the same way the car is, so older highlighter counts stay stable.
+
+      const seats = createSeats();
+      for (let i = 0; i < seats.length; i++) pickups.add(seats[i]);
+      scene.userData.seats = seats;
+      // Cook and seats are registered as interactables from main.js (the same
+      // way the car is) so older highlighter counts stay stable.
       if (typeof scene.userData.onInteriorReady === 'function') scene.userData.onInteriorReady(scene);
 
       if (scene.userData.world) scene.userData.world.apply({ pickups: { ...scene.userData.world.taken } });

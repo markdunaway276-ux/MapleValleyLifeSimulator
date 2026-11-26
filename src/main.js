@@ -33,6 +33,7 @@ import { createDialogue } from './ui/dialogue.js';
 import { createHudSave } from './ui/hudSave.js';
 import { createCar } from './systems/car.js';
 import { createSkills, registerCookInteractable } from './systems/skills.js';
+import { createSit, registerSitInteractables } from './systems/sit.js';
 
 const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || window.innerWidth < 800;
 
@@ -99,8 +100,12 @@ if (saveData.needs) needs.apply(saveData);
 const skills = createSkills({ clock, needs, save: () => saveGame(gameState()) });
 if (saveData.skills) skills.apply(saveData);
 scene.userData.skills = skills;
-scene.userData.onInteriorReady = (s) => registerCookInteractable(s);
-registerCookInteractable(scene);
+function installInteriorInteractables(s) {
+  registerCookInteractable(s);
+  registerSitInteractables(s);
+}
+scene.userData.onInteriorReady = installInteriorInteractables;
+installInteriorInteractables(scene);
 
 const fromSaveBag = Array.isArray(saveData.inventory);
 const bagCash = extractCashFromItems(fromSaveBag ? saveData.inventory : []);
@@ -127,9 +132,26 @@ const car = createCar({
   isMobile,
   isStarted: () => instructions.classList.contains('hidden') && !sleeper.isSleeping() && !worker.isWorking(),
   sfx,
-  onDrivingChange: (on) => { playerBody.group.visible = !on; }
+  onDrivingChange: () => { syncPlayerBody(); }
 });
 if (car && saveData.car) car.apply(saveData);
+
+function syncPlayerBody() {
+  const hide = (car && car.isDriving()) || (sitter && sitter.isSeated());
+  playerBody.group.visible = !hide;
+}
+
+const sitter = createSit({
+  scene,
+  player,
+  camera,
+  needs,
+  isStarted: () => instructions.classList.contains('hidden') && !sleeper.isSleeping() && !worker.isWorking(),
+  onSeatedChange: () => { syncPlayerBody(); }
+});
+if (scene.userData.seats) {
+  for (let i = 0; i < scene.userData.seats.length; i++) scene.userData.seats[i].userData.sit = sitter;
+}
 
 const instructions = document.getElementById('instructions');
 let phone;
@@ -287,6 +309,7 @@ window.addEventListener('sleep-start', () => {
   if (phone.isOpen()) phone.close();
   if (dialogue.isOpen()) dialogue.close();
   if (car && car.isDriving()) car.exit();
+  if (sitter && sitter.isSeated()) sitter.stand();
   syncClockHud();
 });
 window.addEventListener('sleep-end', syncClockHud);
@@ -298,6 +321,7 @@ window.addEventListener('work-start', () => {
   if (phone.isOpen()) phone.close();
   if (dialogue.isOpen()) dialogue.close();
   if (car && car.isDriving()) car.exit();
+  if (sitter && sitter.isSeated()) sitter.stand();
   syncClockHud();
 });
 window.addEventListener('work-end', syncClockHud);
@@ -319,7 +343,7 @@ const prompt = createInteractPrompt({
   isMobile,
   isStarted: () => instructions.classList.contains('hidden'),
   isInventoryOpen: uiBlocked,
-  getTarget: () => (car && car.isDriving() ? car.object : nearestActionTarget(scene, player.position, INTERACT_RANGE)),
+  getTarget: () => (car && car.isDriving() ? car.object : (sitter && sitter.isSeated() ? sitter.object() : nearestActionTarget(scene, player.position, INTERACT_RANGE))),
   player,
   range: INTERACT_RANGE
 });
@@ -340,8 +364,9 @@ window.addEventListener('resize', () => {
 });
 
 function gameState() {
-  // While driving, the saved player spot is beside the car, not inside it.
-  const spot = car && car.isDriving() ? car.exitSpot() : null;
+  // While driving or sitting, the saved player spot is a safe stand / exit, not inside the prop.
+  const spot = car && car.isDriving() ? car.exitSpot()
+    : (sitter && sitter.isSeated() ? sitter.exitSpot() : null);
   return {
     position: spot
       ? { x: spot.x, y: 1.6, z: spot.z }
@@ -361,14 +386,14 @@ function gameState() {
 // Interact with the nearest door or pickup within range
 window.addEventListener('interact', () => {
   if (sleeper.isSleeping() || worker.isWorking()) return;
-  const target = car && car.isDriving() ? car.object : nearestActionTarget(scene, player.position, INTERACT_RANGE);
+  const target = car && car.isDriving() ? car.object : (sitter && sitter.isSeated() ? sitter.object() : nearestActionTarget(scene, player.position, INTERACT_RANGE));
   if (target) {
     const ud = target.userData || {};
     const before = {
       picked: !!ud.picked,
       letterTaken: !!(ud.mail && ud.mail.letterTaken)
     };
-    activateTarget(target, { inventory, scene, player, sfx, money, toast: (msg) => hudMoney.toast(msg), sleep: () => sleeper.start(), work: () => worker.start(), cook: () => skills.cook({ clock, needs, sfx, toast: (msg) => hudMoney.toast(msg) }), dialogue, talk: (def) => dialogue.open(def.id) });
+    activateTarget(target, { inventory, scene, player, sfx, money, toast: (msg) => hudMoney.toast(msg), sleep: () => sleeper.start(), work: () => worker.start(), cook: () => skills.cook({ clock, needs, sfx, toast: (msg) => hudMoney.toast(msg) }), sit: sitter, dialogue, talk: (def) => dialogue.open(def.id) });
     cueInteract(sfx, target, before);
     prompt.update();
     if (!sleeper.isSleeping() && !worker.isWorking()) saveGame(gameState());
@@ -391,6 +416,7 @@ function animate() {
   const prevX = player.position.x;
   const prevZ = player.position.z;
   if (car && car.isDriving()) car.update(delta, { blocked: uiBlocked() });
+  else if (sitter && sitter.isSeated()) sitter.update(delta, { blocked: uiBlocked() });
   else player.update(delta);
   playerBody.update(player);
   npcs.update(delta, { player, talkingId: dialogue.isOpen() ? dialogue.currentNpc() : null });
@@ -405,12 +431,20 @@ function animate() {
     const moved = Math.hypot(player.position.x - prevX, player.position.z - prevZ);
     const gameMinutes = clock.getTime().totalMinutes - timeBefore;
     const driving = !!(car && car.isDriving());
-    if (gameMinutes > 0) needs.update(gameMinutes, { moving: !driving && moved > 0.02 });
+    const sitting = !!(sitter && sitter.isSeated());
+    if (gameMinutes > 0) {
+      if (sitting) {
+        needs.update(gameMinutes, { hungerOnly: true });
+        sitter.applyEnergy(gameMinutes);
+      } else {
+        needs.update(gameMinutes, { moving: !driving && moved > 0.02 });
+      }
+    }
     if (!driving && moved > 0.02) skills.addWalk(moved);
     sfx.update(delta, {
       x: player.position.x,
       z: player.position.z,
-      moved: driving ? 0 : moved,
+      moved: (driving || sitting) ? 0 : moved,
       onGround: player.onGround,
       time: clock.getTime(),
       scene
