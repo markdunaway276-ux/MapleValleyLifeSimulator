@@ -5,6 +5,8 @@ import { wrapMinutes, MINUTES_PER_DAY } from '../systems/time.js';
 export const LIGHT_UPDATE_HZ = 8;
 export const LIGHT_UPDATE_INTERVAL = 1 / LIGHT_UPDATE_HZ;
 
+// three r169 uses physical light units (no legacy x PI), so daytime intensities sit
+// around 3x the old values; night keys are unchanged so nights stay dark.
 // Midday: slightly cooler sky, warmer but less blown-out sun, richer ground bounce.
 const DAY = {
   skyTop: 0x3a7ab0,
@@ -12,11 +14,11 @@ const DAY = {
   fog: 0xb8d4e8,
   hemiSky: 0x7eb0d8,
   hemiGround: 0x2a4a28,
-  hemiInt: 0.42,
+  hemiInt: 1.1,
   ambient: 0xe8dcc8,
-  ambientInt: 0.14,
+  ambientInt: 0.35,
   sun: 0xffd8a0,
-  sunInt: 1.05,
+  sunInt: 3.0,
   sunPos: [22, 32, 16],
   exponent: 0.75,
   interior: 0
@@ -27,17 +29,17 @@ export const LIGHT_KEYS = [
   { m: 0, skyTop: 0x080c18, skyBottom: 0x10182a, fog: 0x10182a, hemiSky: 0x2a3a58, hemiGround: 0x121810, hemiInt: 0.12, ambient: 0x141c2c, ambientInt: 0.06, sun: 0xa8b8e0, sunInt: 0.06, sunPos: [-8, 22, -24], exponent: 1.15, interior: 1 },
   { m: 4 * 60, skyTop: 0x080c18, skyBottom: 0x10182a, fog: 0x10182a, hemiSky: 0x2a3a58, hemiGround: 0x121810, hemiInt: 0.12, ambient: 0x141c2c, ambientInt: 0.06, sun: 0xa8b8e0, sunInt: 0.06, sunPos: [-4, 20, -24], exponent: 1.15, interior: 1 },
   // Dawn — muted purple/orange, restrained intensity
-  { m: 5 * 60 + 30, skyTop: 0x5a3a68, skyBottom: 0xd88860, fog: 0xc87858, hemiSky: 0xc09080, hemiGround: 0x2e3a22, hemiInt: 0.24, ambient: 0xe8b898, ambientInt: 0.1, sun: 0xee8050, sunInt: 0.3, sunPos: [36, 6, 8], exponent: 0.85, interior: 0.7 },
+  { m: 5 * 60 + 30, skyTop: 0x5a3a68, skyBottom: 0xd88860, fog: 0xc87858, hemiSky: 0xc09080, hemiGround: 0x2e3a22, hemiInt: 0.55, ambient: 0xe8b898, ambientInt: 0.2, sun: 0xee8050, sunInt: 0.9, sunPos: [36, 6, 8], exponent: 0.85, interior: 0.7 },
   // Morning
-  { m: 7 * 60, skyTop: 0x5a98c0, skyBottom: 0xd8c8a8, fog: 0xd0c0a0, hemiSky: 0xa0c8e8, hemiGround: 0x2a4a28, hemiInt: 0.36, ambient: 0xe8d8c0, ambientInt: 0.12, sun: 0xffc890, sunInt: 0.75, sunPos: [30, 18, 14], exponent: 0.75, interior: 0.2 },
+  { m: 7 * 60, skyTop: 0x5a98c0, skyBottom: 0xd8c8a8, fog: 0xd0c0a0, hemiSky: 0xa0c8e8, hemiGround: 0x2a4a28, hemiInt: 0.95, ambient: 0xe8d8c0, ambientInt: 0.3, sun: 0xffc890, sunInt: 2.3, sunPos: [30, 18, 14], exponent: 0.75, interior: 0.2 },
   // Midday
   { m: 10 * 60, ...DAY },
   // Early afternoon — slightly brighter but still controlled
-  { m: 13 * 60, skyTop: 0x4a98d0, skyBottom: 0xb8d8ec, fog: 0xb8d8ec, hemiSky: 0x90c0e8, hemiGround: 0x2a4a28, hemiInt: 0.48, ambient: 0xeee4d4, ambientInt: 0.16, sun: 0xffe8c0, sunInt: 1.15, sunPos: [8, 40, 18], exponent: 0.7, interior: 0 },
+  { m: 13 * 60, skyTop: 0x4a98d0, skyBottom: 0xb8d8ec, fog: 0xb8d8ec, hemiSky: 0x90c0e8, hemiGround: 0x2a4a28, hemiInt: 1.2, ambient: 0xeee4d4, ambientInt: 0.38, sun: 0xffe8c0, sunInt: 3.2, sunPos: [8, 40, 18], exponent: 0.7, interior: 0 },
   // Golden hour — warmer, deeper
-  { m: 17 * 60 + 30, skyTop: 0xc07038, skyBottom: 0xd8a068, fog: 0xc89058, hemiSky: 0xd8a878, hemiGround: 0x3a4820, hemiInt: 0.32, ambient: 0xe8c090, ambientInt: 0.12, sun: 0xffa048, sunInt: 0.75, sunPos: [-26, 14, 14], exponent: 0.75, interior: 0.25 },
+  { m: 17 * 60 + 30, skyTop: 0xc07038, skyBottom: 0xd8a068, fog: 0xc89058, hemiSky: 0xd8a878, hemiGround: 0x3a4820, hemiInt: 0.8, ambient: 0xe8c090, ambientInt: 0.28, sun: 0xffa048, sunInt: 2.2, sunPos: [-26, 14, 14], exponent: 0.75, interior: 0.25 },
   // Dusk
-  { m: 19 * 60 + 30, skyTop: 0x1e2a52, skyBottom: 0xa05840, fog: 0x704050, hemiSky: 0xa87060, hemiGround: 0x1e2e18, hemiInt: 0.18, ambient: 0xe09870, ambientInt: 0.08, sun: 0xee6030, sunInt: 0.18, sunPos: [-30, 4, 10], exponent: 0.9, interior: 0.7 },
+  { m: 19 * 60 + 30, skyTop: 0x1e2a52, skyBottom: 0xa05840, fog: 0x704050, hemiSky: 0xa87060, hemiGround: 0x1e2e18, hemiInt: 0.4, ambient: 0xe09870, ambientInt: 0.15, sun: 0xee6030, sunInt: 0.5, sunPos: [-30, 4, 10], exponent: 0.9, interior: 0.7 },
   // Evening into night
   { m: 21 * 60, skyTop: 0x0c1220, skyBottom: 0x141c30, fog: 0x141c30, hemiSky: 0x2a3a58, hemiGround: 0x121810, hemiInt: 0.12, ambient: 0x141c2c, ambientInt: 0.06, sun: 0xa8b8e0, sunInt: 0.08, sunPos: [-16, 20, -22], exponent: 1.1, interior: 1 },
   { m: MINUTES_PER_DAY, skyTop: 0x080c18, skyBottom: 0x10182a, fog: 0x10182a, hemiSky: 0x2a3a58, hemiGround: 0x121810, hemiInt: 0.12, ambient: 0x141c2c, ambientInt: 0.06, sun: 0xa8b8e0, sunInt: 0.06, sunPos: [-8, 22, -24], exponent: 1.15, interior: 1 }

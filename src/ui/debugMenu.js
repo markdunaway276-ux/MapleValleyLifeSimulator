@@ -138,7 +138,7 @@ export const MENU_ITEMS = [
   { id: 'clearSave', type: 'action', label: 'Clear saved game', key: 'Shift+F8 twice', danger: true }
 ];
 
-export function createDebugMenu({ actions, getState, getTeleports = () => [], getClock = null, getSfx = null, getNeeds = null, getMoney = null, getMinimap = null, getWeather = null, getSaveHud = null, getSkills = null, onOpen = () => {}, onClose = () => {}, container = document.body }) {
+export function createDebugMenu({ actions, getState, getTeleports = () => [], getClock = null, getSfx = null, getNeeds = null, getMoney = null, getMinimap = null, getWeather = null, getSaveHud = null, getSkills = null, getDisplay = null, onOpen = () => {}, onClose = () => {}, container = document.body }) {
   ensureStyles();
 
   const button = document.createElement('button');
@@ -223,6 +223,7 @@ export function createDebugMenu({ actions, getState, getTeleports = () => [], ge
       if (item.id === 'screenshot') panel.appendChild(buildTeleportSection());
     }
 
+    if (typeof getDisplay === 'function') panel.appendChild(buildDisplaySection());
     if (typeof getClock === 'function') panel.appendChild(buildTimeSection());
     if (typeof getSfx === 'function') panel.appendChild(buildSoundSection());
     if (typeof getNeeds === 'function') panel.appendChild(buildNeedsSection());
@@ -317,6 +318,83 @@ export function createDebugMenu({ actions, getState, getTeleports = () => [], ge
   }
 
   let timeEls = null;
+
+  let displayEls = null;
+
+  function makeSlider({ label, min, max, step, onInput }) {
+    const wrap = document.createElement('div');
+    const text = document.createElement('div');
+    text.className = 'dm-time-label';
+    const input = document.createElement('input');
+    input.type = 'range';
+    input.min = String(min);
+    input.max = String(max);
+    input.step = String(step);
+    input.setAttribute('aria-label', label);
+    input.addEventListener('pointerdown', (e) => e.stopPropagation());
+    input.addEventListener('input', () => onInput(Number(input.value)));
+    wrap.append(text, input);
+    return { wrap, text, input };
+  }
+
+  function buildDisplaySection() {
+    const section = document.createElement('div');
+    section.className = 'dm-section is-open';
+    section.dataset.item = 'display';
+    const toggle = document.createElement('button');
+    toggle.type = 'button';
+    toggle.className = 'dm-section-toggle';
+    toggle.setAttribute('aria-expanded', 'true');
+    const title = document.createElement('span');
+    title.className = 'dm-label';
+    title.textContent = 'Display';
+    const chev = document.createElement('span');
+    chev.className = 'dm-chevron';
+    chev.textContent = '▾';
+    toggle.append(title, chev);
+    const body = document.createElement('div');
+    body.className = 'dm-sublist dm-time';
+    const d = () => getDisplay && getDisplay();
+    const bright = makeSlider({ label: 'Brightness', min: 0.5, max: 2, step: 0.05, onInput: (v) => { const x = d(); if (x) x.setBrightness(v); refreshDisplay(); } });
+    const film = makeSlider({ label: 'Film look', min: 0, max: 1, step: 0.05, onInput: (v) => { const x = d(); if (x) x.setFilm(v); refreshDisplay(); } });
+    const row = document.createElement('div');
+    row.className = 'dm-time-row';
+    const grainBtn = document.createElement('button');
+    grainBtn.type = 'button';
+    grainBtn.dataset.displayAction = 'grain';
+    grainBtn.addEventListener('click', () => { const x = d(); if (x) x.setGrain(!x.get().grain); refreshDisplay(); });
+    const resetBtn = document.createElement('button');
+    resetBtn.type = 'button';
+    resetBtn.dataset.displayAction = 'reset';
+    resetBtn.textContent = 'Reset';
+    resetBtn.addEventListener('click', () => { const x = d(); if (x) x.reset(); refreshDisplay(); });
+    const x0 = d();
+    if (x0 && x0.hasGrain()) row.appendChild(grainBtn);
+    row.appendChild(resetBtn);
+    body.append(bright.wrap, film.wrap, row);
+    toggle.addEventListener('click', () => {
+      const open = !section.classList.contains('is-open');
+      section.classList.toggle('is-open', open);
+      toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+    });
+    section.append(toggle, body);
+    displayEls = { section, bright, film, grainBtn };
+    refreshDisplay();
+    return section;
+  }
+
+  function refreshDisplay() {
+    if (!displayEls || typeof getDisplay !== 'function') return;
+    const x = getDisplay();
+    if (!x) return;
+    const s = x.get();
+    displayEls.bright.text.textContent = `Brightness ${Math.round(s.brightness * 100)}%`;
+    displayEls.film.text.textContent = `Film look ${Math.round(s.film * 100)}%`;
+    if (document.activeElement !== displayEls.bright.input) displayEls.bright.input.value = String(s.brightness);
+    if (document.activeElement !== displayEls.film.input) displayEls.film.input.value = String(s.film);
+    displayEls.grainBtn.textContent = s.grain ? 'Grain: on' : 'Grain: off';
+    displayEls.grainBtn.setAttribute('aria-pressed', s.grain ? 'true' : 'false');
+  }
 
   function buildTimeSection() {
     const section = document.createElement('div');
@@ -848,6 +926,7 @@ export function createDebugMenu({ actions, getState, getTeleports = () => [], ge
     for (const id of ['overlay', 'collision', 'highlight', 'perf']) {
       if (rows[id]) rows[id].row.setAttribute('aria-checked', state[id] ? 'true' : 'false');
     }
+    refreshDisplay();
     refreshTime();
     refreshMute();
     refreshNeeds();

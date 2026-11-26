@@ -80,6 +80,7 @@ export function createDebug({
   getActivity = null,
   getSaveHud = null,
   getSkills = null,
+  getDisplay = null,
   container = document.body,
   now = () => performance.now()
 }) {
@@ -116,6 +117,7 @@ export function createDebug({
     getWeather: typeof getWeather === 'function' ? getWeather : null,
     getSaveHud: typeof getSaveHud === 'function' ? getSaveHud : null,
     getSkills: typeof getSkills === 'function' ? getSkills : null,
+    getDisplay: typeof getDisplay === 'function' ? getDisplay : null,
     onOpen: modalOpened,
     onClose: modalClosed,
     container

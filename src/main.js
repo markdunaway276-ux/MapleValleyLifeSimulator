@@ -48,6 +48,7 @@ import { createSit, registerSitInteractables } from './systems/sit.js';
 import { createInteriorLights, registerLightSwitchInteractable } from './systems/lights.js';
 import { createTvSet, registerTvInteractable } from './systems/tv.js';
 import { createRenderer, createView } from './game/rendering.js';
+import { createDisplay } from './systems/display.js';
 import { createSaver } from './game/gameState.js';
 import { createHud } from './game/hud.js';
 import { setupDailyMail } from './game/dailyMail.js';
@@ -67,9 +68,11 @@ const instructions = document.getElementById('instructions');
 const mode = createPlayerMode({ isStarted: () => instructions.classList.contains('hidden') });
 const view = createView({ renderer, scene, quality });
 const { camera } = view;
+// Brightness / film look / grain (Debug -> Display), stored per device like mute.
+const display = createDisplay({ renderer, post: view.post });
 const player = createPlayer(camera, scene);
 const save = createSaver(g);
-Object.assign(g, { isMobile, quality, renderer, scene, mode, view, camera, player, save });
+Object.assign(g, { isMobile, quality, renderer, scene, mode, view, camera, player, save, display });
 
 const spawn = scene.userData.spawn || { x: 0, y: 1.6, z: -1.15 };
 const saveData = loadSave();
@@ -218,6 +221,7 @@ const debug = createDebug({
   getWeather: () => weather,
   getSaveHud: () => hudSave,
   getSkills: () => skills,
+  getDisplay: () => display,
   getActivity: (opts) => mode.describe(opts)
 });
 mode.attach({ inventory, debug });
