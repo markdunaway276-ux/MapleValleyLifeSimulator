@@ -1,4 +1,57 @@
-const KEY = 'mapleValleyLife_save';
+const BASE_KEY = 'mapleValleyLife_save';
+
+/**
+ * Save slots. Slot 1 is the original key, so saves from before slots load as
+ * slot 1. The active slot is remembered on the device; the game reads only the
+ * active slot, and switching slots reloads the page (titleScreen.js) so every
+ * system starts cleanly from the chosen save.
+ */
+export const SLOT_COUNT = 3;
+export const ACTIVE_SLOT_KEY = 'mapleValleyLife_activeSlot';
+
+export function keyForSlot(slot) {
+  const n = Math.min(SLOT_COUNT, Math.max(1, Math.floor(Number(slot)) || 1));
+  return n === 1 ? BASE_KEY : BASE_KEY + '_slot' + n;
+}
+
+export function getActiveSlot() {
+  const ls = storage();
+  const n = ls ? Number(ls.getItem(ACTIVE_SLOT_KEY)) : 1;
+  return n >= 1 && n <= SLOT_COUNT ? Math.floor(n) : 1;
+}
+
+export function setActiveSlot(slot) {
+  const ls = storage();
+  const n = Math.min(SLOT_COUNT, Math.max(1, Math.floor(Number(slot)) || 1));
+  try { if (ls) ls.setItem(ACTIVE_SLOT_KEY, String(n)); } catch { /* blocked */ }
+  return n;
+}
+
+/** The raw save in a slot (no migration), or null if it is empty / unreadable. */
+export function readSlot(slot) {
+  const ls = storage();
+  if (!ls) return null;
+  try {
+    const raw = ls.getItem(keyForSlot(slot));
+    const data = raw ? JSON.parse(raw) : null;
+    return data && typeof data === 'object' && !Array.isArray(data) && Object.keys(data).length ? data : null;
+  } catch {
+    return null;
+  }
+}
+
+export function clearSlot(slot) {
+  const ls = storage();
+  try { if (ls) ls.removeItem(keyForSlot(slot)); return true; } catch { return false; }
+}
+
+// Set while the page is about to reload into another slot, so a late autosave
+// cannot write this game into the newly chosen slot.
+let frozen = false;
+export function freezeSaves() { frozen = true; }
+
+/** The active slot's storage key. */
+function currentKey() { return keyForSlot(getActiveSlot()); }
 
 /**
  * Bump this whenever the save's shape changes, and add a matching step to
@@ -41,15 +94,15 @@ function storage() {
 function readRaw() {
   const ls = storage();
   if (!ls) return {};
-  const raw = ls.getItem(KEY);
+  const raw = ls.getItem(currentKey());
   if (!raw) return {};
   let data;
   try {
     data = JSON.parse(raw);
   } catch (e) {
     // Keep the unreadable save so it is not lost when the next autosave overwrites it.
-    console.warn('Save could not be read; kept a copy under ' + KEY + '_corrupt', e);
-    try { ls.setItem(KEY + '_corrupt', raw); } catch { /* storage full: nothing more to do */ }
+    console.warn('Save could not be read; kept a copy under ' + currentKey() + '_corrupt', e);
+    try { ls.setItem(currentKey() + '_corrupt', raw); } catch { /* storage full: nothing more to do */ }
     return {};
   }
   if (!data || typeof data !== 'object' || Array.isArray(data)) return {};
@@ -96,10 +149,10 @@ export function loadSave() {
     const result = migrateSave(data);
     if (result.ok && ls) {
       // Keep the pre-upgrade save once, then store the upgraded one so this runs only once.
-      const backupKey = KEY + '_backup_v' + version;
+      const backupKey = currentKey() + '_backup_v' + version;
       try {
         if (!ls.getItem(backupKey)) ls.setItem(backupKey, JSON.stringify(data));
-        ls.setItem(KEY, JSON.stringify(result.data));
+        ls.setItem(currentKey(), JSON.stringify(result.data));
       } catch (e) {
         console.warn('Could not store the upgraded save', e);
       }
@@ -111,11 +164,12 @@ export function loadSave() {
 }
 
 export function saveGame(data) {
+  if (frozen) return null;
   try {
     const prev = loadSave();
     // Never stamp a lower version over a save written by a newer build.
     const next = { ...prev, ...(data || {}), version: Math.max(SAVE_VERSION, saveVersion(prev)) };
-    localStorage.setItem(KEY, JSON.stringify(next));
+    localStorage.setItem(currentKey(), JSON.stringify(next));
     if (typeof window !== 'undefined' && typeof window.dispatchEvent === 'function') {
       window.dispatchEvent(new CustomEvent('maple-saved', { detail: next }));
     }
@@ -128,7 +182,7 @@ export function saveGame(data) {
 
 export function clearSave() {
   try {
-    localStorage.removeItem(KEY);
+    localStorage.removeItem(currentKey());
     return true;
   } catch (e) {
     console.warn('Clear save failed', e);
@@ -136,4 +190,5 @@ export function clearSave() {
   }
 }
 
-export const SAVE_KEY = KEY;
+/** Slot 1's key (the original single save). */
+export const SAVE_KEY = BASE_KEY;

@@ -50,6 +50,10 @@ import { createTvSet, registerTvInteractable } from './systems/tv.js';
 import { createRenderer, createView } from './game/rendering.js';
 import { createDisplay } from './systems/display.js';
 import { createPauseMenu } from './ui/pauseMenu.js';
+import { createTitleScreen } from './ui/titleScreen.js';
+import { createSettings } from './systems/settings.js';
+import { createStats } from './systems/stats.js';
+import { getNpc } from './data/npcs.js';
 import { createSaver } from './game/gameState.js';
 import { createHud } from './game/hud.js';
 import { setupDailyMail } from './game/dailyMail.js';
@@ -316,15 +320,17 @@ document.getElementById('start').onclick = () => {
 
 // Desktop mouse look needs pointer lock. Esc, switching windows or a refused request
 // drops it, so a click on the game takes it back, and a hint says so while it is lost.
+// Tab frees the mouse on purpose (to click HUD buttons) without pausing; Tab again or
+// a click on the game brings mouse look back.
+let cursorFree = false;
 if (!isMobile) {
   const canvas = renderer.domElement;
   const hint = document.createElement('div');
   hint.id = 'look-hint';
-  hint.textContent = 'Click to look around';
   Object.assign(hint.style, {
     position: 'fixed', left: '50%', top: '58%', transform: 'translateX(-50%)', zIndex: '6',
     padding: '8px 14px', borderRadius: '8px', background: 'rgba(0,0,0,0.6)', color: '#fff',
-    font: '600 14px system-ui, sans-serif', pointerEvents: 'none', display: 'none'
+    font: '600 14px system-ui, sans-serif', pointerEvents: 'none', display: 'none', textAlign: 'center'
   });
   document.body.appendChild(hint);
   const canLook = () => mode.started() && !mode.uiBlocked() && !inventory.isOpen();
@@ -335,25 +341,80 @@ if (!isMobile) {
       if (p && typeof p.catch === 'function') p.catch(() => {});
     } catch { /* browser refused; the hint stays up and the next click tries again */ }
   };
-  canvas.addEventListener('click', relock);
+  canvas.addEventListener('click', () => { cursorFree = false; relock(); });
+  window.addEventListener('keydown', (e) => {
+    if (e.code !== 'Tab' || !canLook()) return;
+    e.preventDefault();
+    if (document.pointerLockElement === canvas) {
+      cursorFree = true;
+      document.exitPointerLock();
+    } else {
+      cursorFree = false;
+      relock();
+    }
+  }, true);
   const syncHint = () => {
-    hint.style.display = (canLook() && document.pointerLockElement !== canvas) ? 'block' : 'none';
+    const show = canLook() && document.pointerLockElement !== canvas;
+    hint.textContent = cursorFree ? 'Mouse free — press Tab or click the game to look around' : 'Click to look around';
+    hint.style.display = show ? 'block' : 'none';
+    hint.style.top = cursorFree ? 'auto' : '58%';
+    hint.style.bottom = cursorFree ? '90px' : 'auto';
   };
-  document.addEventListener('pointerlockchange', syncHint);
+  document.addEventListener('pointerlockchange', () => {
+    if (document.pointerLockElement === canvas) cursorFree = false;
+    syncHint();
+  });
   setInterval(syncHint, 300);
 }
 
-// Pause menu: Esc / P on a desktop (or losing mouse look while playing), the ⏸ button anywhere.
+// Device settings (look speed, invert, field of view, volumes, graphics quality).
+const settings = createSettings();
+const applyLive = {
+  volume: (v) => sfx.setVolumes(v),
+  look: (s) => { player.lookSensitivity = s.sensitivity; player.invertY = s.invertY; },
+  fov: (v) => { camera.fov = v; camera.updateProjectionMatrix(); }
+};
+applyLive.volume(settings.get().volume);
+applyLive.look(settings.get());
+
+// Lifetime stats for the pause menu (money earned, distance walked, neighbours met).
+const stats = createStats({ money, dialogue });
+if (saveData.stats) stats.apply(saveData);
+g.stats = stats;
+g.settings = settings;
+
+// Pause menu: Esc / P on a desktop (or losing mouse look while playing), the II button anywhere.
 const pause = createPauseMenu({
   mode,
   isMobile,
   canvas: renderer.domElement,
+  scene,
+  player,
   getDisplay: () => display,
+  getSettings: () => settings,
   getSfx: () => sfx,
-  save: () => g.save()
+  getStats: () => stats,
+  getClock: () => clock,
+  getMoney: () => money,
+  getSkills: () => skills,
+  getNpcName: (id) => (getNpc(id) || {}).name || id,
+  applyLive,
+  save: () => g.save(),
+  onQuitToTitle: () => location.reload(),
+  isCursorFree: () => cursorFree
 });
 mode.attach({ pause });
 g.pause = pause;
+
+// Title screen (Continue / New game / Load game / Settings) in place of the Start box.
+g.title = createTitleScreen({
+  onStart: () => document.getElementById('start').click(),
+  isMobile,
+  getDisplay: () => display,
+  getSettings: () => settings,
+  getSfx: () => sfx,
+  applyLive
+});
 
 startLoop(g);
 

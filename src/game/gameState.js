@@ -26,7 +26,9 @@ export function gameState(g) {
     skills: g.skills.serialize(),
     inbox: g.inbox.serialize(),
     interiorLights: g.lights.serialize(),
-    tv: g.tvSet.serialize()
+    tv: g.tvSet.serialize(),
+    stats: g.stats ? g.stats.serialize() : undefined,
+    savedAt: Date.now()
   };
 }
 
