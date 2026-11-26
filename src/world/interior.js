@@ -96,6 +96,23 @@ export const SOFA_SEAT = { x: KENNEY_INNER.west + 0.55, y: 1.1, z: -7.65, yaw: -
 export const SOFA_STAND = { x: KENNEY_INNER.west + 0.9 + 0.45, z: -7.65 };
 
 /**
+ * Small TV on a stand against the front-room east wall, facing the sofa (-x),
+ * under the picture and north of the home-office desk, clear of the walking
+ * path down the middle of the room.
+ */
+export const TV_CENTER = { x: KENNEY_INNER.frontRoomEast - 0.15, y: 0, z: -7.65 };
+export const TV_SIZE = { width: 0.7, height: 0.92, depth: 0.26 };
+export const TV_INTERACT = { x: KENNEY_INNER.frontRoomEast - 0.15 - 0.42, y: 0.82, z: -7.65 };
+export const TV_COLLIDER = {
+  minX: KENNEY_INNER.frontRoomEast - 0.26,
+  maxX: KENNEY_INNER.frontRoomEast - 0.01,
+  minZ: -7.65 - 0.38,
+  maxZ: -7.65 + 0.38
+};
+/** World yaw so the screen (built on local +z) faces the sofa (-x). */
+export const TV_YAW = -Math.PI / 2;
+
+/**
  * Dining chairs at the front-room table (chair1, chair2) and the kitchen
  * table (chair3, chair4). `facing` is the direction the sitter looks.
  */

@@ -188,6 +188,15 @@ export function createSfx({
   let carLevel = 0;
   let carOn = false;
 
+  let tvSrc = null;
+  let tvFilter = null;
+  let tvGain = null;
+  let tvBuf = null;
+  let tvOn = false;
+  let tvX = null;
+  let tvZ = null;
+  let tvLevel = 0;
+
   function emitMute() {
     const list = listeners.mute;
     for (let i = 0; i < list.length; i++) list[i](muted);
@@ -207,23 +216,32 @@ export function createSfx({
   }
 
   function ensureGraph() {
-    if (ctx) return ctx;
-    const Ctor = AudioCtx();
-    if (!Ctor) return null;
-    try { ctx = new Ctor(); } catch { return null; }
-    master = ctx.createGain();
-    master.gain.value = muted ? 0 : 1;
-    master.connect(ctx.destination);
-    sfxGain = ctx.createGain();
-    sfxGain.gain.value = 0.85;
-    sfxGain.connect(master);
-    ambGain = ctx.createGain();
-    ambGain.gain.value = 1;
-    ambGain.connect(master);
-    const n = Math.floor(ctx.sampleRate * 1.5);
-    noiseBuf = ctx.createBuffer(1, n, ctx.sampleRate);
-    const data = noiseBuf.getChannelData(0);
-    for (let i = 0; i < n; i++) data[i] = Math.random() * 2 - 1;
+    if (!ctx) {
+      const Ctor = AudioCtx();
+      if (!Ctor) return null;
+      try { ctx = new Ctor(); } catch { return null; }
+    }
+    if (!master) {
+      master = ctx.createGain();
+      master.gain.value = muted ? 0 : 1;
+      if (ctx.destination) master.connect(ctx.destination);
+    }
+    if (!sfxGain) {
+      sfxGain = ctx.createGain();
+      sfxGain.gain.value = 0.85;
+      sfxGain.connect(master);
+    }
+    if (!ambGain) {
+      ambGain = ctx.createGain();
+      ambGain.gain.value = 1;
+      ambGain.connect(master);
+    }
+    if (!noiseBuf && ctx.createBuffer && ctx.sampleRate) {
+      const n = Math.floor(ctx.sampleRate * 1.5);
+      noiseBuf = ctx.createBuffer(1, n, ctx.sampleRate);
+      const data = noiseBuf.getChannelData(0);
+      for (let i = 0; i < n; i++) data[i] = Math.random() * 2 - 1;
+    }
     return ctx;
   }
 
@@ -233,8 +251,8 @@ export function createSfx({
       master.gain.cancelScheduledValues(t);
       master.gain.setValueAtTime(muted ? 0 : 1, t);
     }
-    if (muted) { stopWind(); stopRain(); stopCar(); }
-    else if (unlocked) { ensureAmbient(); ensureRain(); ensureCar(); }
+    if (muted) { stopWind(); stopRain(); stopCar(); stopTv(); }
+    else if (unlocked) { ensureAmbient(); ensureRain(); ensureCar(); ensureTv(); }
   }
 
   function noiseBurst(t, dest, { dur = 0.12, peak = 0.12, freq = 800, q = 1.2, type = 'bandpass', a = 0.004 } = {}) {
@@ -525,6 +543,118 @@ export function createSfx({
     return carOn;
   }
 
+  function buildTvTune() {
+    if (!ctx) return null;
+    const sr = ctx.sampleRate || 44100;
+    const beat = 60 / 96;
+    const beats = 8;
+    const dur = beat * beats;
+    const n = Math.max(1, Math.floor(sr * dur));
+    const buf = ctx.createBuffer(1, n, sr);
+    const data = buf.getChannelData(0);
+    // Short, quiet pentatonic phrase that loops cleanly.
+    const notes = [262, 330, 392, 330, 220, 330, 392, 294];
+    const noteLen = Math.floor(sr * beat);
+    for (let i = 0; i < notes.length; i++) {
+      const f = notes[i];
+      const start = i * noteLen;
+      for (let s = 0; s < noteLen && start + s < n; s++) {
+        const tm = s / sr;
+        const env = Math.min(tm / 0.015, 1) * Math.exp(-tm * 2.8);
+        const a = 0.2 * env * Math.sin(2 * Math.PI * f * tm);
+        const b = 0.07 * env * Math.sin(2 * Math.PI * f * 2 * tm);
+        data[start + s] += a + b;
+      }
+    }
+    return buf;
+  }
+
+  function stopTv() {
+    if (tvSrc) {
+      try { tvSrc.stop(); } catch { /* ignore */ }
+      try { tvSrc.disconnect(); } catch { /* ignore */ }
+      tvSrc = null;
+    }
+    if (tvFilter) { try { tvFilter.disconnect(); } catch { /* ignore */ } tvFilter = null; }
+    if (tvGain) { try { tvGain.disconnect(); } catch { /* ignore */ } tvGain = null; }
+    tvLevel = 0;
+  }
+
+  function tvTargetGain(opts = {}) {
+    if (!tvOn) return 0;
+    const lx = opts.listenerX != null ? opts.listenerX : opts.x;
+    const lz = opts.listenerZ != null ? opts.listenerZ : opts.z;
+    let dist = 0;
+    if (lx != null && lz != null && tvX != null && tvZ != null) {
+      dist = Math.hypot(lx - tvX, lz - tvZ);
+    }
+    const ref = 3.2;
+    let g = 0.036 / (1 + (dist / ref) * (dist / ref));
+    let indoor = opts.indoor;
+    if (indoor == null && opts.scene && opts.scene.userData && opts.scene.userData.interior) {
+      const b = opts.scene.userData.interior.bounds;
+      if (b && lx != null && lz != null) {
+        indoor = lx >= b.minX && lx <= b.maxX && lz >= b.minZ && lz <= b.maxZ;
+      }
+    }
+    if (indoor === false) g *= 0.12;
+    return g;
+  }
+
+  function startTv() {
+    if (!ctx || muted) return;
+    stopTv();
+    if (!tvBuf) tvBuf = buildTvTune();
+    if (!tvBuf) return;
+    const t = now(ctx);
+    tvSrc = ctx.createBufferSource();
+    tvSrc.buffer = tvBuf;
+    tvSrc.loop = true;
+    tvFilter = ctx.createBiquadFilter();
+    tvFilter.type = 'lowpass';
+    tvFilter.frequency.setValueAtTime(1600, t);
+    tvGain = ctx.createGain();
+    tvGain.gain.setValueAtTime(0.0001, t);
+    tvSrc.connect(tvFilter);
+    tvFilter.connect(tvGain);
+    tvGain.connect(sfxGain);
+    try { tvSrc.start(t); } catch { /* ignore */ }
+  }
+
+  function ensureTv(opts = {}) {
+    if (!tvOn || !unlocked || muted) {
+      stopTv();
+      tvLevel = 0;
+      return;
+    }
+    if (!ensureGraph()) return;
+    if (!tvSrc) startTv();
+    if (!tvGain) return;
+    const t = now(ctx);
+    const g = tvTargetGain(opts);
+    tvLevel = g;
+    tvGain.gain.setTargetAtTime(Math.max(g, 0.0001), t, 0.12);
+  }
+
+  /**
+   * Quiet looping TV tune. `on` starts/stops it. Volume falls off with
+   * listener distance and is ducked when the listener is outside.
+   * Respects mute and never unmutes; safe before unlock.
+   */
+  function setTv(on, opts = {}) {
+    tvOn = !!on;
+    if (opts.x != null) tvX = opts.x;
+    if (opts.z != null) tvZ = opts.z;
+    if (!tvOn || muted || !unlocked) {
+      stopTv();
+      tvLevel = 0;
+      return tvOn;
+    }
+    tvLevel = tvTargetGain(opts);
+    ensureTv(opts);
+    return tvOn;
+  }
+
   function play(name) {
     playCount += 1;
     lastPlayed = name;
@@ -620,8 +750,11 @@ export function createSfx({
       stopWind();
       stopRain();
       stopCar();
+      stopTv();
     }
     if (unlocked && !muted) ensureRain();
+    if (unlocked && !muted && tvOn) ensureTv(opts);
+    else if (!tvOn || muted) { if (tvSrc) stopTv(); }
 
     const onGround = opts.onGround !== false;
     const moved = opts.moved != null ? opts.moved : 0;
@@ -655,6 +788,7 @@ export function createSfx({
     stopWind();
     stopRain();
     stopCar();
+    stopTv();
     if (ctx && typeof ctx.close === 'function') {
       try { ctx.close(); } catch { /* ignore */ }
     }
@@ -673,6 +807,9 @@ export function createSfx({
     setRain,
     setCar,
     isCarHumming: () => !!carOsc,
+    setTv,
+    isTvPlaying: () => !!(tvOn && unlocked && !muted && (tvSrc || tvLevel > 0)),
+    getTvLevel: () => tvLevel,
     isUnlocked: () => unlocked,
     on,
     off,

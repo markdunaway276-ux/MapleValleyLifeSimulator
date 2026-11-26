@@ -36,6 +36,7 @@ import { createCar } from './systems/car.js';
 import { createSkills, registerCookInteractable } from './systems/skills.js';
 import { createSit, registerSitInteractables } from './systems/sit.js';
 import { createInteriorLights, registerLightSwitchInteractable } from './systems/lights.js';
+import { createTvSet, registerTvInteractable } from './systems/tv.js';
 
 const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || window.innerWidth < 800;
 
@@ -109,11 +110,20 @@ const lights = createInteriorLights({
   save: () => saveGame(gameState())
 });
 if (saveData.interiorLights != null) lights.apply(saveData);
+const tvSet = createTvSet({
+  scene,
+  sfx,
+  save: () => saveGame(gameState()),
+  getPosition: () => player.position
+});
+if (saveData.tv != null) tvSet.apply(saveData);
 function installInteriorInteractables(s) {
   registerCookInteractable(s);
   registerSitInteractables(s);
   registerLightSwitchInteractable(s);
+  registerTvInteractable(s);
   lights.refresh();
+  tvSet.refresh({ position: player.position, indoor: isInsideMainHouse(s, player.position) });
 }
 scene.userData.onInteriorReady = installInteriorInteractables;
 installInteriorInteractables(scene);
@@ -405,7 +415,8 @@ function gameState() {
     weather: weather.serialize(),
     skills: skills.serialize(),
     inbox: inbox.serialize(),
-    interiorLights: lights.serialize()
+    interiorLights: lights.serialize(),
+    tv: tvSet.serialize()
   };
 }
 
@@ -473,9 +484,11 @@ function animate() {
       moved: (driving || sitting) ? 0 : moved,
       onGround: player.onGround,
       time: clock.getTime(),
-      scene
+      scene,
+      indoor
     });
   }
+  if (tvSet) tvSet.update(delta, { position: player.position, indoor });
   updateDoors(scene.userData.doors, delta);
   updatePickups(scene.userData.interactables, delta);
   dayNight.update(delta, clock.getTime());

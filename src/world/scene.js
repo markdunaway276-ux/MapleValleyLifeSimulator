@@ -1,11 +1,12 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { generateHouse, getHouseColliders } from './buildings.js';
-import { buildMainHouseInterior, removePaintedFrontDoor, BED_CENTER, DESK_CENTER, COOK_CENTER, lightSwitchPose } from './interior.js';
+import { buildMainHouseInterior, removePaintedFrontDoor, BED_CENTER, DESK_CENTER, COOK_CENTER, lightSwitchPose, TV_CENTER } from './interior.js';
 import { createBed } from '../systems/sleep.js';
 import { createDesk } from '../systems/work.js';
 import { createCook } from '../systems/skills.js';
 import { createLightSwitch } from '../systems/lights.js';
+import { createTv, tvCollider } from '../systems/tv.js';
 import { createSeats } from '../systems/sit.js';
 import { scatterTrees, TREE_PLACEMENTS } from './trees.js';
 import { createParkedCar } from './props.js';
@@ -607,6 +608,15 @@ export function createScene(quality) {
       lightSwitch.userData.scene = scene;
       pickups.add(lightSwitch);
       scene.userData.lightSwitch = lightSwitch;
+
+      // TV sits in the pickups group (not the 2-draw-call interior mesh) and
+      // is registered as an interactable from main.js, like Cook.
+      const tv = createTv({ on: !!scene.userData.tvOn, shadows: quality.shadows });
+      tv.position.set(TV_CENTER.x, TV_CENTER.y, TV_CENTER.z);
+      tv.userData.scene = scene;
+      pickups.add(tv);
+      scene.userData.tv = tv;
+      colliders.addHouse(tvCollider(tv));
 
       const seats = createSeats();
       for (let i = 0; i < seats.length; i++) pickups.add(seats[i]);
