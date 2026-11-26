@@ -12,6 +12,7 @@ export function setupInput(player, isMobile, { isInventoryOpen } = {}) {
   window.addEventListener('inventory-open', clearMotion);
   window.addEventListener('debug-modal-open', clearMotion);
   window.addEventListener('sleep-start', clearMotion);
+  window.addEventListener('phone-open', clearMotion);
 
 
   if (isMobile) document.body.classList.add('mobile');
@@ -65,6 +66,7 @@ export function setupInput(player, isMobile, { isInventoryOpen } = {}) {
     window.addEventListener('inventory-open', resetTouch);
     window.addEventListener('debug-modal-open', resetTouch);
     window.addEventListener('sleep-start', resetTouch);
+    window.addEventListener('phone-open', resetTouch);
 
     joystick.addEventListener('touchstart', (e) => {
       if (blocked()) return;
@@ -104,7 +106,7 @@ export function setupInput(player, isMobile, { isInventoryOpen } = {}) {
 
     document.addEventListener('touchstart', (e) => {
       if (blocked()) return;
-      if (e.target.closest && e.target.closest('#inventory, #inventory-toggle, #interact-prompt, #hud-screenshot, .debug-ui, .hud-ui')) return;
+      if (e.target.closest && e.target.closest('#inventory, #inventory-toggle, #interact-prompt, #hud-screenshot, #phone, .debug-ui, .hud-ui')) return;
       if (e.target === joystick || joystick.contains(e.target)) return;
       if (e.touches.length === 1) {
         lookTouch = e.touches[0].identifier;

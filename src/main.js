@@ -21,6 +21,7 @@ import { createHudNeeds } from './ui/hudNeeds.js';
 import { createMoney, extractCashFromItems, attachMailboxMoney, queueDailyMail } from './systems/money.js';
 import { createHudMoney } from './ui/hudMoney.js';
 import { createWork } from './systems/work.js';
+import { createPhone } from './ui/phone/phone.js';
 
 const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || window.innerWidth < 800;
 
@@ -81,11 +82,17 @@ if (saveData.money != null) money.apply(saveData);
 else if (fromSaveBag && bagCash.cash) money.set(bagCash.cash);
 
 const instructions = document.getElementById('instructions');
+let phone;
 const inventory = createInventory({
   canvas: renderer.domElement,
   isStarted: () => instructions.classList.contains('hidden'),
   items: fromSaveBag ? bagCash.items : STARTER_ITEMS,
   onUse: ({ use }) => {
+    if (use && use.action === 'open') {
+      inventory.close();
+      if (phone) phone.open();
+      return;
+    }
     if (use && use.need) needs.add(use.need, use.amount || 0);
     if (use && use.sfx) sfx.play(use.sfx);
     saveGame(gameState());
@@ -131,7 +138,21 @@ const worker = createWork({
 });
 scene.userData.work = worker;
 
-const uiBlocked = () => inventory.isOpen() || debug.isModalOpen() || sleeper.isSleeping() || worker.isWorking();
+phone = createPhone({
+  canvas: renderer.domElement,
+  isMobile,
+  isStarted: () => instructions.classList.contains('hidden'),
+  isBlocked: () => inventory.isOpen() || debug.isModalOpen() || sleeper.isSleeping() || worker.isWorking(),
+  canOpen: () => instructions.classList.contains('hidden') && !sleeper.isSleeping() && !worker.isWorking(),
+  getTime: () => clock.getTime(),
+  getMoney: () => money.get(),
+  onMoneyChange: (fn) => money.onChange(fn),
+  clock,
+  bindKey: !isMobile,
+  onBeforeOpen: () => { if (inventory.isOpen()) inventory.close(); }
+});
+
+const uiBlocked = () => inventory.isOpen() || debug.isModalOpen() || sleeper.isSleeping() || worker.isWorking() || phone.isOpen();
 setupInput(player, isMobile, { isInventoryOpen: uiBlocked });
 
 const hudClock = createHudClock();
@@ -151,6 +172,7 @@ function syncClockHud() {
   if (show) hudNeeds.update();
   hudMoney.setVisible(show);
   if (show) hudMoney.update();
+  phone.setVisible(show);
 }
 clock.on('change', (t) => hudClock.update(t));
 sfx.on('mute', () => hudMute.refresh());
@@ -160,8 +182,11 @@ window.addEventListener('inventory-open', syncClockHud);
 window.addEventListener('inventory-close', syncClockHud);
 window.addEventListener('debug-modal-open', syncClockHud);
 window.addEventListener('debug-modal-close', syncClockHud);
+window.addEventListener('phone-open', syncClockHud);
+window.addEventListener('phone-close', syncClockHud);
 window.addEventListener('sleep-start', () => {
   if (inventory.isOpen()) inventory.close();
+  if (phone.isOpen()) phone.close();
   syncClockHud();
 });
 window.addEventListener('sleep-end', syncClockHud);
@@ -170,6 +195,7 @@ window.addEventListener('maple-slept', (e) => {
 });
 window.addEventListener('work-start', () => {
   if (inventory.isOpen()) inventory.close();
+  if (phone.isOpen()) phone.close();
   syncClockHud();
 });
 window.addEventListener('work-end', syncClockHud);

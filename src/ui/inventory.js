@@ -560,7 +560,9 @@ export function createInventory({
     if (!item) return null;
     const use = item.use || (ITEM_DEFS[item.id] && ITEM_DEFS[item.id].use);
     if (!use) return null;
-    const consumed = consume(index, 1);
+    const consumed = use.consume === false
+      ? { id: item.id, count: item.count || 1, removed: false }
+      : consume(index, 1);
     const detail = { item, use, index, consumed };
     if (typeof onUse === 'function') onUse(detail);
     window.dispatchEvent(new CustomEvent('inventory-use', { detail }));

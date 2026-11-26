@@ -19,7 +19,8 @@ export const ITEM_DEFS = {
     icon: '📱',
     description: 'Your cell phone. Keep it handy for calls and messages.',
     color: '#4a5568',
-    stackable: false
+    stackable: false,
+    use: { action: 'open', label: 'Open', consume: false }
   },
   keys: {
     id: 'keys',
