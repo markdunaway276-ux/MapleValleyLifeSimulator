@@ -3,12 +3,15 @@ import { bevelBox } from '../world/shapes.js';
 import { HIDDEN_FROM_FP_LAYER } from '../world/playerBody.js';
 
 const RAISE_SECONDS = 0.42;
+const FOCUS_SECONDS = 0.28;
+const SCREEN_HEIGHT = 0.145;
+const SCREEN_WIDTH = 0.072;
 
 function makeHandset() {
   const phone = new THREE.Group();
   const shell = new THREE.Mesh(bevelBox(0.081, 0.157, 0.011, { radius: 0.004 }),
     new THREE.MeshStandardMaterial({ color: 0x262d33, metalness: 0.35, roughness: 0.38 }));
-  const screen = new THREE.Mesh(new THREE.PlaneGeometry(0.072, 0.145),
+  const screen = new THREE.Mesh(new THREE.PlaneGeometry(SCREEN_WIDTH, SCREEN_HEIGHT),
     new THREE.MeshBasicMaterial({ color: 0x070b10 }));
   screen.position.z = 0.006;
   const lens = new THREE.Mesh(new THREE.CircleGeometry(0.003, 10),
@@ -62,6 +65,8 @@ export function createPresentation({ camera, scene, mode, playerBody }) {
 
   let thirdPerson = false;
   let raise = 0;
+  let focus = 0;
+  const phoneOverlay = document.getElementById('phone');
   let stride = 0;
   let swing = 0;
   const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
@@ -88,8 +93,12 @@ export function createPresentation({ camera, scene, mode, playerBody }) {
     toggle.hidden = !mode.started() || mode.uiBlocked() || !canUseThird();
     const open = mode.menu('phone');
     const target = open ? 1 : 0;
+    const closing = !open && focus > 0;
+    if (closing) focus = Math.max(0, focus - delta / FOCUS_SECONDS);
     const step = reducedMotion.matches ? 1 : delta / RAISE_SECONDS;
-    raise += Math.sign(target - raise) * Math.min(Math.abs(target - raise), step);
+    if (!closing || reducedMotion.matches) raise += Math.sign(target - raise) * Math.min(Math.abs(target - raise), step);
+    if (open && raise >= 1) focus = reducedMotion.matches ? 1 : Math.min(1, focus + delta / FOCUS_SECONDS);
+    if (!open && reducedMotion.matches) focus = 0;
     const pose = THREE.MathUtils.smoothstep(raise, 0, 1);
     const glow = THREE.MathUtils.smoothstep(raise, 0.65, 1);
     const walk = canUseThird() && !open && moved > 0.001;
@@ -103,7 +112,27 @@ export function createPresentation({ camera, scene, mode, playerBody }) {
     wrist.rotation.x = -2.28 * pose;
     first.phone.position.set(0.21 - 0.105 * pose, -0.42 + 0.28 * pose, -0.42);
     first.phone.rotation.set(0.5 * (1 - pose), 0.16, -0.2 * (1 - pose));
-    for (const handset of [first, third]) handset.screen.material.color.copy(dark).lerp(lit, glow);
+    if (focus > 0 || open) {
+      const verticalFov = THREE.MathUtils.degToRad(camera.getEffectiveFOV());
+      const focalPixels = window.innerHeight / (2 * Math.tan(verticalFov / 2));
+      const maxVisibleHeight = SCREEN_HEIGHT * focalPixels / (camera.near + 0.025);
+      const height = Math.min(window.innerHeight * 0.84, window.innerWidth * 0.86 * SCREEN_HEIGHT / SCREEN_WIDTH, 680, maxVisibleHeight);
+      const width = height * SCREEN_WIDTH / SCREEN_HEIGHT;
+      const depth = SCREEN_HEIGHT * focalPixels / height + 0.006;
+      const zoom = THREE.MathUtils.smoothstep(focus, 0, 1);
+      first.phone.position.x *= 1 - zoom;
+      first.phone.position.y *= 1 - zoom;
+      first.phone.position.z = THREE.MathUtils.lerp(-0.42, -depth, zoom);
+      first.phone.rotation.y *= 1 - zoom;
+      const visible = open && focus >= 1;
+      phoneOverlay.classList.toggle('is-focused', visible);
+      if (visible) {
+        phoneOverlay.style.setProperty('--phone-screen-width', width + 'px');
+        phoneOverlay.style.setProperty('--phone-screen-height', height + 'px');
+      }
+    }
+    first.screen.material.color.copy(dark).lerp(lit, glow * (1 - focus));
+    third.screen.material.color.copy(dark).lerp(lit, glow);
   }
 
   function draw(render) {
@@ -112,7 +141,7 @@ export function createPresentation({ camera, scene, mode, playerBody }) {
     const oldLayers = camera.layers.mask;
     let inThird = false;
 
-    if (thirdPerson && mode.started() && canUseThird()) {
+    if (thirdPerson && focus < 1 && mode.started() && canUseThird()) {
       const yaw = playerBody.group.rotation.y;
       offset.set(Math.sin(yaw) * 2.45 + Math.cos(yaw) * 0.54, 0.53,
         Math.cos(yaw) * 2.45 - Math.sin(yaw) * 0.54);
@@ -126,13 +155,13 @@ export function createPresentation({ camera, scene, mode, playerBody }) {
       if (clear >= 0.3) {
         inThird = true;
         aim.set(0, 0, -4).applyQuaternion(orientation).add(eye);
-        camera.position.addScaledVector(offset, clear);
+        camera.position.addScaledVector(offset, clear * (1 - THREE.MathUtils.smoothstep(focus, 0, 1)));
         camera.lookAt(aim);
-        camera.layers.enable(HIDDEN_FROM_FP_LAYER);
+        if (focus < 0.75) camera.layers.enable(HIDDEN_FROM_FP_LAYER);
       }
     }
-    first.phone.visible = raise > 0 && !inThird;
-    third.phone.visible = raise > 0 && inThird;
+    first.phone.visible = raise > 0 && (!inThird || focus >= 0.75);
+    third.phone.visible = raise > 0 && inThird && focus < 0.75;
 
     try {
       render();

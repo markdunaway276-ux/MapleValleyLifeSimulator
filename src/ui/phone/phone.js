@@ -52,32 +52,23 @@ body.mobile #hud-phone {
   pointer-events: auto;
   -webkit-tap-highlight-color: transparent;
 }
-.phone-overlay.is-open { display: flex; animation: phone-dim 0.20s 0.30s both; }
-.phone-overlay.is-open .phone-device { animation: phone-wake 0.22s 0.34s both; }
-@keyframes phone-dim {
-  from { background: transparent; }
-  to { background: rgba(0, 0, 0, 0.45); }
-}
-@keyframes phone-wake {
-  0% { opacity: 0; transform: translateY(20px) scale(0.96); }
-  45% { opacity: 1; filter: brightness(0.35); }
-  100% { opacity: 1; transform: none; filter: brightness(1); }
-}
-@media (prefers-reduced-motion: reduce) {
-  .phone-overlay.is-open, .phone-overlay.is-open .phone-device { animation: none; }
-}
+.phone-overlay.is-open { display: flex; background: transparent; }
+.phone-overlay .phone-device { visibility: hidden; }
+.phone-overlay.is-focused .phone-device { visibility: visible; }
 
 .phone-device {
   box-sizing: border-box;
-  width: min(92vw, 320px);
-  height: min(84vh, 620px);
+  width: var(--phone-screen-width);
+  height: var(--phone-screen-height);
   display: flex;
   flex-direction: column;
-  background: linear-gradient(158deg, #213f42, #1d2934 45%, #111721 82%);
+  background:
+    radial-gradient(ellipse at 90% 15%, #627a9c 0%, transparent 47%),
+    radial-gradient(ellipse at 12% 79%, #355c64 0%, transparent 60%),
+    linear-gradient(160deg, #263044, #132029 80%);
   color: #fff;
-  border: 5px solid #22282c;
-  border-radius: 36px;
-  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.5), inset 0 0 0 2px rgba(255, 255, 255, 0.06);
+  border: 0;
+  border-radius: 6% / 3%;
   overflow: hidden;
   position: relative;
 }
@@ -165,11 +156,16 @@ body.mobile #hud-phone {
   font: inherit;
   cursor: pointer;
 }
+.phone-launcher-widget {
+  flex: 0 0 auto; margin: 10px 0 8px; padding: 13px 14px;
+  border-radius: 19px; background: rgba(20, 27, 37, 0.55);
+  font: 500 13px/1.3 system-ui, sans-serif;
+}
 .phone-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 18px 10px;
-  padding: 18px 0 4px;
+  padding: 8px 0 4px;
 }
 .phone-app {
   box-sizing: border-box;
@@ -370,6 +366,8 @@ export function createPhone({
   const statusLeft = document.createElement('div');
   statusLeft.className = 'phone-status-left';
   statusLeft.append(timeEl, weatherEl);
+  const launcherWidget = document.createElement('div');
+  launcherWidget.className = 'phone-launcher-widget';
   const closeBtn = document.createElement('button');
   closeBtn.type = 'button';
   closeBtn.className = 'phone-close';
@@ -442,6 +440,7 @@ export function createPhone({
   function updateStatus(time) {
     const t = time || ctx.getTime();
     timeEl.textContent = (t && t.label) || '';
+    launcherWidget.textContent = t && t.day != null ? 'Maple Lane · Day ' + t.day : 'Maple Lane';
     paintWeather();
   }
 
@@ -456,6 +455,8 @@ export function createPhone({
 
   function renderHome() {
     clearApp();
+    closeBtn.textContent = '\u00d7';
+    closeBtn.setAttribute('aria-label', 'Put phone away');
     const grid = document.createElement('div');
     grid.className = 'phone-grid';
     const list = apps || PHONE_APPS;
@@ -481,7 +482,7 @@ export function createPhone({
       });
       grid.appendChild(btn);
     }
-    screen.appendChild(grid);
+    screen.append(launcherWidget, grid);
   }
 
   function openApp(id) {
@@ -489,6 +490,8 @@ export function createPhone({
     if (!app) return null;
     clearApp();
     current = app.id;
+    closeBtn.textContent = '‹';
+    closeBtn.setAttribute('aria-label', 'Back to home');
     if (typeof app.render === 'function') {
       const ret = app.render(screen, ctx);
       appCleanup = typeof ret === 'function' ? ret : null;
@@ -527,7 +530,7 @@ export function createPhone({
     if (!opened) return;
     opened = false;
     clearApp();
-    overlay.classList.remove('is-open');
+    overlay.classList.remove('is-open', 'is-focused');
     overlay.setAttribute('aria-hidden', 'true');
     window.dispatchEvent(new Event('phone-close'));
     if (!mobile() && started() && !blocked() && canvas && typeof canvas.requestPointerLock === 'function') {
@@ -558,7 +561,8 @@ export function createPhone({
   closeBtn.addEventListener('click', (e) => {
     e.preventDefault();
     e.stopPropagation();
-    close();
+    if (current) renderHome();
+    else close();
   });
   homeBtn.addEventListener('click', (e) => {
     e.preventDefault();
