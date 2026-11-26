@@ -100,7 +100,19 @@ export function createPresentation({ camera, scene, mode, playerBody }) {
   const gripMaterial = arm.material.clone();
   gripMaterial.emissive.setHex(0x377794);
   gripMaterial.emissiveIntensity = 0;
-  const thumbs = [addGrip(first.phone, gripMaterial, true), addGrip(third.phone, gripMaterial, false)];
+  const fallbackGrip = new THREE.Group();
+  third.phone.add(fallbackGrip);
+  const thumbs = [addGrip(first.phone, gripMaterial, true), addGrip(fallbackGrip, gripMaterial, false)];
+
+  const sleeve = new THREE.Mesh(new THREE.CylinderGeometry(0.030, 0.037, 0.102, 10), arm.sleeve);
+  sleeve.position.set(0.063, -0.142, -0.044);
+  sleeve.rotation.z = 0.32;
+  sleeve.rotation.x = 0.26;
+  first.phone.add(sleeve);
+  const wristSkin = new THREE.Mesh(new THREE.CylinderGeometry(0.024, 0.026, 0.041, 10), gripMaterial);
+  wristSkin.position.set(0.045, -0.103, -0.030);
+  wristSkin.rotation.copy(sleeve.rotation);
+  first.phone.add(wristSkin);
   camera.add(first.phone);
 
   // The handset stays attached to the wrist throughout the raise.
@@ -217,7 +229,8 @@ export function createPresentation({ camera, scene, mode, playerBody }) {
     playerBody.legs[1].rotation.x = -stepAngle;
     arm.shoulder.rotation.x = 0.79 * pose + stepAngle * 0.65 * (1 - pose);
     arm.elbow.rotation.x = 1.38 * pose;
-    wrist.rotation.x = -2.28 * pose;
+    wrist.rotation.set(-2.28 * pose, 0.14 * pose, -0.08 * pose);
+    playerBody.updateRig(delta, walk ? moved : 0, pose, wrist, pressing ? 1 : 0);
     first.phone.position.set(0.21 - 0.105 * pose, -0.42 + 0.28 * pose, -0.42);
     first.phone.rotation.set(0.5 * (1 - pose), 0.16, -0.2 * (1 - pose));
     first.phone.scale.setScalar(1);
@@ -282,10 +295,16 @@ export function createPresentation({ camera, scene, mode, playerBody }) {
     }
     first.phone.visible = raise > 0 && (!inThird || focus >= 0.75);
     third.phone.visible = raise > 0 && inThird && focus < 0.75;
+    const usingRig = playerBody.showRig(inThird && focus < 0.75);
+    const mount = usingRig ? playerBody.rigSocket : wrist;
+    if (third.phone.parent !== mount) mount.add(third.phone);
+    third.phone.position.set(usingRig ? -0.024 : 0, usingRig ? 0.089 : 0.049, usingRig ? 0.018 : 0);
+    fallbackGrip.visible = !usingRig;
 
     try {
       render();
     } finally {
+      playerBody.showRig(false);
       camera.position.copy(eye);
       camera.quaternion.copy(orientation);
       camera.layers.mask = oldLayers;

@@ -11,6 +11,7 @@
  */
 
 import * as THREE from 'three';
+import { attachPlayerRig } from './playerRig.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { getOptionColor, normalizeAppearance } from '../data/appearance.js';
 
@@ -196,7 +197,7 @@ export function createPlaceholderBody({
     group,
     head,
     legs,
-    arm: articulated ? { shoulder, elbow, hand, material: armsMat } : null,
+    arm: articulated ? { shoulder, elbow, hand, segments: armMeshes, material: armsMat, sleeve: shirtMat } : null,
     shirt,
     pants,
     skin,
@@ -212,12 +213,12 @@ export function createPlayerBody({
   shadows = false,
   appearance
 } = {}) {
-  return createPlaceholderBody({
+  return attachPlayerRig(createPlaceholderBody({
     scene,
     shadows,
     appearance,
     name: 'player-body',
     prefix: 'player',
     hideHead: true
-  });
+  }), { shadows, appearance });
 }
