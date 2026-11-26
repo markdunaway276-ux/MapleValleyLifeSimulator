@@ -18,6 +18,12 @@ export function startLoop(g) {
     const delta = Math.min((now - lastTime) / 1000, 0.1);
     lastTime = now;
 
+    // Paused: draw the frozen frame behind the menu and nothing else moves.
+    if (mode.menu('pause')) {
+      g.view.draw();
+      return;
+    }
+
     const started = mode.started();
     const busy = mode.busy();
     const timeBefore = started && !busy ? clock.getTime().totalMinutes : null;

@@ -49,6 +49,7 @@ import { createInteriorLights, registerLightSwitchInteractable } from './systems
 import { createTvSet, registerTvInteractable } from './systems/tv.js';
 import { createRenderer, createView } from './game/rendering.js';
 import { createDisplay } from './systems/display.js';
+import { createPauseMenu } from './ui/pauseMenu.js';
 import { createSaver } from './game/gameState.js';
 import { createHud } from './game/hud.js';
 import { setupDailyMail } from './game/dailyMail.js';
@@ -312,6 +313,47 @@ document.getElementById('start').onclick = () => {
   debug.refresh();
   g.hud.sync();
 };
+
+// Desktop mouse look needs pointer lock. Esc, switching windows or a refused request
+// drops it, so a click on the game takes it back, and a hint says so while it is lost.
+if (!isMobile) {
+  const canvas = renderer.domElement;
+  const hint = document.createElement('div');
+  hint.id = 'look-hint';
+  hint.textContent = 'Click to look around';
+  Object.assign(hint.style, {
+    position: 'fixed', left: '50%', top: '58%', transform: 'translateX(-50%)', zIndex: '6',
+    padding: '8px 14px', borderRadius: '8px', background: 'rgba(0,0,0,0.6)', color: '#fff',
+    font: '600 14px system-ui, sans-serif', pointerEvents: 'none', display: 'none'
+  });
+  document.body.appendChild(hint);
+  const canLook = () => mode.started() && !mode.uiBlocked() && !inventory.isOpen();
+  const relock = () => {
+    if (document.pointerLockElement === canvas || !canLook()) return;
+    try {
+      const p = canvas.requestPointerLock();
+      if (p && typeof p.catch === 'function') p.catch(() => {});
+    } catch { /* browser refused; the hint stays up and the next click tries again */ }
+  };
+  canvas.addEventListener('click', relock);
+  const syncHint = () => {
+    hint.style.display = (canLook() && document.pointerLockElement !== canvas) ? 'block' : 'none';
+  };
+  document.addEventListener('pointerlockchange', syncHint);
+  setInterval(syncHint, 300);
+}
+
+// Pause menu: Esc / P on a desktop (or losing mouse look while playing), the ⏸ button anywhere.
+const pause = createPauseMenu({
+  mode,
+  isMobile,
+  canvas: renderer.domElement,
+  getDisplay: () => display,
+  getSfx: () => sfx,
+  save: () => g.save()
+});
+mode.attach({ pause });
+g.pause = pause;
 
 startLoop(g);
 

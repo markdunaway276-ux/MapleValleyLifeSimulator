@@ -10,7 +10,8 @@
  *   'walking'   on foot (the default)
  *
  * Menus (any number, on top of the activity): 'inventory', 'phone',
- * 'dialogue', 'debug' (the Debug menu or the F9 markup dialog). The bag,
+ * 'dialogue', 'debug' (the Debug menu or the F9 markup dialog), 'pause'
+ * (the pause menu: the frame loop freezes the world while it is open). The bag,
  * phone and Debug menu can be open while driving or sitting.
  *
  * Systems are attached after they are created (main.js builds them in an
@@ -30,7 +31,7 @@ export const ACTIVITY = Object.freeze({
   WALKING: 'walking'
 });
 
-export const MENUS = Object.freeze(['inventory', 'phone', 'dialogue', 'debug']);
+export const MENUS = Object.freeze(['inventory', 'phone', 'dialogue', 'debug', 'pause']);
 
 export function createPlayerMode({ isStarted = () => true } = {}) {
   const parts = {
@@ -41,7 +42,8 @@ export function createPlayerMode({ isStarted = () => true } = {}) {
     inventory: null,
     phone: null,
     dialogue: null,
-    debug: null
+    debug: null,
+    pause: null
   };
 
   function attach(systems) {

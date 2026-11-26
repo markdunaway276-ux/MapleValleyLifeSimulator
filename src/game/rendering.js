@@ -20,7 +20,10 @@ export function createRenderer({ isMobile }) {
   renderer.toneMappingExposure = LOOK.exposure;
   renderer.shadowMap.enabled = quality.shadows;
   if (quality.shadows) renderer.shadowMap.type = LOOK.shadow.type === 'PCF' ? THREE.PCFShadowMap : THREE.PCFSoftShadowMap;
-  document.body.appendChild(renderer.domElement);
+  // First in the page, so every HUD element and menu draws above it. (A CSS filter on
+  // the canvas, used for the phone film look, makes it a stacking layer of its own;
+  // as the last element it then covered the Start button, joystick and menus.)
+  document.body.prepend(renderer.domElement);
   return { quality, renderer };
 }
 
