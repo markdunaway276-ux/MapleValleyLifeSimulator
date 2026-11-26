@@ -21,6 +21,8 @@ import { createVertexMaterial } from './surfaces.js';
  * Layout (world metres, z decreases away from the street):
  *   front room  x -4.27..1.36, z -9.00..-6.04 : sofa, table + 2 chairs, rug, small desk
  *   bedroom     x -4.27..-0.60, z -14.63..-9.00 : bed, nightstand (doorway 1.3 m wide)
+ *   bathroom    x -1.93..-0.68, z -14.63..-12.68 : in the bedroom's back-east corner;
+ *                shower, toilet, sink (doorway 0.85 m wide, facing the bedroom door)
  *   kitchen     x -0.52..4.33, z -14.63..-9.00 : counter, fridge, table + 2 chairs
  */
 
@@ -394,53 +396,55 @@ export function buildMainHouseInterior({ shadows = false, outer, doorX, doorZ, d
   plane(parts, INTERIOR.rug2, '+y', 1.6, 1.0, -3.2, fy + 0.006, -11.4);
   frame(parts, '+x', K.west, 1.7, -12.4, 0.6, 0.45, INTERIOR.frames[1]);
 
-  // --- bathroom (north-west corner of the rear block) --------------------
-  // Small room off the bedroom: walls, toilet, sink, and a short tub.
-  const bathWest = K.west;
-  const bathEast = -2.85;
+  // --- bathroom (back-east corner of the bedroom) ------------------------
+  // A small room between the nightstand and the bedroom's east wall (P2),
+  // clear of the bed and the back window. Its doorway faces the bedroom
+  // doorway, so you walk straight in from the front room.
+  // Inside (wall faces): x -1.925..-0.675, z -14.63..-12.675 (1.25 x 1.95 m).
+  const bathWest = -2.0;          // wall centre; flush with the nightstand's east side
+  const bathEast = p2x;           // reuses P2 as the bathroom's east wall
   const bathBack = K.back;
-  const bathFront = -12.7;
-  const bathDoorL = -3.55;
-  const bathDoorR = -3.05;
+  const bathFront = -12.6;        // wall centre; just past the foot of the bed
+  const bathDoorL = -1.6;
+  const bathDoorR = -0.75;        // 0.85 m opening (the player is 0.64 m wide)
+  const bathDoorTop = 2.1 + fy;
 
   parts.surface('plaster');
-  // south wall of bathroom (with doorway)
-  parts.box(WALL, bathEast - bathWest, cy - fy, T, (bathWest + bathEast) / 2, (cy + fy) / 2 - 0.01, bathFront);
-  solid('main-int-bath-south-left', bathWest, bathDoorL, bathFront - T / 2, bathFront + T / 2);
-  solid('main-int-bath-south-right', bathDoorR, bathEast, bathFront - T / 2, bathFront + T / 2);
-  // east wall of bathroom
-  parts.box(WALL, T, cy - fy, bathFront - bathBack, bathEast, (cy + fy) / 2 - 0.01, (bathBack + bathFront) / 2);
-  solid('main-int-bath-east', bathEast - T / 2, bathEast + T / 2, bathBack, bathFront);
+  // west wall (bed / nightstand side)
+  parts.box(WALL, T, cy - fy, bathFront + T / 2 - bathBack, bathWest, (cy + fy) / 2 - 0.01, (bathBack + bathFront + T / 2) / 2);
+  solid('main-int-bath-west', bathWest - T / 2, bathWest + T / 2, bathBack, bathFront + T / 2);
+  // front wall with the doorway: left piece, right piece, header above the opening
+  parts.box(WALL, bathDoorL - (bathWest + T / 2), cy - fy, T, (bathWest + T / 2 + bathDoorL) / 2, (cy + fy) / 2 - 0.01, bathFront);
+  parts.box(WALL, (bathEast - T / 2) - bathDoorR, cy - fy, T, (bathDoorR + bathEast - T / 2) / 2, (cy + fy) / 2 - 0.01, bathFront);
+  parts.box(WALL, bathDoorR - bathDoorL, cy - bathDoorTop, T, (bathDoorL + bathDoorR) / 2, (cy + bathDoorTop) / 2 - 0.01, bathFront);
+  solid('main-int-bath-front-left', bathWest - T / 2, bathDoorL, bathFront - T / 2, bathFront + T / 2);
+  solid('main-int-bath-front-right', bathDoorR, bathEast, bathFront - T / 2, bathFront + T / 2);
 
-  // toilet
+  const inW = bathWest + T / 2; // -1.925, inner face of the west wall
+
+  // shower in the back-east corner (0.8 x 0.8 m), glass on two sides
   parts.surface('appliance');
-  parts.box(0xe8e8e8, 0.38, 0.42, 0.55, -3.9, 0.21 + fy, -14.2);
-  parts.box(0xf5f5f5, 0.34, 0.08, 0.42, -3.9, 0.46 + fy, -14.15);
-  solid('main-int-toilet', -4.1, -3.7, -14.45, -13.9);
-
-  // sink
-  parts.surface('paint');
-  parts.box(0xd0d0d0, 0.55, 0.8, 0.4, -3.15, 0.4 + fy, -14.35);
-  parts.surface('stone');
-  parts.box(0xe0e0e0, 0.5, 0.06, 0.36, -3.15, 0.82 + fy, -14.32);
-  solid('main-int-sink', -3.42, -2.88, -14.55, -14.15);
-
-  // short tub along the west wall
-  parts.surface('appliance');
-  parts.box(0xe8e8e8, 0.65, 0.45, 1.4, -4.0, 0.225 + fy, -13.4);
-  solid('main-int-tub', -4.32, -3.67, -14.1, -12.7);
-
-  // simple shower in the corner
-  parts.surface('appliance');
-  parts.box(0xd0d8e0, 0.7, 0.06, 0.7, -4.05, 0.03 + fy, -13.15); // base
+  parts.box(0xd0d8e0, 0.8, 0.06, 0.8, -1.075, 0.03 + fy, -14.23); // base
   parts.surface('glass');
-  // shower walls (partial)
-  parts.box(0xa0c0d0, 0.04, 1.8, 0.7, -3.7, 0.9 + fy, -13.15);
-  parts.box(0xa0c0d0, 0.7, 1.8, 0.04, -4.05, 0.9 + fy, -12.8);
-  // shower head
+  parts.box(0xa0c0d0, 0.04, 1.8, 0.8, -1.455, 0.96 + fy, -14.23); // side panel
+  parts.box(0xa0c0d0, 0.4, 1.8, 0.04, -1.255, 0.96 + fy, -13.85); // half front panel (entry on the right)
   parts.surface('metal');
-  parts.box(0xc0c0c0, 0.08, 0.15, 0.08, -3.85, 1.9 + fy, -13.3);
-  solid('main-int-shower', -4.4, -3.65, -13.5, -12.75);
+  parts.box(0xc0c0c0, 0.08, 0.15, 0.12, -1.075, 1.9 + fy, -14.55); // shower head
+  solid('main-int-shower', -1.475, bathEast - T / 2, bathBack, -13.83);
+
+  // toilet in the back-west corner, facing the doorway
+  parts.surface('appliance');
+  parts.box(0xe8e8e8, 0.38, 0.42, 0.55, -1.70, 0.21 + fy, -14.33); // bowl
+  parts.box(0xf5f5f5, 0.34, 0.08, 0.42, -1.70, 0.46 + fy, -14.27); // seat
+  parts.box(0xe8e8e8, 0.38, 0.35, 0.16, -1.70, 0.6 + fy, -14.53);  // tank
+  solid('main-int-toilet', -1.89, -1.51, bathBack, -14.05);
+
+  // sink against the west wall, between the toilet and the doorway
+  parts.surface('paint');
+  parts.box(0xd0d0d0, 0.4, 0.8, 0.55, inW + 0.2, 0.4 + fy, -13.3);
+  parts.surface('stone');
+  parts.box(0xe0e0e0, 0.36, 0.06, 0.5, inW + 0.22, 0.82 + fy, -13.3);
+  solid('main-int-sink', inW, inW + 0.4, -13.575, -13.025);
 
   // --- kitchen --------------------------------------------------------
   parts.surface('paint');
