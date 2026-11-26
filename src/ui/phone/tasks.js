@@ -37,14 +37,26 @@ export function renderTasksApp(screen, ctx) {
           pin.addEventListener('click', () => {
             ctx.togglePinnedTask?.(task.id);
             paint();
+            updateLocations();
             body.querySelectorAll('button')[group.indexOf(task)]?.focus();
           });
-          item.append(step, pin);
+          const location = document.createElement('small');
+          location.style.display = 'block';
+          location.dataset.npcId = task.npcId;
+          item.append(step, location, pin);
         }
         body.append(item);
       }
     }
   }
 
+  function updateLocations() {
+    for (const location of body.querySelectorAll('[data-npc-id]')) {
+      location.textContent = ctx.getTaskLocation?.(location.dataset.npcId) ?? '';
+    }
+  }
+
   paint();
+  updateLocations();
+  return ctx.clock?.on('change', updateLocations);
 }

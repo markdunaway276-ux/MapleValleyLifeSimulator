@@ -8,6 +8,7 @@
  * placeholder body stands in.
  */
 
+import { routineAt, routineStop } from '../systems/neighbourRoutine.js';
 import { PLAYER_RADIUS } from '../systems/collision.js';
 import { createPlaceholderBody } from './playerBody.js';
 import { createContactBlob } from './contact.js';
@@ -52,6 +53,7 @@ export function createNpc(def, { scene, shadows = false } = {}) {
   let x = patrol.startX != null ? patrol.startX : (x0 + x1) / 2;
   let dir = 1;
   let mode = 'walk';
+  let routine = 'walk';
   let idle = 0;
   let phase = 0;
   let yaw = walkYaw(dir);
@@ -159,7 +161,37 @@ export function createNpc(def, { scene, shadows = false } = {}) {
     z = nz;
   }
 
+  function followRoutine(stop, seconds, player) {
+    const dx = stop.x - x;
+    const dz = stop.z - z;
+    const distance = Math.hypot(dx, dz);
+    const speed = patrol.speed || 0.8;
+    if (distance > 0.025) {
+      const fraction = Math.min(1, speed * seconds / distance);
+      yaw = yawToward(x, z, stop.x, stop.z);
+      moveTo(x + dx * fraction, z + dz * fraction, player);
+      mode = 'commute';
+      phase += seconds * speed * 10;
+      applyPose(model ? 0 : Math.abs(Math.sin(phase)) * 0.04);
+      animate('walk', seconds, speed / WALK_CLIP_SPEED);
+      return;
+    }
+    mode = 'rest';
+    phase = 0;
+    applyPose(0);
+    animate(routine === 'home' ? 'idle' : 'phone', seconds);
+  }
+
+  function locationHint() {
+    if (!def.routine) return '';
+    const { home, homeLabel, sidewalk } = def.routine;
+    if (Math.hypot(x - home.x, z - home.z) < 0.3) return `Look by the ${homeLabel}.`;
+    if (routine === 'home') return `Look along the ${sidewalk} toward the ${homeLabel}.`;
+    return `Look along the ${sidewalk}.`;
+  }
+
   function update(dt, ctx = {}) {
+    routine = routineAt(def, ctx.minutes, ctx.raining);
     const player = ctx.player;
     const talking = ctx.talkingId === def.id;
     const seconds = Math.max(0, Number(dt) || 0);
@@ -177,7 +209,13 @@ export function createNpc(def, { scene, shadows = false } = {}) {
       return;
     }
 
-    if (mode === 'notice') mode = 'walk';
+    const stop = routineStop(def, routine, { x, z });
+    if (stop) {
+      followRoutine(stop, seconds, player);
+      return;
+    }
+
+    if (mode === 'notice' || mode === 'rest' || mode === 'commute') mode = 'walk';
 
     if (mode === 'idle') {
       idle -= seconds;
@@ -234,6 +272,7 @@ export function createNpc(def, { scene, shadows = false } = {}) {
     entry,
     collider,
     update,
+    locationHint,
     dispose,
     get id() { return def.id; },
     get name() { return name; },

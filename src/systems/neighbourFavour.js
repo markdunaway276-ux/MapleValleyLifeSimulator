@@ -1,9 +1,9 @@
 const RESPONSES = {
   offer: [
     "Could you tell June her umbrella is at my place? She left it here yesterday.",
-    "She's usually on the sidewalk across the street."
+    "Check Tasks on your phone if you need to find her."
   ],
-  looking: ["June's usually across the street. Would you let her know about the umbrella?"],
+  looking: ["Would you let June know about the umbrella?"],
   message: ["Hi! Did Sam have a message for me?"],
   reply: ["So that's where I left it! Could you tell Sam I'll pick it up tomorrow?"],
   return: ["Did you get a chance to talk to June?"],
@@ -28,7 +28,7 @@ export function createNeighbourFavour({ savedStage, money, save }) {
       if (stage === 'new') return {
         lines: RESPONSES.offer,
         action: { label: "I'll tell June", run: () => advance('new', 'offered') },
-        response: ["Thanks. You should find her across the street."]
+        response: ["Thanks. She's on the north side of the street."]
       };
       if (stage === 'offered') return { lines: RESPONSES.looking };
       if (stage === 'relayed') return {
@@ -53,9 +53,8 @@ export function createNeighbourFavour({ savedStage, money, save }) {
       id: 'umbrella',
       title: "June's umbrella",
       complete: stage === 'done',
-      step: stage === 'offered'
-        ? 'Talk to June on the north sidewalk across the street.'
-        : 'Bring June’s reply back to Sam on the south sidewalk.'
+      npcId: stage === 'offered' ? 'june' : 'sam',
+      step: stage === 'offered' ? 'Talk to June about her umbrella.' : 'Bring June’s reply back to Sam.'
     };
   }
 

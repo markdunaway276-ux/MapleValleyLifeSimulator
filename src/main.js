@@ -273,6 +273,7 @@ const getPinnedTask = () => pinnedTaskId
   : undefined;
 const phone = createPhone({
   getTasks,
+  getTaskLocation: (npcId) => npcs.get(npcId)?.locationHint(),
   getPinnedTask,
   togglePinnedTask(id) {
     pinnedTaskId = pinnedTaskId === id ? null : id;

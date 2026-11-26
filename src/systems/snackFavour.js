@@ -43,9 +43,10 @@ export function createSnackFavour({ savedStage, inventory, money, save }) {
       id: 'snack',
       title: 'A snack for June',
       complete: stage === 'done',
+      npcId: 'june',
       step: snackIndex() < 0
         ? 'Get a snack from the vending machine across the street.'
-        : 'Give June one snack on the north sidewalk.'
+        : 'Give June one snack.'
     };
   }
 

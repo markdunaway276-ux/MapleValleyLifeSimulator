@@ -57,7 +57,15 @@ export const NPC_DEFS = [
     radius: NPC_RADIUS,
     noticeRange: NPC_NOTICE_RANGE,
     talkRange: NPC_TALK_RANGE,
-    patrol: SAM_PATROL
+    patrol: SAM_PATROL,
+    routine: {
+      walks: [[7, 11], [16, 19]],
+      outdoorHours: [7, 20],
+      restX: SAM_PATROL.x0,
+      home: { x: -13, z: -5.5 },
+      sidewalk: 'south sidewalk',
+      homeLabel: 'southwest house porch'
+    }
   },
   {
     id: 'june',
@@ -75,7 +83,15 @@ export const NPC_DEFS = [
     radius: NPC_RADIUS,
     noticeRange: NPC_NOTICE_RANGE,
     talkRange: NPC_TALK_RANGE,
-    patrol: JUNE_PATROL
+    patrol: JUNE_PATROL,
+    routine: {
+      walks: [[9, 13], [17, 21]],
+      outdoorHours: [8, 21],
+      restX: JUNE_PATROL.x1,
+      home: { x: -13, z: 2.08 },
+      sidewalk: 'north sidewalk',
+      homeLabel: 'northwest house entrance'
+    }
   }
 ];
 
