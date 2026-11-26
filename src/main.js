@@ -37,7 +37,8 @@ renderer.setPixelRatio(quality.pixelRatio);
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
-renderer.toneMappingExposure = 1.1;
+// Slightly lower exposure supports the darker, richer lighting palette.
+renderer.toneMappingExposure = 0.95;
 renderer.shadowMap.enabled = quality.shadows;
 if (quality.shadows) renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 document.body.appendChild(renderer.domElement);
