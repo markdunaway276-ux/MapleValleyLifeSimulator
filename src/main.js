@@ -22,6 +22,7 @@ import { createMoney, extractCashFromItems, attachMailboxMoney, queueDailyMail }
 import { createHudMoney } from './ui/hudMoney.js';
 import { createWork } from './systems/work.js';
 import { createPhone } from './ui/phone/phone.js';
+import { createHudMinimap } from './ui/minimap.js';
 
 const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || window.innerWidth < 800;
 
@@ -99,6 +100,16 @@ const inventory = createInventory({
   }
 });
 if (scene.userData.world) scene.userData.world.apply(saveData);
+
+const minimap = createHudMinimap({
+  scene,
+  player,
+  isMobile,
+  isStarted: () => instructions.classList.contains('hidden'),
+  storage: typeof localStorage !== 'undefined' ? localStorage : null,
+  bindKey: !isMobile
+});
+
 // Optional debug tools (all off by default; see src/systems/debug.js for keys)
 const debug = createDebug({
   renderer,
@@ -113,7 +124,8 @@ const debug = createDebug({
   clock,
   sfx,
   needs,
-  money
+  money,
+  getMinimap: () => minimap
 });
 const sleeper = createSleep({
   clock,
@@ -149,7 +161,8 @@ phone = createPhone({
   onMoneyChange: (fn) => money.onChange(fn),
   clock,
   bindKey: !isMobile,
-  onBeforeOpen: () => { if (inventory.isOpen()) inventory.close(); }
+  onBeforeOpen: () => { if (inventory.isOpen()) inventory.close(); },
+  attachMap: (el) => minimap.attachPhone(el)
 });
 
 const uiBlocked = () => inventory.isOpen() || debug.isModalOpen() || sleeper.isSleeping() || worker.isWorking() || phone.isOpen();
@@ -173,6 +186,7 @@ function syncClockHud() {
   hudMoney.setVisible(show);
   if (show) hudMoney.update();
   phone.setVisible(show);
+  minimap.setHudVisible(show);
 }
 clock.on('change', (t) => hudClock.update(t));
 sfx.on('mute', () => hudMute.refresh());
@@ -300,6 +314,7 @@ function animate() {
   updatePickups(scene.userData.interactables, delta);
   dayNight.update(delta, clock.getTime());
   prompt.update();
+  minimap.update(delta);
   renderer.render(scene, camera);
   debug.update();
 }

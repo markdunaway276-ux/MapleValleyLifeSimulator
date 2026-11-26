@@ -108,6 +108,8 @@ body.mobile #hud-phone {
   flex: 1 1 auto;
   overflow: auto;
   padding: 8px 16px 4px;
+  display: flex;
+  flex-direction: column;
 }
 
 .phone-grid {
@@ -224,7 +226,8 @@ export function createPhone({
   clock = null,
   apps = PHONE_APPS,
   bindKey = true,
-  onBeforeOpen = null
+  onBeforeOpen = null,
+  attachMap = null
 } = {}) {
   ensureStyles();
 
@@ -281,7 +284,8 @@ export function createPhone({
   const ctx = {
     getTime: () => (typeof getTime === 'function' ? getTime() : (clock && typeof clock.getTime === 'function' ? clock.getTime() : null)),
     getMoney: () => (typeof getMoney === 'function' ? getMoney() : 0),
-    onMoneyChange: typeof onMoneyChange === 'function' ? onMoneyChange : null
+    onMoneyChange: typeof onMoneyChange === 'function' ? onMoneyChange : null,
+    attachMap: typeof attachMap === 'function' ? attachMap : null
   };
 
   function started() {

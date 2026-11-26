@@ -23,7 +23,7 @@ Push any change and the link updates in ~1 minute. Open it on your phone anytime
 - `src/world/` — scene building (`interior.js` = the walk-in interior of the main house: floors, partitions, furniture, doorway colliders; `pickups.js` = snack and mailbox; `vending.js` = sidewalk vending machine)
 - `src/data/` — item definitions (`items.js`), job definitions (`jobs.js`) and shop stock (`shops.js`)
 - `src/systems/` — save, collision, doors, interactables, game clock (`time.js`), sound (`sfx.js`), sleep (`sleep.js`), needs (`needs.js`), money (`money.js`), work (`work.js`), shops (`shop.js`), and optional debug tools (`debug.js`, `collisionViz.js`)
-- `src/ui/` — inventory, door prompt, HUD screenshot button (`hudScreenshot.js`), HUD clock, mute, needs and cash (`hudClock.js`, `hudMute.js`, `hudNeeds.js`, `hudMoney.js`), phone (`phone/phone.js`, `phone/apps.js`), and debug UI (`debugMenu.js`, `debugOverlay.js`, `feedback.js`)
+- `src/ui/` — inventory, door prompt, HUD screenshot button (`hudScreenshot.js`), HUD clock, mute, needs and cash (`hudClock.js`, `hudMute.js`, `hudNeeds.js`, `hudMoney.js`), phone (`phone/phone.js`, `phone/apps.js`), minimap (`minimap.js`), and debug UI (`debugMenu.js`, `debugOverlay.js`, `feedback.js`)
 
 ## Main house interior
 Open the front door (walk up and use the prompt) and walk in: a front room (sofa, dining table + chairs, and a small home-office desk), a bedroom and a kitchen. The interior is a few merged single-sided meshes (2 draw calls, no shadow casters) plus one warm point light on desktop only. The doorway collider is open only while the door is open (and never traps you if the door is closed while you stand in it). Exterior and other houses are unchanged.
@@ -55,8 +55,11 @@ Walk up to the bed in the main house's west bedroom and press E (or tap the prom
 ## Vending
 A small vending machine stands on the south sidewalk west of the main house's front door (the mailbox is on the east side), clear of the door path and the parked car. Walk up and press E (or tap the prompt: **Press E to buy Snack ($5)** / **Tap to buy Snack ($5)**). If you can afford it, $5 is spent, a Snack is added to your bag (it stacks), and you get a "-$5 · Snack" toast with a short vending sound. If you cannot, you see "Not enough cash." and nothing changes. The machine's front panel stays lit at night. Stock is defined in `src/data/shops.js` so later items or shops can plug in; cash and the bag are saved as usual.
 
+## Minimap
+A small north-up map sits in the bottom-left corner (just above the joystick on a phone), clear of the clock, camera, mute, phone, Bag, needs/cash card, Debug and the interact prompt. It shows the road and sidewalks, house footprints, trees, and markers for the mailbox, vending machine, the work desk in the main house, and the parked car. You are a yellow arrow that points the way you are looking. The neighborhood is drawn once to an offscreen canvas and your arrow is redrawn about 10 times a second. Toggle it with **M** on a desktop, a tap on the map (or the small map button when it is hidden), or the Minimap switch in the Debug menu; the choice is remembered in localStorage. Like the other HUD bits, it hides under the bag, phone, Debug menu, sleep and work. The same map, larger, is the phone's **Map** app.
+
 ## Phone
-The Phone in your bag has an **Open** button, and a small phone button sits in the top-right stack under mute (left of **Bag** on a phone, clear of the clock, needs/cash card, Debug, joystick and prompts). On a desktop, **P** opens it too. The phone-shaped overlay shows the game time in a status bar and a home grid of apps: **Messages** (placeholder), **Bank** (your live cash balance) and **Map** ("Coming soon" — a later update adds a minimap here). Close it with the X, the home button, Esc, or a tap outside. While it is open, pointer lock is released, look and movement are blocked, and the other HUD bits hide like they do under the bag. Apps are listed in `src/ui/phone/apps.js` so later ones (Style, Weather, a real Map) are one entry each.
+The Phone in your bag has an **Open** button, and a small phone button sits in the top-right stack under mute (left of **Bag** on a phone, clear of the clock, needs/cash card, Debug, joystick and prompts). On a desktop, **P** opens it too. The phone-shaped overlay shows the game time in a status bar and a home grid of apps: **Messages** (placeholder), **Bank** (your live cash balance) and **Map** (a larger version of the neighborhood minimap). Close it with the X, the home button, Esc, or a tap outside. While it is open, pointer lock is released, look and movement are blocked, and the other HUD bits hide like they do under the bag. Apps are listed in `src/ui/phone/apps.js` so later ones (Style, Weather, a real Map) are one entry each.
 
 ## Pickups
 A snack sits on the dining table inside the main house: walk up and press E (or tap the prompt) to add it to your bag — it stacks with the snacks you already have, then disappears from the table and stays gone after a save and reload. A mailbox stands on the sidewalk in front of the house (east of the front door). Opening it toggles the lid and, the first time, gives you a Letter. Once per in-game day a small cash letter ($5–$15) also arrives; opening the mailbox collects it. Daily mail hooks into the mailbox's `userData.mail` (`pending`, `onOpen`) without changing this path.
@@ -76,9 +79,10 @@ After pressing Start a small **Debug** button appears in the bottom-right corner
 - Sound: mute (same control as the HUD mute button; remembered in localStorage)
 - Needs: refill or drain Hunger and Energy
 - Money: +$100 or reset cash to $50
+- Map: show or hide the minimap (same control as **M** / the HUD map; remembered in localStorage)
 - Clear saved game (tap twice to confirm; you are returned to the street start)
 
-Desktop shortcuts: `F2` or `` ` `` menu • `F3` overlay • `Shift+F3` perf stats • `F4` collision boxes • `Shift+F4` highlight interactables • `F8` teleport to street start • `Shift+F8` clear save (press twice within 4 s) • `F9` screenshot + markup. In the markup dialog: `Esc` cancels, `Ctrl/Cmd+Enter` saves.
+Desktop shortcuts: `F2` or `` ` `` menu • `F3` overlay • `Shift+F3` perf stats • `F4` collision boxes • `Shift+F4` highlight interactables • `F8` teleport to street start • `Shift+F8` clear save (press twice within 4 s) • `F9` screenshot + markup • `M` minimap • `P` phone. In the markup dialog: `Esc` cancels, `Ctrl/Cmd+Enter` saves.
 
 A short list of later debug ideas lives in `DEBUG-TODO.md`.
 

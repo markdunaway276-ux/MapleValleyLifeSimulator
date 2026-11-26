@@ -73,6 +73,7 @@ export function createDebug({
   sfx = null,
   needs = null,
   money = null,
+  getMinimap = null,
   container = document.body,
   now = () => performance.now()
 }) {
@@ -105,6 +106,7 @@ export function createDebug({
     getSfx: sfx ? () => sfx : null,
     getNeeds: needs ? () => needs : null,
     getMoney: money ? () => money : null,
+    getMinimap: typeof getMinimap === 'function' ? getMinimap : null,
     onOpen: modalOpened,
     onClose: modalClosed,
     container
@@ -118,6 +120,12 @@ export function createDebug({
   }
   if (money && typeof money.onChange === 'function') {
     money.onChange(() => { if (menu.isOpen()) menu.refreshMoney(); });
+  }
+  if (typeof getMinimap === 'function') {
+    const map = getMinimap();
+    if (map && typeof map.onChange === 'function') {
+      map.onChange(() => { if (menu.isOpen()) menu.refreshMinimap(); });
+    }
   }
 
   const feedback = createFeedback({

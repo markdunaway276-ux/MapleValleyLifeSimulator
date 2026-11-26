@@ -138,7 +138,7 @@ export const MENU_ITEMS = [
   { id: 'clearSave', type: 'action', label: 'Clear saved game', key: 'Shift+F8 twice', danger: true }
 ];
 
-export function createDebugMenu({ actions, getState, getTeleports = () => [], getClock = null, getSfx = null, getNeeds = null, getMoney = null, onOpen = () => {}, onClose = () => {}, container = document.body }) {
+export function createDebugMenu({ actions, getState, getTeleports = () => [], getClock = null, getSfx = null, getNeeds = null, getMoney = null, getMinimap = null, onOpen = () => {}, onClose = () => {}, container = document.body }) {
   ensureStyles();
 
   const button = document.createElement('button');
@@ -227,6 +227,7 @@ export function createDebugMenu({ actions, getState, getTeleports = () => [], ge
     if (typeof getSfx === 'function') panel.appendChild(buildSoundSection());
     if (typeof getNeeds === 'function') panel.appendChild(buildNeedsSection());
     if (typeof getMoney === 'function') panel.appendChild(buildMoneySection());
+    if (typeof getMinimap === 'function') panel.appendChild(buildMinimapSection());
 
     const foot = document.createElement('div');
     foot.className = 'dm-foot';
@@ -585,6 +586,65 @@ export function createDebugMenu({ actions, getState, getTeleports = () => [], ge
     moneyEls.label.textContent = 'Cash $' + shown;
   }
 
+  let minimapEls = null;
+
+  function buildMinimapSection() {
+    const section = document.createElement('div');
+    section.className = 'dm-section is-open';
+    section.dataset.item = 'minimap';
+    const toggle = document.createElement('button');
+    toggle.type = 'button';
+    toggle.className = 'dm-section-toggle';
+    toggle.setAttribute('aria-expanded', 'true');
+    const title = document.createElement('span');
+    title.className = 'dm-label';
+    title.textContent = 'Map';
+    const chev = document.createElement('span');
+    chev.className = 'dm-chevron';
+    chev.textContent = '▾';
+    toggle.append(title, chev);
+    const list = document.createElement('div');
+    list.className = 'dm-sublist';
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'dm-subrow';
+    btn.dataset.item = 'minimap-toggle';
+    btn.setAttribute('role', 'switch');
+    const label = document.createElement('span');
+    label.className = 'dm-label';
+    label.textContent = 'Minimap';
+    const key = document.createElement('span');
+    key.className = 'dm-key';
+    key.textContent = 'M';
+    label.appendChild(key);
+    const sw = document.createElement('span');
+    sw.className = 'dm-switch';
+    btn.append(label, sw);
+    btn.addEventListener('click', () => {
+      const map = getMinimap && getMinimap();
+      if (map && typeof map.toggle === 'function') map.toggle();
+      refreshMinimap();
+    });
+    list.appendChild(btn);
+    toggle.addEventListener('click', () => {
+      const open = !section.classList.contains('is-open');
+      section.classList.toggle('is-open', open);
+      toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+    });
+    section.append(toggle, list);
+    minimapEls = { section, btn };
+    refreshMinimap();
+    return section;
+  }
+
+  function refreshMinimap() {
+    if (!minimapEls || typeof getMinimap !== 'function') return;
+    const map = getMinimap();
+    const on = !!(map && map.isEnabled && map.isEnabled());
+    minimapEls.btn.setAttribute('aria-checked', on ? 'true' : 'false');
+    minimapEls.btn.setAttribute('aria-pressed', on ? 'true' : 'false');
+  }
+
   function refresh() {
 
     if (!root) return;
@@ -596,6 +656,7 @@ export function createDebugMenu({ actions, getState, getTeleports = () => [], ge
     refreshMute();
     refreshNeeds();
     refreshMoney();
+    refreshMinimap();
   }
 
   function open() {
@@ -653,6 +714,7 @@ export function createDebugMenu({ actions, getState, getTeleports = () => [], ge
     refreshMute,
     refreshNeeds,
     refreshMoney,
+    refreshMinimap,
     toast,
     setButtonVisible,
     isOpen: () => opened,

@@ -38,7 +38,16 @@ export const PHONE_APPS = [
     id: 'map',
     name: 'Map',
     icon: '🗺️',
-    placeholder: 'Coming soon'
+    render(screen, ctx) {
+      const title = document.createElement('h3');
+      title.className = 'phone-app-title';
+      title.textContent = 'Map';
+      const wrap = document.createElement('div');
+      wrap.className = 'phone-map';
+      screen.append(title, wrap);
+      if (ctx && typeof ctx.attachMap === 'function') return ctx.attachMap(wrap);
+      return null;
+    }
   }
 ];
 
