@@ -33,9 +33,14 @@ export const HUNGER_SNACK = 40;
 /** Energy after a sleep (full rest). */
 export const ENERGY_ON_SLEEP = 100;
 
+/** Game minutes for clean clothes to get fully dirty (2 game days). Washing at the laundromat refills it. */
+export const CLEAN_FULL_MINUTES = 2 * 24 * 60;
+export const CLEAN_PER_GAME_MINUTE = NEED_MAX / CLEAN_FULL_MINUTES;
+
 export const NEED_DEFS = [
   { id: 'hunger', name: 'Hunger', min: NEED_MIN, max: NEED_MAX, default: NEED_MAX },
-  { id: 'energy', name: 'Energy', min: NEED_MIN, max: NEED_MAX, default: NEED_MAX }
+  { id: 'energy', name: 'Energy', min: NEED_MIN, max: NEED_MAX, default: NEED_MAX },
+  { id: 'clean', name: 'Clean', min: NEED_MIN, max: NEED_MAX, default: NEED_MAX }
 ];
 
 function defById(defs, id) {
@@ -161,6 +166,11 @@ export function createNeeds({
       const def = defById(list, 'hunger');
       const next = clampNeed(def, state.hunger - dt * HUNGER_PER_GAME_MINUTE);
       if (next !== state.hunger) { state.hunger = next; changed = true; }
+    }
+    if (state.clean != null) {
+      const def = defById(list, 'clean');
+      const next = clampNeed(def, state.clean - dt * CLEAN_PER_GAME_MINUTE);
+      if (next !== state.clean) { state.clean = next; changed = true; }
     }
     if (!opts.sleep && !opts.hungerOnly && state.energy != null) {
       const def = defById(list, 'energy');

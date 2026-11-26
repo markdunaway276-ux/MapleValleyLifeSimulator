@@ -58,6 +58,9 @@ import { createStats } from './systems/stats.js';
 import { getNpc } from './data/npcs.js';
 import { createSaver } from './game/gameState.js';
 import { createHud } from './game/hud.js';
+import { createPlayerActions } from './systems/playerActions.js';
+import { createLaundry, FOLD_JOB } from './systems/laundry.js';
+import { LOW_THRESHOLD } from './systems/needs.js';
 import { setupDailyMail } from './game/dailyMail.js';
 import { setupInteract } from './game/interact.js';
 import { startLoop } from './game/loop.js';
@@ -155,7 +158,17 @@ appearance.onChange((state) => {
   save();
 });
 const npcs = createNpcs({ scene, shadows: quality.shadows });
-Object.assign(g, { money, inbox, appearance, playerBody, npcs });
+// First-person hands for door / sit / laundry / work animations (see playerActions.js).
+const actions = createPlayerActions({ camera, appearance });
+Object.assign(g, { money, inbox, appearance, playerBody, npcs, actions });
+window.addEventListener('maple-sat', () => actions.play('sit'));
+window.addEventListener('maple-stood', () => actions.play('stand'));
+window.addEventListener('car-enter', () => actions.play('openDoor'));
+window.addEventListener('work-start', (e) => {
+  const job = e.detail && e.detail.job;
+  actions.play((job && job.action) || 'typing', { duration: job && job.duration ? job.duration : undefined });
+});
+window.addEventListener('work-end', () => actions.stop());
 
 // --- car and seats --------------------------------------------------------
 /** Your stand-in body is hidden while you drive or sit. */
@@ -199,6 +212,7 @@ const inventory = createInventory({
       return;
     }
     if (use && use.need) needs.add(use.need, use.amount || 0);
+    if (use && use.action === 'eat') actions.play('eat');
     if (use && use.sfx) sfx.play(use.sfx);
     save();
   }
@@ -263,14 +277,66 @@ scene.userData.work = worker;
 mode.attach({ sleeper, worker });
 Object.assign(g, { sleeper, worker });
 
+// --- laundromat -----------------------------------------------------------
+const laundry = createLaundry({
+  getMinutes: () => clock.getTime().totalMinutes,
+  money,
+  needs,
+  inventory,
+  sfx,
+  toast: (msg) => g.hud.toast(msg),
+  save: () => save(),
+  startWork: (job) => worker.start({ job }),
+  saved: saveData.laundry
+});
+scene.userData.laundry = laundry;
+g.laundry = laundry;
+actions.setCarry(laundry.carry ? laundry.carry.stage : null);
+laundry.onChange(() => {
+  const stage = laundry.carry ? laundry.carry.stage : null;
+  // Let the load / hand-over animation finish before the basket leaves your hands.
+  const putting = ['load', 'handOver'].includes(actions.current);
+  if (!stage && putting) setTimeout(() => { if (!laundry.carry) actions.setCarry(null); }, 550);
+  else actions.setCarry(stage);
+});
+window.addEventListener('maple-worked', (e) => {
+  if (e.detail && e.detail.job && e.detail.job.id === FOLD_JOB.id) laundry.finishFold();
+});
+let warnedDirty = false;
+needs.onChange((snap) => {
+  const clean = snap.values.clean;
+  if (clean <= LOW_THRESHOLD && !warnedDirty) {
+    warnedDirty = true;
+    g.hud?.toast('Your clothes need a wash. The laundromat is at the east end of Maple Lane.');
+  } else if (clean > LOW_THRESHOLD * 2) warnedDirty = false;
+});
+
 // --- phone and dialogue ---------------------------------------------------
 const neighbourFavour = createNeighbourFavour({ savedStage: saveData.neighbourFavour, money, save });
 const snackFavour = createSnackFavour({ savedStage: saveData.snackFavour, inventory, money, save });
-const getTasks = () => [neighbourFavour.task(), snackFavour.task()].filter(Boolean);
+const getTasks = () => [neighbourFavour.task(), snackFavour.task(), ...laundry.tasks()].filter(Boolean);
 let pinnedTaskId = saveData.pinnedTaskId ?? null;
 const getPinnedTask = () => pinnedTaskId
   ? getTasks().find((task) => task.id === pinnedTaskId && !task.complete)
   : undefined;
+/** Dottie can clock you in or out across the counter. */
+function dottiePage(id) {
+  if (id !== 'dottie') return null;
+  const option = laundry.clockOption();
+  return laundry.onShift
+    ? { lines: [laundry.nextStep() || 'You are doing fine, hon.'], action: { label: 'Clock me out', run: () => !!option.run() }, response: ['Thanks for the help. See you next time.'] }
+    : { lines: ['Want to work a shift?'], action: { label: 'Clock me in', run: () => !!option.run() }, response: ['Bags are on the counter. Wash, dry, fold, hand it back.'] };
+}
+/** Neighbours notice when your clothes need a wash. */
+function dirtyPage(id) {
+  if (needs.get('clean') > LOW_THRESHOLD) return null;
+  const lines = {
+    sam: ['No offence, but you might want to swing by the laundromat.'],
+    june: ['Is that shirt from last week? The laundromat is down at the east end.'],
+    dottie: ["Hon, those clothes need a wash. Grab detergent from the machine out front."]
+  };
+  return lines[id] ? { lines: lines[id] } : null;
+}
 const phone = createPhone({
   getTasks,
   getTaskLocation: (npcId) => npcs.get(npcId)?.locationHint(),
@@ -303,7 +369,7 @@ const phone = createPhone({
   onInboxChange: (fn) => inbox.onChange(fn)
 });
 const dialogue = createDialogue({
-  getExtraPages: (id) => [neighbourFavour.pageFor(id), snackFavour.pageFor(id)].filter(Boolean),
+  getExtraPages: (id) => [neighbourFavour.pageFor(id), snackFavour.pageFor(id), dottiePage(id), dirtyPage(id)].filter(Boolean),
   canvas: renderer.domElement,
   isMobile,
   isStarted: () => mode.started(),

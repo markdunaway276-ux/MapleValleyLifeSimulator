@@ -92,6 +92,28 @@ export const NPC_DEFS = [
       sidewalk: 'north sidewalk',
       homeLabel: 'northwest house entrance'
     }
+  },
+  {
+    // Runs Maple Lane Laundromat. Stands behind the counter window in the
+    // back room (laundromat door is at x 29.5, z -6.3; see world/laundromat.js).
+    id: 'dottie',
+    name: 'Dottie',
+    role: 'laundromat',
+    jobId: null,
+    dialogueId: 'dottie',
+    appearance: { skin: 'tan', shirt: 'forest', pants: 'gray' },
+    look: {
+      body: 'female',
+      hair: 'buns',
+      hairColor: 0xa29d96,
+      outfit: { shirt: 0x2f7d78, pants: 0x3a3f4a, shoes: 0x2b2420 }
+    },
+    radius: NPC_RADIUS,
+    noticeRange: 2.6,
+    talkRange: NPC_TALK_RANGE,
+    patrol: { z: -8.3, x0: 27.35, x1: 27.35, startX: 27.35, speed: 0 },
+    stationary: { yaw: -Math.PI / 2 },
+    locationHint: 'Behind the laundromat counter, east end of Maple Lane.'
   }
 ];
 

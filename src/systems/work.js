@@ -22,8 +22,9 @@ const STYLE_ID = 'work-overlay-styles';
 const CSS = `
 #work-overlay {
   position: fixed; inset: 0; z-index: 70;
-  display: none; align-items: center; justify-content: center;
-  background: rgba(0, 0, 0, 0.35);
+  display: none; align-items: flex-end; justify-content: center;
+  padding-bottom: 16vh; box-sizing: border-box;
+  background: transparent;
   pointer-events: auto; touch-action: none;
 }
 #work-overlay.is-active { display: flex; }
@@ -222,7 +223,7 @@ export function createWork({
     }
     current = jobDef;
     if (opts.immediate) {
-      if (typeof window !== 'undefined') window.dispatchEvent(new Event('work-start'));
+      if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent('work-start', { detail: { job: jobDef } }));
       const result = applyWork(clock, jobDef);
       lastResult = result;
       finishPay(result);
@@ -234,7 +235,7 @@ export function createWork({
     phase = 'running';
     acc = 0;
     setProgress(0, true);
-    if (typeof window !== 'undefined') window.dispatchEvent(new Event('work-start'));
+    if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent('work-start', { detail: { job: jobDef } }));
     return true;
   }
 

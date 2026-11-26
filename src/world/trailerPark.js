@@ -126,8 +126,11 @@ export function buildTrailerPark(scene, quality) {
     door.name = t.id + '-door';
     door.position.set(-2.9, 1.1, 4.5);
     door.userData.getPrompt = (mobile) => (mobile ? 'Tap to ' : 'Press E to ') + 'knock';
+    door.userData.action = 'knock';
     door.userData.interact = (ctx) => {
-      ctx.toast?.(KNOCK_LINES[knocks++ % KNOCK_LINES.length](t.name));
+      ctx.sfx?.play?.('knock');
+      const line = KNOCK_LINES[knocks++ % KNOCK_LINES.length](t.name);
+      setTimeout(() => ctx.toast?.(line), 900);
       return true;
     };
     slot.add(door);

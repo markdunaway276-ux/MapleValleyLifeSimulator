@@ -56,7 +56,7 @@ export function createNpc(def, { scene, shadows = false } = {}) {
   let routine = 'walk';
   let idle = 0;
   let phase = 0;
-  let yaw = walkYaw(dir);
+  let yaw = def.stationary ? (def.stationary.yaw || 0) : walkYaw(dir);
   // What they do while paused at the end of the route ('idle' or 'phone').
   let restPose = 'idle';
 
@@ -183,6 +183,7 @@ export function createNpc(def, { scene, shadows = false } = {}) {
   }
 
   function locationHint() {
+    if (def.locationHint) return def.locationHint;
     if (!def.routine) return '';
     const { home, homeLabel, sidewalk } = def.routine;
     if (Math.hypot(x - home.x, z - home.z) < 0.3) return `Look by the ${homeLabel}.`;
@@ -206,6 +207,14 @@ export function createNpc(def, { scene, shadows = false } = {}) {
       moveTo(x, z, player);
       applyPose(0);
       animate(talking ? 'talk' : 'idle', seconds);
+      return;
+    }
+
+    if (def.stationary) {
+      yaw = def.stationary.yaw || 0;
+      phase = 0;
+      applyPose(0);
+      animate('idle', seconds);
       return;
     }
 

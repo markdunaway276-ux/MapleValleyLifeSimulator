@@ -25,6 +25,8 @@ export const TELEPORT_PRESETS = [
   { id: 'street-east', label: 'East end of street', kind: 'street-end', side: 'east' },
   { id: 'parked-car', label: 'By the parked car', kind: 'car' },
   { id: 'laundromat', label: 'Laundromat door', kind: 'point', x: 29.5, z: -3.6, yaw: 0 },
+  { id: 'laundromat-inside', label: 'Laundromat counter', kind: 'point', x: 31.0, z: -8.3, yaw: Math.PI / 2 },
+  { id: 'laundromat-back', label: 'Laundromat back room', kind: 'point', x: 24.5, z: -11.5, yaw: Math.PI / 2 },
   { id: 'trailer-park', label: 'Trailer park', kind: 'point', x: -24.6, z: -3.6, yaw: Math.PI / 4 }
 ];
 

@@ -12,9 +12,10 @@ const WIDTH = 5.2;
 const DEPTH = 3.5;
 const HEIGHT = 2.9;
 
-function registerSpot(scene, shop, { id, x, z, prompt, interact }) {
+function registerSpot(scene, shop, { id, x, z, prompt, interact, action = null }) {
   const object = new THREE.Group();
   object.name = id;
+  if (action) object.userData.action = action;
   object.position.set(x, 1.3, z);
   object.userData.getPrompt = (mobile) => (mobile ? 'Tap to ' : 'Press E to ') + prompt;
   object.userData.interact = interact;
@@ -100,6 +101,7 @@ export function buildCornerShop(scene, quality) {
     registerSpot(scene, shop, {
       id: 'market-' + offer.item, x, z: 2.57,
       prompt: 'buy ' + offer.name + ' ($' + offer.price + ')',
+      action: 'grab',
       interact: (ctx) => !!buyFromShop(market, ctx, offer)
     });
   });

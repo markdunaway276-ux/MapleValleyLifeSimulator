@@ -16,6 +16,14 @@ export const SHOP_DEFS = [
     ]
   },
   {
+    id: 'laundromat-vending',
+    name: 'Laundromat vending machine',
+    stock: [
+      { item: 'detergent', name: 'Detergent', price: 2, sfx: 'vending' },
+      { item: 'snack', name: 'Snack', price: 5, sfx: 'vending' }
+    ]
+  },
+  {
     id: 'corner-shop',
     name: 'Maple Lane Market',
     stock: [

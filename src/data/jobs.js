@@ -22,31 +22,20 @@ export const JOB_DEFS = [
     energy: WORK_ENERGY,
     minEnergy: WORK_MIN_ENERGY,
     tiredMessage: WORK_TIRED,
-    sfx: 'cash'
+    sfx: 'cash',
+    action: 'typing'
   },
   {
     id: 'restock',
     name: 'Market restocking',
     verb: 'restock shelves',
     label: 'Restocking shelves…',
+    action: 'restock',
     duration: 5,
     gameMinutes: 60,
     pay: 15,
     energy: 10,
     minEnergy: 10,
-    tiredMessage: WORK_TIRED,
-    sfx: 'cash'
-  },
-  {
-    id: 'laundry',
-    name: 'Laundromat attendant',
-    verb: 'fold laundry',
-    label: 'Folding laundry…',
-    duration: 5,
-    gameMinutes: 60,
-    pay: 14,
-    energy: 8,
-    minEnergy: 8,
     tiredMessage: WORK_TIRED,
     sfx: 'cash'
   }
