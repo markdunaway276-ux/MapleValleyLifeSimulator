@@ -7,6 +7,7 @@ import { renderStyleApp } from './style.js';
 import { renderCalendarApp } from './calendar.js';
 import { renderSkillsApp } from './skills.js';
 import { renderMessagesApp } from './messages.js';
+import { renderTasksApp } from './tasks.js';
 
 export const PHONE_APPS = [
   {
@@ -115,7 +116,9 @@ export const CALENDAR_APP = {
  * path; main.js passes INSTALLED_APPS so Skills and Calendar appear on the
  * live phone. Calendar stays last so older calendar tests keep passing.
  */
-export const INSTALLED_APPS = PHONE_APPS.concat(SKILLS_APP, CALENDAR_APP);
+export const INSTALLED_APPS = PHONE_APPS.concat(SKILLS_APP, {
+  id: 'tasks', name: 'Tasks', icon: '📋', render: renderTasksApp
+}, CALENDAR_APP);
 
 export function getPhoneApp(id, apps = INSTALLED_APPS) {
   if (!id || !apps) return null;

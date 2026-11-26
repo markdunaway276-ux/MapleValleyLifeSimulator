@@ -100,7 +100,7 @@ export function createDialogue({
   onBeforeOpen = null,
   getTime = null,
   getWeather = null,
-  getExtraPage = null
+  getExtraPages = null
 } = {}) {
   ensureStyles();
 
@@ -184,8 +184,7 @@ export function createDialogue({
     const tree = getDialogue(id, { time, period: time && time.period, weather });
     name = tree.name;
     pages = tree.pages && tree.pages.length ? tree.pages : [{ lines: ['…'] }];
-    const extraPage = getExtraPage?.(id);
-    if (extraPage) pages.push(extraPage);
+    pages.push(...(getExtraPages?.(id) ?? []));
     index = 0;
     npcId = id;
     opened = true;
@@ -242,7 +241,7 @@ export function createDialogue({
     if (page?.action?.run()) {
       pages[index] = { lines: page.response };
       paint();
-      closeBtn.focus();
+      (nextBtn.hidden ? closeBtn : nextBtn).focus();
     }
   });
   overlay.addEventListener('click', (e) => {

@@ -42,6 +42,7 @@ import { createRain, isInsideMainHouse } from './world/rain.js';
 import { createNpcs } from './world/npc.js';
 import { createDialogue } from './ui/dialogue.js';
 import { createNeighbourFavour } from './systems/neighbourFavour.js';
+import { createSnackFavour } from './systems/snackFavour.js';
 import { createHudSave } from './ui/hudSave.js';
 import { createCar } from './systems/car.js';
 import { createSkills, registerCookInteractable } from './systems/skills.js';
@@ -263,7 +264,20 @@ mode.attach({ sleeper, worker });
 Object.assign(g, { sleeper, worker });
 
 // --- phone and dialogue ---------------------------------------------------
+const neighbourFavour = createNeighbourFavour({ savedStage: saveData.neighbourFavour, money, save });
+const snackFavour = createSnackFavour({ savedStage: saveData.snackFavour, inventory, money, save });
+const getTasks = () => [neighbourFavour.task(), snackFavour.task()].filter(Boolean);
+let pinnedTaskId = saveData.pinnedTaskId ?? null;
+const getPinnedTask = () => pinnedTaskId
+  ? getTasks().find((task) => task.id === pinnedTaskId && !task.complete)
+  : undefined;
 const phone = createPhone({
+  getTasks,
+  getPinnedTask,
+  togglePinnedTask(id) {
+    pinnedTaskId = pinnedTaskId === id ? null : id;
+    save();
+  },
   canvas: renderer.domElement,
   isMobile,
   isStarted: () => mode.started(),
@@ -287,9 +301,8 @@ const phone = createPhone({
   getInbox: () => inbox.get(),
   onInboxChange: (fn) => inbox.onChange(fn)
 });
-const neighbourFavour = createNeighbourFavour({ savedStage: saveData.neighbourFavour, money, save });
 const dialogue = createDialogue({
-  getExtraPage: neighbourFavour.pageFor,
+  getExtraPages: (id) => [neighbourFavour.pageFor(id), snackFavour.pageFor(id)].filter(Boolean),
   canvas: renderer.domElement,
   isMobile,
   isStarted: () => mode.started(),
@@ -303,7 +316,7 @@ const dialogue = createDialogue({
   getWeather: () => weather.get()
 });
 mode.attach({ phone, dialogue });
-Object.assign(g, { phone, dialogue, neighbourFavour });
+Object.assign(g, { phone, dialogue, neighbourFavour, snackFavour, getPinnedTask });
 setupInput(player, isMobile, { isInventoryOpen: () => mode.uiBlocked() });
 
 // --- HUD, mail, interact, start, loop -------------------------------------

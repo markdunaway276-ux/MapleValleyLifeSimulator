@@ -136,6 +136,17 @@ body.mobile #hud-phone {
   flex-direction: column;
 }
 
+.phone-task-pin {
+  margin-top: 6px;
+  min-height: 44px;
+  padding: 0 12px;
+  border: 1px solid #687867;
+  border-radius: 8px;
+  background: #263a2c;
+  color: #fff;
+  font: inherit;
+  cursor: pointer;
+}
 .phone-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
@@ -290,6 +301,9 @@ export function createPhone({
   getWeather = null,
   onWeatherChange = null,
   getSkills = null,
+  getTasks = null,
+  getPinnedTask = null,
+  togglePinnedTask = null,
   onSkillsChange = null,
   getInbox = null,
   onInboxChange = null
@@ -362,6 +376,9 @@ export function createPhone({
     onAppearanceChange: typeof onAppearanceChange === 'function' ? onAppearanceChange : null,
     getWeather: typeof getWeather === 'function' ? getWeather : null,
     onWeatherChange: typeof onWeatherChange === 'function' ? onWeatherChange : null,
+    getTasks,
+    getPinnedTask,
+    togglePinnedTask,
     getSkills: typeof getSkills === 'function' ? getSkills : null,
     onSkillsChange: typeof onSkillsChange === 'function' ? onSkillsChange : null,
     getInbox: typeof getInbox === 'function' ? getInbox : null,

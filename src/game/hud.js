@@ -19,7 +19,26 @@ export function createHud(g) {
   const hudNeeds = createHudNeeds({ getNeeds: () => needs.get() });
   const hudMoney = createHudMoney({ getMoney: () => money.get() });
 
+  const task = document.createElement('div');
+  task.setAttribute('role', 'status');
+  Object.assign(task.style, {
+    position: 'fixed', left: '50%', bottom: 'max(106px, calc(env(safe-area-inset-bottom) + 86px))',
+    transform: 'translateX(-50%)', width: 'max-content', maxWidth: 'min(52vw, 320px)',
+    padding: '6px 10px', background: 'rgba(20, 24, 20, 0.9)', borderRadius: '8px',
+    font: '14px/1.35 system-ui, sans-serif', color: '#fff', textAlign: 'center',
+    pointerEvents: 'none', zIndex: '6'
+  });
+  task.hidden = true;
+  document.body.append(task);
+
+  function syncTask() {
+    const step = mode.hudVisible() ? g.getPinnedTask()?.step : null;
+    task.hidden = !step;
+    if (task.textContent !== (step ?? '')) task.textContent = step ?? '';
+  }
+
   function sync() {
+    syncTask();
     const show = mode.hudVisible();
     hudClock.setVisible(show);
     if (show) hudClock.update(clock.getTime(), weather.get());
@@ -43,7 +62,9 @@ export function createHud(g) {
   needs.onChange(() => hudNeeds.update());
   money.onChange(() => hudMoney.update());
 
-  for (const name of ['inventory', 'debug-modal', 'phone', 'dialogue']) {
+  window.addEventListener('maple-saved', syncTask);
+
+  for (const name of ['inventory', 'debug-modal', 'phone', 'dialogue', 'pause']) {
     window.addEventListener(name + '-open', sync);
     window.addEventListener(name + '-close', sync);
   }

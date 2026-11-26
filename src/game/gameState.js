@@ -29,6 +29,8 @@ export function gameState(g) {
     tv: g.tvSet.serialize(),
     stats: g.stats ? g.stats.serialize() : undefined,
     neighbourFavour: g.neighbourFavour.serialize(),
+    snackFavour: g.snackFavour.serialize(),
+    pinnedTaskId: g.getPinnedTask()?.id ?? null,
     savedAt: Date.now()
   };
 }

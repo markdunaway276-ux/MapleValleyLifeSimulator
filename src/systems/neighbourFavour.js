@@ -47,5 +47,17 @@ export function createNeighbourFavour({ savedStage, money, save }) {
     return { lines: stage === 'relayed' ? RESPONSES.reply : RESPONSES.juneDone };
   }
 
-  return { pageFor, serialize: () => stage };
+  function task() {
+    if (stage === 'new') return null;
+    return {
+      id: 'umbrella',
+      title: "June's umbrella",
+      complete: stage === 'done',
+      step: stage === 'offered'
+        ? 'Talk to June on the north sidewalk across the street.'
+        : 'Bring June’s reply back to Sam on the south sidewalk.'
+    };
+  }
+
+  return { pageFor, task, serialize: () => stage };
 }
