@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { NORTH_FRONTAGE_OFFSET } from './street.js';
+import { STREET } from './street.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { PROPS, SURFACE, shade } from './palette.js';
 import { bevelBox } from './shapes.js';
@@ -12,7 +12,7 @@ import { createVertexMaterial } from './surfaces.js';
  */
 export const CAR_SEAT = { x: -0.1, y: 1.38, z: -0.42 };
 export const CAR_SIZE = { width: 4.0, depth: 1.85 };
-export const CAR_SPAWN = { x: 6.8, z: -0.2 + NORTH_FRONTAGE_OFFSET, rotY: 0 };
+export const CAR_SPAWN = { x: 6.8, z: STREET.roadCenterZ + (STREET.roadWidth - STREET.parkingLaneWidth) / 2, rotY: 0 };
 
 const CAR_TRIM = 0x1c1c1f;
 const CAR_CHROME = 0xaeb2b6;

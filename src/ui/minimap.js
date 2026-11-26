@@ -340,6 +340,14 @@ export function drawStaticLayer(ctx, world, view) {
 
   ctx.fillStyle = C.road;
   fillRectWorld(ctx, view, -half, half, cz - roadHalf, cz + roadHalf);
+  if (s.parkingLaneWidth) {
+    ctx.fillStyle = '#a9a9a0';
+    const stripe = Math.max(0.08, 0.6 / view.scale);
+    const parkingEdge = roadHalf - s.parkingLaneWidth;
+    for (const z of [cz - parkingEdge, cz + parkingEdge]) {
+      fillRectWorld(ctx, view, -half, half, z - stripe / 2, z + stripe / 2);
+    }
+  }
 
   const houses = (world && world.houses) || [];
   for (let i = 0; i < houses.length; i++) {
