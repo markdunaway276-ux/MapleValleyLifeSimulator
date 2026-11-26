@@ -21,11 +21,12 @@ Push any change and the link updates in ~1 minute. Open it on your phone anytime
 - `src/main.js` — entry, quality detection, loop
 - `src/core/` — player + input
 - `src/world/` — scene building (`interior.js` = the walk-in interior of the main house: floors, partitions, furniture, doorway colliders; `pickups.js` = snack and mailbox)
-- `src/systems/` — save, collision, doors, interactables, game clock (`time.js`), sound (`sfx.js`), sleep (`sleep.js`), needs (`needs.js`), money (`money.js`), and optional debug tools (`debug.js`, `collisionViz.js`)
+- `src/data/` — item definitions (`items.js`) and job definitions (`jobs.js`)
+- `src/systems/` — save, collision, doors, interactables, game clock (`time.js`), sound (`sfx.js`), sleep (`sleep.js`), needs (`needs.js`), money (`money.js`), work (`work.js`), and optional debug tools (`debug.js`, `collisionViz.js`)
 - `src/ui/` — inventory, door prompt, HUD screenshot button (`hudScreenshot.js`), HUD clock, mute, needs and cash (`hudClock.js`, `hudMute.js`, `hudNeeds.js`, `hudMoney.js`), and debug UI (`debugMenu.js`, `debugOverlay.js`, `feedback.js`)
 
 ## Main house interior
-Open the front door (walk up and use the prompt) and walk in: a front room (sofa, dining table + chairs), a bedroom and a kitchen. The interior is a few merged single-sided meshes (2 draw calls, no shadow casters) plus one warm point light on desktop only. The doorway collider is open only while the door is open (and never traps you if the door is closed while you stand in it). Exterior and other houses are unchanged.
+Open the front door (walk up and use the prompt) and walk in: a front room (sofa, dining table + chairs, and a small home-office desk), a bedroom and a kitchen. The interior is a few merged single-sided meshes (2 draw calls, no shadow casters) plus one warm point light on desktop only. The doorway collider is open only while the door is open (and never traps you if the door is closed while you stand in it). Exterior and other houses are unchanged.
 
 ## Day and night
 A slow day/night cycle (one game day lasts 24 real minutes) tints the sky, fog and lights. Lighting is updated about 8 times a second so it stays cheap on a phone; shadows stay desktop-only. The house interior brightens a little at night. A small clock at the top-centre shows the day and time (hidden under inventory or menus). The game clock is saved with your position and inventory, and later features (sleep, needs, daily mail, work) can call `getTime`, `setTime`, `advance(minutes)` or listen for `onNewDay`.
@@ -42,6 +43,10 @@ You start with $50, shown as a compact **Cash** line on the HUD with the Hunger 
 
 ## Hunger and Energy
 Two needs, Hunger and Energy, sit as compact bars under the info card (top-left). Both run from 0 to 100 and are saved with your game. Hunger falls slowly with game time (a full bar lasts 24 game hours). Energy falls a little faster (20 game hours at rest, 50% quicker while you walk). Sleeping restores Energy to full; Hunger still ticks down for the hours you slept, so you may wake a bit hungry. Open the bag, select a Snack, and tap **Eat** to restore 40 Hunger (the stack goes down by one, and a short eat sound plays). The bars turn amber at 25 or below; nothing else happens when they hit 0 (no death or penalties yet). Later systems can call `get`, `set`, `add` or `onChange` (for example, work can drain Energy). The Debug menu has Refill and Drain buttons.
+
+
+## Work
+A small desk with a laptop sits against the east wall of the main house's front room (to the right as you come in, past the picture). Walk up and press E (or tap the prompt: **Press E to work** / **Tap to work**). A short "Working…" bar fills for 3 real seconds (input is blocked, like sleep). When it finishes, the game clock jumps 2 hours (so midnight still rolls a new day and daily mail can arrive), you earn $20, Energy drops by 20, and you get a "+$20" toast with the cash sound. If Energy is below 15, the desk refuses with "Too tired to work." Jobs are defined in `src/data/jobs.js` so later spots or NPC-given work can plug in; later systems can call `spend` on money and listen for `maple-worked`.
 
 ## Sleep
 Walk up to the bed in the main house's west bedroom and press E (or tap the prompt) to sleep. The screen fades to black, the game clock jumps to 07:00 the next morning (or the same day's 07:00 if it is still earlier than that), and you fade back in with a short "You slept." toast. Lighting and the HUD clock update immediately, and the new time is saved. A quiet sleep sound plays. Later systems (for example Energy) can listen for the `maple-slept` event or an `onSlept` hook.
@@ -72,6 +77,6 @@ A short list of later debug ideas lives in `DEBUG-TODO.md`.
 
 ## Next steps
 - Replace the placeholder house with your CC0 Quaternius / Elbolilloduro models
-- Add more systems (jobs)
+- Add more jobs and NPC-given work
 - Improve touch controls and on-screen buttons for mobile
 - Add a quality toggle in settings

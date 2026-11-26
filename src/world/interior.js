@@ -17,7 +17,7 @@ import { PLAYER_RADIUS } from '../systems/collision.js';
  * doorway only while the front door is closed.
  *
  * Layout (world metres, z decreases away from the street):
- *   front room  x -4.27..1.36, z -9.00..-6.04 : sofa, table + 2 chairs, rug
+ *   front room  x -4.27..1.36, z -9.00..-6.04 : sofa, table + 2 chairs, rug, small desk
  *   bedroom     x -4.27..-0.60, z -14.63..-9.00 : bed, nightstand (doorway 1.3 m wide)
  *   kitchen     x -0.52..4.33, z -14.63..-9.00 : counter, fridge, table + 2 chairs
  */
@@ -42,6 +42,16 @@ export const BED_CENTER = { x: -3.4, y: 0, z: -13.55 };
 export const BED_SIZE = { width: 1.5, height: 0.7, depth: 2.0 };
 /** Interact point on the east (room) side of the mattress. */
 export const BED_INTERACT = { x: -2.55, y: 0.6, z: -13.55 };
+
+/**
+ * Small home-office desk against the front room's east wall, south of the
+ * picture and clear of the front door and kitchen opening.
+ * Size is width (x / depth from the wall) × height × depth (z / along the wall).
+ */
+export const DESK_CENTER = { x: 1.153, y: 0, z: -8.58 };
+export const DESK_SIZE = { width: 0.42, height: 0.74, depth: 0.62 };
+/** Interact point on the west (room) side of the desk. */
+export const DESK_INTERACT = { x: 0.55, y: 0.75, z: -8.58 };
 
 const WALL = 0xe9dfc9;
 const WALL_SHADE = 0xded2b8;
@@ -253,6 +263,22 @@ export function buildMainHouseInterior({ shadows = false, outer, doorX, doorZ, d
   chair(parts, -0.8, -7.7, '-x');
   solid('main-int-chair2', -1.01, -0.59, -7.91, -7.49);
   frame(parts, '-x', K.frontRoomEast, 1.7, -7.7, 0.7, 0.5, 0x6d8f6a);
+  // tiny home-office desk + laptop against the east wall (south of the picture)
+  {
+    const cx = DESK_CENTER.x, cz = DESK_CENTER.z;
+    const w = DESK_SIZE.width, d = DESK_SIZE.depth, h = DESK_SIZE.height;
+    parts.box(WOOD, w, 0.05, d, cx, h - 0.025 + fy, cz);
+    for (const sx of [-1, 1]) {
+      for (const sz of [-1, 1]) {
+        parts.box(WOOD_DARK, 0.055, h - 0.05, 0.055, cx + sx * (w / 2 - 0.06), (h - 0.05) / 2 + fy, cz + sz * (d / 2 - 0.06));
+      }
+    }
+    // laptop (base + a short upright lid facing the room)
+    parts.box(0x2a2e33, 0.24, 0.02, 0.18, cx - 0.02, h + 0.01 + fy, cz);
+    parts.box(0x1c1f24, 0.02, 0.16, 0.18, cx + 0.11, h + 0.09 + fy, cz);
+    parts.box(0x2a5a78, 0.01, 0.13, 0.15, cx + 0.095, h + 0.09 + fy, cz);
+    solid('main-int-desk', cx - w / 2, cx + w / 2, cz - d / 2, cz + d / 2);
+  }
 
   // --- bedroom ---------------------------------------------------------
   parts.box(WOOD_DARK, 1.5, 0.3, 2.0, -3.4, 0.15 + fy, -13.55); // frame

@@ -150,8 +150,8 @@ export function createNeeds({
   /**
    * Apply decay for `gameMinutes` of simulated time.
    * Pass { moving: true } to use the faster Energy rate.
-   * Pass { sleep: true } to decay Hunger only (Energy is restored by the
-   * sleep hook, not drained for the hours spent in bed).
+   * Pass { sleep: true } or { hungerOnly: true } to decay Hunger only
+   * (Energy is handled by the sleep hook or a job's own drain).
    */
   function update(gameMinutes, opts = {}) {
     const dt = Number(gameMinutes);
@@ -162,7 +162,7 @@ export function createNeeds({
       const next = clampNeed(def, state.hunger - dt * HUNGER_PER_GAME_MINUTE);
       if (next !== state.hunger) { state.hunger = next; changed = true; }
     }
-    if (!opts.sleep && state.energy != null) {
+    if (!opts.sleep && !opts.hungerOnly && state.energy != null) {
       const def = defById(list, 'energy');
       let rate = ENERGY_IDLE_PER_GAME_MINUTE;
       if (opts.moving) rate += ENERGY_MOVE_PER_GAME_MINUTE;

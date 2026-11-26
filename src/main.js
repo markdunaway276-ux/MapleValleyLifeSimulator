@@ -20,6 +20,7 @@ import { createNeeds } from './systems/needs.js';
 import { createHudNeeds } from './ui/hudNeeds.js';
 import { createMoney, extractCashFromItems, attachMailboxMoney, queueDailyMail } from './systems/money.js';
 import { createHudMoney } from './ui/hudMoney.js';
+import { createWork } from './systems/work.js';
 
 const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || window.innerWidth < 800;
 
@@ -119,7 +120,18 @@ const sleeper = createSleep({
 });
 scene.userData.sleep = sleeper;
 
-const uiBlocked = () => inventory.isOpen() || debug.isModalOpen() || sleeper.isSleeping();
+const worker = createWork({
+  clock,
+  dayNight,
+  money,
+  needs,
+  sfx,
+  toast: (msg) => hudMoney.toast(msg),
+  save: () => saveGame(gameState())
+});
+scene.userData.work = worker;
+
+const uiBlocked = () => inventory.isOpen() || debug.isModalOpen() || sleeper.isSleeping() || worker.isWorking();
 setupInput(player, isMobile, { isInventoryOpen: uiBlocked });
 
 const hudClock = createHudClock();
@@ -156,6 +168,11 @@ window.addEventListener('sleep-end', syncClockHud);
 window.addEventListener('maple-slept', (e) => {
   needs.applySleep(e.detail || {});
 });
+window.addEventListener('work-start', () => {
+  if (inventory.isOpen()) inventory.close();
+  syncClockHud();
+});
+window.addEventListener('work-end', syncClockHud);
 
 const mailbox = scene.userData.mailbox || (scene.getObjectByName && scene.getObjectByName('mailbox'));
 attachMailboxMoney({
@@ -207,7 +224,7 @@ function gameState() {
 
 // Interact with the nearest door or pickup within range
 window.addEventListener('interact', () => {
-  if (sleeper.isSleeping()) return;
+  if (sleeper.isSleeping() || worker.isWorking()) return;
   const target = nearestActionTarget(scene, player.position, INTERACT_RANGE);
   if (target) {
     const ud = target.userData || {};
@@ -215,10 +232,10 @@ window.addEventListener('interact', () => {
       picked: !!ud.picked,
       letterTaken: !!(ud.mail && ud.mail.letterTaken)
     };
-    activateTarget(target, { inventory, scene, player, sfx, sleep: () => sleeper.start() });
+    activateTarget(target, { inventory, scene, player, sfx, sleep: () => sleeper.start(), work: () => worker.start() });
     cueInteract(sfx, target, before);
     prompt.update();
-    if (!sleeper.isSleeping()) saveGame(gameState());
+    if (!sleeper.isSleeping() && !worker.isWorking()) saveGame(gameState());
   }
 });
 
@@ -231,13 +248,16 @@ function animate() {
 
   const started = instructions.classList.contains('hidden');
   const sleeping = sleeper.isSleeping();
-  const timeBefore = started && !sleeping ? clock.getTime().totalMinutes : null;
-  if (started && !sleeping) clock.tick(delta);
+  const working = worker.isWorking();
+  const busy = sleeping || working;
+  const timeBefore = started && !busy ? clock.getTime().totalMinutes : null;
+  if (started && !busy) clock.tick(delta);
   const prevX = player.position.x;
   const prevZ = player.position.z;
   player.update(delta);
   sleeper.update(delta);
-  if (started && !sleeping) {
+  worker.update(delta);
+  if (started && !busy) {
     const moved = Math.hypot(player.position.x - prevX, player.position.z - prevZ);
     const gameMinutes = clock.getTime().totalMinutes - timeBefore;
     if (gameMinutes > 0) needs.update(gameMinutes, { moving: moved > 0.02 });

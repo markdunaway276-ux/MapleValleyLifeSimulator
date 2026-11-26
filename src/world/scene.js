@@ -1,8 +1,9 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { generateHouse, getHouseColliders } from './buildings.js';
-import { buildMainHouseInterior, removePaintedFrontDoor, BED_CENTER } from './interior.js';
+import { buildMainHouseInterior, removePaintedFrontDoor, BED_CENTER, DESK_CENTER } from './interior.js';
 import { createBed } from '../systems/sleep.js';
+import { createDesk } from '../systems/work.js';
 import { scatterTrees, TREE_PLACEMENTS } from './trees.js';
 import { createParkedCar } from './props.js';
 import { createSnackPickup, createMailbox, MAILBOX_SPAWN, SNACK_SPAWN, mailboxCollider } from './pickups.js';
@@ -559,6 +560,17 @@ export function createScene(quality) {
         object: bed
       });
       scene.userData.bed = bed;
+
+      const desk = createDesk();
+      desk.position.set(DESK_CENTER.x, DESK_CENTER.y, DESK_CENTER.z);
+      pickups.add(desk);
+      scene.userData.interactables = (scene.userData.interactables || []).filter((e) => e.id !== 'desk');
+      scene.userData.interactables.push({
+        id: 'desk',
+        kind: 'work',
+        object: desk
+      });
+      scene.userData.desk = desk;
 
       if (scene.userData.world) scene.userData.world.apply({ pickups: { ...scene.userData.world.taken } });
     },
