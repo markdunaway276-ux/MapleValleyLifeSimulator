@@ -235,6 +235,8 @@ export function createPauseMenu({
   // (bag, phone, Debug) is still seen as open and the pause does not stack on top.
   window.addEventListener('keydown', (e) => {
     if (e.code !== 'Escape' && e.code !== 'KeyP') return;
+    // Typing in a text box (Settings > Feedback token) is not a shortcut.
+    if (e.code === 'KeyP' && e.target && /^(INPUT|TEXTAREA)$/.test(e.target.tagName)) return;
     if (opened) {
       if (page !== 'main') go('main'); else close();
       e.preventDefault();

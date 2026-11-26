@@ -6,6 +6,7 @@ import { createDebugMenu } from '../ui/debugMenu.js';
 import { createFeedback, snapshotCanvas } from '../ui/feedback.js';
 import { createHudScreenshotButton } from '../ui/hudScreenshot.js';
 import { createFeedbackUploader } from './feedbackUpload.js';
+import { createGithubFeedback } from './githubFeedback.js';
 import { isInsideMainHouse } from '../world/rain.js';
 
 /**
@@ -157,18 +158,29 @@ export function createDebug({
     }
   }
 
-  // F9 snapshots go into the game's feedback folder when it runs from play.bat.
+  // F9 snapshots go into the game's feedback folder: on disk when it runs from
+  // play.bat, otherwise straight to the GitHub repo's feedback folder when a
+  // token is set up (Settings > Feedback). With neither, the PNG downloads.
   const uploader = createFeedbackUploader({ getInfo: feedbackInfo });
+  const github = createGithubFeedback();
+  const uploadFeedback = async (blob, opts) => {
+    const local = await uploader.upload(blob, opts);
+    if (local) return local;
+    if (!github.isConfigured()) return null;
+    let info = {};
+    try { info = feedbackInfo(); } catch { info = {}; }
+    return github.upload(blob, { ...opts, info });
+  };
   const feedback = createFeedback({
     getMeta: captionMeta,
     onOpen: modalOpened,
     onClose: modalClosed,
     onSaved: (info) => menu.toast(
       info.method === 'share' ? 'Shared screenshot'
-        : info.method === 'folder' ? `Saved F9 #${info.n} to the feedback folder`
+        : info.method === 'folder' ? (info.n ? `Saved feedback #${info.n} to the feedback folder` : 'Saved to the feedback folder')
           : 'Downloaded ' + info.filename
     ),
-    upload: (blob, opts) => uploader.upload(blob, opts),
+    upload: uploadFeedback,
     container
   });
 

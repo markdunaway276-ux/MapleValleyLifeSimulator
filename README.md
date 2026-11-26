@@ -45,6 +45,16 @@ A darker, richer, rounder look, built on earlier lighting and rounded-edge commi
 
 **Free mouse:** on a computer, **Tab** releases the mouse so you can click HUD buttons while the game keeps running; Tab again or a click on the game brings mouse look back.
 
+## Feedback screenshots on GitHub (for ChatGPT and Claude)
+The camera button (or F9) captures the view, lets you draw on it and type a note. Where it goes:
+1. Running from **play.bat**: into the local `feedback/` folder (tools/dev-server.py).
+2. Anywhere else, once **Settings → Feedback** has a GitHub token on that device: straight into the repo's [`feedback/`](feedback/) folder as `feedback/<date>_<time>.png` plus a numbered entry in [`feedback/feedback-list.md`](feedback/feedback-list.md) (note, where you were, game time, weather, device). Works from the PC and the tablet (`src/systems/githubFeedback.js`).
+3. Otherwise: the PNG downloads, as before.
+
+The token is a fine-grained GitHub personal access token for **this repository only** with **Contents: Read and write**. You create it on github.com and paste it in Settings → Feedback; it is kept in that browser's localStorage only and is never part of the game or the repo. Disconnect this device removes it.
+
+**ChatGPT:** connect GitHub in ChatGPT's connectors / apps settings, give it access to this repository, then ask it to read `feedback/feedback-list.md` and the pictures next to it. The folder is public, like the rest of the repo.
+
 ## Film look and display settings
 A rustic film grade sits on top of the lighting: a slightly darker, earthier tone with olive shadows, amber highlights, faded warm blacks, a vignette and light film grain (desktop shader pass in `post.js`; phones get a cheap CSS filter and vignette overlay). Its tuning lives in `LOOK.grade` in `palette.js`. **Debug → Display** has a **Brightness** slider (50–200%, scales the renderer exposure on desktop and phone), a **Film look** slider (0% = no grade) and a **Grain** toggle (desktop), plus Reset. These are stored per device in localStorage (`src/systems/display.js`), not in the game save.
 
