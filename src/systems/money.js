@@ -76,7 +76,7 @@ export function collectPendingMail(mail) {
  * Messages are toasted and stored in the optional inbox; items go to the
  * inventory (or ctx.inventory). The first-time Letter is unchanged.
  */
-export function attachMailboxMoney({ mailbox, money, sfx, toast, inbox, inventory } = {}) {
+export function attachMailboxMoney({ mailbox, money, sfx, toast, inbox, inventory, toastMessages = true } = {}) {
   if (!mailbox || !mailbox.userData) return null;
   if (!mailbox.userData.mail) mailbox.userData.mail = { letterTaken: false, pending: [] };
   const mail = mailbox.userData.mail;
@@ -95,8 +95,8 @@ export function attachMailboxMoney({ mailbox, money, sfx, toast, inbox, inventor
         continue;
       }
       if (item.type === 'message') {
-        if (box && typeof box.add === 'function') box.add(item);
-        if (typeof toastFn === 'function') {
+        const delivered = box && typeof box.add === 'function' ? box.add(item) : null;
+        if ((toastMessages || !delivered) && typeof toastFn === 'function') {
           const from = item.from || 'Mail';
           const body = item.body || '';
           toastFn(body ? (from + ': ' + body) : ('Mail from ' + from));

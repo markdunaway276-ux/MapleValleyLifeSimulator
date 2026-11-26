@@ -8,6 +8,7 @@ import { createPhotoLibrary } from './photos.js';
  */
 import { PHONE_APPS, INSTALLED_APPS, CALENDAR_APP, SKILLS_APP, getPhoneApp } from './apps.js';
 
+const MESSAGE_ALERT_MS = 6500;
 const PHONE_PREFS_KEY = 'mapleValleyLife_phonePrefs';
 const WALLPAPERS = Object.freeze({ coast: 'Coast', dusk: 'Dusk', forest: 'Forest' });
 
@@ -57,6 +58,19 @@ body.mobile #hud-phone {
   right: calc(max(12px, env(safe-area-inset-right)) + 76px);
 }
 
+#hud-phone-alert {
+  position: fixed; z-index: 46; left: 50%; transform: translateX(-50%);
+  top: calc(max(12px, env(safe-area-inset-top)) + 34px);
+  width: min(58vw, 310px); min-height: 48px; padding: 7px 10px;
+  border-radius: 13px; border: 1px solid #769aab; background: #202e3af5;
+  color: #fff; text-align: left; font: 13px/1.3 system-ui, sans-serif;
+  cursor: pointer; touch-action: manipulation;
+}
+#hud-phone-alert strong, #hud-phone-alert span {
+  display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+#hud-phone-alert span { color: #c8dce6; }
+#hud-phone-alert:focus-visible { outline: 2px solid #d3f1ff; outline-offset: 2px; }
 .phone-overlay {
   display: none;
   position: fixed;
@@ -416,6 +430,9 @@ export function createPhone({
 
   let opened = false;
   let locked = false;
+  let hudVisible = false;
+  let pendingMessage = null;
+  let messageTimer = null;
   let prefs = readPhonePrefs();
   const photos = createPhotoLibrary({
     getItem: (key) => localStorage.getItem(key),
@@ -431,6 +448,16 @@ export function createPhone({
   button.textContent = '📱';
   button.setAttribute('aria-label', 'Phone');
   button.title = bindKey && !isMobile ? 'Phone (P)' : 'Phone';
+
+  const alert = document.createElement('button');
+  alert.type = 'button';
+  alert.id = 'hud-phone-alert';
+  alert.className = 'hud-ui';
+  alert.hidden = true;
+  alert.setAttribute('aria-live', 'polite');
+  const alertTitle = document.createElement('strong');
+  const alertPreview = document.createElement('span');
+  alert.append(alertTitle, alertPreview);
 
   const overlay = document.createElement('div');
   overlay.className = 'phone-overlay';
@@ -497,7 +524,7 @@ export function createPhone({
   shade.setAttribute('aria-label', 'Notifications');
   device.append(status, screen, homeBar, shade);
   overlay.appendChild(device);
-  container.append(button, overlay);
+  container.append(button, alert, overlay);
 
   const ctx = {
     getTime: () => (typeof getTime === 'function' ? getTime() : (clock && typeof clock.getTime === 'function' ? clock.getTime() : null)),
@@ -641,7 +668,7 @@ export function createPhone({
     }
   }
 
-  function renderLock() {
+  function renderLock(preferredMessage = null) {
     clearApp();
     locked = true;
     closeBtn.textContent = '\u00d7';
@@ -655,7 +682,7 @@ export function createPhone({
     unlock.textContent = 'Unlock';
     unlock.addEventListener('click', renderHome);
     lock.append(lockTime, lockDay);
-    const latest = (ctx.getInbox?.() ?? []).find(Boolean);
+    const latest = preferredMessage ?? (ctx.getInbox?.() ?? []).find(Boolean);
     const task = ctx.getPinnedTask?.() ?? (ctx.getTasks?.() ?? []).find(item => !item.complete);
     for (const [app, title, summary] of [
       ['messages', latest?.from, latest?.body],
@@ -745,8 +772,10 @@ export function createPhone({
     if (opened) return;
     if (!allowedToOpen()) return;
     if (typeof onBeforeOpen === 'function') onBeforeOpen();
+    const message = pendingMessage;
+    clearAlert();
     opened = true;
-    renderLock();
+    renderLock(message);
     updateStatus();
     overlay.classList.add('is-open');
     overlay.setAttribute('aria-hidden', 'false');
@@ -778,18 +807,55 @@ export function createPhone({
     return opened;
   }
 
+  function clearAlert() {
+    clearTimeout(messageTimer);
+    messageTimer = null;
+    pendingMessage = null;
+    alert.hidden = true;
+  }
+
+  function syncAlert() {
+    alert.hidden = !pendingMessage || !hudVisible || opened;
+    if (!alert.hidden && messageTimer === null) messageTimer = setTimeout(clearAlert, MESSAGE_ALERT_MS);
+  }
+
+  function notifyMessage(note) {
+    clearAlert();
+    pendingMessage = note;
+    alertTitle.textContent = 'New message from ' + (note.from || 'Mail');
+    alertPreview.textContent = note.body || 'Open phone to read';
+    syncAlert();
+  }
+
   function setVisible(v) {
-    button.classList.toggle('is-visible', !!v);
+    hudVisible = !!v;
+    button.classList.toggle('is-visible', hudVisible);
+    syncAlert();
   }
 
   shadeToggle.addEventListener('click', () => setShade(true));
   swipe(statusLeft, 1, () => setShade(true));
   let knownMessages = new Set((ctx.getInbox?.() ?? []).filter(Boolean).map(note => note.id));
   const offInbox = ctx.onInboxChange?.((list) => {
-    const ids = new Set((list ?? ctx.getInbox?.() ?? []).filter(Boolean).map(note => note.id));
-    if (prefs.sound && [...ids].some(id => !knownMessages.has(id))) playNotification?.();
-    knownMessages = ids;
+    const notes = (list ?? ctx.getInbox?.() ?? []).filter(Boolean);
+    const latest = notes.find(note => !knownMessages.has(note.id));
+    knownMessages = new Set(notes.map(note => note.id));
+    if (latest) {
+      if (prefs.sound) playNotification?.();
+      if (!opened) notifyMessage(latest);
+      else if (locked && shade.hidden) {
+        renderLock(latest);
+        updateStatus();
+      }
+    }
     if (!shade.hidden) renderShade();
+  });
+
+  alert.addEventListener('pointerdown', (event) => event.stopPropagation());
+  alert.addEventListener('touchstart', (event) => event.stopPropagation(), { passive: true });
+  alert.addEventListener('click', (event) => {
+    event.stopPropagation();
+    if (pendingMessage) open();
   });
 
   button.addEventListener('pointerdown', (e) => e.stopPropagation());
@@ -848,7 +914,9 @@ export function createPhone({
   function dispose() {
     document.removeEventListener('keydown', onKey);
     offInbox?.();
+    clearAlert();
     clearApp();
+    alert.remove();
     button.remove();
     overlay.remove();
   }

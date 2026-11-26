@@ -14,6 +14,7 @@ export function setupDailyMail(g) {
     sfx: g.sfx,
     toast: (msg) => g.hud.toast(msg),
     inbox: g.inbox,
+    toastMessages: false,
     inventory: g.inventory
   });
   window.addEventListener('maple-new-day', (e) => {
