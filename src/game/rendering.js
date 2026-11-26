@@ -3,16 +3,25 @@ import { LOOK } from '../world/palette.js';
 import { createPost } from '../world/post.js';
 import { readSettings, qualityFor } from '../systems/settings.js';
 
+function sizeRenderer(renderer, quality, isMobile) {
+  const { innerWidth: width, innerHeight: height } = window;
+  // Bound fill cost on large high-DPI screens when using automatic quality.
+  const ratio = isMobile && quality.level === 'auto'
+    ? Math.min(quality.pixelRatio, Math.sqrt(750000 / Math.max(1, width * height)))
+    : quality.pixelRatio;
+  renderer.setPixelRatio(ratio);
+  renderer.setSize(width, height);
+}
+
 /** Quality tier and the WebGL renderer (added to the page). */
 export function createRenderer({ isMobile }) {
   // Graphics quality from the player's settings ('auto' = the old per-device choice).
   const level = readSettings().quality;
   const q = qualityFor(level, isMobile, window.devicePixelRatio);
-  const quality = { ...q, level };
+  const quality = { ...q, level, mobile: isMobile };
 
   const renderer = new THREE.WebGLRenderer({ antialias: !isMobile });
-  renderer.setPixelRatio(quality.pixelRatio);
-  renderer.setSize(window.innerWidth, window.innerHeight);
+  sizeRenderer(renderer, quality, isMobile);
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
   // Exposure comes from the palette file (0.95, set by 83bc107) next to the shadow settings.
@@ -35,7 +44,7 @@ export function createView({ renderer, scene, quality }) {
   window.addEventListener('resize', () => {
     camera.aspect = window.innerWidth / window.innerHeight;
     camera.updateProjectionMatrix();
-    renderer.setSize(window.innerWidth, window.innerHeight);
+    sizeRenderer(renderer, quality, quality.mobile);
     if (post) post.setSize(window.innerWidth, window.innerHeight);
   });
 

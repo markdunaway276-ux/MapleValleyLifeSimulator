@@ -161,6 +161,9 @@ export function createScene(quality) {
     metalness: 0
   });
   const walkGeo = new THREE.PlaneGeometry(streetLen, sidewalkWidth);
+  const curbWidth = 0.14;
+  const curbGeo = new THREE.BoxGeometry(streetLen, SURFACE_Y.walk + 0.01, curbWidth);
+  const curbMat = new THREE.MeshStandardMaterial({ color: 0xa6a092, roughness: 0.95 });
   const southWalkZ = roadCenterZ - roadWidth / 2 - sidewalkWidth / 2;
   const northWalkZ = roadCenterZ + roadWidth / 2 + sidewalkWidth / 2;
   for (const [name, z] of [['sidewalk-south', southWalkZ], ['sidewalk-north', northWalkZ]]) {
@@ -170,6 +173,13 @@ export function createScene(quality) {
     walk.position.set(0, SURFACE_Y.walk, z);
     walk.receiveShadow = quality.shadows;
     scene.add(walk);
+
+    const side = Math.sign(z - roadCenterZ);
+    const curb = new THREE.Mesh(curbGeo, curbMat);
+    curb.name = name + '-curb';
+    curb.position.set(0, SURFACE_Y.walk / 2, roadCenterZ + side * (roadWidth + curbWidth) / 2);
+    curb.receiveShadow = quality.shadows;
+    scene.add(curb);
   }
 
   // Fallback procedural house. The Kenney GLB is the main house; this group

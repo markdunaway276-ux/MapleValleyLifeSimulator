@@ -39,7 +39,7 @@ export function widenSavedSidewalkZ(z) {
 }
 
 /** Heights the road and pavement planes sit at (scene.js places them here). */
-export const SURFACE_Y = { grass: 0, road: 0.02, walk: 0.03 };
+export const SURFACE_Y = { grass: 0, road: 0.02, walk: 0.11 };
 
 /** Height of the ground surface at x, z: grass, road or pavement. */
 export function surfaceHeightAt(x, z) {

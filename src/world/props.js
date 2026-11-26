@@ -33,7 +33,11 @@ function carBodyGeometry() {
   p.bevelSegments = 1;
   p.surface('rubber');
   p.box(CAR_TRIM, 0.14, 0.2, 1.62, 2.0, -0.27, 0);
-  p.box(CAR_TRIM, 0.14, 0.2, 1.62, -2.0, -0.27, 0);
+  p.box(shade(PROPS.carBody, 0.72), 0.17, 0.21, 1.69, -1.95, -0.22, 0);
+  p.box(CAR_TRIM, 0.15, 0.075, 1.54, -1.97, -0.33, 0);
+  p.box(CAR_TRIM, 0.035, 0.21, 0.39, -2.015, -0.04, 0);
+  p.box(0xbbc2bb, 0.012, 0.12, 0.28, -2.037, -0.04, 0);
+  p.box(CAR_CHROME, 0.022, 0.028, 0.5, -2.012, 0.13, 0);
   p.bevelMax = 0; // grille, skirts, seams and handles are thin: plain boxes
   p.box(CAR_TRIM, 3.0, 0.08, 0.04, 0, -0.4, 0.875);
   p.box(CAR_TRIM, 3.0, 0.08, 0.04, 0, -0.4, -0.875);
@@ -63,6 +67,19 @@ function carWheelGeometry() {
   return p.merge();
 }
 
+/** Taper toward the roof to give the windshields and rear pillars a rake. */
+function carCabinGeometry() {
+  const geometry = bevelBox(1.9, 0.72, 1.62, { segments: 2, max: 0.10 });
+  const positions = geometry.attributes.position;
+  for (let i = 0; i < positions.count; i++) {
+    const taper = (positions.getY(i) + 0.36) / 0.72;
+    positions.setX(i, positions.getX(i) * (1 - 0.4 * taper));
+    positions.setZ(i, positions.getZ(i) * (1 - 0.14 * taper));
+  }
+  geometry.computeVertexNormals();
+  return geometry;
+}
+
 function lightGeometry(x, ys, zs, sx, sy, sz) {
   const parts = [];
   for (const z of zs) {
@@ -82,18 +99,24 @@ function lightGeometry(x, ys, zs, sx, sy, sz) {
 export function createCarAssets(quality = {}) {
   const shadows = !!quality.shadows;
   const bodyGeo = carBodyGeometry();
-  const cabinGeo = bevelBox(1.9, 0.72, 1.62, { segments: 2, max: 0.14 });
+  const cabinGeo = carCabinGeometry();
+  const rearGlassGeo = bevelBox(0.035, 0.47, 1.17, { radius: 0.013 });
+  rearGlassGeo.rotateZ(-Math.atan(0.38 / 0.72));
+  rearGlassGeo.translate(-0.98, 1.385, 0);
+  const rearGlassMat = new THREE.MeshStandardMaterial({
+    color: 0x405861, roughness: 0.32, metalness: 0.08
+  });
   const wheelGeo = carWheelGeometry();
   const headGeo = lightGeometry(2.0, 0.72, [-0.58, 0.58], 0.06, 0.16, 0.34);
-  const tailGeo = lightGeometry(-2.0, 0.76, [-0.62, 0.62], 0.06, 0.14, 0.3);
+  const tailGeo = lightGeometry(-1.994, 0.77, [-0.61, 0.61], 0.09, 0.126, 0.35);
   const steerGeo = new THREE.TorusGeometry(0.17, 0.025, 6, 12);
   const bodyMat = createVertexMaterial({ metalness: SURFACE.carPaint.metalness });
   const cabinMat = new THREE.MeshStandardMaterial({ color: PROPS.carCabin, roughness: SURFACE.glass.roughness + 0.1, metalness: 0.18 });
   const wheelMat = createVertexMaterial({ metalness: 0.12 });
   const headMat = new THREE.MeshStandardMaterial({ color: 0xf2e6b0, emissive: 0x6a5d28, roughness: 0.4 });
-  const tailMat = new THREE.MeshStandardMaterial({ color: 0xb02a2a, emissive: 0x3a0a0a, roughness: 0.5 });
+  const tailMat = new THREE.MeshStandardMaterial({ color: 0xb02a2a, emissive: 0x210403, roughness: 0.5 });
   const steerMat = new THREE.MeshStandardMaterial({ color: 0x151515, roughness: 0.8 });
-  return { bodyGeo, cabinGeo, wheelGeo, headGeo, tailGeo, steerGeo, bodyMat, cabinMat, wheelMat, headMat, tailMat, steerMat, shadows };
+  return { bodyGeo, cabinGeo, rearGlassGeo, rearGlassMat, wheelGeo, headGeo, tailGeo, steerGeo, bodyMat, cabinMat, wheelMat, headMat, tailMat, steerMat, shadows };
 }
 
 /**
@@ -122,6 +145,10 @@ export function createParkedCar(options = {}) {
   cabin.castShadow = shadows;
   cabin.receiveShadow = shadows;
   group.add(cabin);
+
+  const rearGlass = new THREE.Mesh(shared.rearGlassGeo, shared.rearGlassMat);
+  rearGlass.name = 'car-rear-window';
+  group.add(rearGlass);
 
   const frontWheels = [];
   const wheelX = 1.25;
