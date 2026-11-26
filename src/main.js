@@ -87,6 +87,11 @@ if (scene.userData.colliders) {
   if (out.reset) player.position.y = spawn.y;
 }
 camera.position.copy(player.position);
+// Testing aid: ?yaw=<degrees> sets the starting view direction (like ?mobile=1).
+{
+  const yawParam = new URLSearchParams(location.search).get('yaw');
+  if (yawParam != null && Number.isFinite(Number(yawParam))) player.rotation.y = Number(yawParam) * Math.PI / 180;
+}
 
 // --- time, weather, light, sound -----------------------------------------
 const clock = createClock();

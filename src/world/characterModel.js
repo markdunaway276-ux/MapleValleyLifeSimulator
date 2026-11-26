@@ -18,9 +18,14 @@ import * as SkeletonUtils from 'three/addons/utils/SkeletonUtils.js';
 /** Relative to the page so it works under the GitHub Pages subpath. */
 export const CHARACTER_BASE = './assets/characters/';
 
-/** Clip names in anims.glb (Universal Animation Library). */
+/**
+ * Clip names: anims.glb (Universal Animation Library) and anims-extra.glb
+ * (Universal Animation Library 2). The pack's own Idle_Loop is a fists-up,
+ * ready-to-fight stance, so standing uses the relaxed folded-arms idle.
+ */
 export const CLIPS = Object.freeze({
-  idle: 'Idle_Loop',
+  idle: 'Idle_FoldArms_Loop',
+  phone: 'Idle_TalkingPhone_Loop',
   walk: 'Walk_Loop',
   talk: 'Idle_Talking_Loop',
   interact: 'Interact'
@@ -119,9 +124,10 @@ export async function createCharacterModel(look = {}) {
   const bodyKind = look.body === 'female' ? 'female' : 'male';
   const hairFile = look.hair ? `hair-${look.hair}.glb` : null;
   try {
-    const [bodyGltf, animGltf, hairGltf, beardGltf] = await Promise.all([
+    const [bodyGltf, animGltf, extraGltf, hairGltf, beardGltf] = await Promise.all([
       load(bodyKind + '.glb'),
       load('anims.glb'),
+      load('anims-extra.glb').catch(() => ({ animations: [] })),
       hairFile ? load(hairFile) : null,
       look.beard ? load('hair-beard.glb') : null
     ]);
@@ -133,6 +139,10 @@ export async function createCharacterModel(look = {}) {
       o.receiveShadow = false;
       if (/superhero/i.test(o.material.name || '')) {
         o.material = paintClothes(o.material.clone(), { ...outfit, zones: BODY_ZONES[bodyKind] });
+      } else if (/hair/i.test(o.material.name || '') && look.hairColor != null) {
+        // The eyebrow texture is pale grey, meant to be tinted; match it to the hair.
+        o.material = o.material.clone();
+        o.material.color = new THREE.Color(look.hairColor);
       }
     });
     if (hairGltf) attachToHead(root, hairGltf.scene, look.hairColor, look.shadows);
@@ -147,13 +157,14 @@ export async function createCharacterModel(look = {}) {
     const mixer = new THREE.AnimationMixer(root);
     const actions = {};
     for (const [key, name] of Object.entries(CLIPS)) {
-      const clip = animGltf.animations.find((a) => a.name === name);
+      const clip = animGltf.animations.find((a) => a.name === name)
+        || extraGltf.animations.find((a) => a.name === name);
       if (clip) actions[key] = mixer.clipAction(clip);
     }
     let current = null;
 
     function play(key, { fade = 0.3, timeScale = 1 } = {}) {
-      const next = actions[key] || actions.idle;
+      const next = actions[key] || actions.idle || actions.talk;
       if (!next) return;
       next.timeScale = timeScale;
       if (next === current) return;
