@@ -12,8 +12,8 @@ export const TREE_PLACEMENTS = [
   { x: -13.0, z: 15.5, seed: 404 },  // behind north-west house
   { x: 13.2, z: 15.8, seed: 505 },   // behind north-east house
   { x: -21.5, z: -9.5, seed: 606 },  // west end, south yard
-  { x: 22.0, z: -9.6, seed: 707 },   // east end, south yard
-  { x: -21.5, z: 6.5, seed: 808 },   // west end, north yard
+  { x: 24.0, z: -9.6, seed: 707 },   // east end, south yard (clear of the SE garage)
+  { x: -24.0, z: 6.5, seed: 808 },   // west end, north yard (clear of the NW wing)
   { x: 21.5, z: 6.8, seed: 909 }     // east end, north yard
 ];
 

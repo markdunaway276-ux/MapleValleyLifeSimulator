@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
-import { generateHouse } from './buildings.js';
+import { generateHouse, getHouseColliders } from './buildings.js';
 import { scatterTrees, TREE_PLACEMENTS } from './trees.js';
 import { createParkedCar } from './props.js';
 import { createColliderWorld } from '../systems/collision.js';
@@ -306,11 +306,20 @@ export function createScene(quality) {
 
   // Four generated houses on both sides of the street, facing the road.
   // The Kenney house (above) is the fifth house, on the south side at x=0.
+  // Each lot has its own seeded combination of roof, porch, chimney, window
+  // layout and extension. Porched houses sit back by the porch depth so the
+  // porch front lines up with the other houses and clears the sidewalk.
+  // Extensions (garage / wing) face away from the Kenney house so the
+  // walking gaps between lots stay open.
   const lots = [
-    { name: 'house-sw', x: -13, z: -9.3, rotY: 0, width: 7.5, depth: 9, height: 3.5, roofType: 'gable', wallColor: 0xa8c5e0, roofColor: 0x6b3a2a, windowCount: 4 },
-    { name: 'house-se', x: 13.5, z: -9.45, rotY: 0, width: 8.25, depth: 9.3, height: 3.8, roofType: 'pyramid', wallColor: 0xe8d5b7, roofColor: 0x4a5560, windowCount: 3 },
-    { name: 'house-nw', x: -13, z: 6.85, rotY: Math.PI, width: 7.5, depth: 8.7, height: 3.6, roofType: 'flat', wallColor: 0xd4d0c8, roofColor: 0x5c4033, windowCount: 4 },
-    { name: 'house-ne', x: 13.2, z: 7.0, rotY: Math.PI, width: 7.8, depth: 9, height: 3.7, roofType: 'gable', wallColor: 0xc9a66b, roofColor: 0x7a2e2e, windowCount: 4 }
+    { name: 'house-sw', x: -13, z: -10.8, rotY: 0, width: 7.5, depth: 9, height: 3.5, roofType: 'gable', wallColor: 0xa8c5e0, roofColor: 0x6b3a2a, windowCount: 4,
+      seed: 11, windowLayout: 'shutters', chimney: true, porch: { depth: 1.4, width: 3.2, roof: 'shed' } },
+    { name: 'house-se', x: 13.5, z: -10.05, rotY: 0, width: 8.25, depth: 9.3, height: 3.8, roofType: 'hip', wallColor: 0xe8d5b7, roofColor: 0x4a5560, windowCount: 3,
+      seed: 22, windowLayout: 'bay', extension: { side: 1, type: 'garage', width: 3.2 } },
+    { name: 'house-nw', x: -13, z: 6.85, rotY: Math.PI, width: 7.5, depth: 8.7, height: 3.6, roofType: 'shed', wallColor: 0xd4d0c8, roofColor: 0x5c4033, windowCount: 3,
+      seed: 33, windowLayout: 'ribbon', chimney: true, extension: { side: 1, type: 'wing', width: 3.0 } },
+    { name: 'house-ne', x: 13.2, z: 8.3, rotY: Math.PI, width: 7.8, depth: 9, height: 3.7, roofType: 'gable', wallColor: 0xc9a66b, roofColor: 0x7a2e2e, windowCount: 4,
+      seed: 44, windowLayout: 'grid', chimney: true, porch: { depth: 1.2, width: 3.0, roof: 'gable' } }
   ];
   const streetHouses = lots.map((lot) => {
     const h = generateHouse({
@@ -322,7 +331,13 @@ export function createScene(quality) {
       roofColor: lot.roofColor,
       windowCount: lot.windowCount,
       hasDoor: true,
-      shadows: quality.shadows
+      shadows: quality.shadows,
+      merge: true,
+      seed: lot.seed,
+      windowLayout: lot.windowLayout,
+      porch: lot.porch,
+      chimney: lot.chimney,
+      extension: lot.extension
     });
     h.name = lot.name;
     h.position.set(lot.x, 0, lot.z);
@@ -336,6 +351,11 @@ export function createScene(quality) {
       depth: lot.depth,
       rotY: lot.rotY
     });
+    // Extension / bay boxes and porch-post circles. The porch deck itself
+    // has no collider, so it stays walkable.
+    const extra = getHouseColliders(h, { x: lot.x, z: lot.z, rotY: lot.rotY, id: lot.name });
+    extra.boxes.forEach((b) => colliders.addHouse(b));
+    extra.posts.forEach((p) => colliders.addTree(p));
     if (h.userData.door) h.userData.door.userData.doorId = lot.name;
     return h;
   });
