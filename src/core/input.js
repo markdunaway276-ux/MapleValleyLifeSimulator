@@ -1,3 +1,5 @@
+import { SETTINGS_DEFAULTS } from '../systems/settings.js';
+
 export function setupInput(player, isMobile, { isInventoryOpen } = {}) {
   const keys = player.keys;
   const blocked = () => isInventoryOpen && isInventoryOpen();
@@ -57,7 +59,6 @@ export function setupInput(player, isMobile, { isInventoryOpen } = {}) {
     let joystickTouch = null;
     let lookTouch = null;
     let lastLookX = 0, lastLookY = 0;
-    const swipeGain = 1.6;
 
     const resetTouch = () => {
       joystickTouch = null;
@@ -133,6 +134,7 @@ export function setupInput(player, isMobile, { isInventoryOpen } = {}) {
       if (blocked()) return;
       for (const t of e.changedTouches) {
         if (t.identifier === lookTouch) {
+          const swipeGain = player.touchLookSpeed ?? SETTINGS_DEFAULTS.touchLookSpeed;
           player.mouseX += (t.clientX - lastLookX) * swipeGain;
           player.mouseY += (t.clientY - lastLookY) * swipeGain;
           lastLookX = t.clientX;

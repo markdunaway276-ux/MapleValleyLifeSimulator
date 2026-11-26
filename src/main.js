@@ -388,7 +388,11 @@ if (!isMobile) {
 const settings = createSettings();
 const applyLive = {
   volume: (v) => sfx.setVolumes(v),
-  look: (s) => { player.lookSensitivity = s.sensitivity; player.invertY = s.invertY; },
+  look: (s) => {
+    player.lookSensitivity = s.sensitivity;
+    player.touchLookSpeed = s.touchLookSpeed;
+    player.invertY = s.invertY;
+  },
   fov: (v) => { camera.fov = v; camera.updateProjectionMatrix(); }
 };
 applyLive.volume(settings.get().volume);
