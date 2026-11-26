@@ -12,3 +12,7 @@ Free for personal, educational and commercial use. Credit is appreciated but not
 | `anims.glb` | Universal Animation Library [Standard]: `UAL1_Standard.glb` | Only `Idle_Loop`, `Walk_Loop`, `Idle_Talking_Loop` and `Interact` kept; mannequin mesh and scale tracks removed; keys resampled. |
 
 To add more clips, rebuild `anims.glb` from `UAL1_Standard.glb` and add the name to `CLIPS` in `characterModel.js`.
+
+## Standing animation
+
+`mixamo-breathing-idle.json` is Mixamo's **Breathing Idle** (https://www.mixamo.com, Adobe), baked to per-bone rotations with the mixamo-handoff `mixamo_bake.py` tool and retargeted onto the Quaternius skeleton at load (`src/world/mixamoRetarget.js`). Mixamo animations are free to use in games under Adobe's Mixamo terms; they should not be redistributed as stand-alone animation files outside the game.

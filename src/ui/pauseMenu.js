@@ -80,7 +80,7 @@ export function createPauseMenu({
   button.type = 'button';
   button.id = 'pause-button';
   button.className = 'hud-ui';
-  button.textContent = '⏸';
+  button.textContent = 'II';
   button.setAttribute('aria-label', 'Pause');
   ['pointerdown', 'touchstart'].forEach((ev) => button.addEventListener(ev, (e) => e.stopPropagation(), { passive: true }));
   button.addEventListener('click', (e) => { e.stopPropagation(); open(); });
