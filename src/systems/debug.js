@@ -77,6 +77,7 @@ export function createDebug({
   money = null,
   getMinimap = null,
   getWeather = null,
+  getActivity = null,
   getSaveHud = null,
   getSkills = null,
   container = document.body,
@@ -242,6 +243,7 @@ export function createDebug({
       spot: `x ${p.x.toFixed(1)}, z ${p.z.toFixed(1)}, facing ${facingDegrees()}°`,
       clock: clock ? clock.getTime().label : '',
       weather: weatherName,
+      doing: typeof getActivity === 'function' ? getActivity({ except: 'debug' }) : '',
       device: `${tier}, view ${window.innerWidth}x${window.innerHeight}`
     };
   }
@@ -253,6 +255,7 @@ export function createDebug({
     if (state.overlay) {
       lines.push(`pos ${p.x.toFixed(2)}, ${p.y.toFixed(2)}, ${p.z.toFixed(2)}`);
       lines.push(`facing ${facingDegrees()}° (yaw)`);
+      if (typeof getActivity === 'function') lines.push(`mode ${getActivity()}`);
       const bits = [`tier ${tier}`];
       if (quality.shadows !== undefined) bits.push(quality.shadows ? 'shadows on' : 'shadows off');
       if (quality.pixelRatio !== undefined) bits.push(`pr ${Number(quality.pixelRatio).toFixed(2)}`);

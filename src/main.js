@@ -3,6 +3,7 @@ import { createScene } from './world/scene.js';
 import { createPlayer } from './core/player.js';
 import { setupInput } from './core/input.js';
 import { isMobileDevice } from './core/device.js';
+import { createPlayerMode } from './core/mode.js';
 import { createInventory } from './ui/inventory.js';
 import { STARTER_ITEMS } from './data/items.js';
 import { loadSave, saveGame, clearSave } from './systems/save.js';
@@ -63,6 +64,11 @@ if (quality.shadows) renderer.shadowMap.type = LOOK.shadow.type === 'PCF' ? THRE
 document.body.appendChild(renderer.domElement);
 
 const scene = createScene(quality);
+// What the player is doing (title / walking / driving / sitting / sleeping / working) and which
+// menus are open. Systems are attached as they are created; see src/core/mode.js.
+const mode = createPlayerMode({
+  isStarted: () => document.getElementById('instructions').classList.contains('hidden')
+});
 const camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.1, quality.far);
 const player = createPlayer(camera, scene);
 
@@ -162,14 +168,15 @@ const car = createCar({
   player,
   camera,
   isMobile,
-  isStarted: () => instructions.classList.contains('hidden') && !sleeper.isSleeping() && !worker.isWorking(),
+  isStarted: () => mode.canAct(),
   sfx,
   onDrivingChange: () => { syncPlayerBody(); }
 });
 if (car && saveData.car) car.apply(saveData);
+mode.attach({ car });
 
 function syncPlayerBody() {
-  const hide = (car && car.isDriving()) || (sitter && sitter.isSeated());
+  const hide = mode.driving() || mode.sitting();
   playerBody.group.visible = !hide;
 }
 
@@ -178,19 +185,20 @@ const sitter = createSit({
   player,
   camera,
   needs,
-  isStarted: () => instructions.classList.contains('hidden') && !sleeper.isSleeping() && !worker.isWorking(),
+  isStarted: () => mode.canAct(),
   onSeatedChange: () => { syncPlayerBody(); }
 });
 if (scene.userData.seats) {
   for (let i = 0; i < scene.userData.seats.length; i++) scene.userData.seats[i].userData.sit = sitter;
 }
+mode.attach({ sitter });
 
 const instructions = document.getElementById('instructions');
 let phone;
 let dialogue;
 const inventory = createInventory({
   canvas: renderer.domElement,
-  isStarted: () => instructions.classList.contains('hidden'),
+  isStarted: () => mode.started(),
   items: fromSaveBag ? bagCash.items : STARTER_ITEMS,
   onUse: ({ use }) => {
     if (use && use.action === 'open') {
@@ -204,12 +212,13 @@ const inventory = createInventory({
   }
 });
 if (scene.userData.world) scene.userData.world.apply(saveData);
+mode.attach({ inventory });
 
 const minimap = createHudMinimap({
   scene,
   player,
   isMobile,
-  isStarted: () => instructions.classList.contains('hidden'),
+  isStarted: () => mode.started(),
   storage: typeof localStorage !== 'undefined' ? localStorage : null,
   bindKey: !isMobile
 });
@@ -224,7 +233,7 @@ const debug = createDebug({
   player,
   quality: { tier: isMobile ? 'mobile' : 'desktop', ...quality },
   isMobile,
-  isStarted: () => instructions.classList.contains('hidden'),
+  isStarted: () => mode.started(),
   isInventoryOpen: () => inventory.isOpen(),
   saveApi: { saveGame, clearSave },
   clock,
@@ -234,7 +243,8 @@ const debug = createDebug({
   getMinimap: () => minimap,
   getWeather: () => weather,
   getSaveHud: () => hudSave,
-  getSkills: () => skills
+  getSkills: () => skills,
+  getActivity: (opts) => mode.describe(opts)
 });
 const sleeper = createSleep({
   clock,
@@ -247,6 +257,7 @@ const sleeper = createSleep({
   }
 });
 scene.userData.sleep = sleeper;
+mode.attach({ sleeper });
 
 const worker = createWork({
   clock,
@@ -258,13 +269,14 @@ const worker = createWork({
   save: () => saveGame(gameState())
 });
 scene.userData.work = worker;
+mode.attach({ worker, debug });
 
 phone = createPhone({
   canvas: renderer.domElement,
   isMobile,
-  isStarted: () => instructions.classList.contains('hidden'),
-  isBlocked: () => inventory.isOpen() || debug.isModalOpen() || sleeper.isSleeping() || worker.isWorking() || (dialogue && dialogue.isOpen()),
-  canOpen: () => instructions.classList.contains('hidden') && !sleeper.isSleeping() && !worker.isWorking() && !(dialogue && dialogue.isOpen()),
+  isStarted: () => mode.started(),
+  isBlocked: () => mode.busy() || mode.menuOpen({ except: 'phone' }),
+  canOpen: () => mode.canAct() && !mode.menu('dialogue'),
   getTime: () => clock.getTime(),
   getMoney: () => money.get(),
   onMoneyChange: (fn) => money.onChange(fn),
@@ -287,9 +299,9 @@ phone = createPhone({
 dialogue = createDialogue({
   canvas: renderer.domElement,
   isMobile,
-  isStarted: () => instructions.classList.contains('hidden'),
-  isBlocked: () => inventory.isOpen() || debug.isModalOpen() || sleeper.isSleeping() || worker.isWorking() || phone.isOpen(),
-  canOpen: () => instructions.classList.contains('hidden') && !sleeper.isSleeping() && !worker.isWorking(),
+  isStarted: () => mode.started(),
+  isBlocked: () => mode.busy() || mode.menuOpen({ except: 'dialogue' }),
+  canOpen: () => mode.canAct(),
   onBeforeOpen: () => {
     if (inventory.isOpen()) inventory.close();
     if (phone.isOpen()) phone.close();
@@ -298,7 +310,8 @@ dialogue = createDialogue({
   getWeather: () => weather.get()
 });
 
-const uiBlocked = () => inventory.isOpen() || debug.isModalOpen() || sleeper.isSleeping() || worker.isWorking() || phone.isOpen() || dialogue.isOpen();
+mode.attach({ phone, dialogue });
+const uiBlocked = () => mode.uiBlocked();
 setupInput(player, isMobile, { isInventoryOpen: uiBlocked });
 
 const hudClock = createHudClock();
@@ -309,7 +322,7 @@ const hudMute = createHudMute({
 const hudNeeds = createHudNeeds({ getNeeds: () => needs.get() });
 const hudMoney = createHudMoney({ getMoney: () => money.get() });
 function syncClockHud() {
-  const show = instructions.classList.contains('hidden') && !uiBlocked();
+  const show = mode.hudVisible();
   hudClock.setVisible(show);
   if (show) hudClock.update(clock.getTime(), weather.get());
   hudMute.setVisible(show);
@@ -339,11 +352,7 @@ window.addEventListener('phone-close', syncClockHud);
 window.addEventListener('dialogue-open', syncClockHud);
 window.addEventListener('dialogue-close', syncClockHud);
 window.addEventListener('sleep-start', () => {
-  if (inventory.isOpen()) inventory.close();
-  if (phone.isOpen()) phone.close();
-  if (dialogue.isOpen()) dialogue.close();
-  if (car && car.isDriving()) car.exit();
-  if (sitter && sitter.isSeated()) sitter.stand();
+  mode.clearForBusy();
   syncClockHud();
 });
 window.addEventListener('sleep-end', syncClockHud);
@@ -351,11 +360,7 @@ window.addEventListener('maple-slept', (e) => {
   needs.applySleep(e.detail || {});
 });
 window.addEventListener('work-start', () => {
-  if (inventory.isOpen()) inventory.close();
-  if (phone.isOpen()) phone.close();
-  if (dialogue.isOpen()) dialogue.close();
-  if (car && car.isDriving()) car.exit();
-  if (sitter && sitter.isSeated()) sitter.stand();
+  mode.clearForBusy();
   syncClockHud();
 });
 window.addEventListener('work-end', syncClockHud);
@@ -373,7 +378,7 @@ window.addEventListener('maple-new-day', (e) => {
   const mail = mailbox && mailbox.userData && mailbox.userData.mail;
   const day = e && e.detail && e.detail.day;
   queueMail(mail, day);
-  if (!sleeper.isSleeping() && !worker.isWorking()) saveGame(gameState());
+  if (!mode.busy()) saveGame(gameState());
 });
 {
   const mailState = mailbox && mailbox.userData && mailbox.userData.mail;
@@ -381,11 +386,18 @@ window.addEventListener('maple-new-day', (e) => {
   if (mailState && dayNow >= 2 && mailState.lastMailDay !== dayNow) queueMail(mailState, dayNow);
 }
 
+/** What E / the prompt acts on: the car or seat you are in, else the nearest thing in reach. */
+function currentTarget() {
+  if (mode.driving()) return car.object;
+  if (mode.sitting()) return sitter.object();
+  return nearestActionTarget(scene, player.position, INTERACT_RANGE);
+}
+
 const prompt = createInteractPrompt({
   isMobile,
-  isStarted: () => instructions.classList.contains('hidden'),
+  isStarted: () => mode.started(),
   isInventoryOpen: uiBlocked,
-  getTarget: () => (car && car.isDriving() ? car.object : (sitter && sitter.isSeated() ? sitter.object() : nearestActionTarget(scene, player.position, INTERACT_RANGE))),
+  getTarget: () => currentTarget(),
   player,
   range: INTERACT_RANGE
 });
@@ -408,8 +420,8 @@ window.addEventListener('resize', () => {
 
 function gameState() {
   // While driving or sitting, the saved player spot is a safe stand / exit, not inside the prop.
-  const spot = car && car.isDriving() ? car.exitSpot()
-    : (sitter && sitter.isSeated() ? sitter.exitSpot() : null);
+  const spot = mode.driving() ? car.exitSpot()
+    : (mode.sitting() ? sitter.exitSpot() : null);
   return {
     position: spot
       ? { x: spot.x, y: 1.6, z: spot.z }
@@ -431,8 +443,8 @@ function gameState() {
 
 // Interact with the nearest door or pickup within range
 window.addEventListener('interact', () => {
-  if (sleeper.isSleeping() || worker.isWorking()) return;
-  const target = car && car.isDriving() ? car.object : (sitter && sitter.isSeated() ? sitter.object() : nearestActionTarget(scene, player.position, INTERACT_RANGE));
+  if (mode.busy()) return;
+  const target = currentTarget();
   if (target) {
     const ud = target.userData || {};
     const before = {
@@ -442,7 +454,7 @@ window.addEventListener('interact', () => {
     activateTarget(target, { inventory, scene, player, sfx, money, toast: (msg) => hudMoney.toast(msg), sleep: () => sleeper.start(), work: () => worker.start(), cook: () => skills.cook({ clock, needs, sfx, toast: (msg) => hudMoney.toast(msg) }), sit: sitter, dialogue, talk: (def) => dialogue.open(def.id) });
     cueInteract(sfx, target, before);
     prompt.update();
-    if (!sleeper.isSleeping() && !worker.isWorking()) saveGame(gameState());
+    if (!mode.busy()) saveGame(gameState());
   }
 });
 
@@ -453,16 +465,14 @@ function animate() {
   const delta = Math.min((now - lastTime) / 1000, 0.1);
   lastTime = now;
 
-  const started = instructions.classList.contains('hidden');
-  const sleeping = sleeper.isSleeping();
-  const working = worker.isWorking();
-  const busy = sleeping || working;
+  const started = mode.started();
+  const busy = mode.busy();
   const timeBefore = started && !busy ? clock.getTime().totalMinutes : null;
   if (started && !busy) clock.tick(delta);
   const prevX = player.position.x;
   const prevZ = player.position.z;
-  if (car && car.isDriving()) car.update(delta, { blocked: uiBlocked() });
-  else if (sitter && sitter.isSeated()) sitter.update(delta, { blocked: uiBlocked() });
+  if (mode.driving()) car.update(delta, { blocked: uiBlocked() });
+  else if (mode.sitting()) sitter.update(delta, { blocked: uiBlocked() });
   else player.update(delta);
   playerBody.update(player);
   npcs.update(delta, { player, talkingId: dialogue.isOpen() ? dialogue.currentNpc() : null });
@@ -476,8 +486,8 @@ function animate() {
   if (started && !busy) {
     const moved = Math.hypot(player.position.x - prevX, player.position.z - prevZ);
     const gameMinutes = clock.getTime().totalMinutes - timeBefore;
-    const driving = !!(car && car.isDriving());
-    const sitting = !!(sitter && sitter.isSeated());
+    const driving = mode.driving();
+    const sitting = mode.sitting();
     if (gameMinutes > 0) {
       if (sitting) {
         needs.update(gameMinutes, { hungerOnly: true });

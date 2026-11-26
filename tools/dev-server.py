@@ -68,7 +68,7 @@ def save_feedback(data):
     note = clean(data.get('note'), 2000).strip().replace('\r\n', '\n').replace('\n', '\n  ')
     when = now.strftime('%b %d, %Y, %I:%M %p').replace(' 0', ' ')
     entry = '\n## #%d · %s · %s\n- Note: %s\n' % (n, when, name, note or '(no note)')
-    for label, key in (('Where', 'where'), ('Spot', 'spot'), ('Game time', 'clock'),
+    for label, key in (('Where', 'where'), ('Doing', 'doing'), ('Spot', 'spot'), ('Game time', 'clock'),
                        ('Weather', 'weather'), ('Device', 'device')):
         val = clean(info.get(key), 160).strip()
         if val:
