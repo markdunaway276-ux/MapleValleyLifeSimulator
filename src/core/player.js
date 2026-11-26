@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { PLAYER_RADIUS } from '../systems/collision.js';
+import { PLAYER_RADIUS, resolveMoveStepped } from '../systems/collision.js';
 
 export function createPlayer(camera, scene) {
   const player = {
@@ -65,7 +65,8 @@ export function createPlayer(camera, scene) {
 
     const world = scene.userData && scene.userData.colliders;
     if (world && typeof world.resolveMove === 'function') {
-      const resolved = world.resolveMove(this.position.x, this.position.z, move.x, move.z, this.radius);
+      // Stepped so a long frame (up to 0.45 m of movement) cannot pass through a thin wall.
+      const resolved = resolveMoveStepped(world, this.position.x, this.position.z, move.x, move.z, this.radius);
       this.position.x = resolved.x;
       this.position.z = resolved.z;
     } else {

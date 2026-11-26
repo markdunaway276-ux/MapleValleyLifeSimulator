@@ -11,6 +11,30 @@
 
 export const PLAYER_RADIUS = 0.32;
 
+/**
+ * Longest single collision step for a walker. The thinnest walls are 0.15 m and
+ * a box pushes you out on whichever side of its middle you are, so a move longer
+ * than half of (wall + player width) can come out on the far side. 0.1 m is well
+ * under that; a frame's move (up to 0.45 m on a slow frame) is split into steps.
+ */
+export const MAX_MOVE_STEP = 0.1;
+
+/** world.resolveMove in steps of at most maxStep, so big frame moves cannot tunnel. */
+export function resolveMoveStepped(world, x, z, dx, dz, radius = PLAYER_RADIUS, opts, maxStep = MAX_MOVE_STEP) {
+  const dist = Math.hypot(dx, dz);
+  const n = Math.max(1, Math.ceil(dist / maxStep));
+  const sx = dx / n;
+  const sz = dz / n;
+  let px = x;
+  let pz = z;
+  for (let i = 0; i < n; i++) {
+    const r = world.resolveMove(px, pz, sx, sz, radius, opts);
+    px = r.x;
+    pz = r.z;
+  }
+  return { x: px, z: pz };
+}
+
 function clamp(v, lo, hi) {
   return v < lo ? lo : v > hi ? hi : v;
 }
