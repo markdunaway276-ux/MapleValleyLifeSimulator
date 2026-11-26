@@ -533,7 +533,7 @@ export function createPhone({
       close();
       return;
     }
-    if (bindKey && !isMobile && e.code === PHONE_KEY) {
+    if (bindKey && !isMobile && e.code === PHONE_KEY && !e.repeat) {
       e.preventDefault();
       toggle();
     }
