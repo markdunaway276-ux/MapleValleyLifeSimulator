@@ -262,7 +262,9 @@ export function createDialogue({
       if (row.contains(e.target) && e.target.tagName === 'BUTTON') return;
       e.preventDefault();
       if (e.repeat) return;
-      if (index < pages.length - 1) next();
+      // On a page with a choice (e.g. a favour), Enter/Space picks it instead of closing.
+      if (pages[index]?.action && !actionBtn.hidden) actionBtn.click();
+      else if (index < pages.length - 1) next();
       else close();
     }
   }
