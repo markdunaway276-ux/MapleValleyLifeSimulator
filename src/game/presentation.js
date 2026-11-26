@@ -7,37 +7,104 @@ const FOCUS_SECONDS = 0.28;
 const SCREEN_HEIGHT = 0.145;
 const SCREEN_WIDTH = 0.072;
 
+function roundedPanel(width, height, radius) {
+  const x = width / 2;
+  const y = height / 2;
+  const path = new THREE.Shape();
+  path.moveTo(-x + radius, -y);
+  path.lineTo(x - radius, -y);
+  path.quadraticCurveTo(x, -y, x, -y + radius);
+  path.lineTo(x, y - radius);
+  path.quadraticCurveTo(x, y, x - radius, y);
+  path.lineTo(-x + radius, y);
+  path.quadraticCurveTo(-x, y, -x, y - radius);
+  path.lineTo(-x, -y + radius);
+  path.quadraticCurveTo(-x, -y, -x + radius, -y);
+  return path;
+}
+
 function makeHandset() {
   const phone = new THREE.Group();
-  const shell = new THREE.Mesh(bevelBox(0.081, 0.157, 0.011, { radius: 0.004 }),
-    new THREE.MeshStandardMaterial({ color: 0x262d33, metalness: 0.35, roughness: 0.38 }));
-  const screen = new THREE.Mesh(new THREE.PlaneGeometry(SCREEN_WIDTH, SCREEN_HEIGHT),
-    new THREE.MeshBasicMaterial({ color: 0x070b10 }));
+  const frame = new THREE.MeshStandardMaterial({ color: 0x414a52, metalness: 0.56, roughness: 0.31 });
+  const graphite = new THREE.MeshStandardMaterial({ color: 0x232a31, metalness: 0.18, roughness: 0.46 });
+  const glass = new THREE.MeshBasicMaterial({ color: 0x070b10 });
+  const lensGlass = new THREE.MeshBasicMaterial({ color: 0x233b51 });
+  const dark = new THREE.MeshBasicMaterial({ color: 0x080a0e });
+
+  const shellGeometry = new THREE.ExtrudeGeometry(roundedPanel(0.079, 0.155, 0.009), {
+    depth: 0.009, bevelEnabled: true, bevelThickness: 0.0008, bevelSize: 0.0008,
+    bevelSegments: 2, curveSegments: 6
+  });
+  shellGeometry.translate(0, 0, -0.0045);
+  phone.add(new THREE.Mesh(shellGeometry, frame));
+
+  const back = new THREE.Mesh(new THREE.ShapeGeometry(roundedPanel(0.077, 0.153, 0.008), 6), graphite);
+  back.rotation.y = Math.PI;
+  back.position.z = -0.0055;
+  const bezel = new THREE.Mesh(new THREE.ShapeGeometry(roundedPanel(0.077, 0.153, 0.008), 6), dark);
+  bezel.position.z = 0.00555;
+  const screen = new THREE.Mesh(new THREE.ShapeGeometry(roundedPanel(SCREEN_WIDTH, SCREEN_HEIGHT, 0.0043), 6), glass);
   screen.position.z = 0.006;
-  const lens = new THREE.Mesh(new THREE.CircleGeometry(0.003, 10),
-    new THREE.MeshBasicMaterial({ color: 0x080b10 }));
-  lens.position.set(0, 0.062, 0.0062);
-  const rearCamera = new THREE.Mesh(bevelBox(0.024, 0.026, 0.004),
-    new THREE.MeshStandardMaterial({ color: 0x151a22, roughness: 0.4 }));
-  rearCamera.position.set(-0.021, 0.054, -0.006);
-  phone.add(shell, screen, lens, rearCamera);
+  const selfieLens = new THREE.Mesh(new THREE.CircleGeometry(0.0022, 12), dark);
+  selfieLens.position.set(0, 0.0645, 0.0062);
+  phone.add(back, bezel, screen, selfieLens);
+
+  const island = new THREE.Mesh(bevelBox(0.027, 0.035, 0.003, { radius: 0.0014 }), graphite);
+  island.position.set(-0.021, 0.051, -0.0063);
+  phone.add(island);
+  for (const y of [0.043, 0.059]) {
+    const ring = new THREE.Mesh(new THREE.TorusGeometry(0.0054, 0.0009, 6, 14), frame);
+    ring.position.set(-0.025, y, -0.0082);
+    const lens = new THREE.Mesh(new THREE.CircleGeometry(0.0048, 14), lensGlass);
+    lens.rotation.y = Math.PI;
+    lens.position.set(-0.025, y, -0.0084);
+    phone.add(ring, lens);
+  }
+  const flash = new THREE.Mesh(new THREE.CircleGeometry(0.0024, 10), new THREE.MeshBasicMaterial({ color: 0xd7cfb5 }));
+  flash.rotation.y = Math.PI;
+  flash.position.set(-0.013, 0.059, -0.008);
+  phone.add(flash);
+  for (const [y, length] of [[0.019, 0.012], [0.043, 0.023]]) {
+    const button = new THREE.Mesh(bevelBox(0.0022, length, 0.0034, { radius: 0.0008 }), frame);
+    button.position.set(0.0403, y, -0.0006);
+    phone.add(button);
+  }
   return { phone, screen };
+}
+
+function addGrip(phone, material, includePalm) {
+  if (includePalm) {
+    const palm = new THREE.Mesh(bevelBox(0.043, 0.081, 0.028, { radius: 0.008 }), material);
+    palm.position.set(0.030, -0.061, -0.020);
+    palm.rotation.z = -0.16;
+    phone.add(palm);
+  }
+  // Fingers wrap behind the lower case while the thumb rests along the glass edge.
+  for (const y of [-0.026, -0.039, -0.052]) {
+    const finger = new THREE.Mesh(bevelBox(0.035, 0.011, 0.012, { radius: 0.0045 }), material);
+    finger.position.set(0.016, y, -0.011);
+    finger.rotation.z = 0.12;
+    phone.add(finger);
+  }
+  const thumb = new THREE.Mesh(bevelBox(0.012, 0.033, 0.013, { radius: 0.005 }), material);
+  thumb.position.set(0.046, -0.041, 0.003);
+  thumb.rotation.z = 0.23;
+  phone.add(thumb);
 }
 
 export function createPresentation({ camera, scene, mode, playerBody }) {
   const arm = playerBody.arm;
   const first = makeHandset();
   const third = makeHandset();
-  const grip = new THREE.Mesh(bevelBox(0.042, 0.10, 0.044), arm.material);
-  grip.position.set(0.035, -0.069, -0.013);
-  first.phone.add(grip);
+  addGrip(first.phone, arm.material, true);
+  addGrip(third.phone, arm.material, false);
   camera.add(first.phone);
 
   // The handset stays attached to the wrist throughout the raise.
   const wrist = new THREE.Group();
-  wrist.position.set(0.012, -0.057, 0.018);
+  wrist.position.set(-0.022, -0.044, 0.024);
   arm.hand.add(wrist);
-  third.phone.position.y = 0.054;
+  third.phone.position.y = 0.049;
   wrist.add(third.phone);
 
   const style = document.createElement('style');
