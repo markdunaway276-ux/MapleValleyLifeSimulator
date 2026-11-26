@@ -382,7 +382,7 @@ function addWindowUnit(parts, glass, trim, accent, spec) {
   // invisible); only the head cap and sill keep rounded edges.
   parts.bevelMax = 0;
   // Tinted glass with a sky-to-room gradient and a reflection streak.
-  addGlassPane(glass, w, h, tint);
+  addGlassPane(glass, w, h, tint, { z: 0.022 });
   parts.surface('trim');
   // Outer frame (head, sill-side and jambs).
   parts.box(trim, w + f * 2, f, 0.1, 0, h / 2 + f / 2, 0.04);
@@ -459,6 +459,17 @@ function buildVariedHouse(group, opts) {
   // --- walls, corner boards, roof --------------------------------------
   parts.surface('plaster');
   parts.box(wallColor, width, height, depth, 0, height / 2, 0);
+  // Shallow lap joints sit behind the window glass and trim. All four
+  // walls use the existing merged mesh, including on the mobile tier.
+  const joint = shade(wallColor, 0.83);
+  for (let y = 0.32; y < height - 0.12; y += 0.22) {
+    for (const side of [-1, 1]) {
+      parts.box(joint, width - 0.1, 0.014, 0.016, 0, y, side * hd);
+      parts.box(joint, 0.016, 0.014, depth - 0.1, side * hw, y, 0);
+    }
+  }
+  const foundation = shade(wallColor, 0.72);
+  parts.box(foundation, width + 0.035, 0.18, depth + 0.035, 0, 0.09, 0);
   parts.surface('trim');
   for (const sx of [-1, 1]) {
     if (sx === eSide) continue;
@@ -468,6 +479,19 @@ function buildVariedHouse(group, opts) {
   }
   parts.surface('roof');
   const roofY = addMainRoof(parts, opts, rng);
+  if (['gable', 'hip', 'shed'].includes(opts.roofType)) {
+    const fascia = shade(trim, 0.74);
+    parts.surface('trim');
+    for (const side of [-1, 1]) {
+      const x = side * (hw + 0.25);
+      parts.box(fascia, 0.064, 0.105, depth + 0.5, x, roofY(x, 0) - 0.045, 0);
+    }
+    if (opts.roofType === 'hip') {
+      for (const side of [-1, 1]) {
+        parts.box(fascia, width + 0.5, 0.105, 0.064, 0, height - 0.045, side * (hd + 0.25));
+      }
+    }
+  }
   features.push(`${opts.roofType} roof`);
 
   // --- chimney ----------------------------------------------------------
