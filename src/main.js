@@ -18,6 +18,8 @@ import { createHudMute } from './ui/hudMute.js';
 import { createSleep } from './systems/sleep.js';
 import { createNeeds } from './systems/needs.js';
 import { createHudNeeds } from './ui/hudNeeds.js';
+import { createMoney, extractCashFromItems, attachMailboxMoney, queueDailyMail } from './systems/money.js';
+import { createHudMoney } from './ui/hudMoney.js';
 
 const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || window.innerWidth < 800;
 
@@ -71,11 +73,17 @@ const sfx = createSfx({ getTime: () => clock.getTime(), getScene: () => scene })
 const needs = createNeeds();
 if (saveData.needs) needs.apply(saveData);
 
+const fromSaveBag = Array.isArray(saveData.inventory);
+const bagCash = extractCashFromItems(fromSaveBag ? saveData.inventory : []);
+const money = createMoney();
+if (saveData.money != null) money.apply(saveData);
+else if (fromSaveBag && bagCash.cash) money.set(bagCash.cash);
+
 const instructions = document.getElementById('instructions');
 const inventory = createInventory({
   canvas: renderer.domElement,
   isStarted: () => instructions.classList.contains('hidden'),
-  items: Array.isArray(saveData.inventory) ? saveData.inventory : STARTER_ITEMS,
+  items: fromSaveBag ? bagCash.items : STARTER_ITEMS,
   onUse: ({ use }) => {
     if (use && use.need) needs.add(use.need, use.amount || 0);
     if (use && use.sfx) sfx.play(use.sfx);
@@ -96,7 +104,8 @@ const debug = createDebug({
   saveApi: { saveGame, clearSave },
   clock,
   sfx,
-  needs
+  needs,
+  money
 });
 const sleeper = createSleep({
   clock,
@@ -119,6 +128,7 @@ const hudMute = createHudMute({
   onToggle: () => sfx.toggleMuted()
 });
 const hudNeeds = createHudNeeds({ getNeeds: () => needs.get() });
+const hudMoney = createHudMoney({ getMoney: () => money.get() });
 function syncClockHud() {
   const show = instructions.classList.contains('hidden') && !uiBlocked();
   hudClock.setVisible(show);
@@ -127,10 +137,13 @@ function syncClockHud() {
   hudMute.refresh();
   hudNeeds.setVisible(show);
   if (show) hudNeeds.update();
+  hudMoney.setVisible(show);
+  if (show) hudMoney.update();
 }
 clock.on('change', (t) => hudClock.update(t));
 sfx.on('mute', () => hudMute.refresh());
 needs.onChange(() => hudNeeds.update());
+money.onChange(() => hudMoney.update());
 window.addEventListener('inventory-open', syncClockHud);
 window.addEventListener('inventory-close', syncClockHud);
 window.addEventListener('debug-modal-open', syncClockHud);
@@ -142,6 +155,19 @@ window.addEventListener('sleep-start', () => {
 window.addEventListener('sleep-end', syncClockHud);
 window.addEventListener('maple-slept', (e) => {
   needs.applySleep(e.detail || {});
+});
+
+const mailbox = scene.userData.mailbox || (scene.getObjectByName && scene.getObjectByName('mailbox'));
+attachMailboxMoney({
+  mailbox,
+  money,
+  sfx,
+  toast: (msg) => hudMoney.toast(msg)
+});
+window.addEventListener('maple-new-day', (e) => {
+  const mail = mailbox && mailbox.userData && mailbox.userData.mail;
+  const day = e && e.detail && e.detail.day;
+  queueDailyMail(mail, day);
 });
 
 const prompt = createInteractPrompt({
@@ -174,7 +200,8 @@ function gameState() {
     inventory: inventory.serialize(),
     pickups: scene.userData.world ? scene.userData.world.serialize() : undefined,
     time: clock.serialize(),
-    needs: needs.serialize()
+    needs: needs.serialize(),
+    money: money.serialize()
   };
 }
 

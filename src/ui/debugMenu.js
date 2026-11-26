@@ -112,6 +112,13 @@ body.mobile #debug-menu .dm-key { display: none; }
   min-height: 44px; min-width: 72px; padding: 8px 10px; font-weight: 600;
   background: #2a2a30; border: 1px solid #44444c; border-radius: 10px;
 }
+#debug-menu .dm-money { padding: 10px 14px 12px; }
+#debug-menu .dm-money-label { font-weight: 600; margin: 0 0 8px; }
+#debug-menu .dm-money-row { display: flex; gap: 6px; flex-wrap: wrap; }
+#debug-menu .dm-money-row button {
+  min-height: 44px; min-width: 72px; padding: 8px 10px; font-weight: 600;
+  background: #2a2a30; border: 1px solid #44444c; border-radius: 10px;
+}
 `;
 
 function ensureStyles() {
@@ -131,7 +138,7 @@ export const MENU_ITEMS = [
   { id: 'clearSave', type: 'action', label: 'Clear saved game', key: 'Shift+F8 twice', danger: true }
 ];
 
-export function createDebugMenu({ actions, getState, getTeleports = () => [], getClock = null, getSfx = null, getNeeds = null, onOpen = () => {}, onClose = () => {}, container = document.body }) {
+export function createDebugMenu({ actions, getState, getTeleports = () => [], getClock = null, getSfx = null, getNeeds = null, getMoney = null, onOpen = () => {}, onClose = () => {}, container = document.body }) {
   ensureStyles();
 
   const button = document.createElement('button');
@@ -219,6 +226,7 @@ export function createDebugMenu({ actions, getState, getTeleports = () => [], ge
     if (typeof getClock === 'function') panel.appendChild(buildTimeSection());
     if (typeof getSfx === 'function') panel.appendChild(buildSoundSection());
     if (typeof getNeeds === 'function') panel.appendChild(buildNeedsSection());
+    if (typeof getMoney === 'function') panel.appendChild(buildMoneySection());
 
     const foot = document.createElement('div');
     foot.className = 'dm-foot';
@@ -513,6 +521,70 @@ export function createDebugMenu({ actions, getState, getTeleports = () => [], ge
     needsEls.label.textContent = parts.length ? parts.join('  ·  ') : 'Needs';
   }
 
+  let moneyEls = null;
+
+  function buildMoneySection() {
+    const section = document.createElement('div');
+    section.className = 'dm-section is-open';
+    section.dataset.item = 'money';
+    const toggle = document.createElement('button');
+    toggle.type = 'button';
+    toggle.className = 'dm-section-toggle';
+    toggle.setAttribute('aria-expanded', 'true');
+    const title = document.createElement('span');
+    title.className = 'dm-label';
+    title.textContent = 'Money';
+    const chev = document.createElement('span');
+    chev.className = 'dm-chevron';
+    chev.textContent = '▾';
+    toggle.append(title, chev);
+    const body = document.createElement('div');
+    body.className = 'dm-sublist dm-money';
+    const label = document.createElement('div');
+    label.className = 'dm-money-label';
+    const row = document.createElement('div');
+    row.className = 'dm-money-row';
+    const addBtn = document.createElement('button');
+    addBtn.type = 'button';
+    addBtn.dataset.moneyAction = 'add';
+    addBtn.textContent = '+$100';
+    addBtn.addEventListener('click', () => {
+      const money = getMoney && getMoney();
+      if (money && typeof money.add === 'function') money.add(100);
+      refreshMoney();
+    });
+    const resetBtn = document.createElement('button');
+    resetBtn.type = 'button';
+    resetBtn.dataset.moneyAction = 'reset';
+    resetBtn.textContent = 'Reset cash';
+    resetBtn.addEventListener('click', () => {
+      const money = getMoney && getMoney();
+      if (money && typeof money.reset === 'function') money.reset();
+      else if (money && typeof money.set === 'function') money.set(50);
+      refreshMoney();
+    });
+    row.append(addBtn, resetBtn);
+    body.append(label, row);
+    toggle.addEventListener('click', () => {
+      const open = !section.classList.contains('is-open');
+      section.classList.toggle('is-open', open);
+      toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+    });
+    section.append(toggle, body);
+    moneyEls = { section, label, addBtn, resetBtn };
+    refreshMoney();
+    return section;
+  }
+
+  function refreshMoney() {
+    if (!moneyEls || typeof getMoney !== 'function') return;
+    const money = getMoney();
+    if (!money || typeof money.get !== 'function') return;
+    const n = money.get();
+    const shown = Number.isInteger(n) ? String(n) : Number(n).toFixed(2);
+    moneyEls.label.textContent = 'Cash $' + shown;
+  }
+
   function refresh() {
 
     if (!root) return;
@@ -523,6 +595,7 @@ export function createDebugMenu({ actions, getState, getTeleports = () => [], ge
     refreshTime();
     refreshMute();
     refreshNeeds();
+    refreshMoney();
   }
 
   function open() {
@@ -579,6 +652,7 @@ export function createDebugMenu({ actions, getState, getTeleports = () => [], ge
     refreshTime,
     refreshMute,
     refreshNeeds,
+    refreshMoney,
     toast,
     setButtonVisible,
     isOpen: () => opened,

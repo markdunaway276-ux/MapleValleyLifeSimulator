@@ -19,6 +19,7 @@ import { createHudScreenshotButton } from '../ui/hudScreenshot.js';
  *   - time-of-day slider, pause and speed (when a game clock is passed in)
  *   - sound mute toggle (when an sfx API is passed in)
  *   - needs refill / drain (when a needs API is passed in)
+ *   - money +$100 / reset cash (when a money API is passed in)
  * Further ideas: DEBUG-TODO.md
  * While nothing is toggled on, update() only compares one boolean per frame.
  *
@@ -71,6 +72,7 @@ export function createDebug({
   clock = null,
   sfx = null,
   needs = null,
+  money = null,
   container = document.body,
   now = () => performance.now()
 }) {
@@ -102,6 +104,7 @@ export function createDebug({
     getClock: clock ? () => clock : null,
     getSfx: sfx ? () => sfx : null,
     getNeeds: needs ? () => needs : null,
+    getMoney: money ? () => money : null,
     onOpen: modalOpened,
     onClose: modalClosed,
     container
@@ -112,6 +115,9 @@ export function createDebug({
   }
   if (needs && typeof needs.onChange === 'function') {
     needs.onChange(() => { if (menu.isOpen()) menu.refreshNeeds(); });
+  }
+  if (money && typeof money.onChange === 'function') {
+    money.onChange(() => { if (menu.isOpen()) menu.refreshMoney(); });
   }
 
   const feedback = createFeedback({
@@ -389,6 +395,7 @@ export function createDebug({
     syncHud();
     if (menu.isOpen() && clock) menu.refreshTime();
     if (menu.isOpen() && needs) menu.refreshNeeds();
+    if (menu.isOpen() && money) menu.refreshMoney();
     if (!active()) return;
     frames++;
     if (viz && viz.isEnabled()) viz.updatePlayer(player.position);

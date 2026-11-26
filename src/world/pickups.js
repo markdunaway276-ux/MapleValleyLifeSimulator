@@ -75,7 +75,7 @@ function applyMailboxPose(mailbox, immediate = true) {
 /**
  * A street mailbox: post, box, and a top lid that flips back. Interacting
  * toggles the lid. The first open gives a one-time Letter. userData.mail
- * is the extension point for later daily mail (pending[], onOpen).
+ * is the extension point for daily mail (pending[], onOpen).
  */
 export function createMailbox({ shadows = false, onOpen } = {}) {
   const group = new THREE.Group();

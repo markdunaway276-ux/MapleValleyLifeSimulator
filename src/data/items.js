@@ -9,7 +9,7 @@ export const ITEM_DEFS = {
     id: 'cash',
     name: 'Cash',
     icon: '💵',
-    description: 'Spending money for the shops around Maple Valley.',
+    description: 'Spending money. Your balance is shown on the HUD.',
     color: '#3d8b5f',
     stackable: true
   },
@@ -56,7 +56,6 @@ export function createItem(id, extras = {}) {
 }
 
 export const STARTER_ITEMS = [
-  createItem('cash', { count: 50 }),
   createItem('phone'),
   createItem('keys'),
   createItem('snack', { count: 2 })

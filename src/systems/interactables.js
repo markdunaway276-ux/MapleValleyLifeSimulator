@@ -8,7 +8,7 @@ import { INTERACT_RANGE } from '../ui/interactPrompt.js';
  * carry userData.getPrompt / userData.interact so the on-screen prompt and the
  * E / tap path stay the same as doors. Hidden or picked objects are skipped.
  *
- * The mailbox's userData.mail is the hook for later daily mail (cash, etc.):
+ * The mailbox's userData.mail is the hook for daily mail (cash, etc.):
  * set `pending` and/or `onOpen` without changing the interact path.
  */
 
@@ -100,10 +100,13 @@ export function createWorldState(scene) {
     },
     serialize() {
       const mb = scene.getObjectByName && scene.getObjectByName('mailbox');
+      const mail = mb && mb.userData && mb.userData.mail;
       return {
         snack: !!state.taken.snack,
         letter: !!state.taken.letter,
-        mailboxOpen: !!(mb && mb.userData && mb.userData.open)
+        mailboxOpen: !!(mb && mb.userData && mb.userData.open),
+        mailPending: mail && Array.isArray(mail.pending) ? mail.pending.map((p) => ({ ...p })) : [],
+        lastMailDay: mail && mail.lastMailDay != null ? mail.lastMailDay : 0
       };
     },
     apply(data) {
@@ -116,6 +119,8 @@ export function createWorldState(scene) {
       if (mb && mb.userData) {
         if (!mb.userData.mail) mb.userData.mail = { letterTaken: false, pending: [] };
         mb.userData.mail.letterTaken = !!state.taken.letter;
+        if (Array.isArray(pickups.mailPending)) mb.userData.mail.pending = pickups.mailPending.map((p) => ({ ...p }));
+        if (pickups.lastMailDay != null) mb.userData.mail.lastMailDay = pickups.lastMailDay;
         if (pickups.mailboxOpen && !mb.userData.open) {
           mb.userData.open = true;
           if (typeof mb.userData.applyPose === 'function') mb.userData.applyPose(true);
