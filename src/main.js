@@ -1,4 +1,20 @@
-import * as THREE from 'three';
+/**
+ * Maple Valley Life Simulator: builds every system in order and connects them.
+ *
+ * `g` is the game object: each system is added to it as soon as it exists, and
+ * the helpers in src/game/ (save state, HUD, daily mail, interact, frame loop)
+ * read what they need from it when they run. Creation order matters where one
+ * system needs another at construction time; those spots are commented.
+ *
+ * Where things live:
+ *   src/game/rendering.js  renderer, quality tier, camera, post-processing, resize
+ *   src/game/gameState.js  what goes into the save (add new saved systems there)
+ *   src/game/hud.js        clock / mute / needs / cash HUD and when the HUD shows
+ *   src/game/dailyMail.js  the mailbox's daily delivery
+ *   src/game/interact.js   E / the interact prompt
+ *   src/game/loop.js       the per-frame update and the 10 s autosave
+ *   src/core/mode.js       what the player is doing and which menus are open
+ */
 import { createScene } from './world/scene.js';
 import { createPlayer } from './core/player.js';
 import { setupInput } from './core/input.js';
@@ -7,23 +23,14 @@ import { createPlayerMode } from './core/mode.js';
 import { createInventory } from './ui/inventory.js';
 import { STARTER_ITEMS } from './data/items.js';
 import { loadSave, saveGame, clearSave } from './systems/save.js';
-import { createInteractPrompt, INTERACT_RANGE } from './ui/interactPrompt.js';
-import { updateDoors } from './systems/doors.js';
-import { nearestActionTarget, activateTarget } from './systems/interactables.js';
-import { updatePickups } from './world/pickups.js';
 import { createDebug } from './systems/debug.js';
 import { createClock } from './systems/time.js';
 import { createDayNight } from './world/daynight.js';
-import { LOOK } from './world/palette.js';
-import { createHudClock } from './ui/hudClock.js';
-import { createSfx, cueInteract } from './systems/sfx.js';
-import { createHudMute } from './ui/hudMute.js';
+import { createSfx } from './systems/sfx.js';
 import { createSleep } from './systems/sleep.js';
 import { createNeeds } from './systems/needs.js';
-import { createHudNeeds } from './ui/hudNeeds.js';
-import { createMoney, extractCashFromItems, attachMailboxMoney } from './systems/money.js';
-import { queueMail, createInbox } from './data/mail.js';
-import { createHudMoney } from './ui/hudMoney.js';
+import { createMoney, extractCashFromItems } from './systems/money.js';
+import { createInbox } from './data/mail.js';
 import { createWork } from './systems/work.js';
 import { createPhone } from './ui/phone/phone.js';
 import { INSTALLED_APPS } from './ui/phone/apps.js';
@@ -40,40 +47,29 @@ import { createSkills, registerCookInteractable } from './systems/skills.js';
 import { createSit, registerSitInteractables } from './systems/sit.js';
 import { createInteriorLights, registerLightSwitchInteractable } from './systems/lights.js';
 import { createTvSet, registerTvInteractable } from './systems/tv.js';
-import { createPost } from './world/post.js';
+import { createRenderer, createView } from './game/rendering.js';
+import { createSaver } from './game/gameState.js';
+import { createHud } from './game/hud.js';
+import { setupDailyMail } from './game/dailyMail.js';
+import { setupInteract } from './game/interact.js';
+import { startLoop } from './game/loop.js';
 
+const g = {};
+
+// --- rendering, world, player -------------------------------------------
 // Phone / tablet by device, not window width (see src/core/device.js; ?mobile=1 or ?mobile=0 overrides).
 const isMobile = isMobileDevice();
-
-const quality = {
-  shadows: !isMobile,
-  pixelRatio: isMobile ? Math.min(window.devicePixelRatio, 1.5) : Math.min(window.devicePixelRatio, 2),
-  far: isMobile ? 60 : 120,
-  post: !isMobile
-};
-
-const renderer = new THREE.WebGLRenderer({ antialias: !isMobile });
-renderer.setPixelRatio(quality.pixelRatio);
-renderer.setSize(window.innerWidth, window.innerHeight);
-renderer.outputColorSpace = THREE.SRGBColorSpace;
-renderer.toneMapping = THREE.ACESFilmicToneMapping;
-// Exposure comes from the palette file (0.95, set by 83bc107) next to the shadow settings.
-renderer.toneMappingExposure = LOOK.exposure;
-renderer.shadowMap.enabled = quality.shadows;
-if (quality.shadows) renderer.shadowMap.type = LOOK.shadow.type === 'PCF' ? THREE.PCFShadowMap : THREE.PCFSoftShadowMap;
-document.body.appendChild(renderer.domElement);
-
+const { quality, renderer } = createRenderer({ isMobile });
 const scene = createScene(quality);
 // What the player is doing (title / walking / driving / sitting / sleeping / working) and which
 // menus are open. Systems are attached as they are created; see src/core/mode.js.
-const mode = createPlayerMode({
-  isStarted: () => document.getElementById('instructions').classList.contains('hidden')
-});
-const camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.1, quality.far);
+const instructions = document.getElementById('instructions');
+const mode = createPlayerMode({ isStarted: () => instructions.classList.contains('hidden') });
+const view = createView({ renderer, scene, quality });
+const { camera } = view;
 const player = createPlayer(camera, scene);
-
-// Desktop-only post-processing: soft vignette + mild contrast/saturation.
-const post = createPost({ renderer, scene, camera, enabled: quality.post });
+const save = createSaver(g);
+Object.assign(g, { isMobile, quality, renderer, scene, mode, view, camera, player, save });
 
 const spawn = scene.userData.spawn || { x: 0, y: 1.6, z: -1.15 };
 const saveData = loadSave();
@@ -82,55 +78,40 @@ if (saveData.position) {
 }
 // A saved position may be inside a house (older spawns). Push out, or reset to spawn.
 if (scene.userData.colliders) {
-  const out = scene.userData.colliders.unstick(
-    player.position.x,
-    player.position.z,
-    player.radius,
-    spawn
-  );
+  const out = scene.userData.colliders.unstick(player.position.x, player.position.z, player.radius, spawn);
   player.position.x = out.x;
   player.position.z = out.z;
   if (out.reset) player.position.y = spawn.y;
 }
 camera.position.copy(player.position);
 
+// --- time, weather, light, sound -----------------------------------------
 const clock = createClock();
 if (saveData.time) clock.apply(saveData);
 const weather = createWeather({ clock });
 if (saveData.weather) weather.apply(saveData);
 else weather.roll({ immediate: true, time: clock.getTime() });
-const dayNight = createDayNight({
-  scene,
-  quality,
-  modulate: (sample) => weather.modulate(sample)
-});
+const dayNight = createDayNight({ scene, quality, modulate: (sample) => weather.modulate(sample) });
 dayNight.apply(clock.getTime());
 weather.applyFog(scene, quality);
 const rain = createRain({ scene, isMobile });
 clock.on('newDay', (e) => window.dispatchEvent(new CustomEvent('maple-new-day', { detail: e })));
-
 const sfx = createSfx({ getTime: () => clock.getTime(), getScene: () => scene });
+Object.assign(g, { clock, weather, dayNight, rain, sfx });
 
+// --- needs, skills, the house interior -----------------------------------
 const needs = createNeeds();
 if (saveData.needs) needs.apply(saveData);
-
-const skills = createSkills({ clock, needs, save: () => saveGame(gameState()) });
+const skills = createSkills({ clock, needs, save });
 if (saveData.skills) skills.apply(saveData);
 scene.userData.skills = skills;
-const lights = createInteriorLights({
-  scene,
-  dayNight,
-  getTime: () => clock.getTime(),
-  save: () => saveGame(gameState())
-});
+const lights = createInteriorLights({ scene, dayNight, getTime: () => clock.getTime(), save });
 if (saveData.interiorLights != null) lights.apply(saveData);
-const tvSet = createTvSet({
-  scene,
-  sfx,
-  save: () => saveGame(gameState()),
-  getPosition: () => player.position
-});
+const tvSet = createTvSet({ scene, sfx, save, getPosition: () => player.position });
 if (saveData.tv != null) tvSet.apply(saveData);
+Object.assign(g, { needs, skills, lights, tvSet });
+
+// The interior is built when the house model has loaded; this may run again then.
 function installInteriorInteractables(s) {
   registerCookInteractable(s);
   registerSitInteractables(s);
@@ -142,26 +123,30 @@ function installInteriorInteractables(s) {
 scene.userData.onInteriorReady = installInteriorInteractables;
 installInteriorInteractables(scene);
 
+// --- money, mail inbox, look ---------------------------------------------
 const fromSaveBag = Array.isArray(saveData.inventory);
 const bagCash = extractCashFromItems(fromSaveBag ? saveData.inventory : []);
 const money = createMoney();
 if (saveData.money != null) money.apply(saveData);
 else if (fromSaveBag && bagCash.cash) money.set(bagCash.cash);
-
 const inbox = createInbox();
 if (saveData.inbox) inbox.apply(saveData.inbox);
-
 const appearance = createAppearance();
 if (saveData.appearance) appearance.apply(saveData);
 const playerBody = createPlayerBody({ scene, camera, shadows: quality.shadows });
 playerBody.apply(appearance.get());
 appearance.onChange((state) => {
   playerBody.apply(state);
-  saveGame(gameState());
+  save();
 });
-
 const npcs = createNpcs({ scene, shadows: quality.shadows });
+Object.assign(g, { money, inbox, appearance, playerBody, npcs });
 
+// --- car and seats --------------------------------------------------------
+/** Your stand-in body is hidden while you drive or sit. */
+function syncPlayerBody() {
+  playerBody.group.visible = !(mode.driving() || mode.sitting());
+}
 // The parked car becomes drivable. Created before the minimap so its marker is live.
 const car = createCar({
   scene,
@@ -170,32 +155,24 @@ const car = createCar({
   isMobile,
   isStarted: () => mode.canAct(),
   sfx,
-  onDrivingChange: () => { syncPlayerBody(); }
+  onDrivingChange: syncPlayerBody
 });
 if (car && saveData.car) car.apply(saveData);
-mode.attach({ car });
-
-function syncPlayerBody() {
-  const hide = mode.driving() || mode.sitting();
-  playerBody.group.visible = !hide;
-}
-
 const sitter = createSit({
   scene,
   player,
   camera,
   needs,
   isStarted: () => mode.canAct(),
-  onSeatedChange: () => { syncPlayerBody(); }
+  onSeatedChange: syncPlayerBody
 });
 if (scene.userData.seats) {
   for (let i = 0; i < scene.userData.seats.length; i++) scene.userData.seats[i].userData.sit = sitter;
 }
-mode.attach({ sitter });
+mode.attach({ car, sitter });
+Object.assign(g, { car, sitter });
 
-const instructions = document.getElementById('instructions');
-let phone;
-let dialogue;
+// --- bag, minimap, save indicator, debug ---------------------------------
 const inventory = createInventory({
   canvas: renderer.domElement,
   isStarted: () => mode.started(),
@@ -203,17 +180,15 @@ const inventory = createInventory({
   onUse: ({ use }) => {
     if (use && use.action === 'open') {
       inventory.close();
-      if (phone) phone.open();
+      if (g.phone) g.phone.open();
       return;
     }
     if (use && use.need) needs.add(use.need, use.amount || 0);
     if (use && use.sfx) sfx.play(use.sfx);
-    saveGame(gameState());
+    save();
   }
 });
 if (scene.userData.world) scene.userData.world.apply(saveData);
-mode.attach({ inventory });
-
 const minimap = createHudMinimap({
   scene,
   player,
@@ -222,9 +197,8 @@ const minimap = createHudMinimap({
   storage: typeof localStorage !== 'undefined' ? localStorage : null,
   bindKey: !isMobile
 });
-
+// Created before debug: the Debug menu reads it when it is built.
 const hudSave = createHudSave();
-
 // Optional debug tools (all off by default; see src/systems/debug.js for keys)
 const debug = createDebug({
   renderer,
@@ -246,32 +220,35 @@ const debug = createDebug({
   getSkills: () => skills,
   getActivity: (opts) => mode.describe(opts)
 });
+mode.attach({ inventory, debug });
+Object.assign(g, { inventory, minimap, hudSave, debug });
+
+// --- sleep and work -------------------------------------------------------
 const sleeper = createSleep({
   clock,
   dayNight,
   sfx,
-  save: () => saveGame(gameState()),
+  save,
   onSlept: (detail) => {
-    /* later Hunger/Energy can also listen for maple-slept */
     if (scene.userData && typeof scene.userData.onSlept === 'function') scene.userData.onSlept(detail);
   }
 });
 scene.userData.sleep = sleeper;
-mode.attach({ sleeper });
-
 const worker = createWork({
   clock,
   dayNight,
   money,
   needs,
   sfx,
-  toast: (msg) => hudMoney.toast(msg),
-  save: () => saveGame(gameState())
+  toast: (msg) => g.hud.toast(msg),
+  save
 });
 scene.userData.work = worker;
-mode.attach({ worker, debug });
+mode.attach({ sleeper, worker });
+Object.assign(g, { sleeper, worker });
 
-phone = createPhone({
+// --- phone and dialogue ---------------------------------------------------
+const phone = createPhone({
   canvas: renderer.domElement,
   isMobile,
   isStarted: () => mode.started(),
@@ -295,8 +272,7 @@ phone = createPhone({
   getInbox: () => inbox.get(),
   onInboxChange: (fn) => inbox.onChange(fn)
 });
-
-dialogue = createDialogue({
+const dialogue = createDialogue({
   canvas: renderer.domElement,
   isMobile,
   isStarted: () => mode.started(),
@@ -309,98 +285,15 @@ dialogue = createDialogue({
   getTime: () => clock.getTime(),
   getWeather: () => weather.get()
 });
-
 mode.attach({ phone, dialogue });
-const uiBlocked = () => mode.uiBlocked();
-setupInput(player, isMobile, { isInventoryOpen: uiBlocked });
+Object.assign(g, { phone, dialogue });
+setupInput(player, isMobile, { isInventoryOpen: () => mode.uiBlocked() });
 
-const hudClock = createHudClock();
-const hudMute = createHudMute({
-  isMuted: () => sfx.isMuted(),
-  onToggle: () => sfx.toggleMuted()
-});
-const hudNeeds = createHudNeeds({ getNeeds: () => needs.get() });
-const hudMoney = createHudMoney({ getMoney: () => money.get() });
-function syncClockHud() {
-  const show = mode.hudVisible();
-  hudClock.setVisible(show);
-  if (show) hudClock.update(clock.getTime(), weather.get());
-  hudMute.setVisible(show);
-  hudMute.refresh();
-  hudNeeds.setVisible(show);
-  if (show) hudNeeds.update();
-  hudMoney.setVisible(show);
-  if (show) hudMoney.update();
-  phone.setVisible(show);
-  minimap.setHudVisible(show);
-  hudSave.setVisible(show);
-}
-clock.on('change', (t) => hudClock.update(t, weather.get()));
-weather.onChange((w) => {
-  hudClock.update(clock.getTime(), w);
-  saveGame(gameState());
-});
-sfx.on('mute', () => hudMute.refresh());
-needs.onChange(() => hudNeeds.update());
-money.onChange(() => hudMoney.update());
-window.addEventListener('inventory-open', syncClockHud);
-window.addEventListener('inventory-close', syncClockHud);
-window.addEventListener('debug-modal-open', syncClockHud);
-window.addEventListener('debug-modal-close', syncClockHud);
-window.addEventListener('phone-open', syncClockHud);
-window.addEventListener('phone-close', syncClockHud);
-window.addEventListener('dialogue-open', syncClockHud);
-window.addEventListener('dialogue-close', syncClockHud);
-window.addEventListener('sleep-start', () => {
-  mode.clearForBusy();
-  syncClockHud();
-});
-window.addEventListener('sleep-end', syncClockHud);
-window.addEventListener('maple-slept', (e) => {
-  needs.applySleep(e.detail || {});
-});
-window.addEventListener('work-start', () => {
-  mode.clearForBusy();
-  syncClockHud();
-});
-window.addEventListener('work-end', syncClockHud);
-
-const mailbox = scene.userData.mailbox || (scene.getObjectByName && scene.getObjectByName('mailbox'));
-attachMailboxMoney({
-  mailbox,
-  money,
-  sfx,
-  toast: (msg) => hudMoney.toast(msg),
-  inbox,
-  inventory
-});
-window.addEventListener('maple-new-day', (e) => {
-  const mail = mailbox && mailbox.userData && mailbox.userData.mail;
-  const day = e && e.detail && e.detail.day;
-  queueMail(mail, day);
-  if (!mode.busy()) saveGame(gameState());
-});
-{
-  const mailState = mailbox && mailbox.userData && mailbox.userData.mail;
-  const dayNow = clock.getTime().day;
-  if (mailState && dayNow >= 2 && mailState.lastMailDay !== dayNow) queueMail(mailState, dayNow);
-}
-
-/** What E / the prompt acts on: the car or seat you are in, else the nearest thing in reach. */
-function currentTarget() {
-  if (mode.driving()) return car.object;
-  if (mode.sitting()) return sitter.object();
-  return nearestActionTarget(scene, player.position, INTERACT_RANGE);
-}
-
-const prompt = createInteractPrompt({
-  isMobile,
-  isStarted: () => mode.started(),
-  isInventoryOpen: uiBlocked,
-  getTarget: () => currentTarget(),
-  player,
-  range: INTERACT_RANGE
-});
+// --- HUD, mail, interact, start, loop -------------------------------------
+g.hud = createHud(g);
+setupDailyMail(g);
+const { prompt } = setupInteract(g);
+g.prompt = prompt;
 
 document.getElementById('start').onclick = () => {
   instructions.classList.add('hidden');
@@ -408,120 +301,9 @@ document.getElementById('start').onclick = () => {
   sfx.unlock();
   prompt.update();
   debug.refresh();
-  syncClockHud();
+  g.hud.sync();
 };
 
-window.addEventListener('resize', () => {
-  camera.aspect = window.innerWidth / window.innerHeight;
-  camera.updateProjectionMatrix();
-  renderer.setSize(window.innerWidth, window.innerHeight);
-  if (post) post.setSize(window.innerWidth, window.innerHeight);
-});
+startLoop(g);
 
-function gameState() {
-  // While driving or sitting, the saved player spot is a safe stand / exit, not inside the prop.
-  const spot = mode.driving() ? car.exitSpot()
-    : (mode.sitting() ? sitter.exitSpot() : null);
-  return {
-    position: spot
-      ? { x: spot.x, y: 1.6, z: spot.z }
-      : { x: player.position.x, y: player.position.y, z: player.position.z },
-    car: car ? car.serialize() : undefined,
-    inventory: inventory.serialize(),
-    pickups: scene.userData.world ? scene.userData.world.serialize() : undefined,
-    time: clock.serialize(),
-    needs: needs.serialize(),
-    money: money.serialize(),
-    appearance: appearance.serialize(),
-    weather: weather.serialize(),
-    skills: skills.serialize(),
-    inbox: inbox.serialize(),
-    interiorLights: lights.serialize(),
-    tv: tvSet.serialize()
-  };
-}
-
-// Interact with the nearest door or pickup within range
-window.addEventListener('interact', () => {
-  if (mode.busy()) return;
-  const target = currentTarget();
-  if (target) {
-    const ud = target.userData || {};
-    const before = {
-      picked: !!ud.picked,
-      letterTaken: !!(ud.mail && ud.mail.letterTaken)
-    };
-    activateTarget(target, { inventory, scene, player, sfx, money, toast: (msg) => hudMoney.toast(msg), sleep: () => sleeper.start(), work: () => worker.start(), cook: () => skills.cook({ clock, needs, sfx, toast: (msg) => hudMoney.toast(msg) }), sit: sitter, dialogue, talk: (def) => dialogue.open(def.id) });
-    cueInteract(sfx, target, before);
-    prompt.update();
-    if (!mode.busy()) saveGame(gameState());
-  }
-});
-
-let lastTime = performance.now();
-function animate() {
-  requestAnimationFrame(animate);
-  const now = performance.now();
-  const delta = Math.min((now - lastTime) / 1000, 0.1);
-  lastTime = now;
-
-  const started = mode.started();
-  const busy = mode.busy();
-  const timeBefore = started && !busy ? clock.getTime().totalMinutes : null;
-  if (started && !busy) clock.tick(delta);
-  const prevX = player.position.x;
-  const prevZ = player.position.z;
-  if (mode.driving()) car.update(delta, { blocked: uiBlocked() });
-  else if (mode.sitting()) sitter.update(delta, { blocked: uiBlocked() });
-  else player.update(delta);
-  playerBody.update(player);
-  npcs.update(delta, { player, talkingId: dialogue.isOpen() ? dialogue.currentNpc() : null });
-  weather.update(delta, clock.getTime());
-  weather.applyFog(scene, quality);
-  const indoor = isInsideMainHouse(scene, player.position);
-  rain.update(delta, { position: player.position, intensity: weather.rainAmount(), indoor });
-  if (typeof sfx.setRain === 'function') sfx.setRain(weather.rainAmount(), { indoor });
-  sleeper.update(delta);
-  worker.update(delta);
-  if (started && !busy) {
-    const moved = Math.hypot(player.position.x - prevX, player.position.z - prevZ);
-    const gameMinutes = clock.getTime().totalMinutes - timeBefore;
-    const driving = mode.driving();
-    const sitting = mode.sitting();
-    if (gameMinutes > 0) {
-      if (sitting) {
-        needs.update(gameMinutes, { hungerOnly: true });
-        sitter.applyEnergy(gameMinutes);
-      } else {
-        needs.update(gameMinutes, { moving: !driving && moved > 0.02 });
-      }
-    }
-    if (!driving && moved > 0.02) skills.addWalk(moved);
-    sfx.update(delta, {
-      x: player.position.x,
-      z: player.position.z,
-      moved: (driving || sitting) ? 0 : moved,
-      onGround: player.onGround,
-      time: clock.getTime(),
-      scene,
-      indoor
-    });
-  }
-  if (tvSet) tvSet.update(delta, { position: player.position, indoor });
-  updateDoors(scene.userData.doors, delta);
-  updatePickups(scene.userData.interactables, delta);
-  dayNight.update(delta, clock.getTime());
-  prompt.update();
-  minimap.update(delta);
-  if (post) post.render();
-  else renderer.render(scene, camera);
-  debug.update();
-}
-animate();
-
-// Auto-save every 10 seconds
-setInterval(() => {
-  saveGame(gameState());
-}, 10000);
-
-console.log(`Maple Valley Life Simulator started — Mobile: ${isMobile}, Shadows: ${quality.shadows}, Post: ${!!post}`);
+console.log(`Maple Valley Life Simulator started — Mobile: ${isMobile}, Shadows: ${quality.shadows}, Post: ${!!view.post}`);
