@@ -1,15 +1,14 @@
 import * as THREE from 'three';
 import { LOOK } from '../world/palette.js';
 import { createPost } from '../world/post.js';
+import { readSettings, qualityFor } from '../systems/settings.js';
 
 /** Quality tier and the WebGL renderer (added to the page). */
 export function createRenderer({ isMobile }) {
-  const quality = {
-    shadows: !isMobile,
-    pixelRatio: isMobile ? Math.min(window.devicePixelRatio, 1.5) : Math.min(window.devicePixelRatio, 2),
-    far: isMobile ? 60 : 120,
-    post: !isMobile
-  };
+  // Graphics quality from the player's settings ('auto' = the old per-device choice).
+  const level = readSettings().quality;
+  const q = qualityFor(level, isMobile, window.devicePixelRatio);
+  const quality = { ...q, level };
 
   const renderer = new THREE.WebGLRenderer({ antialias: !isMobile });
   renderer.setPixelRatio(quality.pixelRatio);
@@ -29,7 +28,7 @@ export function createRenderer({ isMobile }) {
 
 /** Camera, desktop-only post-processing, resize handling and draw(). */
 export function createView({ renderer, scene, quality }) {
-  const camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.1, quality.far);
+  const camera = new THREE.PerspectiveCamera(readSettings().fov, window.innerWidth / window.innerHeight, 0.1, quality.far);
   // Rustic film grade: a shader pass on desktop, a CSS approximation on phones (display.js).
   const post = createPost({ renderer, scene, camera, enabled: quality.post });
 

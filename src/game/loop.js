@@ -55,7 +55,10 @@ export function startLoop(g) {
           g.needs.update(gameMinutes, { moving: !driving && moved > 0.02 });
         }
       }
-      if (!driving && moved > 0.02) g.skills.addWalk(moved);
+      if (!driving && moved > 0.02) {
+        g.skills.addWalk(moved);
+        if (g.stats) g.stats.addWalk(moved);
+      }
       g.sfx.update(delta, {
         x: player.position.x,
         z: player.position.z,

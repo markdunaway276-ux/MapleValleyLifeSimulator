@@ -22,8 +22,10 @@ export function createPlayer(camera, scene) {
 
   player.update = function(delta) {
     // Rotation
-    this.rotation.y -= this.mouseX * 0.002;
-    this.rotation.x -= this.mouseY * 0.002;
+    // Look speed and invert come from the Controls settings (settings.js).
+    const look = 0.002 * (this.lookSensitivity || 1);
+    this.rotation.y -= this.mouseX * look;
+    this.rotation.x -= this.mouseY * look * (this.invertY ? -1 : 1);
     this.rotation.x = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, this.rotation.x));
     camera.quaternion.setFromEuler(this.rotation);
     this.mouseX = 0;

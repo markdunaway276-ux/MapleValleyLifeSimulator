@@ -163,6 +163,8 @@ export function createSfx({
   let noiseBuf = null;
   let unlocked = false;
   let muted = readMuted(storage);
+  // Player volume sliders (settings.js): 0..1 per group, on top of mute.
+  const volume = { master: 1, effects: 1, ambience: 1 };
   let lastPlayed = null;
   let lastSurface = null;
   let lastAmbient = null;
@@ -223,17 +225,17 @@ export function createSfx({
     }
     if (!master) {
       master = ctx.createGain();
-      master.gain.value = muted ? 0 : 1;
+      master.gain.value = muted ? 0 : volume.master;
       if (ctx.destination) master.connect(ctx.destination);
     }
     if (!sfxGain) {
       sfxGain = ctx.createGain();
-      sfxGain.gain.value = 0.85;
+      sfxGain.gain.value = 0.85 * volume.effects;
       sfxGain.connect(master);
     }
     if (!ambGain) {
       ambGain = ctx.createGain();
-      ambGain.gain.value = 1;
+      ambGain.gain.value = volume.ambience;
       ambGain.connect(master);
     }
     if (!noiseBuf && ctx.createBuffer && ctx.sampleRate) {
@@ -249,7 +251,7 @@ export function createSfx({
     if (master) {
       const t = now(ctx);
       master.gain.cancelScheduledValues(t);
-      master.gain.setValueAtTime(muted ? 0 : 1, t);
+      master.gain.setValueAtTime(muted ? 0 : volume.master, t);
     }
     if (muted) { stopWind(); stopRain(); stopCar(); stopTv(); }
     else if (unlocked) { ensureAmbient(); ensureRain(); ensureCar(); ensureTv(); }
@@ -797,8 +799,24 @@ export function createSfx({
     listeners.mute.length = 0;
   }
 
+  /** { master, effects, ambience } each 0..1 (missing keys keep their value). */
+  function setVolumes(v = {}) {
+    for (const k of ['master', 'effects', 'ambience']) {
+      const n = Number(v[k]);
+      if (Number.isFinite(n)) volume[k] = Math.min(1, Math.max(0, n));
+    }
+    if (!ctx) return { ...volume };
+    const t = now(ctx);
+    if (master) { master.gain.cancelScheduledValues(t); master.gain.setValueAtTime(muted ? 0 : volume.master, t); }
+    if (sfxGain) { sfxGain.gain.cancelScheduledValues(t); sfxGain.gain.setValueAtTime(0.85 * volume.effects, t); }
+    if (ambGain) { ambGain.gain.cancelScheduledValues(t); ambGain.gain.setValueAtTime(volume.ambience, t); }
+    return { ...volume };
+  }
+
   return {
     play,
+    setVolumes,
+    getVolumes: () => ({ ...volume }),
     unlock,
     update,
     setMuted,
