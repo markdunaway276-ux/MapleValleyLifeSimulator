@@ -244,6 +244,7 @@ export function createDialogue({
     }
     if (e.code === 'Enter' || e.code === 'Space') {
       e.preventDefault();
+      if (e.repeat) return;
       if (index < pages.length - 1) next();
       else close();
     }

@@ -702,7 +702,7 @@ export function createHudMinimap({
     if (!bindKey || isMobile) return;
     if (e.ctrlKey || e.metaKey || e.altKey) return;
     if (e.target && e.target.closest && e.target.closest('input, textarea, [contenteditable]')) return;
-    if (e.code !== MINIMAP_KEY) return;
+    if (e.code !== MINIMAP_KEY || e.repeat) return;
     if (!started()) return;
     e.preventDefault();
     toggle();

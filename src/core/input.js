@@ -25,7 +25,8 @@ export function setupInput(player, isMobile, { isInventoryOpen } = {}) {
       case 'KeyA': case 'ArrowLeft': keys.left = true; break;
       case 'KeyD': case 'ArrowRight': keys.right = true; break;
       case 'Space': keys.jump = true; break;
-      case 'KeyE': window.dispatchEvent(new Event('interact')); break;
+      // Ignore auto-repeat: holding E must not toggle doors / lights / TV over and over.
+      case 'KeyE': if (!e.repeat) window.dispatchEvent(new Event('interact')); break;
     }
   });
 

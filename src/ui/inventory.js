@@ -636,6 +636,7 @@ export function createInventory({
     if (e.target && e.target.closest && e.target.closest('input, textarea, [contenteditable]')) return;
     if (e.code === 'KeyI') {
       e.preventDefault();
+      if (e.repeat) return;
       toggle();
     } else if (e.code === 'Escape' && opened) {
       e.preventDefault();
