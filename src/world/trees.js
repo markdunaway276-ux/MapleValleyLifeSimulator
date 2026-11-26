@@ -1,20 +1,20 @@
 import * as THREE from 'three';
 
 /**
- * Deterministic neighborhood trees, clear of the east–west road (z ≈ -4.9..-0.9,
- * x ≈ -18..18), sidewalks, and the five house lots (Kenney at (0,-10) plus
- * four generated houses on both sides of the street).
+ * Deterministic neighborhood trees, clear of the east–west road (z ≈ -4.65..0.85,
+ * x ≈ -22..22), sidewalks, and the five house lots (Kenney at (0,-10), ~9.7×10.4 m,
+ * plus four generated houses on both sides of the street).
  */
 export const TREE_PLACEMENTS = [
-  { x: -11.0, z: -16.5, seed: 101 }, // behind south-west house
-  { x: 0.0, z: -17.5, seed: 202 },   // behind Kenney house
-  { x: 11.0, z: -16.8, seed: 303 },  // behind south-east house
-  { x: -11.0, z: 10.0, seed: 404 },  // behind north-west house
-  { x: 10.0, z: 10.2, seed: 505 },   // behind north-east house
-  { x: -17.5, z: -9.0, seed: 606 },  // west end, south yard
-  { x: 17.5, z: -9.0, seed: 707 },   // east end, south yard
-  { x: -17.5, z: 4.0, seed: 808 },   // west end, north yard
-  { x: 16.5, z: 3.5, seed: 909 }     // east end, north yard
+  { x: -13.0, z: -18.0, seed: 101 }, // behind south-west house
+  { x: 0.0, z: -19.5, seed: 202 },   // behind Kenney house
+  { x: 13.5, z: -18.3, seed: 303 },  // behind south-east house
+  { x: -13.0, z: 15.5, seed: 404 },  // behind north-west house
+  { x: 13.2, z: 15.8, seed: 505 },   // behind north-east house
+  { x: -21.5, z: -9.5, seed: 606 },  // west end, south yard
+  { x: 22.0, z: -9.6, seed: 707 },   // east end, south yard
+  { x: -21.5, z: 6.5, seed: 808 },   // west end, north yard
+  { x: 21.5, z: 6.8, seed: 909 }     // east end, north yard
 ];
 
 function mulberry32(seed) {

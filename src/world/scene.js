@@ -162,11 +162,11 @@ function createSidewalkTexture() {
 
 /** East–west street in front of the Kenney house. Spawn sits on the road. */
 export const STREET = {
-  length: 36,
+  length: 44,
   roadWidth: 4,
   sidewalkWidth: 1.5,
-  roadCenterZ: -2.9,
-  spawn: { x: 0, y: 1.6, z: -2.9 }
+  roadCenterZ: -1.15,
+  spawn: { x: 0, y: 1.6, z: -1.15 }
 };
 
 /** Large inverted dome, fog disabled, drawn behind the world. */
@@ -272,9 +272,9 @@ export function createScene(quality) {
   // Fallback procedural house. The Kenney GLB is the main house; this group
   // stays only while the model loads, or if the load fails.
   const house = generateHouse({
-    width: 6,
-    height: 4,
-    depth: 8,
+    width: 9.5,
+    height: 6,
+    depth: 10,
     roofType: 'pyramid',
     wallColor: 0xd2b48c,
     roofColor: 0x8b4513,
@@ -284,11 +284,12 @@ export function createScene(quality) {
   house.position.set(0, 0, -10);
   scene.add(house);
 
-  // Standalone interactable door (kept independent of the fallback / GLB house)
-  const doorGeo = new THREE.BoxGeometry(1.4, 2.4, 0.1);
+  // Standalone interactable door (kept independent of the fallback / GLB house).
+  // Sized like a normal door (~1 × 2 m) and placed on the fallback's front face.
+  const doorGeo = new THREE.BoxGeometry(1.0, 2.0, 0.1);
   const doorMat = new THREE.MeshStandardMaterial({ color: 0x654321 });
   const door = new THREE.Mesh(doorGeo, doorMat);
-  door.position.set(0, 1.2, -6);
+  door.position.set(0, 1.0, -4.94);
   door.castShadow = quality.shadows;
   scene.add(door);
   door.userData.isDoor = true;
@@ -297,10 +298,10 @@ export function createScene(quality) {
   // Four generated houses on both sides of the street, facing the road.
   // The Kenney house (above) is the fifth house, on the south side at x=0.
   const lots = [
-    { name: 'house-sw', x: -11, z: -9.5, rotY: 0, width: 5, depth: 6, height: 3.4, roofType: 'gable', wallColor: 0xa8c5e0, roofColor: 0x6b3a2a, windowCount: 4 },
-    { name: 'house-se', x: 11, z: -9.5, rotY: 0, width: 5.5, depth: 6.2, height: 3.8, roofType: 'pyramid', wallColor: 0xe8d5b7, roofColor: 0x4a5560, windowCount: 3 },
-    { name: 'house-nw', x: -11, z: 3.7, rotY: Math.PI, width: 5, depth: 5.8, height: 3.5, roofType: 'flat', wallColor: 0xd4d0c8, roofColor: 0x5c4033, windowCount: 4 },
-    { name: 'house-ne', x: 10, z: 3.8, rotY: Math.PI, width: 5.2, depth: 6, height: 3.6, roofType: 'gable', wallColor: 0xc9a66b, roofColor: 0x7a2e2e, windowCount: 4 }
+    { name: 'house-sw', x: -13, z: -9.3, rotY: 0, width: 7.5, depth: 9, height: 3.5, roofType: 'gable', wallColor: 0xa8c5e0, roofColor: 0x6b3a2a, windowCount: 4 },
+    { name: 'house-se', x: 13.5, z: -9.45, rotY: 0, width: 8.25, depth: 9.3, height: 3.8, roofType: 'pyramid', wallColor: 0xe8d5b7, roofColor: 0x4a5560, windowCount: 3 },
+    { name: 'house-nw', x: -13, z: 6.85, rotY: Math.PI, width: 7.5, depth: 8.7, height: 3.6, roofType: 'flat', wallColor: 0xd4d0c8, roofColor: 0x5c4033, windowCount: 4 },
+    { name: 'house-ne', x: 13.2, z: 7.0, rotY: Math.PI, width: 7.8, depth: 9, height: 3.7, roofType: 'gable', wallColor: 0xc9a66b, roofColor: 0x7a2e2e, windowCount: 4 }
   ];
   const streetHouses = lots.map((lot) => {
     const h = generateHouse({
@@ -333,18 +334,18 @@ export function createScene(quality) {
 
   const sun = new THREE.DirectionalLight(0xffe2b8, 1.25);
   sun.name = 'sun';
-  sun.position.set(18, 28, 12);
-  sun.target.position.set(0, 0, -5);
+  sun.position.set(22, 32, 16);
+  sun.target.position.set(0, 0, -2);
   sun.castShadow = quality.shadows;
   if (quality.shadows) {
     sun.shadow.mapSize.width = 1024;
     sun.shadow.mapSize.height = 1024;
     sun.shadow.camera.near = 1;
-    sun.shadow.camera.far = 90;
-    sun.shadow.camera.left = -36;
-    sun.shadow.camera.right = 36;
-    sun.shadow.camera.top = 36;
-    sun.shadow.camera.bottom = -36;
+    sun.shadow.camera.far = 110;
+    sun.shadow.camera.left = -44;
+    sun.shadow.camera.right = 44;
+    sun.shadow.camera.top = 44;
+    sun.shadow.camera.bottom = -44;
     sun.shadow.bias = -0.0004;
     sun.shadow.normalBias = 0.035;
   }
@@ -362,9 +363,10 @@ export function createScene(quality) {
   // and the standalone door above stay as a fallback until the model has loaded.
   const HOUSE_URL = './assets/models/house_type02.glb'; // relative to the page, so it works under the Pages subpath
   const HOUSE_CENTER = new THREE.Vector3(0, 0, -10);    // same spot as the old box house
-  const HOUSE_TARGET = { x: 6.5, z: 8 };                // approximate footprint in metres
-  // Front door of house_type02 in the model's own units (before scaling/centering)
+  // house_type02 door is 0.27 model-units tall. Scale so that door is 2 m and
+  // the porch underside (~0.326 model-units) sits at ~2.41 m, clear of a 1.6–1.7 m eye height.
   const MODEL_FRONT_DOOR = { x: 0.004, y: 0.135, z: 0.535, w: 0.14, h: 0.27 };
+  const TARGET_DOOR_HEIGHT = 2.0;
 
   new GLTFLoader().load(
     HOUSE_URL,
@@ -372,11 +374,10 @@ export function createScene(quality) {
       const model = gltf.scene;
       model.name = 'kenney-house';
 
-      // Uniform scale so the footprint fits roughly 6.5 x 8 m
+      // Uniform scale so the model's front door is 2 m tall
       const rawBox = new THREE.Box3().setFromObject(model);
-      const rawSize = rawBox.getSize(new THREE.Vector3());
       const rawCenter = rawBox.getCenter(new THREE.Vector3());
-      const s = Math.min(HOUSE_TARGET.x / rawSize.x, HOUSE_TARGET.z / rawSize.z);
+      const s = TARGET_DOOR_HEIGHT / MODEL_FRONT_DOOR.h;
       model.scale.setScalar(s);
 
       // Base on y = 0, centered on HOUSE_CENTER (the model's front already faces +z)
@@ -402,8 +403,11 @@ export function createScene(quality) {
       model.updateMatrixWorld(true);
       const d = MODEL_FRONT_DOOR;
       const doorWorld = model.localToWorld(new THREE.Vector3(d.x, d.y, d.z));
-      door.scale.set((d.w * s) / 1.4, (d.h * s) / 2.4, 1);
-      door.position.set(doorWorld.x, doorWorld.y, doorWorld.z + 0.06);
+      // Realign a ~0.9–1.0 × 2.0 m slab over the model's front door
+      const doorW = Math.min(1.0, Math.max(0.9, d.w * s));
+      const doorH = d.h * s;
+      door.scale.set(doorW / 1.0, doorH / 2.0, 1);
+      door.position.set(doorWorld.x, doorH / 2, doorWorld.z + 0.06);
     },
     undefined,
     (err) => {

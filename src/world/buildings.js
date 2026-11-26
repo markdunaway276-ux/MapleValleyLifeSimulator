@@ -1,9 +1,9 @@
 import * as THREE from 'three';
 
 const DEFAULTS = {
-  width: 6,
-  depth: 8,
-  height: 4,
+  width: 8,
+  depth: 10,
+  height: 3.6,
   roofType: 'gable',
   wallColor: 0xd2b48c,
   roofColor: 0x8b4513,
@@ -30,9 +30,9 @@ function resolveOptions(options = {}) {
   const out = { ...DEFAULTS };
 
   if (random) {
-    out.width = rand(4, 8);
-    out.depth = rand(5, 10);
-    out.height = rand(3, 5);
+    out.width = rand(6, 10);
+    out.depth = rand(7, 12);
+    out.height = rand(3.2, 4.5);
     out.roofType = pick(ROOF_TYPES);
     out.wallColor = pick(WALL_PALETTE);
     out.roofColor = pick(ROOF_PALETTE);
@@ -114,8 +114,9 @@ function makeRoof(opts) {
 
 function makeDoor(opts) {
   const { depth, height, doorColor } = opts;
-  const doorWidth = Math.min(1.2, opts.width * 0.3);
-  const doorHeight = Math.min(2.2, height * 0.75);
+  // A standard ~0.9–1.0 × 2.0 m door, shrunk only if the wall is unusually short
+  const doorWidth = opts.doorWidth ?? Math.min(1.0, Math.max(0.9, opts.width * 0.12));
+  const doorHeight = opts.doorHeight ?? Math.min(2.0, Math.max(1.8, height - 1.2));
   const doorDepth = 0.08;
   const door = mesh(
     'door',
@@ -154,7 +155,11 @@ function addWindows(group, opts) {
 
   const winH = 0.85;
   const winD = 0.07;
-  const y = Math.min(Math.max(height * 0.6, winH / 2 + 0.4), height - winH / 2 - 0.15);
+  const doorH = hasDoor ? (opts.doorHeight ?? 2.0) : 0;
+  const y = Math.min(
+    Math.max(height * 0.62, doorH + winH / 2 + 0.2),
+    height - winH / 2 - 0.15
+  );
   const frontZ = depth / 2 + winD / 2;
   const sideX = width / 2 + winD / 2;
 
@@ -184,11 +189,12 @@ function addWindows(group, opts) {
  * Build a simple procedural house as a THREE.Group.
  *
  * Options (all optional):
- *   width, depth, height   body size in metres (defaults 6, 8, 4)
+ *   width, depth, height   body size in metres (defaults 8, 10, 3.6)
  *   roofType               'gable' | 'pyramid' | 'flat'  (default 'gable')
  *   roofHeight             roof rise in metres (default ~0.55 * height)
  *   wallColor, roofColor, doorColor, windowColor
  *   hasDoor                default true
+ *   doorWidth, doorHeight  default ~1.0 × 2.0 m
  *   windowCount            default 2 (front first, then sides)
  *   shadows                sets both castShadow and receiveShadow
  *   castShadow, receiveShadow   (default true if shadows is omitted)
