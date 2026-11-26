@@ -117,10 +117,12 @@ body.mobile #hud-phone {
 .phone-overlay.is-thumb-active .phone-device::after {
   content: ''; position: absolute; z-index: 4; pointer-events: none;
   left: var(--phone-thumb-x); top: var(--phone-thumb-y);
-  width: 15%; height: 15%; border-radius: 45%;
-  transform: translate(-38%, -40%) rotate(24deg);
-  background: linear-gradient(110deg, #83bdca33, transparent), var(--phone-thumb-tint);
-  box-shadow: 0 2px 6px #12192266;
+  width: 13%; height: 12%; border-radius: 49% 49% 46% 44% / 35% 39% 62% 65%;
+  transform: translate(-38%, -40%) rotate(26deg);
+  background:
+    radial-gradient(ellipse at 50% 27%, #ffded860 0%, #edc9bb38 28%, transparent 43%),
+    linear-gradient(110deg, #d6edff25, transparent 58%, #1d121e40), var(--phone-thumb-tint);
+  box-shadow: 1px 3px 6px #12192262;
 }
 .phone-lock-preview {
   width: min(100%, 250px); color: #fff; background: #243041bb; border: 0;

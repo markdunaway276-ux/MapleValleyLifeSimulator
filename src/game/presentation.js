@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { bevelBox } from '../world/shapes.js';
 import { HIDDEN_FROM_FP_LAYER } from '../world/playerBody.js';
+import { addPhoneGrip } from './phoneGrip.js';
 
 const RAISE_SECONDS = 0.42;
 const FOCUS_SECONDS = 0.28;
@@ -72,27 +73,6 @@ function makeHandset() {
   return { phone, screen };
 }
 
-function addGrip(phone, material, includePalm) {
-  if (includePalm) {
-    const palm = new THREE.Mesh(bevelBox(0.043, 0.081, 0.028, { radius: 0.008 }), material);
-    palm.position.set(0.030, -0.061, -0.020);
-    palm.rotation.z = -0.16;
-    phone.add(palm);
-  }
-  // Fingers wrap behind the lower case while the thumb rests along the glass edge.
-  for (const y of [-0.026, -0.039, -0.052]) {
-    const finger = new THREE.Mesh(bevelBox(0.035, 0.011, 0.012, { radius: 0.0045 }), material);
-    finger.position.set(0.016, y, -0.011);
-    finger.rotation.z = 0.12;
-    phone.add(finger);
-  }
-  const thumb = new THREE.Mesh(bevelBox(0.012, 0.033, 0.013, { radius: 0.005 }), material);
-  thumb.position.set(0.046, -0.041, 0.003);
-  thumb.rotation.z = 0.23;
-  phone.add(thumb);
-  return thumb;
-}
-
 export function createPresentation({ camera, scene, mode, playerBody }) {
   const arm = playerBody.arm;
   const first = makeHandset();
@@ -102,14 +82,15 @@ export function createPresentation({ camera, scene, mode, playerBody }) {
   gripMaterial.emissiveIntensity = 0;
   const fallbackGrip = new THREE.Group();
   third.phone.add(fallbackGrip);
-  const thumbs = [addGrip(first.phone, gripMaterial, true), addGrip(fallbackGrip, gripMaterial, false)];
+  const poseThumbs = [addPhoneGrip(first.phone, gripMaterial, true), addPhoneGrip(fallbackGrip, gripMaterial, false)];
 
   const sleeve = new THREE.Mesh(new THREE.CylinderGeometry(0.030, 0.037, 0.102, 10), arm.sleeve);
   sleeve.position.set(0.063, -0.142, -0.044);
   sleeve.rotation.z = 0.32;
   sleeve.rotation.x = 0.26;
   first.phone.add(sleeve);
-  const wristSkin = new THREE.Mesh(new THREE.CylinderGeometry(0.024, 0.026, 0.041, 10), gripMaterial);
+  const wristSkin = new THREE.Mesh(new THREE.SphereGeometry(1, 16, 12), gripMaterial);
+  wristSkin.scale.set(0.025, 0.035, 0.020);
   wristSkin.position.set(0.045, -0.103, -0.030);
   wristSkin.rotation.copy(sleeve.rotation);
   first.phone.add(wristSkin);
@@ -213,10 +194,7 @@ export function createPresentation({ camera, scene, mode, playerBody }) {
     const settle = 1 - Math.exp(-24 * delta);
     thumbOffset.x = THREE.MathUtils.lerp(thumbOffset.x, pressing ? (touch.x - 1) * SCREEN_WIDTH : 0, settle);
     thumbOffset.y = THREE.MathUtils.lerp(thumbOffset.y, pressing ? (0.78 - touch.y) * SCREEN_HEIGHT : 0, settle);
-    for (const thumb of thumbs) {
-      thumb.position.set(0.046 + thumbOffset.x, -0.041 + thumbOffset.y, pressing ? 0.009 : 0.003);
-      thumb.rotation.z = 0.23 - thumbOffset.x * 9;
-    }
+    for (const poseThumb of poseThumbs) poseThumb(thumbOffset.x, thumbOffset.y, pressing);
     const evening = THREE.MathUtils.smoothstep(minutes, 18 * 60, 20 * 60);
     const morning = 1 - THREE.MathUtils.smoothstep(minutes, 5 * 60, 7 * 60);
     gripMaterial.color.copy(arm.material.color);
