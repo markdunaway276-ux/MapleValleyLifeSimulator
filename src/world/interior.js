@@ -62,6 +62,31 @@ export const COOK_SIZE = { width: 0.9, height: 0.88, depth: 0.66 };
 /** Interact point on the north (room) side of the cook station. */
 export const COOK_INTERACT = { x: 3.15, y: 0.92, z: -13.55 };
 
+/**
+ * Wall switch just inside the front door, on the right as you enter (west
+ * jamb). The plate sits proud of the inward face of the front wall.
+ */
+export const SWITCH_HEIGHT = 1.15;
+export const SWITCH_OFFSET = 0.16;
+export const SWITCH_PROUD = 0.04;
+
+export function lightSwitchPose(doorway, frontZ = KENNEY_INNER.front) {
+  const doorX = doorway && typeof doorway === 'object'
+    ? (doorway.minX != null && doorway.maxX != null
+      ? (doorway.minX + doorway.maxX) / 2
+      : doorway.x)
+    : doorway;
+  const front = (doorway && typeof doorway === 'object' && doorway.z != null) ? doorway.z : frontZ;
+  const gapL = (doorway && typeof doorway === 'object' && doorway.minX != null)
+    ? doorway.minX
+    : (Number(doorX) - 0.52);
+  return {
+    x: gapL - SWITCH_OFFSET,
+    y: SWITCH_HEIGHT,
+    z: front - SWITCH_PROUD
+  };
+}
+
 /** Front-room sofa against the west wall, facing into the room (+x). */
 export const SOFA_CENTER = { x: KENNEY_INNER.west + 0.45, y: 0, z: -7.65 };
 export const SOFA_SIZE = { width: 0.9, height: 0.88, depth: 1.5 };
@@ -196,6 +221,7 @@ export function buildMainHouseInterior({ shadows = false, outer, doorX, doorZ, d
   const gapR = doorX + 0.52;
   const parts = new Parts(true);
   const emissive = new Parts(true);
+  const lampParts = new Parts(true);
   const colliders = [];
   const solid = (id, minX, maxX, minZ, maxZ) => colliders.push({ id, minX, maxX, minZ, maxZ });
 
@@ -208,7 +234,7 @@ export function buildMainHouseInterior({ shadows = false, outer, doorX, doorZ, d
     const w = r.x1 - r.x0;
     const d = r.z1 - r.z0;
     plane(parts, FLOOR, '+y', w, d, (r.x0 + r.x1) / 2, fy, (r.z0 + r.z1) / 2);
-    plane(emissive, CEIL, '-y', w, d, (r.x0 + r.x1) / 2, cy, (r.z0 + r.z1) / 2); // flat-lit ceiling
+    plane(lampParts, CEIL, '-y', w, d, (r.x0 + r.x1) / 2, cy, (r.z0 + r.z1) / 2); // lit with the interior lamps
   }
 
   // --- inward-facing outer walls ----------------------------------------
@@ -337,10 +363,10 @@ export function buildMainHouseInterior({ shadows = false, outer, doorX, doorZ, d
   solid('main-int-chair4', 1.79, 2.21, -10.66, -10.24);
   frame(parts, '-x', K.east, 1.7, -11.5, 0.6, 0.45, 0xa9b87a);
 
-  // --- lamps (emissive) --------------------------------------------------
-  const lamps = [[-1.55, -7.7], [-2.4, -11.8], [2.0, -11.3]];
-  for (const [lx, lz] of lamps) {
-    emissive.box(LAMP, 0.42, 0.06, 0.42, lx, cy - 0.04, lz);
+  // --- lamps (toggled with the wall switch; not in the 2-draw-call group) --
+  const lampSpots = [[-1.55, -7.7], [-2.4, -11.8], [2.0, -11.3]];
+  for (const [lx, lz] of lampSpots) {
+    lampParts.box(LAMP, 0.42, 0.06, 0.42, lx, cy - 0.04, lz);
   }
 
   // --- wall colliders (replace the old single house box) ---------------------
@@ -366,6 +392,13 @@ export function buildMainHouseInterior({ shadows = false, outer, doorX, doorZ, d
   glow.name = 'interior-glow';
   group.add(glow);
 
+  // Ceiling + fixture glow live outside the interior group so that group stays
+  // at 2 draw calls. daynight.js dims this mesh when the wall switch is off.
+  const lamps = new THREE.Mesh(lampParts.merge(), new THREE.MeshBasicMaterial({ vertexColors: true }));
+  lamps.name = 'interior-lamps';
+  lamps.castShadow = false;
+  lamps.receiveShadow = false;
+
   if (shadows) {
     // One cheap point light on desktop only; mobile relies on the emissive lamps.
     const light = new THREE.PointLight(0xffe2b0, 14, 14, 1.6);
@@ -389,6 +422,7 @@ export function buildMainHouseInterior({ shadows = false, outer, doorX, doorZ, d
 
   return {
     group,
+    lamps,
     colliders,
     gate,
     gateDisabled,

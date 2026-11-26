@@ -43,10 +43,14 @@ export const LIGHT_KEYS = [
   { m: MINUTES_PER_DAY, skyTop: 0x080c18, skyBottom: 0x10182a, fog: 0x10182a, hemiSky: 0x2a3a58, hemiGround: 0x121810, hemiInt: 0.12, ambient: 0x141c2c, ambientInt: 0.06, sun: 0xa8b8e0, sunInt: 0.06, sunPos: [-8, 22, -24], exponent: 1.15, interior: 1 }
 ];
 
-const INTERIOR_DAY_INTENSITY = 12;
-const INTERIOR_NIGHT_INTENSITY = 22;
-const INTERIOR_EMISSIVE_DAY = new THREE.Color(0x221e18);
-const INTERIOR_EMISSIVE_NIGHT = new THREE.Color(0x4a4030);
+export const INTERIOR_DAY_INTENSITY = 12;
+export const INTERIOR_NIGHT_INTENSITY = 22;
+/** Dim fill when the wall switch is off at night — dark but still readable. */
+export const INTERIOR_OFF_DAY_INTENSITY = 0;
+export const INTERIOR_OFF_NIGHT_INTENSITY = 5;
+export const INTERIOR_EMISSIVE_DAY = new THREE.Color(0x221e18);
+export const INTERIOR_EMISSIVE_NIGHT = new THREE.Color(0x4a4030);
+export const INTERIOR_EMISSIVE_OFF_NIGHT = new THREE.Color(0x1c1a16);
 
 const _a = new THREE.Color();
 const _b = new THREE.Color();
@@ -121,16 +125,38 @@ function applySample(scene, sample, quality = {}) {
   }
 
   const night = sample.interior;
+  const lightsOn = isInteriorLightsOn(scene);
   const lamp = scene.getObjectByName('interior-light');
   if (lamp) {
     if (lamp.userData.baseIntensity == null) lamp.userData.baseIntensity = lamp.intensity || INTERIOR_DAY_INTENSITY;
-    lamp.intensity = lerp(INTERIOR_DAY_INTENSITY, INTERIOR_NIGHT_INTENSITY, night);
+    lamp.intensity = lightsOn
+      ? lerp(INTERIOR_DAY_INTENSITY, INTERIOR_NIGHT_INTENSITY, night)
+      : lerp(INTERIOR_OFF_DAY_INTENSITY, INTERIOR_OFF_NIGHT_INTENSITY, night);
   }
   const wall = scene.getObjectByName('interior-static');
   if (wall && wall.material && wall.material.emissive) {
-    wall.material.emissive.copy(INTERIOR_EMISSIVE_DAY).lerp(INTERIOR_EMISSIVE_NIGHT, night);
+    if (lightsOn) wall.material.emissive.copy(INTERIOR_EMISSIVE_DAY).lerp(INTERIOR_EMISSIVE_NIGHT, night);
+    else wall.material.emissive.copy(INTERIOR_EMISSIVE_DAY).lerp(INTERIOR_EMISSIVE_OFF_NIGHT, night);
+  }
+  // Mobile (and the fixture glow on desktop) uses this unlit ceiling + lamps mesh.
+  const fixtures = scene.getObjectByName('interior-lamps');
+  if (fixtures && fixtures.material && fixtures.material.color) {
+    fixtures.material.color.setHex(lightsOn ? 0xffffff : 0x000000);
   }
   return sample;
+}
+
+/** Interior lamps default to on when the save has no value yet. */
+export function isInteriorLightsOn(scene) {
+  if (!scene || !scene.userData) return true;
+  return scene.userData.interiorLightsOn !== false;
+}
+
+export function setInteriorLightsOn(scene, on) {
+  if (!scene) return isInteriorLightsOn(scene);
+  if (!scene.userData) scene.userData = {};
+  scene.userData.interiorLightsOn = !!on;
+  return scene.userData.interiorLightsOn;
 }
 
 /**
@@ -173,9 +199,15 @@ export function createDayNight({ scene, quality = {}, modulate = null } = {}) {
     return apply(minutes);
   }
 
+  function refresh() {
+    if (lastMinutes == null) return lastSample;
+    return apply(lastMinutes);
+  }
+
   return {
     apply,
     update,
+    refresh,
     get lastSample() { return lastSample; },
     get applyCount() { return applies }
   };

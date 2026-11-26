@@ -40,7 +40,8 @@ export const SFX_NAMES = [
   'eat',
   'cash',
   'vending',
-  'car'
+  'car',
+  'click'
 ];
 
 /** Metres per second used to scale footstep cadence. */
@@ -299,6 +300,12 @@ export function createSfx({
     if (!opening) osc(ctx, dest, t + 0.08, { type: 'sine', freq: 280, dur: 0.07, peak: 0.06, a: 0.002 });
   }
 
+  function playClick() {
+    const t = now(ctx);
+    osc(ctx, sfxGain, t, { type: 'square', freq: 1900, freqEnd: 900, dur: 0.035, peak: 0.07, a: 0.001, d: 0.03 });
+    noiseBurst(t, sfxGain, { dur: 0.025, peak: 0.045, freq: 2800, q: 1.4, type: 'highpass' });
+  }
+
   function playPickup() {
     const t = now(ctx);
     osc(ctx, sfxGain, t, { type: 'sine', freq: 880, dur: 0.08, peak: 0.12, a: 0.004 });
@@ -552,6 +559,7 @@ export function createSfx({
       case 'cash': playCash(); break;
       case 'vending': playVending(); break;
       case 'car': playCar(); break;
+      case 'click': playClick(); break;
       default:
         return false;
     }

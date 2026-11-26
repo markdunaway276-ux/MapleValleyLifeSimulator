@@ -35,6 +35,7 @@ import { createHudSave } from './ui/hudSave.js';
 import { createCar } from './systems/car.js';
 import { createSkills, registerCookInteractable } from './systems/skills.js';
 import { createSit, registerSitInteractables } from './systems/sit.js';
+import { createInteriorLights, registerLightSwitchInteractable } from './systems/lights.js';
 
 const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || window.innerWidth < 800;
 
@@ -101,9 +102,18 @@ if (saveData.needs) needs.apply(saveData);
 const skills = createSkills({ clock, needs, save: () => saveGame(gameState()) });
 if (saveData.skills) skills.apply(saveData);
 scene.userData.skills = skills;
+const lights = createInteriorLights({
+  scene,
+  dayNight,
+  getTime: () => clock.getTime(),
+  save: () => saveGame(gameState())
+});
+if (saveData.interiorLights != null) lights.apply(saveData);
 function installInteriorInteractables(s) {
   registerCookInteractable(s);
   registerSitInteractables(s);
+  registerLightSwitchInteractable(s);
+  lights.refresh();
 }
 scene.userData.onInteriorReady = installInteriorInteractables;
 installInteriorInteractables(scene);
@@ -394,7 +404,8 @@ function gameState() {
     appearance: appearance.serialize(),
     weather: weather.serialize(),
     skills: skills.serialize(),
-    inbox: inbox.serialize()
+    inbox: inbox.serialize(),
+    interiorLights: lights.serialize()
   };
 }
 

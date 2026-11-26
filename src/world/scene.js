@@ -1,10 +1,11 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { generateHouse, getHouseColliders } from './buildings.js';
-import { buildMainHouseInterior, removePaintedFrontDoor, BED_CENTER, DESK_CENTER, COOK_CENTER } from './interior.js';
+import { buildMainHouseInterior, removePaintedFrontDoor, BED_CENTER, DESK_CENTER, COOK_CENTER, lightSwitchPose } from './interior.js';
 import { createBed } from '../systems/sleep.js';
 import { createDesk } from '../systems/work.js';
 import { createCook } from '../systems/skills.js';
+import { createLightSwitch } from '../systems/lights.js';
 import { createSeats } from '../systems/sit.js';
 import { scatterTrees, TREE_PLACEMENTS } from './trees.js';
 import { createParkedCar } from './props.js';
@@ -539,6 +540,9 @@ export function createScene(quality) {
         door
       });
       scene.add(interior.group);
+      // Parent lamp/ceiling glow to pickups (already a scene child) so the
+      // Kenney swap still adds exactly one new scene child (the interior group).
+      if (interior.lamps) pickups.add(interior.lamps);
       colliders.remove('main-house');
       interior.colliders.forEach((c) => {
         const added = colliders.addHouse(c);
@@ -594,6 +598,15 @@ export function createScene(quality) {
       cook.position.set(COOK_CENTER.x, COOK_CENTER.y, COOK_CENTER.z);
       pickups.add(cook);
       scene.userData.cook = cook;
+
+      // Wall switch sits in the pickups group (not the 2-draw-call interior
+      // mesh). It is registered as an interactable from main.js, like Cook.
+      const lightSwitch = createLightSwitch({ on: scene.userData.interiorLightsOn !== false });
+      const swPose = lightSwitchPose(interior.doorway);
+      lightSwitch.position.set(swPose.x, swPose.y, swPose.z);
+      lightSwitch.userData.scene = scene;
+      pickups.add(lightSwitch);
+      scene.userData.lightSwitch = lightSwitch;
 
       const seats = createSeats();
       for (let i = 0; i < seats.length; i++) pickups.add(seats[i]);
