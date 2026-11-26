@@ -31,7 +31,8 @@ export const LOOK = {
   /**
    * Rustic film grade, applied after tone mapping (post.js). It darkens and earths the
    * colour tone only; light levels stay in daynight.js. Desktop runs it as a shader pass;
-   * phones (no post) get the `mobileFilter` CSS approximation plus a vignette overlay.
+   * phones (no post) get the `mobile` CSS approximation plus a vignette overlay (display.js).
+   * The Debug menu's Display section scales its strength and the brightness (display.js).
    */
   grade: {
     gain: 0.92,          // overall darkening of the image
@@ -43,8 +44,8 @@ export const LOOK = {
     fadeColor: [0.10, 0.075, 0.05],
     vignette: 0.75,      // corner darkening
     grain: 0.035,        // animated film grain (0 = off)
-    mobileFilter: 'sepia(0.24) saturate(0.78) contrast(1.08) brightness(0.9)',
-    mobileVignette: 'radial-gradient(ellipse at center, rgba(0,0,0,0) 45%, rgba(22,13,4,0.55) 100%)'
+    // Phone approximation at full strength (CSS filter values + vignette edge opacity).
+    mobile: { sepia: 0.24, saturate: 0.78, contrast: 1.08, brightness: 0.9, vignette: 0.55 }
   }
 };
 

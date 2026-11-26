@@ -16,6 +16,7 @@ export const GradeShader = {
   uniforms: {
     tDiffuse: { value: null },
     time: { value: 0 },
+    strength: { value: 1 },
     gain: { value: G.gain },
     curve: { value: G.curve },
     saturation: { value: G.saturation },
@@ -36,6 +37,7 @@ export const GradeShader = {
   fragmentShader: /* glsl */`
     uniform sampler2D tDiffuse;
     uniform float time;
+    uniform float strength;
     uniform float gain;
     uniform float curve;
     uniform float saturation;
@@ -83,35 +85,20 @@ export const GradeShader = {
         c += n * grain * (1.0 - abs(luma - 0.5) * 1.2);
       }
 
+      // strength 0 = the plain image, 1 = the full grade (Debug -> Display -> Film look).
+      c = mix(clamp(src.rgb, 0.0, 1.0), c, strength);
       gl_FragColor = vec4(clamp(c, 0.0, 1.0), src.a);
     }
   `
 };
 
-/** Phones skip post: a CSS filter on the canvas plus a vignette overlay approximates the grade. */
-function applyMobileGrade(renderer) {
-  if (typeof document === 'undefined' || !renderer || !renderer.domElement) return;
-  renderer.domElement.style.filter = G.mobileFilter;
-  if (document.getElementById('grade-vignette')) return;
-  const v = document.createElement('div');
-  v.id = 'grade-vignette';
-  Object.assign(v.style, {
-    position: 'fixed', inset: '0', pointerEvents: 'none', zIndex: '1',
-    background: G.mobileVignette
-  });
-  renderer.domElement.insertAdjacentElement('afterend', v);
-}
-
 /**
  * Optional post-processing. Returns null on mobile so the plain renderer is used
- * (mobile gets the cheap CSS grade instead).
+ * (display.js gives phones a cheap CSS grade instead).
  * @param {{ renderer: THREE.WebGLRenderer, scene: THREE.Scene, camera: THREE.Camera, enabled: boolean }} opts
  */
 export function createPost({ renderer, scene, camera, enabled }) {
-  if (!enabled) {
-    applyMobileGrade(renderer);
-    return null;
-  }
+  if (!enabled) return null;
 
   const composer = new EffectComposer(renderer);
   composer.addPass(new RenderPass(scene, camera));
@@ -130,6 +117,13 @@ export function createPost({ renderer, scene, camera, enabled }) {
     },
     setSize(w, h) {
       composer.setSize(w, h);
+    },
+    /** 0 = no grade, 1 = full grade. */
+    setGradeStrength(v) {
+      grade.uniforms.strength.value = Math.min(1, Math.max(0, Number(v) || 0));
+    },
+    setGrain(on) {
+      grade.uniforms.grain.value = on ? G.grain : 0;
     }
   };
 }
