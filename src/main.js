@@ -29,6 +29,7 @@ import { createWeather } from './systems/weather.js';
 import { createRain, isInsideMainHouse } from './world/rain.js';
 import { createNpcs } from './world/npc.js';
 import { createDialogue } from './ui/dialogue.js';
+import { createCar } from './systems/car.js';
 
 const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || window.innerWidth < 800;
 
@@ -108,6 +109,18 @@ appearance.onChange((state) => {
 });
 
 const npcs = createNpcs({ scene, shadows: quality.shadows });
+
+// The parked car becomes drivable. Created before the minimap so its marker is live.
+const car = createCar({
+  scene,
+  player,
+  camera,
+  isMobile,
+  isStarted: () => instructions.classList.contains('hidden') && !sleeper.isSleeping() && !worker.isWorking(),
+  sfx,
+  onDrivingChange: (on) => { playerBody.group.visible = !on; }
+});
+if (car && saveData.car) car.apply(saveData);
 
 const instructions = document.getElementById('instructions');
 let phone;
@@ -256,6 +269,7 @@ window.addEventListener('sleep-start', () => {
   if (inventory.isOpen()) inventory.close();
   if (phone.isOpen()) phone.close();
   if (dialogue.isOpen()) dialogue.close();
+  if (car && car.isDriving()) car.exit();
   syncClockHud();
 });
 window.addEventListener('sleep-end', syncClockHud);
@@ -266,6 +280,7 @@ window.addEventListener('work-start', () => {
   if (inventory.isOpen()) inventory.close();
   if (phone.isOpen()) phone.close();
   if (dialogue.isOpen()) dialogue.close();
+  if (car && car.isDriving()) car.exit();
   syncClockHud();
 });
 window.addEventListener('work-end', syncClockHud);
@@ -287,7 +302,7 @@ const prompt = createInteractPrompt({
   isMobile,
   isStarted: () => instructions.classList.contains('hidden'),
   isInventoryOpen: uiBlocked,
-  getTarget: () => nearestActionTarget(scene, player.position, INTERACT_RANGE),
+  getTarget: () => (car && car.isDriving() ? car.object : nearestActionTarget(scene, player.position, INTERACT_RANGE)),
   player,
   range: INTERACT_RANGE
 });
@@ -308,8 +323,13 @@ window.addEventListener('resize', () => {
 });
 
 function gameState() {
+  // While driving, the saved player spot is beside the car, not inside it.
+  const spot = car && car.isDriving() ? car.exitSpot() : null;
   return {
-    position: { x: player.position.x, y: player.position.y, z: player.position.z },
+    position: spot
+      ? { x: spot.x, y: 1.6, z: spot.z }
+      : { x: player.position.x, y: player.position.y, z: player.position.z },
+    car: car ? car.serialize() : undefined,
     inventory: inventory.serialize(),
     pickups: scene.userData.world ? scene.userData.world.serialize() : undefined,
     time: clock.serialize(),
@@ -323,7 +343,7 @@ function gameState() {
 // Interact with the nearest door or pickup within range
 window.addEventListener('interact', () => {
   if (sleeper.isSleeping() || worker.isWorking()) return;
-  const target = nearestActionTarget(scene, player.position, INTERACT_RANGE);
+  const target = car && car.isDriving() ? car.object : nearestActionTarget(scene, player.position, INTERACT_RANGE);
   if (target) {
     const ud = target.userData || {};
     const before = {
@@ -352,7 +372,8 @@ function animate() {
   if (started && !busy) clock.tick(delta);
   const prevX = player.position.x;
   const prevZ = player.position.z;
-  player.update(delta);
+  if (car && car.isDriving()) car.update(delta, { blocked: uiBlocked() });
+  else player.update(delta);
   playerBody.update(player);
   npcs.update(delta, { player, talkingId: dialogue.isOpen() ? dialogue.currentNpc() : null });
   weather.update(delta, clock.getTime());
@@ -365,11 +386,12 @@ function animate() {
   if (started && !busy) {
     const moved = Math.hypot(player.position.x - prevX, player.position.z - prevZ);
     const gameMinutes = clock.getTime().totalMinutes - timeBefore;
-    if (gameMinutes > 0) needs.update(gameMinutes, { moving: moved > 0.02 });
+    const driving = !!(car && car.isDriving());
+    if (gameMinutes > 0) needs.update(gameMinutes, { moving: !driving && moved > 0.02 });
     sfx.update(delta, {
       x: player.position.x,
       z: player.position.z,
-      moved,
+      moved: driving ? 0 : moved,
       onGround: player.onGround,
       time: clock.getTime(),
       scene

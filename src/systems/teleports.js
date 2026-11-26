@@ -95,7 +95,7 @@ function streetEnds(scene) {
 function approachCar(scene, world, radius, eyeY) {
   const car = scene.userData && scene.userData.prop;
   const worldCol = world;
-  const box = (worldCol && worldCol.colliders || []).find((c) => c.id === 'parked-car' && c.type === 'aabb');
+  const box = (worldCol && worldCol.colliders || []).find((c) => c.id === 'parked-car' && (c.type === 'aabb' || c.type === 'obb'));
   const size = (car && car.userData && car.userData.size) || { width: 4, depth: 1.85 };
   const cx = (car && car.position && car.position.x) || 6.8;
   const cz = (car && car.position && car.position.z) || -0.2;

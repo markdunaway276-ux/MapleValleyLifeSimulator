@@ -4,6 +4,9 @@
  * pyramid roof). Tree trunks are circles. No physics engine.
  * A collider with a truthy `disabled` property (a getter is fine) is skipped,
  * which is how the main house's doorway is open only while its door is open.
+ * A moving, rotated box (the drivable car) is an 'obb' collider; when its
+ * heading is axis-aligned it is stored as a plain 'aabb' again, so a parked
+ * car looks like any other box.
  */
 
 export const PLAYER_RADIUS = 0.32;
@@ -82,7 +85,67 @@ function resolveCircleCircle(x, z, r, c, axis) {
 function resolveOne(x, z, r, collider, axis) {
   if (collider.type === 'aabb') return resolveCircleAABB(x, z, r, collider, axis);
   if (collider.type === 'circle') return resolveCircleCircle(x, z, r, collider, axis);
+  // 'obb' colliders are pushed out as a whole after the axis passes.
   return axis === 'x' ? x : z;
+}
+
+/**
+ * Push a circle out of an oriented box (centre c.x/c.z, half-sizes hw along the
+ * heading and hd across it, heading rotY as in three.js: local +x maps to
+ * (cos, -sin)). Returns the new { x, z }, or null when there is no overlap.
+ */
+export function pushOutOBB(x, z, r, c) {
+  const cos = Math.cos(c.rotY || 0);
+  const sin = Math.sin(c.rotY || 0);
+  const dx = x - c.x;
+  const dz = z - c.z;
+  let lx = dx * cos - dz * sin;
+  let lz = dx * sin + dz * cos;
+  const nx = clamp(lx, -c.hw, c.hw);
+  const nz = clamp(lz, -c.hd, c.hd);
+  const ox = lx - nx;
+  const oz = lz - nz;
+  const d2 = ox * ox + oz * oz;
+  if (d2 >= r * r) return null;
+  const skin = 1e-6;
+  if (d2 > 1e-12) {
+    const d = Math.sqrt(d2);
+    const k = (r + skin) / d;
+    lx = nx + ox * k;
+    lz = nz + oz * k;
+  } else {
+    // Centre is inside the box: leave through the nearest face.
+    const px = c.hw - Math.abs(lx);
+    const pz = c.hd - Math.abs(lz);
+    if (px < pz) lx = (lx < 0 ? -1 : 1) * (c.hw + r + skin);
+    else lz = (lz < 0 ? -1 : 1) * (c.hd + r + skin);
+  }
+  return { x: c.x + lx * cos + lz * sin, z: c.z - lx * sin + lz * cos };
+}
+
+/**
+ * Update a collider in place to a box at (x, z) with the given footprint and
+ * heading. Axis-aligned headings become a plain 'aabb'; anything else is an
+ * 'obb' that also carries its enclosing AABB (minX..maxZ) for map/debug use.
+ */
+export function syncBoxCollider(collider, { x, z, width, depth, rotY = 0 }) {
+  const cos = Math.cos(rotY);
+  const sin = Math.sin(rotY);
+  const hw = width / 2;
+  const hd = depth / 2;
+  const ex = Math.abs(cos) * hw + Math.abs(sin) * hd;
+  const ez = Math.abs(sin) * hw + Math.abs(cos) * hd;
+  collider.x = x;
+  collider.z = z;
+  collider.hw = hw;
+  collider.hd = hd;
+  collider.rotY = rotY;
+  collider.minX = x - ex;
+  collider.maxX = x + ex;
+  collider.minZ = z - ez;
+  collider.maxZ = z + ez;
+  collider.type = Math.abs(sin * cos) < 1e-4 ? 'aabb' : 'obb';
+  return collider;
 }
 
 export function createColliderWorld() {
@@ -129,8 +192,20 @@ export function createColliderWorld() {
       if (skipped(c, skipId)) continue;
       if (c.type === 'aabb' && circleOverlapsAABB(x, z, radius, c)) return c;
       if (c.type === 'circle' && circleOverlapsCircle(x, z, radius, c)) return c;
+      if (c.type === 'obb' && pushOutOBB(x, z, radius, c)) return c;
     }
     return null;
+  }
+
+  function pushOutOBBs(x, z, radius, skipId) {
+    let hit = false;
+    for (let i = 0; i < colliders.length; i++) {
+      const c = colliders[i];
+      if (c.type !== 'obb' || skipped(c, skipId)) continue;
+      const p = pushOutOBB(x, z, radius, c);
+      if (p) { x = p.x; z = p.z; hit = true; }
+    }
+    return hit ? { x, z } : null;
   }
 
   function resolveAxis(x, z, radius, axis, skipId) {
@@ -159,8 +234,14 @@ export function createColliderWorld() {
 
   function resolveMove(x, z, dx, dz, radius = PLAYER_RADIUS, opts) {
     const { skipId, record } = moveOpts(opts);
-    const nx = resolveAxis(x + dx, z, radius, 'x', skipId);
-    const nz = resolveAxis(nx, z + dz, radius, 'z', skipId);
+    let nx = resolveAxis(x + dx, z, radius, 'x', skipId);
+    let nz = resolveAxis(nx, z + dz, radius, 'z', skipId);
+    for (let iter = 0; iter < 3; iter++) {
+      const pushed = pushOutOBBs(nx, nz, radius, skipId);
+      if (!pushed) break;
+      nx = resolveAxis(pushed.x, pushed.z, radius, 'x', skipId);
+      nz = resolveAxis(nx, pushed.z, radius, 'z', skipId);
+    }
     if (record) {
       lastPoint.x = nx;
       lastPoint.z = nz;

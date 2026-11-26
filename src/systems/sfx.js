@@ -180,6 +180,12 @@ export function createSfx({
   let rainGain = null;
   let rainLevel = 0;
   let rainIndoor = false;
+  let carOsc = null;
+  let carSub = null;
+  let carFilter = null;
+  let carGain = null;
+  let carLevel = 0;
+  let carOn = false;
 
   function emitMute() {
     const list = listeners.mute;
@@ -226,8 +232,8 @@ export function createSfx({
       master.gain.cancelScheduledValues(t);
       master.gain.setValueAtTime(muted ? 0 : 1, t);
     }
-    if (muted) { stopWind(); stopRain(); }
-    else if (unlocked) { ensureAmbient(); ensureRain(); }
+    if (muted) { stopWind(); stopRain(); stopCar(); }
+    else if (unlocked) { ensureAmbient(); ensureRain(); ensureCar(); }
   }
 
   function noiseBurst(t, dest, { dur = 0.12, peak = 0.12, freq = 800, q = 1.2, type = 'bandpass', a = 0.004 } = {}) {
@@ -447,6 +453,71 @@ export function createSfx({
     return rainLevel;
   }
 
+  function stopCar() {
+    for (const n of [carOsc, carSub]) {
+      if (!n) continue;
+      try { n.stop(); } catch { /* already stopped */ }
+      try { n.disconnect(); } catch { /* ignore */ }
+    }
+    carOsc = carSub = null;
+    if (carFilter) { try { carFilter.disconnect(); } catch { /* ignore */ } carFilter = null; }
+    if (carGain) { try { carGain.disconnect(); } catch { /* ignore */ } carGain = null; }
+  }
+
+  function startCar() {
+    if (!ctx || muted) return;
+    stopCar();
+    const t = now(ctx);
+    carOsc = ctx.createOscillator();
+    carOsc.type = 'sawtooth';
+    carOsc.frequency.setValueAtTime(48, t);
+    carSub = ctx.createOscillator();
+    carSub.type = 'sine';
+    carSub.frequency.setValueAtTime(24, t);
+    carFilter = ctx.createBiquadFilter();
+    carFilter.type = 'lowpass';
+    carFilter.frequency.setValueAtTime(180, t);
+    carGain = ctx.createGain();
+    carGain.gain.setValueAtTime(0, t);
+    carOsc.connect(carFilter);
+    carSub.connect(carFilter);
+    carFilter.connect(carGain);
+    carGain.connect(sfxGain);
+    try { carOsc.start(t); carSub.start(t); } catch { /* ignore */ }
+  }
+
+  function ensureCar() {
+    if (!carOn || !unlocked || muted) {
+      stopCar();
+      return;
+    }
+    if (!ensureGraph()) return;
+    if (!carOsc) startCar();
+    if (!carOsc || !carGain) return;
+    const t = now(ctx);
+    const lv = Math.max(0, Math.min(1, carLevel));
+    carOsc.frequency.setTargetAtTime(46 + 52 * lv, t, 0.15);
+    carSub.frequency.setTargetAtTime(23 + 26 * lv, t, 0.15);
+    carFilter.frequency.setTargetAtTime(150 + 260 * lv, t, 0.15);
+    // Very quiet: a low idle that rises a little with speed.
+    carGain.gain.setTargetAtTime(0.012 + 0.016 * lv, t, 0.2);
+  }
+
+  /**
+   * Quiet engine hum while driving. `on` starts/stops it; `level` is 0..1
+   * (speed fraction). Respects mute and never unmutes; safe before unlock.
+   */
+  function setCar(on, level = 0) {
+    carOn = !!on;
+    carLevel = Math.max(0, Math.min(1, Number(level) || 0));
+    if (!carOn || muted || !unlocked) {
+      stopCar();
+      return carOn;
+    }
+    ensureCar();
+    return carOn;
+  }
+
   function play(name) {
     playCount += 1;
     lastPlayed = name;
@@ -540,6 +611,7 @@ export function createSfx({
     } else if (muted) {
       stopWind();
       stopRain();
+      stopCar();
     }
     if (unlocked && !muted) ensureRain();
 
@@ -574,6 +646,7 @@ export function createSfx({
   function dispose() {
     stopWind();
     stopRain();
+    stopCar();
     if (ctx && typeof ctx.close === 'function') {
       try { ctx.close(); } catch { /* ignore */ }
     }
@@ -590,6 +663,8 @@ export function createSfx({
     toggleMuted,
     isMuted,
     setRain,
+    setCar,
+    isCarHumming: () => !!carOsc,
     isUnlocked: () => unlocked,
     on,
     off,

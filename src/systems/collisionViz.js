@@ -19,7 +19,9 @@ export function colliderSignature(list) {
   return list
     .map((c) => (c.type === 'aabb'
       ? `${c.id}|b|${c.minX}|${c.maxX}|${c.minZ}|${c.maxZ}${c.disabled ? '|off' : ''}`
-      : `${c.id}|c|${c.x}|${c.z}|${c.radius}`))
+      : c.type === 'obb'
+        ? `${c.id}|o|${c.x}|${c.z}|${c.rotY}|${c.hw}|${c.hd}`
+        : `${c.id}|c|${c.x}|${c.z}|${c.radius}`))
     .join(';');
 }
 
@@ -30,7 +32,13 @@ function pushSeg(pos, col, color, ax, ay, az, bx, by, bz) {
 
 function addBox(pos, col, c) {
   const { minX, maxX, minZ, maxZ } = c;
-  const corners = [[minX, minZ], [maxX, minZ], [maxX, maxZ], [minX, maxZ]];
+  let corners = [[minX, minZ], [maxX, minZ], [maxX, maxZ], [minX, maxZ]];
+  if (c.type === 'obb') {
+    const cos = Math.cos(c.rotY);
+    const sin = Math.sin(c.rotY);
+    corners = [[-c.hw, -c.hd], [c.hw, -c.hd], [c.hw, c.hd], [-c.hw, c.hd]]
+      .map(([lx, lz]) => [c.x + lx * cos + lz * sin, c.z - lx * sin + lz * cos]);
+  }
   for (let i = 0; i < 4; i++) {
     const [x0, z0] = corners[i];
     const [x1, z1] = corners[(i + 1) % 4];
@@ -95,7 +103,7 @@ export function createCollisionViz({ scene, getWorld, getPlayerRadius = () => 0.
     const col = [];
     for (const c of list) {
       if (c.disabled) continue; // e.g. the doorway while the front door is open
-      if (c.type === 'aabb') addBox(pos, col, c);
+      if (c.type === 'aabb' || c.type === 'obb') addBox(pos, col, c);
       else if (c.type === 'circle') addCylinder(pos, col, c);
     }
     disposeLines();

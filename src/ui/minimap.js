@@ -30,6 +30,8 @@ export const MINIMAP_COLORS = {
   vending: '#c43b48',
   desk: '#6ea0d8',
   car: '#3d4a5c',
+  carActive: '#5b7aa6',
+  carNose: '#c9d4e4',
   player: '#ffe566',
   playerStroke: '#1a1a12',
   npc: '#e07a4a',
@@ -227,7 +229,9 @@ export function gatherMinimapWorld(scene) {
       id: 'car', kind: 'car',
       x: car.position.x, z: car.position.z,
       rotY: car.rotation ? car.rotation.y : 0,
-      width: size.width, depth: size.depth
+      width: size.width, depth: size.depth,
+      // A drivable car is drawn on the live layer instead of being baked.
+      live: !!ud.car
     });
   } else {
     markers.push({ id: 'car', kind: 'car', x: 6.8, z: -0.2, rotY: 0, width: 4, depth: 1.85 });
@@ -356,6 +360,7 @@ export function drawStaticLayer(ctx, world, view) {
 
   const markers = (world && world.markers) || [];
   for (let i = 0; i < markers.length; i++) {
+    if (markers[i].live) continue; // drawn each redraw (the drivable car)
     drawMarker(ctx, view, markers[i]);
   }
 
@@ -375,9 +380,13 @@ function drawMarker(ctx, view, m) {
     const d = (m.depth || 1.85) * view.scale;
     ctx.save();
     ctx.translate(p.x, p.y);
-    ctx.rotate(-(m.rotY || 0));
-    ctx.fillStyle = C.car;
+    // Canvas y is down and map z is up, so a three.js heading maps to +rotY.
+    ctx.rotate(m.rotY || 0);
+    ctx.fillStyle = m.driving ? C.carActive : C.car;
     ctx.fillRect(-w / 2, -d / 2, w, d);
+    // A lighter nose shows which way it points.
+    ctx.fillStyle = C.carNose;
+    ctx.fillRect(w / 2 - Math.max(1.5, w * 0.18), -d / 2, Math.max(1.5, w * 0.18), d);
     ctx.restore();
     return;
   }
@@ -411,6 +420,14 @@ export function drawPlayerArrow(ctx, player, view) {
   ctx.fill();
   ctx.stroke();
   ctx.restore();
+}
+
+export function drawVehicles(ctx, vehicles, view) {
+  const list = Array.isArray(vehicles) ? vehicles : [];
+  if (!view) return;
+  for (let i = 0; i < list.length; i++) {
+    if (list[i]) drawMarker(ctx, view, { ...list[i], kind: 'car' });
+  }
 }
 
 export function drawNpcDots(ctx, npcs, view) {
@@ -447,6 +464,7 @@ export function createMinimapSurface({
   getWorld,
   getPlayer,
   getNpcs = null,
+  getVehicles = null,
   cssWidth,
   cssHeight,
   pixelRatio = 1
@@ -495,6 +513,8 @@ export function createMinimapSurface({
     if (staticCanvas) ctx.drawImage(staticCanvas, 0, 0);
     const player = typeof getPlayer === 'function' ? getPlayer() : getPlayer;
     const npcs = typeof getNpcs === 'function' ? getNpcs() : getNpcs;
+    const vehicles = typeof getVehicles === 'function' ? getVehicles() : getVehicles;
+    drawVehicles(ctx, vehicles, view);
     drawNpcDots(ctx, npcs, view);
     drawPlayerArrow(ctx, player, view);
     paints++;
@@ -536,6 +556,10 @@ export function createHudMinimap({
   const getWorld = () => gatherMinimapWorld(scene);
   const getPlayer = () => player;
   const getNpcs = () => (scene && scene.userData && scene.userData.npcs) || [];
+  const getVehicles = () => {
+    const car = scene && scene.userData && scene.userData.car;
+    return car && typeof car.getMarker === 'function' ? [car.getMarker()] : [];
+  };
 
   const wrap = document.createElement('div');
   wrap.id = 'hud-minimap';
@@ -559,6 +583,7 @@ export function createHudMinimap({
     getWorld,
     getPlayer,
     getNpcs,
+    getVehicles,
     cssWidth: HUD_MINIMAP_SIZE,
     cssHeight: HUD_MINIMAP_SIZE,
     pixelRatio
@@ -642,6 +667,7 @@ export function createHudMinimap({
       getWorld,
       getPlayer,
       getNpcs,
+      getVehicles,
       cssWidth: fallbackW,
       cssHeight: fallbackH,
       pixelRatio
