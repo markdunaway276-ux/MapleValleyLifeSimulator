@@ -14,6 +14,9 @@ export function saveGame(data) {
     const prev = loadSave();
     const next = { ...prev, ...(data || {}) };
     localStorage.setItem(KEY, JSON.stringify(next));
+    if (typeof window !== 'undefined' && typeof window.dispatchEvent === 'function') {
+      window.dispatchEvent(new CustomEvent('maple-saved', { detail: next }));
+    }
     return next;
   } catch (e) {
     console.warn('Save failed', e);

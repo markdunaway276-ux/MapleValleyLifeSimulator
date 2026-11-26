@@ -138,7 +138,7 @@ export const MENU_ITEMS = [
   { id: 'clearSave', type: 'action', label: 'Clear saved game', key: 'Shift+F8 twice', danger: true }
 ];
 
-export function createDebugMenu({ actions, getState, getTeleports = () => [], getClock = null, getSfx = null, getNeeds = null, getMoney = null, getMinimap = null, getWeather = null, onOpen = () => {}, onClose = () => {}, container = document.body }) {
+export function createDebugMenu({ actions, getState, getTeleports = () => [], getClock = null, getSfx = null, getNeeds = null, getMoney = null, getMinimap = null, getWeather = null, getSaveHud = null, onOpen = () => {}, onClose = () => {}, container = document.body }) {
   ensureStyles();
 
   const button = document.createElement('button');
@@ -229,6 +229,7 @@ export function createDebugMenu({ actions, getState, getTeleports = () => [], ge
     if (typeof getMoney === 'function') panel.appendChild(buildMoneySection());
     if (typeof getMinimap === 'function') panel.appendChild(buildMinimapSection());
     if (typeof getWeather === 'function') panel.appendChild(buildWeatherSection());
+    if (typeof getSaveHud === 'function') panel.appendChild(buildSaveHudSection());
 
     const foot = document.createElement('div');
     foot.className = 'dm-foot';
@@ -719,6 +720,61 @@ export function createDebugMenu({ actions, getState, getTeleports = () => [], ge
     }
   }
 
+  let saveHudEls = null;
+
+  function buildSaveHudSection() {
+    const section = document.createElement('div');
+    section.className = 'dm-section is-open';
+    section.dataset.item = 'save-indicator';
+    const toggle = document.createElement('button');
+    toggle.type = 'button';
+    toggle.className = 'dm-section-toggle';
+    toggle.setAttribute('aria-expanded', 'true');
+    const title = document.createElement('span');
+    title.className = 'dm-label';
+    title.textContent = 'HUD';
+    const chev = document.createElement('span');
+    chev.className = 'dm-chevron';
+    chev.textContent = '▾';
+    toggle.append(title, chev);
+    const list = document.createElement('div');
+    list.className = 'dm-sublist';
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'dm-subrow';
+    btn.dataset.item = 'save-indicator-toggle';
+    btn.setAttribute('role', 'switch');
+    const label = document.createElement('span');
+    label.className = 'dm-label';
+    label.textContent = 'Save indicator';
+    const sw = document.createElement('span');
+    sw.className = 'dm-switch';
+    btn.append(label, sw);
+    btn.addEventListener('click', () => {
+      const hud = getSaveHud && getSaveHud();
+      if (hud && typeof hud.toggle === 'function') hud.toggle();
+      refreshSaveHud();
+    });
+    list.appendChild(btn);
+    toggle.addEventListener('click', () => {
+      const open = !section.classList.contains('is-open');
+      section.classList.toggle('is-open', open);
+      toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+    });
+    section.append(toggle, list);
+    saveHudEls = { section, btn };
+    refreshSaveHud();
+    return section;
+  }
+
+  function refreshSaveHud() {
+    if (!saveHudEls || typeof getSaveHud !== 'function') return;
+    const hud = getSaveHud();
+    const on = !!(hud && hud.isEnabled && hud.isEnabled());
+    saveHudEls.btn.setAttribute('aria-checked', on ? 'true' : 'false');
+    saveHudEls.btn.setAttribute('aria-pressed', on ? 'true' : 'false');
+  }
+
   function refresh() {
 
     if (!root) return;
@@ -732,6 +788,7 @@ export function createDebugMenu({ actions, getState, getTeleports = () => [], ge
     refreshMoney();
     refreshMinimap();
     refreshWeather();
+    refreshSaveHud();
   }
 
   function open() {
@@ -791,6 +848,7 @@ export function createDebugMenu({ actions, getState, getTeleports = () => [], ge
     refreshMoney,
     refreshMinimap,
     refreshWeather,
+    refreshSaveHud,
     toast,
     setButtonVisible,
     isOpen: () => opened,

@@ -29,6 +29,7 @@ import { createWeather } from './systems/weather.js';
 import { createRain, isInsideMainHouse } from './world/rain.js';
 import { createNpcs } from './world/npc.js';
 import { createDialogue } from './ui/dialogue.js';
+import { createHudSave } from './ui/hudSave.js';
 import { createCar } from './systems/car.js';
 
 const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || window.innerWidth < 800;
@@ -151,6 +152,8 @@ const minimap = createHudMinimap({
   bindKey: !isMobile
 });
 
+const hudSave = createHudSave();
+
 // Optional debug tools (all off by default; see src/systems/debug.js for keys)
 const debug = createDebug({
   renderer,
@@ -167,7 +170,8 @@ const debug = createDebug({
   needs,
   money,
   getMinimap: () => minimap,
-  getWeather: () => weather
+  getWeather: () => weather,
+  getSaveHud: () => hudSave
 });
 const sleeper = createSleep({
   clock,
@@ -248,6 +252,7 @@ function syncClockHud() {
   if (show) hudMoney.update();
   phone.setVisible(show);
   minimap.setHudVisible(show);
+  hudSave.setVisible(show);
 }
 clock.on('change', (t) => hudClock.update(t, weather.get()));
 weather.onChange((w) => {
