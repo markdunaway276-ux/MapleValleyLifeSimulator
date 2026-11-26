@@ -32,6 +32,7 @@ import { createNpcs } from './world/npc.js';
 import { createDialogue } from './ui/dialogue.js';
 import { createHudSave } from './ui/hudSave.js';
 import { createCar } from './systems/car.js';
+import { createSkills, registerCookInteractable } from './systems/skills.js';
 
 const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || window.innerWidth < 800;
 
@@ -94,6 +95,12 @@ const sfx = createSfx({ getTime: () => clock.getTime(), getScene: () => scene })
 
 const needs = createNeeds();
 if (saveData.needs) needs.apply(saveData);
+
+const skills = createSkills({ clock, needs, save: () => saveGame(gameState()) });
+if (saveData.skills) skills.apply(saveData);
+scene.userData.skills = skills;
+scene.userData.onInteriorReady = (s) => registerCookInteractable(s);
+registerCookInteractable(scene);
 
 const fromSaveBag = Array.isArray(saveData.inventory);
 const bagCash = extractCashFromItems(fromSaveBag ? saveData.inventory : []);
@@ -172,7 +179,8 @@ const debug = createDebug({
   money,
   getMinimap: () => minimap,
   getWeather: () => weather,
-  getSaveHud: () => hudSave
+  getSaveHud: () => hudSave,
+  getSkills: () => skills
 });
 const sleeper = createSleep({
   clock,
@@ -215,7 +223,9 @@ phone = createPhone({
   setAppearance: (slot, id) => appearance.set(slot, id),
   onAppearanceChange: (fn) => appearance.onChange(fn),
   getWeather: () => weather.get(),
-  onWeatherChange: (fn) => weather.onChange(fn)
+  onWeatherChange: (fn) => weather.onChange(fn),
+  getSkills: () => skills.get(),
+  onSkillsChange: (fn) => skills.onChange(fn)
 });
 
 dialogue = createDialogue({
@@ -343,7 +353,8 @@ function gameState() {
     needs: needs.serialize(),
     money: money.serialize(),
     appearance: appearance.serialize(),
-    weather: weather.serialize()
+    weather: weather.serialize(),
+    skills: skills.serialize()
   };
 }
 
@@ -357,7 +368,7 @@ window.addEventListener('interact', () => {
       picked: !!ud.picked,
       letterTaken: !!(ud.mail && ud.mail.letterTaken)
     };
-    activateTarget(target, { inventory, scene, player, sfx, money, toast: (msg) => hudMoney.toast(msg), sleep: () => sleeper.start(), work: () => worker.start(), dialogue, talk: (def) => dialogue.open(def.id) });
+    activateTarget(target, { inventory, scene, player, sfx, money, toast: (msg) => hudMoney.toast(msg), sleep: () => sleeper.start(), work: () => worker.start(), cook: () => skills.cook({ clock, needs, sfx, toast: (msg) => hudMoney.toast(msg) }), dialogue, talk: (def) => dialogue.open(def.id) });
     cueInteract(sfx, target, before);
     prompt.update();
     if (!sleeper.isSleeping() && !worker.isWorking()) saveGame(gameState());
@@ -395,6 +406,7 @@ function animate() {
     const gameMinutes = clock.getTime().totalMinutes - timeBefore;
     const driving = !!(car && car.isDriving());
     if (gameMinutes > 0) needs.update(gameMinutes, { moving: !driving && moved > 0.02 });
+    if (!driving && moved > 0.02) skills.addWalk(moved);
     sfx.update(delta, {
       x: player.position.x,
       z: player.position.z,

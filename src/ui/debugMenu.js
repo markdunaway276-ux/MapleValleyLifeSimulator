@@ -138,7 +138,7 @@ export const MENU_ITEMS = [
   { id: 'clearSave', type: 'action', label: 'Clear saved game', key: 'Shift+F8 twice', danger: true }
 ];
 
-export function createDebugMenu({ actions, getState, getTeleports = () => [], getClock = null, getSfx = null, getNeeds = null, getMoney = null, getMinimap = null, getWeather = null, getSaveHud = null, onOpen = () => {}, onClose = () => {}, container = document.body }) {
+export function createDebugMenu({ actions, getState, getTeleports = () => [], getClock = null, getSfx = null, getNeeds = null, getMoney = null, getMinimap = null, getWeather = null, getSaveHud = null, getSkills = null, onOpen = () => {}, onClose = () => {}, container = document.body }) {
   ensureStyles();
 
   const button = document.createElement('button');
@@ -230,6 +230,7 @@ export function createDebugMenu({ actions, getState, getTeleports = () => [], ge
     if (typeof getMinimap === 'function') panel.appendChild(buildMinimapSection());
     if (typeof getWeather === 'function') panel.appendChild(buildWeatherSection());
     if (typeof getSaveHud === 'function') panel.appendChild(buildSaveHudSection());
+    if (typeof getSkills === 'function') panel.appendChild(buildSkillsSection());
 
     const foot = document.createElement('div');
     foot.className = 'dm-foot';
@@ -775,6 +776,71 @@ export function createDebugMenu({ actions, getState, getTeleports = () => [], ge
     saveHudEls.btn.setAttribute('aria-pressed', on ? 'true' : 'false');
   }
 
+  let skillsEls = null;
+
+  function buildSkillsSection() {
+    const section = document.createElement('div');
+    section.className = 'dm-section is-open';
+    section.dataset.item = 'skills';
+    const toggle = document.createElement('button');
+    toggle.type = 'button';
+    toggle.className = 'dm-section-toggle';
+    toggle.setAttribute('aria-expanded', 'true');
+    const title = document.createElement('span');
+    title.className = 'dm-label';
+    title.textContent = 'Skills';
+    const chev = document.createElement('span');
+    chev.className = 'dm-chevron';
+    chev.textContent = '▾';
+    toggle.append(title, chev);
+    const body = document.createElement('div');
+    body.className = 'dm-sublist dm-money dm-skills';
+    const label = document.createElement('div');
+    label.className = 'dm-money-label';
+    const row = document.createElement('div');
+    row.className = 'dm-money-row';
+    const fitBtn = document.createElement('button');
+    fitBtn.type = 'button';
+    fitBtn.dataset.skillsAction = 'fitness';
+    fitBtn.textContent = '+50 Fitness';
+    fitBtn.addEventListener('click', () => {
+      const skills = getSkills && getSkills();
+      const amount = (skills && skills.DEBUG_XP) || 50;
+      if (skills && typeof skills.addXp === 'function') skills.addXp('fitness', amount);
+      refreshSkills();
+    });
+    const cookBtn = document.createElement('button');
+    cookBtn.type = 'button';
+    cookBtn.dataset.skillsAction = 'cooking';
+    cookBtn.textContent = '+50 Cooking';
+    cookBtn.addEventListener('click', () => {
+      const skills = getSkills && getSkills();
+      const amount = (skills && skills.DEBUG_XP) || 50;
+      if (skills && typeof skills.addXp === 'function') skills.addXp('cooking', amount);
+      refreshSkills();
+    });
+    row.append(fitBtn, cookBtn);
+    body.append(label, row);
+    toggle.addEventListener('click', () => {
+      const open = !section.classList.contains('is-open');
+      section.classList.toggle('is-open', open);
+      toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+    });
+    section.append(toggle, body);
+    skillsEls = { section, label, fitBtn, cookBtn };
+    refreshSkills();
+    return section;
+  }
+
+  function refreshSkills() {
+    if (!skillsEls || typeof getSkills !== 'function') return;
+    const skills = getSkills();
+    if (!skills || typeof skills.get !== 'function') return;
+    const snap = skills.get();
+    const parts = (snap.items || []).map((it) => it.name + ' Lv.' + it.level);
+    skillsEls.label.textContent = parts.length ? parts.join('  ·  ') : 'Skills';
+  }
+
   function refresh() {
 
     if (!root) return;
@@ -789,6 +855,7 @@ export function createDebugMenu({ actions, getState, getTeleports = () => [], ge
     refreshMinimap();
     refreshWeather();
     refreshSaveHud();
+    refreshSkills();
   }
 
   function open() {
@@ -849,6 +916,7 @@ export function createDebugMenu({ actions, getState, getTeleports = () => [], ge
     refreshMinimap,
     refreshWeather,
     refreshSaveHud,
+    refreshSkills,
     toast,
     setButtonVisible,
     isOpen: () => opened,

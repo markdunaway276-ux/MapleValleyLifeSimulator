@@ -1,9 +1,10 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { generateHouse, getHouseColliders } from './buildings.js';
-import { buildMainHouseInterior, removePaintedFrontDoor, BED_CENTER, DESK_CENTER } from './interior.js';
+import { buildMainHouseInterior, removePaintedFrontDoor, BED_CENTER, DESK_CENTER, COOK_CENTER } from './interior.js';
 import { createBed } from '../systems/sleep.js';
 import { createDesk } from '../systems/work.js';
+import { createCook } from '../systems/skills.js';
 import { scatterTrees, TREE_PLACEMENTS } from './trees.js';
 import { createParkedCar } from './props.js';
 import { createSnackPickup, createMailbox, MAILBOX_SPAWN, SNACK_SPAWN, mailboxCollider } from './pickups.js';
@@ -587,6 +588,14 @@ export function createScene(quality) {
         object: desk
       });
       scene.userData.desk = desk;
+
+      const cook = createCook();
+      cook.position.set(COOK_CENTER.x, COOK_CENTER.y, COOK_CENTER.z);
+      pickups.add(cook);
+      scene.userData.cook = cook;
+      // Registered as an interactable by registerCookInteractable (main.js),
+      // the same way the car is, so older highlighter counts stay stable.
+      if (typeof scene.userData.onInteriorReady === 'function') scene.userData.onInteriorReady(scene);
 
       if (scene.userData.world) scene.userData.world.apply({ pickups: { ...scene.userData.world.taken } });
     },

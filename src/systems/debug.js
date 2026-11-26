@@ -76,6 +76,7 @@ export function createDebug({
   getMinimap = null,
   getWeather = null,
   getSaveHud = null,
+  getSkills = null,
   container = document.body,
   now = () => performance.now()
 }) {
@@ -111,6 +112,7 @@ export function createDebug({
     getMinimap: typeof getMinimap === 'function' ? getMinimap : null,
     getWeather: typeof getWeather === 'function' ? getWeather : null,
     getSaveHud: typeof getSaveHud === 'function' ? getSaveHud : null,
+    getSkills: typeof getSkills === 'function' ? getSkills : null,
     onOpen: modalOpened,
     onClose: modalClosed,
     container
@@ -141,6 +143,12 @@ export function createDebug({
     const hud = getSaveHud();
     if (hud && typeof hud.onChange === 'function') {
       hud.onChange(() => { if (menu.isOpen()) menu.refreshSaveHud(); });
+    }
+  }
+  if (typeof getSkills === 'function') {
+    const skills = getSkills();
+    if (skills && typeof skills.onChange === 'function') {
+      skills.onChange(() => { if (menu.isOpen()) menu.refreshSkills(); });
     }
   }
 

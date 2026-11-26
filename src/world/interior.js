@@ -53,6 +53,15 @@ export const DESK_SIZE = { width: 0.42, height: 0.74, depth: 0.62 };
 /** Interact point on the west (room) side of the desk. */
 export const DESK_INTERACT = { x: 0.55, y: 0.75, z: -8.58 };
 
+/**
+ * East-kitchen cook station on the back-wall counter. The visible counter
+ * stays in the merged interior mesh; this is the interactable's pose.
+ */
+export const COOK_CENTER = { x: 3.15, y: 0, z: -14.29 };
+export const COOK_SIZE = { width: 0.9, height: 0.88, depth: 0.66 };
+/** Interact point on the north (room) side of the cook station. */
+export const COOK_INTERACT = { x: 3.15, y: 0.92, z: -13.55 };
+
 const WALL = 0xe9dfc9;
 const WALL_SHADE = 0xded2b8;
 const FLOOR = 0x9a7048;
