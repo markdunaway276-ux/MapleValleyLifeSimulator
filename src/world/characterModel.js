@@ -14,6 +14,7 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import * as SkeletonUtils from 'three/addons/utils/SkeletonUtils.js';
+import { mixamoToClip } from './mixamoRetarget.js';
 
 /** Relative to the page so it works under the GitHub Pages subpath. */
 export const CHARACTER_BASE = './assets/characters/';
@@ -21,8 +22,11 @@ export const CHARACTER_BASE = './assets/characters/';
 /**
  * Clip names: anims.glb (Universal Animation Library) and anims-extra.glb
  * (Universal Animation Library 2). The pack's own Idle_Loop is a fists-up,
- * ready-to-fight stance, so standing uses the relaxed folded-arms idle.
+ * ready-to-fight stance and the folded-arms one reads as stern, so standing
+ * uses Mixamo's relaxed Breathing Idle (MIXAMO_IDLE, retargeted at load);
+ * folded arms is only the fallback if that file cannot load.
  */
+export const MIXAMO_IDLE = 'mixamo-breathing-idle.json';
 export const CLIPS = Object.freeze({
   idle: 'Idle_FoldArms_Loop',
   phone: 'Idle_TalkingPhone_Loop',
@@ -42,6 +46,13 @@ export const BODY_ZONES = Object.freeze({
 
 const cache = new Map();
 let loader = null;
+
+function loadJson(file) {
+  if (!cache.has(file)) {
+    cache.set(file, fetch(CHARACTER_BASE + file).then((r) => (r.ok ? r.json() : null)).catch(() => null));
+  }
+  return cache.get(file);
+}
 
 function load(file) {
   if (!cache.has(file)) {
@@ -124,10 +135,11 @@ export async function createCharacterModel(look = {}) {
   const bodyKind = look.body === 'female' ? 'female' : 'male';
   const hairFile = look.hair ? `hair-${look.hair}.glb` : null;
   try {
-    const [bodyGltf, animGltf, extraGltf, hairGltf, beardGltf] = await Promise.all([
+    const [bodyGltf, animGltf, extraGltf, idleData, hairGltf, beardGltf] = await Promise.all([
       load(bodyKind + '.glb'),
       load('anims.glb'),
       load('anims-extra.glb').catch(() => ({ animations: [] })),
+      loadJson(MIXAMO_IDLE),
       hairFile ? load(hairFile) : null,
       look.beard ? load('hair-beard.glb') : null
     ]);
@@ -154,6 +166,9 @@ export async function createCharacterModel(look = {}) {
     root.rotation.y = Math.PI;
     holder.add(root);
 
+    // Retarget the relaxed idle while the clone is still in its bind pose.
+    const relaxedIdle = idleData ? mixamoToClip(idleData, root, 'Breathing_Idle') : null;
+
     const mixer = new THREE.AnimationMixer(root);
     const actions = {};
     for (const [key, name] of Object.entries(CLIPS)) {
@@ -161,6 +176,7 @@ export async function createCharacterModel(look = {}) {
         || extraGltf.animations.find((a) => a.name === name);
       if (clip) actions[key] = mixer.clipAction(clip);
     }
+    if (relaxedIdle) actions.idle = mixer.clipAction(relaxedIdle);
     let current = null;
 
     function play(key, { fade = 0.3, timeScale = 1 } = {}) {

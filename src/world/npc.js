@@ -197,7 +197,7 @@ export function createNpc(def, { scene, shadows = false } = {}) {
           mode = 'idle';
           idle = patrol.idle || 2.5;
           dir = -dir;
-          restPose = Math.random() < 0.4 ? 'phone' : 'idle';
+          restPose = Math.random() < 0.25 ? 'phone' : 'idle';
         }
         phase = 0;
       } else {
