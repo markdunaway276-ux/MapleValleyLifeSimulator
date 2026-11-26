@@ -5,7 +5,7 @@
  */
 const OLD_ROAD_WIDTH = 4;
 const SOUTH_CURB_Z = -3.15;
-const ROAD_WIDTH = 7;
+const ROAD_WIDTH = 14;
 const ROAD_CENTER_Z = SOUTH_CURB_Z + ROAD_WIDTH / 2;
 
 // The south curb stays in place. Move the entire north frontage outwards.
@@ -20,9 +20,9 @@ export const STREET = {
 };
 
 /** Keep the same relative position within the road or alongside the shifted frontage. */
-export function widenSavedStreetZ(z) {
-  const across = Math.max(0, Math.min(1, (z - SOUTH_CURB_Z) / OLD_ROAD_WIDTH));
-  return z + across * NORTH_FRONTAGE_OFFSET;
+export function widenSavedStreetZ(z, fromWidth, toWidth) {
+  const across = Math.max(0, Math.min(1, (z - SOUTH_CURB_Z) / fromWidth));
+  return z + across * (toWidth - fromWidth);
 }
 
 /** Heights the road and pavement planes sit at (scene.js places them here). */

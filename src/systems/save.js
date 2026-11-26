@@ -71,7 +71,7 @@ function currentKey() { return keyForSlot(getGameSlot()); }
  * MIGRATIONS below that turns a save of the previous version into the new one.
  * Saves from before versioning count as version 0.
  */
-export const SAVE_VERSION = 2;
+export const SAVE_VERSION = 3;
 
 /**
  * MIGRATIONS[n] upgrades a version n-1 save to version n. Each step gets a
@@ -94,13 +94,18 @@ const MIGRATIONS = {
     }
     return data;
   },
-  2(data) {
-    for (const point of [data.position, data.car]) {
-      if (point && Number.isFinite(point.z)) point.z = widenSavedStreetZ(point.z);
-    }
-    return data;
-  }
+  2: (data) => widenSavedPositions(data, 4, 7),
+  3: (data) => widenSavedPositions(data, 7, 14)
 };
+
+function widenSavedPositions(data, fromWidth, toWidth) {
+  for (const point of [data.position, data.car]) {
+    if (point && Number.isFinite(point.z)) {
+      point.z = widenSavedStreetZ(point.z, fromWidth, toWidth);
+    }
+  }
+  return data;
+}
 
 function storage() {
   try {
