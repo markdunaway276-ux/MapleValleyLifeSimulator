@@ -1,6 +1,8 @@
 /**
- * On-screen door interaction prompt.
- * Desktop: "Press E to open/close". Mobile: tappable "Tap to open/close".
+ * On-screen interaction prompt for doors and other interactables.
+ * Desktop: "Press E to …". Mobile: tappable "Tap to …".
+ * Doors default to open/close; objects can supply userData.getPrompt(isMobile)
+ * or userData.prompt (a verb, e.g. "pick up Snack").
  * Fades in and out with a CSS opacity transition. DOM is updated only when
  * visibility or label actually changes.
  */
@@ -60,6 +62,17 @@ function labelFor(isMobile, open) {
   return open ? 'Press E to close' : 'Press E to open';
 }
 
+export function promptLabel(isMobile, target) {
+  if (!target) return labelFor(isMobile, false);
+  const ud = target.userData || {};
+  if (typeof ud.getPrompt === 'function') return ud.getPrompt(!!isMobile, target);
+  if (ud.prompt) {
+    const verb = typeof ud.prompt === 'function' ? ud.prompt(target) : ud.prompt;
+    return isMobile ? `Tap to ${verb}` : `Press E to ${verb}`;
+  }
+  return labelFor(isMobile, !!ud.open);
+}
+
 export function createInteractPrompt(options = {}) {
   const {
     isMobile = false,
@@ -94,7 +107,7 @@ export function createInteractPrompt(options = {}) {
   el.id = 'interact-prompt';
   el.tabIndex = -1;
   el.setAttribute('aria-hidden', 'true');
-  el.textContent = labelFor(isMobile, !!(door && door.userData && door.userData.open));
+  el.textContent = promptLabel(isMobile, door);
 
   // Same toggle path as the E key: dispatch 'interact' (main.js still checks range).
   const onActivate = (e) => {
@@ -113,8 +126,7 @@ export function createInteractPrompt(options = {}) {
 
   function update() {
     const target = currentDoor();
-    const open = !!(target && target.userData && target.userData.open);
-    const nextLabel = labelFor(isMobile, open);
+    const nextLabel = promptLabel(isMobile, target);
     const inRange = !!target;
     const nextShown = inRange && !!isStarted() && !isInventoryOpen();
 

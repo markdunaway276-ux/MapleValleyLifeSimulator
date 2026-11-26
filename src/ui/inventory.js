@@ -478,6 +478,39 @@ export function createInventory({
     return items.slice();
   }
 
+  /** Add `count` of an item, stacking onto an existing stackable entry. */
+  function addItem(id, count = 1) {
+    const def = ITEM_DEFS[id];
+    if (!def) return null;
+    const n = Math.max(1, Number(count) || 1);
+    if (def.stackable) {
+      const i = items.findIndex((it) => it && it.id === id);
+      if (i >= 0) {
+        items[i] = normalizeItem({ ...items[i], count: (items[i].count || 1) + n });
+        slots[i].render();
+        if (selected === i) renderDetail();
+        return items[i];
+      }
+    }
+    const empty = items.findIndex((it) => !it);
+    if (empty < 0) return null;
+    items[empty] = createItem(id, { count: n });
+    slots[empty].render();
+    return items[empty];
+  }
+
+  function serialize() {
+    return items.map((it) => (it ? { id: it.id, count: it.count || 1 } : null));
+  }
+
+  function loadItems(list) {
+    for (let i = 0; i < slotCount; i++) {
+      items[i] = list && list[i] ? normalizeItem(list[i]) : null;
+      slots[i].render();
+    }
+    if (selected >= 0) renderDetail();
+  }
+
   if (initialItems) {
     initialItems.forEach((entry, i) => {
       if (i < slotCount) {
@@ -547,6 +580,9 @@ export function createInventory({
     isOpen,
     setItem,
     getItems,
+    addItem,
+    serialize,
+    loadItems,
     selectSlot,
     getSelected,
     element: overlay

@@ -34,6 +34,14 @@ export const ITEM_DEFS = {
     description: 'A couple of packed snacks for the road.',
     color: '#c47a3a',
     stackable: true
+  },
+  letter: {
+    id: 'letter',
+    name: 'Letter',
+    icon: '✉️',
+    description: 'A letter from your mailbox.',
+    color: '#e8e0c8',
+    stackable: true
   }
 };
 

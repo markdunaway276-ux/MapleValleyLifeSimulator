@@ -43,10 +43,14 @@ export function collectInteractables(scene) {
   const extra = (scene && scene.userData && scene.userData.interactables) || [];
   for (const raw of extra) {
     const object = raw && (raw.object || raw);
+    if (!object) continue;
+    if (raw.disabled || object.visible === false) continue;
+    const ud = object.userData || {};
+    if (ud.picked || ud.disabled) continue;
     add({
-      kind: (raw && raw.kind) || 'object',
+      kind: (raw && raw.kind) || ud.kind || 'object',
       object,
-      id: (raw && raw.id) || (object.userData && (object.userData.doorId || object.userData.id)) || 'item',
+      id: (raw && raw.id) || ud.doorId || ud.id || 'item',
       range: (raw && raw.range) || INTERACT_RANGE,
       getPoint: raw && raw.getPoint
     });
@@ -82,6 +86,8 @@ export function interactablesSignature(list) {
 
 function findHostMesh(object) {
   if (!object) return null;
+  const marked = object.userData && object.userData.highlightMesh;
+  if (marked && marked.isMesh) return marked;
   if (typeof object.getObjectByName === 'function') {
     const panel = object.getObjectByName('door-panel');
     if (panel && panel.isMesh) return panel;

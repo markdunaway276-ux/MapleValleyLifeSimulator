@@ -20,12 +20,15 @@ Push any change and the link updates in ~1 minute. Open it on your phone anytime
 ## Structure
 - `src/main.js` — entry, quality detection, loop
 - `src/core/` — player + input
-- `src/world/` — scene building (`interior.js` = the walk-in interior of the main house: floors, partitions, furniture, doorway colliders)
-- `src/systems/` — save, collision, doors, and optional debug tools (`debug.js`, `collisionViz.js`)
+- `src/world/` — scene building (`interior.js` = the walk-in interior of the main house: floors, partitions, furniture, doorway colliders; `pickups.js` = snack and mailbox)
+- `src/systems/` — save, collision, doors, interactables, and optional debug tools (`debug.js`, `collisionViz.js`)
 - `src/ui/` — inventory, door prompt, HUD screenshot button (`hudScreenshot.js`), and debug UI (`debugMenu.js`, `debugOverlay.js`, `feedback.js`)
 
 ## Main house interior
 Open the front door (walk up and use the prompt) and walk in: a front room (sofa, dining table + chairs), a bedroom and a kitchen. The interior is a few merged single-sided meshes (2 draw calls, no shadow casters) plus one warm point light on desktop only. The doorway collider is open only while the door is open (and never traps you if the door is closed while you stand in it). Exterior and other houses are unchanged.
+
+## Pickups
+A snack sits on the dining table inside the main house: walk up and press E (or tap the prompt) to add it to your bag — it stacks with the snacks you already have, then disappears from the table and stays gone after a save and reload. A mailbox stands on the sidewalk in front of the house (east of the front door). Opening it toggles the lid and, the first time, gives you a Letter. Later mail (for example daily letters that pay cash) can hook into the mailbox's `userData.mail` without changing this path.
 
 ## Screenshot
 After Start, a camera button (📷) sits in the top-right corner (just left of **Bag** on a phone). Tap it to capture the current view, mark it up, add an optional note, and save a PNG. Tools: pen, line, arrow, double arrow, box, circle, X, check (green by default), question mark, numbered pin, plus a few colours. The same markup dialog opens from `F9` or Debug → Screenshot + markup. `Esc` cancels, `Ctrl/Cmd+Enter` saves.

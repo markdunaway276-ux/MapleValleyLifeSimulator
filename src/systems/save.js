@@ -11,9 +11,13 @@ export function loadSave() {
 
 export function saveGame(data) {
   try {
-    localStorage.setItem(KEY, JSON.stringify(data));
+    const prev = loadSave();
+    const next = { ...prev, ...(data || {}) };
+    localStorage.setItem(KEY, JSON.stringify(next));
+    return next;
   } catch (e) {
     console.warn('Save failed', e);
+    return null;
   }
 }
 

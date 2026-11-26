@@ -6,7 +6,9 @@ import { createInventory } from './ui/inventory.js';
 import { STARTER_ITEMS } from './data/items.js';
 import { loadSave, saveGame, clearSave } from './systems/save.js';
 import { createInteractPrompt, INTERACT_RANGE } from './ui/interactPrompt.js';
-import { nearestDoor, toggleDoor, updateDoors } from './systems/doors.js';
+import { updateDoors } from './systems/doors.js';
+import { nearestActionTarget, activateTarget } from './systems/interactables.js';
+import { updatePickups } from './world/pickups.js';
 import { createDebug } from './systems/debug.js';
 
 const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || window.innerWidth < 800;
@@ -54,8 +56,9 @@ const instructions = document.getElementById('instructions');
 const inventory = createInventory({
   canvas: renderer.domElement,
   isStarted: () => instructions.classList.contains('hidden'),
-  items: STARTER_ITEMS
+  items: Array.isArray(saveData.inventory) ? saveData.inventory : STARTER_ITEMS
 });
+if (scene.userData.world) scene.userData.world.apply(saveData);
 // Optional debug tools (all off by default; see src/systems/debug.js for keys)
 const debug = createDebug({
   renderer,
@@ -75,7 +78,7 @@ const prompt = createInteractPrompt({
   isMobile,
   isStarted: () => instructions.classList.contains('hidden'),
   isInventoryOpen: uiBlocked,
-  getTarget: () => nearestDoor(scene.userData.doors, player.position, INTERACT_RANGE),
+  getTarget: () => nearestActionTarget(scene, player.position, INTERACT_RANGE),
   player,
   range: INTERACT_RANGE
 });
@@ -93,12 +96,21 @@ window.addEventListener('resize', () => {
   renderer.setSize(window.innerWidth, window.innerHeight);
 });
 
-// Interact with the nearest door within range
+function gameState() {
+  return {
+    position: { x: player.position.x, y: player.position.y, z: player.position.z },
+    inventory: inventory.serialize(),
+    pickups: scene.userData.world ? scene.userData.world.serialize() : undefined
+  };
+}
+
+// Interact with the nearest door or pickup within range
 window.addEventListener('interact', () => {
-  const target = nearestDoor(scene.userData.doors, player.position, INTERACT_RANGE);
+  const target = nearestActionTarget(scene, player.position, INTERACT_RANGE);
   if (target) {
-    toggleDoor(target);
+    activateTarget(target, { inventory, scene, player });
     prompt.update();
+    saveGame(gameState());
   }
 });
 
@@ -111,6 +123,7 @@ function animate() {
 
   player.update(delta);
   updateDoors(scene.userData.doors, delta);
+  updatePickups(scene.userData.interactables, delta);
   prompt.update();
   renderer.render(scene, camera);
   debug.update();
@@ -119,9 +132,7 @@ animate();
 
 // Auto-save every 10 seconds
 setInterval(() => {
-  saveGame({
-    position: { x: player.position.x, y: player.position.y, z: player.position.z }
-  });
+  saveGame(gameState());
 }, 10000);
 
 console.log(`Maple Valley Life Simulator started — Mobile: ${isMobile}, Shadows: ${quality.shadows}`);

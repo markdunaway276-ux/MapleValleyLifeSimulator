@@ -4,8 +4,10 @@ import { generateHouse, getHouseColliders } from './buildings.js';
 import { buildMainHouseInterior, removePaintedFrontDoor } from './interior.js';
 import { scatterTrees, TREE_PLACEMENTS } from './trees.js';
 import { createParkedCar } from './props.js';
+import { createSnackPickup, createMailbox, MAILBOX_SPAWN, SNACK_SPAWN, mailboxCollider } from './pickups.js';
 import { createColliderWorld } from '../systems/collision.js';
 import { createHingedDoor } from '../systems/doors.js';
+import { createWorldState } from '../systems/interactables.js';
 
 function disposeGroup(group) {
   const materials = new Set();
@@ -423,6 +425,30 @@ export function createScene(quality) {
   scene.userData.street = STREET;
   scene.userData.spawn = STREET.spawn;
 
+  // Pickups live in one group so adding the snack later (after the interior
+  // loads) does not change the scene's top-level child count.
+  const pickups = new THREE.Group();
+  pickups.name = 'pickups';
+  scene.add(pickups);
+  scene.userData.pickups = pickups;
+  scene.userData.interactables = [];
+  scene.userData.world = createWorldState(scene);
+
+  const mailbox = createMailbox({ shadows: quality.shadows });
+  mailbox.position.set(MAILBOX_SPAWN.x, 0, MAILBOX_SPAWN.z);
+  pickups.add(mailbox);
+  colliders.addHouse(mailboxCollider(mailbox));
+  scene.userData.interactables.push({
+    id: 'mailbox',
+    kind: 'mailbox',
+    object: mailbox,
+    getPoint: () => {
+      mailbox.updateMatrixWorld(true);
+      return mailbox.localToWorld(mailbox.userData.interactLocal.clone());
+    }
+  });
+  scene.userData.mailbox = mailbox;
+
   // Real house model (Kenney City Kit Suburban, CC0). The procedural house
   // and the standalone door above stay as a fallback until the model has loaded.
   const HOUSE_URL = './assets/models/house_type02.glb'; // relative to the page, so it works under the Pages subpath
@@ -508,6 +534,18 @@ export function createScene(quality) {
         door,
         group: interior.group
       };
+
+      const snack = createSnackPickup({ shadows: quality.shadows });
+      snack.position.set(SNACK_SPAWN.x, SNACK_SPAWN.y, SNACK_SPAWN.z);
+      pickups.add(snack);
+      scene.userData.interactables = (scene.userData.interactables || []).filter((e) => e.id !== 'snack');
+      scene.userData.interactables.push({
+        id: 'snack',
+        kind: 'pickup',
+        object: snack
+      });
+      scene.userData.snack = snack;
+      if (scene.userData.world) scene.userData.world.apply({ pickups: { ...scene.userData.world.taken } });
     },
     undefined,
     (err) => {
