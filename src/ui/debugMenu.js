@@ -186,6 +186,8 @@ export function createDebugMenu({ actions, getState, getTeleports = () => [], ge
     closeBtn.addEventListener('click', close);
     head.append(title, closeBtn);
     panel.appendChild(head);
+    // Display (brightness / film look) first, so it is easy to find on a phone.
+    if (typeof getDisplay === 'function') panel.appendChild(buildDisplaySection());
 
     for (const item of MENU_ITEMS) {
       const row = document.createElement('button');
@@ -223,7 +225,6 @@ export function createDebugMenu({ actions, getState, getTeleports = () => [], ge
       if (item.id === 'screenshot') panel.appendChild(buildTeleportSection());
     }
 
-    if (typeof getDisplay === 'function') panel.appendChild(buildDisplaySection());
     if (typeof getClock === 'function') panel.appendChild(buildTimeSection());
     if (typeof getSfx === 'function') panel.appendChild(buildSoundSection());
     if (typeof getNeeds === 'function') panel.appendChild(buildNeedsSection());
