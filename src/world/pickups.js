@@ -1,5 +1,7 @@
 import * as THREE from 'three';
 import { hidePickup } from '../systems/interactables.js';
+import { PROPS } from './palette.js';
+import { bevelBox } from './shapes.js';
 
 /** Front-room dining table (matches interior.js). Snack sits on the top face. */
 export const SNACK_SPAWN = { x: -1.55, y: 0.78, z: -7.7 };
@@ -41,8 +43,8 @@ export function createSnackPickup({ shadows = false, onPick } = {}) {
   const group = new THREE.Group();
   group.name = 'snack-pickup';
 
-  const bar = mesh(new THREE.BoxGeometry(0.16, 0.04, 0.09), mat(0x6b3a1f, shadows), 'snack-bar', shadows);
-  const wrap = mesh(new THREE.BoxGeometry(0.06, 0.042, 0.092), mat(0xd4a72c, shadows, { roughness: 0.55 }), 'snack-wrap', shadows);
+  const bar = mesh(bevelBox(0.16, 0.04, 0.09, { max: 0.01 }), mat(0x5e3319, shadows), 'snack-bar', shadows);
+  const wrap = mesh(bevelBox(0.06, 0.042, 0.092, { max: 0.01 }), mat(0xc29a2a, shadows, { roughness: 0.45 }), 'snack-wrap', shadows);
   group.add(bar, wrap);
 
   group.userData.kind = 'pickup';
@@ -81,17 +83,17 @@ export function createMailbox({ shadows = false, onOpen } = {}) {
   const group = new THREE.Group();
   group.name = 'mailbox';
 
-  const postMat = mat(0x4a3a2a, shadows, { roughness: 0.9 });
-  const boxMat = mat(0x3d5a8a, shadows, { roughness: 0.55, metalness: 0.2 });
-  const lidMat = mat(0x314a72, shadows, { roughness: 0.5, metalness: 0.22 });
+  const postMat = mat(PROPS.mailPost, shadows, { roughness: 0.86 });
+  const boxMat = mat(PROPS.mailBox, shadows, { roughness: 0.42, metalness: 0.35 });
+  const lidMat = mat(PROPS.mailLid, shadows, { roughness: 0.4, metalness: 0.38 });
 
-  const post = mesh(new THREE.BoxGeometry(0.08, 1.02, 0.08), postMat, 'mailbox-post', shadows);
+  const post = mesh(bevelBox(0.08, 1.02, 0.08, { max: 0.015 }), postMat, 'mailbox-post', shadows);
   post.position.y = 0.51;
   group.add(post);
 
   const bodyW = 0.36, bodyH = 0.26, bodyD = 0.22;
   const bodyY = 1.14;
-  const body = mesh(new THREE.BoxGeometry(bodyW, bodyH, bodyD), boxMat, 'mailbox-body', shadows);
+  const body = mesh(bevelBox(bodyW, bodyH, bodyD, { segments: 2, max: 0.04 }), boxMat, 'mailbox-body', shadows);
   body.position.y = bodyY;
   group.add(body);
 
@@ -99,7 +101,7 @@ export function createMailbox({ shadows = false, onOpen } = {}) {
   const lid = new THREE.Group();
   lid.name = 'mailbox-lid';
   lid.position.set(0, bodyY + bodyH / 2, -bodyD / 2);
-  const lidSlab = mesh(new THREE.BoxGeometry(bodyW + 0.02, 0.04, bodyD + 0.02), lidMat, 'mailbox-lid-slab', shadows);
+  const lidSlab = mesh(bevelBox(bodyW + 0.02, 0.04, bodyD + 0.02, { max: 0.015 }), lidMat, 'mailbox-lid-slab', shadows);
   lidSlab.position.set(0, 0.02, bodyD / 2);
   lid.add(lidSlab);
   group.add(lid);

@@ -8,6 +8,8 @@
 import * as THREE from 'three';
 import { DEFAULT_SHOP, shopPrompt } from '../data/shops.js';
 import { buyFromShop, resolveShop } from '../systems/shop.js';
+import { PROPS } from './palette.js';
+import { bevelBox } from './shapes.js';
 
 /**
  * Same sidewalk as the mailbox (z ≈ -4.4), but west of the front-door path.
@@ -47,39 +49,39 @@ export function createVendingMachine({ shadows = false, shop = DEFAULT_SHOP } = 
   const d = VENDING_SIZE.depth;
   const h = VENDING_SIZE.height;
 
-  const bodyMat = mat(0x9a2430, shadows, { roughness: 0.55, metalness: 0.2 });
-  const darkMat = mat(0x1a1a1e, shadows, { roughness: 0.45, metalness: 0.3 });
+  const bodyMat = mat(PROPS.vendingBody, shadows, { roughness: 0.42, metalness: 0.3 });
+  const darkMat = mat(PROPS.vendingDark, shadows, { roughness: 0.4, metalness: 0.3 });
   const glowMat = new THREE.MeshBasicMaterial({ color: 0x7ee7ff });
   const windowMat = new THREE.MeshBasicMaterial({ color: 0x9af3c8 });
   const signMat = new THREE.MeshBasicMaterial({ color: 0xffe08a });
 
-  const body = mesh(new THREE.BoxGeometry(w, h, d), bodyMat, 'vending-body', shadows);
+  const body = mesh(bevelBox(w, h, d, { segments: 2, max: 0.05 }), bodyMat, 'vending-body', shadows);
   body.position.y = h / 2;
   group.add(body);
 
   // Unlit front panel + a warm sign band, set just in front of the body.
   const frontZ = d / 2 + 0.012;
-  const panel = mesh(new THREE.BoxGeometry(w * 0.72, h * 0.42, 0.02), glowMat, 'vending-panel', shadows, { cast: false, receive: false });
+  const panel = mesh(bevelBox(w * 0.72, h * 0.42, 0.02, { max: 0.006 }), glowMat, 'vending-panel', shadows, { cast: false, receive: false });
   panel.position.set(0, h * 0.58, frontZ);
   group.add(panel);
 
   const winW = w * 0.22, winH = h * 0.14;
   for (const [sx, sy] of [[-1, 1], [1, 1], [-1, -1], [1, -1]]) {
-    const pane = mesh(new THREE.BoxGeometry(winW, winH, 0.018), windowMat, 'vending-window', shadows, { cast: false, receive: false });
+    const pane = mesh(bevelBox(winW, winH, 0.018, { max: 0.006 }), windowMat, 'vending-window', shadows, { cast: false, receive: false });
     pane.position.set(sx * w * 0.2, h * 0.58 + sy * h * 0.11, frontZ + 0.004);
     group.add(pane);
   }
 
-  const sign = mesh(new THREE.BoxGeometry(w * 0.82, 0.12, 0.03), signMat, 'vending-sign', shadows, { cast: false, receive: false });
+  const sign = mesh(bevelBox(w * 0.82, 0.12, 0.03, { max: 0.01 }), signMat, 'vending-sign', shadows, { cast: false, receive: false });
   sign.position.set(0, h - 0.14, frontZ);
   group.add(sign);
 
-  const kick = mesh(new THREE.BoxGeometry(w * 0.96, 0.16, 0.04), darkMat, 'vending-kick', shadows);
+  const kick = mesh(bevelBox(w * 0.96, 0.16, 0.04, { max: 0.012 }), darkMat, 'vending-kick', shadows);
   kick.position.set(0, 0.08, frontZ);
   group.add(kick);
 
   // Coin slot / button strip
-  const tray = mesh(new THREE.BoxGeometry(w * 0.22, 0.18, 0.06), darkMat, 'vending-tray', shadows);
+  const tray = mesh(bevelBox(w * 0.22, 0.18, 0.06, { max: 0.015 }), darkMat, 'vending-tray', shadows);
   tray.position.set(w * 0.22, 0.42, frontZ + 0.01);
   group.add(tray);
 

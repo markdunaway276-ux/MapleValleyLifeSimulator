@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { bevelBox } from '../world/shapes.js';
 
 /** Local yaw for an open door: negative Y rotation swings the panel toward local +z (outward, toward the street). */
 export const DOOR_OPEN_ANGLE = -Math.PI / 2;
@@ -21,8 +22,8 @@ export function createHingedDoor(options = {}) {
   const receiveShadow = options.receiveShadow !== undefined ? !!options.receiveShadow : shadows;
   const material = options.material || new THREE.MeshStandardMaterial({
     color: options.color ?? 0x654321,
-    roughness: 0.85,
-    metalness: 0.05
+    roughness: 0.72,
+    metalness: 0
   });
 
   const pivot = new THREE.Group();
@@ -30,7 +31,7 @@ export function createHingedDoor(options = {}) {
 
   // BoxGeometry is centred on its origin; shift it so the left face (x = 0)
   // is the hinge and the bottom sits at y = 0.
-  const geometry = new THREE.BoxGeometry(width, height, depth);
+  const geometry = bevelBox(width, height, depth, { max: 0.012 });
   geometry.translate(width / 2, height / 2, 0);
 
   const panel = new THREE.Mesh(geometry, material);

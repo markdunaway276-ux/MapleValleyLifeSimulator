@@ -6,6 +6,8 @@
 import * as THREE from 'three';
 import { lightSwitchPose } from '../world/interior.js';
 import { isInteriorLightsOn, setInteriorLightsOn } from '../world/daynight.js';
+import { PROPS } from '../world/palette.js';
+import { bevelBox } from '../world/shapes.js';
 
 export { lightSwitchPose, isInteriorLightsOn, setInteriorLightsOn };
 
@@ -35,8 +37,8 @@ export function createLightSwitch({ on = true } = {}) {
   const group = new THREE.Group();
   group.name = 'light-switch';
 
-  const plateMat = new THREE.MeshLambertMaterial({ color: 0xd8d2c6 });
-  const plate = new THREE.Mesh(new THREE.BoxGeometry(PLATE_W, PLATE_H, PLATE_D), plateMat);
+  const plateMat = new THREE.MeshLambertMaterial({ color: PROPS.switchPlate });
+  const plate = new THREE.Mesh(bevelBox(PLATE_W, PLATE_H, PLATE_D, { max: 0.008 }), plateMat);
   plate.name = 'light-switch-plate';
   plate.castShadow = false;
   plate.receiveShadow = false;
@@ -44,8 +46,8 @@ export function createLightSwitch({ on = true } = {}) {
   plate.position.set(0, 0, 0);
   group.add(plate);
 
-  const paddleMat = new THREE.MeshLambertMaterial({ color: 0xf2efe8 });
-  const paddle = new THREE.Mesh(new THREE.BoxGeometry(PADDLE_W, PADDLE_H, PADDLE_D), paddleMat);
+  const paddleMat = new THREE.MeshLambertMaterial({ color: PROPS.switchPaddle });
+  const paddle = new THREE.Mesh(bevelBox(PADDLE_W, PADDLE_H, PADDLE_D, { max: 0.006 }), paddleMat);
   paddle.name = 'light-switch-paddle';
   paddle.castShadow = false;
   paddle.receiveShadow = false;

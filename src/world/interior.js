@@ -1,6 +1,8 @@
 import * as THREE from 'three';
 import { Parts } from './buildings.js';
 import { PLAYER_RADIUS } from '../systems/collision.js';
+import { INTERIOR } from './palette.js';
+import { createVertexMaterial } from './surfaces.js';
 
 /**
  * Basic interior for the Kenney main house.
@@ -124,23 +126,24 @@ export const CHAIR_DEFS = [
   { id: 'chair4', x: 2.0, z: -10.45, facing: '-z' }
 ];
 
-const WALL = 0xe9dfc9;
-const WALL_SHADE = 0xded2b8;
-const FLOOR = 0x9a7048;
-const CEIL = 0xd9d2c4;
-const TRIM = 0xcdbf9f;
-const WOOD = 0x8a5a2b;
-const WOOD_DARK = 0x5f3d1e;
-const FABRIC = 0x4f6d7a;
-const BED_LINEN = 0xe8e4da;
-const BLANKET = 0x8a3b3b;
-const RUG = 0x9c4a3a;
-const COUNTER = 0xd8d4cc;
-const COUNTER_TOP = 0x4a4a4a;
-const FRIDGE = 0xcfd3d6;
-const GLASS = 0xcfe8f5;
-const LAMP = 0xfff0c8;
-const DOOR_BROWN = 0x654321;
+// Colours live in palette.js (INTERIOR): deeper plaster, walnut floor, teal fabric.
+const WALL = INTERIOR.wall;
+const WALL_SHADE = INTERIOR.wallShade;
+const FLOOR = INTERIOR.floor;
+const CEIL = INTERIOR.ceil;
+const TRIM = INTERIOR.trim;
+const WOOD = INTERIOR.wood;
+const WOOD_DARK = INTERIOR.woodDark;
+const FABRIC = INTERIOR.fabric;
+const BED_LINEN = INTERIOR.bedLinen;
+const BLANKET = INTERIOR.blanket;
+const RUG = INTERIOR.rug;
+const COUNTER = INTERIOR.counter;
+const COUNTER_TOP = INTERIOR.counterTop;
+const FRIDGE = INTERIOR.fridge;
+const GLASS = INTERIOR.glass;
+const LAMP = INTERIOR.lamp;
+const DOOR_BROWN = INTERIOR.door;
 
 let planeGeo = null;
 function getPlane() {
@@ -184,9 +187,19 @@ function wallRect(parts, color, facing, a, b, y0, y1) {
   }
 }
 
+/**
+ * Desktop gets PBR with per-vertex roughness (glossier floor and appliances,
+ * matte plaster and fabric). Mobile keeps the cheap Lambert it always had.
+ */
+function interiorMaterial(desktop) {
+  if (!desktop) return new THREE.MeshLambertMaterial({ vertexColors: true, emissive: 0x2a251d });
+  return createVertexMaterial({ metalness: 0, emissive: 0x2a251d });
+}
+
 // ---------------------------------------------------------------- furniture
 
 function table(parts, cx, cz, w, d, h = 0.75) {
+  parts.surface('wood');
   parts.box(WOOD, w, 0.06, d, cx, h - 0.03, cz);
   for (const sx of [-1, 1]) {
     for (const sz of [-1, 1]) {
@@ -197,6 +210,7 @@ function table(parts, cx, cz, w, d, h = 0.75) {
 
 /** Chair facing `dir` ('+z' | '-z' | '+x' | '-x'): seat, legs and a back on the far side. */
 function chair(parts, cx, cz, dir) {
+  parts.surface('wood');
   const s = 0.42;
   parts.box(WOOD, s, 0.05, s, cx, 0.45, cz);
   for (const sx of [-1, 1]) {
@@ -214,6 +228,7 @@ function chair(parts, cx, cz, dir) {
 function frame(parts, facing, x, y, z, w, h, color) {
   // thin picture on a wall; `facing` is the room-side direction
   const d = 0.03;
+  parts.surface('wood');
   if (facing === '+x' || facing === '-x') {
     const sx = facing === '+x' ? 1 : -1;
     parts.box(WOOD_DARK, d, h, w, x + sx * d / 2, y, z);
@@ -237,8 +252,9 @@ export function buildMainHouseInterior({ shadows = false, outer, doorX, doorZ, d
   const gapL = doorX - 0.52;
   const gapR = doorX + 0.52;
   const parts = new Parts(true);
-  const emissive = new Parts(true);
-  const lampParts = new Parts(true);
+  // Unlit parts (window glass, lamps, ceiling) keep their flat colour: no baked AO.
+  const emissive = new Parts(true, { ao: false });
+  const lampParts = new Parts(true, { ao: false });
   const colliders = [];
   const solid = (id, minX, maxX, minZ, maxZ) => colliders.push({ id, minX, maxX, minZ, maxZ });
 
@@ -250,9 +266,11 @@ export function buildMainHouseInterior({ shadows = false, outer, doorX, doorZ, d
   for (const r of rooms) {
     const w = r.x1 - r.x0;
     const d = r.z1 - r.z0;
+    parts.surface('wood');
     plane(parts, FLOOR, '+y', w, d, (r.x0 + r.x1) / 2, fy, (r.z0 + r.z1) / 2);
     plane(lampParts, CEIL, '-y', w, d, (r.x0 + r.x1) / 2, cy, (r.z0 + r.z1) / 2); // lit with the interior lamps
   }
+  parts.surface('plaster');
 
   // --- inward-facing outer walls ----------------------------------------
   // front wall (faces -z) with the doorway cut out
@@ -266,6 +284,7 @@ export function buildMainHouseInterior({ shadows = false, outer, doorX, doorZ, d
   wallRect(parts, WALL_SHADE, '+x', [K.west, K.back], K.front, fy, cy); // west wall
 
   // baseboard strip along the longest runs (plain boxes, cheap)
+  parts.surface('trim');
   parts.box(TRIM, K.east - K.west - 0.02, 0.12, 0.03, (K.west + K.east) / 2, fy + 0.06, K.back + 0.017);
 
   // --- window panes on the inner walls (ground-floor window holes) ---------
@@ -281,6 +300,7 @@ export function buildMainHouseInterior({ shadows = false, outer, doorX, doorZ, d
     const pos = (inset) => (isZ ? [mid, (y0 + y1) / 2, a[0] + sign * inset] : [a[0] + sign * inset, (y0 + y1) / 2, mid]);
     const fr = pos(off);
     const gl = pos(glassOff);
+    parts.surface('trim');
     plane(parts, TRIM, f, w + 0.16, h + 0.16, ...fr);
     plane(emissive, GLASS, f, w, h, ...gl);
     // mullions
@@ -299,6 +319,7 @@ export function buildMainHouseInterior({ shadows = false, outer, doorX, doorZ, d
     const sign = facing[0] === '+' ? 1 : -1;
     const mid = (w0 + w1) / 2;
     const p = isZ ? [mid, 1.0 + fy / 2, a + sign * 0.008] : [a + sign * 0.008, 1.0 + fy / 2, mid];
+    parts.surface('wood');
     plane(parts, DOOR_BROWN, facing, w1 - w0, 2.0 - fy, ...p);
   };
   decoDoor('+z', K.back, 0, doorX - 0.52, doorX + 0.52); // back door
@@ -309,6 +330,7 @@ export function buildMainHouseInterior({ shadows = false, outer, doorX, doorZ, d
   }
 
   // --- partitions (thin boxes, solid colliders) -------------------------
+  parts.surface('plaster');
   const T = 0.15;
   // P1: south wall of the front room's west half; the bedroom doorway is the gap to P2
   parts.box(WALL, -2.0 - K.west, cy - fy, T, (K.west + -2.0) / 2, (cy + fy) / 2 - 0.01, K.notchWall);
@@ -319,12 +341,13 @@ export function buildMainHouseInterior({ shadows = false, outer, doorX, doorZ, d
   solid('main-int-p2', p2x - T / 2, p2x + T / 2, K.back, K.notchWall);
 
   // --- front room: sofa, table + chairs, rug -------------------------------
+  parts.surface('fabric');
   plane(parts, RUG, '+y', 2.6, 1.8, 0.0, fy + 0.006, -7.45);
   // sofa against the west wall
   const sofaX = K.west + 0.45;
   parts.box(FABRIC, 0.9, 0.42, 1.5, sofaX, 0.21 + fy, -7.65);
   parts.box(FABRIC, 0.22, 0.5, 1.5, K.west + 0.11, 0.67 + fy, -7.65);
-  parts.box(0x3f5963, 0.18, 0.3, 1.5, sofaX, 0.57 + fy, -7.65);
+  parts.box(INTERIOR.fabricDark, 0.18, 0.3, 1.5, sofaX, 0.57 + fy, -7.65);
   parts.box(FABRIC, 0.7, 0.2, 0.2, sofaX, 0.52 + fy, -8.3); // arms
   parts.box(FABRIC, 0.7, 0.2, 0.2, sofaX, 0.52 + fy, -7.0);
   solid('main-int-sofa', K.west, K.west + 0.9, -8.4, -6.9);
@@ -334,11 +357,12 @@ export function buildMainHouseInterior({ shadows = false, outer, doorX, doorZ, d
   solid('main-int-chair1', -2.51, -2.09, -7.91, -7.49);
   chair(parts, -0.8, -7.7, '-x');
   solid('main-int-chair2', -1.01, -0.59, -7.91, -7.49);
-  frame(parts, '-x', K.frontRoomEast, 1.7, -7.7, 0.7, 0.5, 0x6d8f6a);
+  frame(parts, '-x', K.frontRoomEast, 1.7, -7.7, 0.7, 0.5, INTERIOR.frames[0]);
   // tiny home-office desk + laptop against the east wall (south of the picture)
   {
     const cx = DESK_CENTER.x, cz = DESK_CENTER.z;
     const w = DESK_SIZE.width, d = DESK_SIZE.depth, h = DESK_SIZE.height;
+    parts.surface('wood');
     parts.box(WOOD, w, 0.05, d, cx, h - 0.025 + fy, cz);
     for (const sx of [-1, 1]) {
       for (const sz of [-1, 1]) {
@@ -346,31 +370,40 @@ export function buildMainHouseInterior({ shadows = false, outer, doorX, doorZ, d
       }
     }
     // laptop (base + a short upright lid facing the room)
-    parts.box(0x2a2e33, 0.24, 0.02, 0.18, cx - 0.02, h + 0.01 + fy, cz);
-    parts.box(0x1c1f24, 0.02, 0.16, 0.18, cx + 0.11, h + 0.09 + fy, cz);
-    parts.box(0x2a5a78, 0.01, 0.13, 0.15, cx + 0.095, h + 0.09 + fy, cz);
+    parts.surface('appliance');
+    parts.box(INTERIOR.laptop, 0.24, 0.02, 0.18, cx - 0.02, h + 0.01 + fy, cz);
+    parts.box(INTERIOR.laptopLid, 0.02, 0.16, 0.18, cx + 0.11, h + 0.09 + fy, cz);
+    parts.box(INTERIOR.laptopScreen, 0.01, 0.13, 0.15, cx + 0.095, h + 0.09 + fy, cz);
     solid('main-int-desk', cx - w / 2, cx + w / 2, cz - d / 2, cz + d / 2);
   }
 
   // --- bedroom ---------------------------------------------------------
+  parts.surface('wood');
   parts.box(WOOD_DARK, 1.5, 0.3, 2.0, -3.4, 0.15 + fy, -13.55); // frame
+  parts.surface('fabric');
   parts.box(BED_LINEN, 1.4, 0.2, 1.9, -3.4, 0.4 + fy, -13.55); // mattress
   parts.box(BLANKET, 1.42, 0.08, 1.2, -3.4, 0.54 + fy, -13.15); // blanket
-  parts.box(0xf4f0e8, 0.5, 0.1, 0.32, -3.7, 0.55 + fy, -14.3); // pillows
-  parts.box(0xf4f0e8, 0.5, 0.1, 0.32, -3.1, 0.55 + fy, -14.3);
+  parts.box(INTERIOR.pillow, 0.5, 0.1, 0.32, -3.7, 0.55 + fy, -14.3); // pillows
+  parts.box(INTERIOR.pillow, 0.5, 0.1, 0.32, -3.1, 0.55 + fy, -14.3);
+  parts.surface('wood');
   parts.box(WOOD_DARK, 1.5, 0.85, 0.08, -3.4, 0.6 + fy, -14.6); // headboard
   solid('main-int-bed', -4.15, -2.65, -14.55, -12.55);
   parts.box(WOOD, 0.45, 0.5, 0.45, -2.3, 0.25 + fy, -14.35);
   solid('main-int-nightstand', -2.525, -2.075, -14.575, -14.125);
-  plane(parts, 0x6a7d9a, '+y', 1.6, 1.0, -3.2, fy + 0.006, -11.4);
-  frame(parts, '+x', K.west, 1.7, -12.4, 0.6, 0.45, 0xb08a5a);
+  parts.surface('fabric');
+  plane(parts, INTERIOR.rug2, '+y', 1.6, 1.0, -3.2, fy + 0.006, -11.4);
+  frame(parts, '+x', K.west, 1.7, -12.4, 0.6, 0.45, INTERIOR.frames[1]);
 
   // --- kitchen --------------------------------------------------------
+  parts.surface('paint');
   parts.box(COUNTER, 2.7, 0.88, 0.66, 2.97, 0.44 + fy, -14.29);
+  parts.surface('stone');
   parts.box(COUNTER_TOP, 2.7, 0.05, 0.68, 2.97, 0.905 + fy, -14.28);
   solid('main-int-counter', 1.62, 4.32, K.back, -13.93);
+  parts.surface('appliance');
   parts.box(FRIDGE, 0.7, 1.8, 0.7, 3.95, 0.9 + fy, -9.38);
-  parts.box(0x9aa0a4, 0.04, 0.5, 0.04, 3.95 - 0.12, 1.35 + fy, -9.0 - 0.38 - 0.02);
+  parts.surface('metal');
+  parts.box(INTERIOR.handle, 0.04, 0.5, 0.04, 3.95 - 0.12, 1.35 + fy, -9.0 - 0.38 - 0.02);
   solid('main-int-fridge', 3.6, 4.3, -9.73, -9.03);
   table(parts, 2.0, -11.3, 1.3, 0.8);
   solid('main-int-table2', 1.35, 2.65, -11.7, -10.9);
@@ -378,7 +411,7 @@ export function buildMainHouseInterior({ shadows = false, outer, doorX, doorZ, d
   solid('main-int-chair3', 1.79, 2.21, -12.36, -11.94);
   chair(parts, 2.0, -10.45, '-z');
   solid('main-int-chair4', 1.79, 2.21, -10.66, -10.24);
-  frame(parts, '-x', K.east, 1.7, -11.5, 0.6, 0.45, 0xa9b87a);
+  frame(parts, '-x', K.east, 1.7, -11.5, 0.6, 0.45, INTERIOR.frames[2]);
 
   // --- lamps (toggled with the wall switch; not in the 2-draw-call group) --
   const lampSpots = [[-1.55, -7.7], [-2.4, -11.8], [2.0, -11.3]];
@@ -400,7 +433,7 @@ export function buildMainHouseInterior({ shadows = false, outer, doorX, doorZ, d
   // --- meshes -------------------------------------------------------------
   const group = new THREE.Group();
   group.name = 'main-interior';
-  const mesh = new THREE.Mesh(parts.merge(), new THREE.MeshLambertMaterial({ vertexColors: true, emissive: 0x2a251d }));
+  const mesh = new THREE.Mesh(parts.merge(), interiorMaterial(!!shadows));
   mesh.name = 'interior-static';
   mesh.castShadow = false; // the ceiling casts the shadow via the GLB; keeps the shadow pass cheap
   mesh.receiveShadow = !!shadows;

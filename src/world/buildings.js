@@ -2,22 +2,25 @@ import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 import { createHingedDoor } from '../systems/doors.js';
+import { AO, BEVEL, HOUSE, SURFACE, shade } from './palette.js';
+import { bevelBox } from './shapes.js';
+import { createVertexMaterial, ROUGH_ATTR } from './surfaces.js';
 
 const DEFAULTS = {
   width: 8,
   depth: 10,
   height: 3.6,
   roofType: 'gable',
-  wallColor: 0xd2b48c,
-  roofColor: 0x8b4513,
-  doorColor: 0x654321,
-  windowColor: 0x87ceeb,
+  wallColor: HOUSE.walls[3],
+  roofColor: HOUSE.roofs[0],
+  doorColor: HOUSE.door,
+  windowColor: HOUSE.glass,
   hasDoor: true,
   windowCount: 2
 };
 
-const WALL_PALETTE = [0xd2b48c, 0xf5e6d3, 0xe8d5b7, 0xc9a66b, 0xa8c5e0, 0xe0c8b0, 0xd4d0c8, 0xbfc5b8];
-const ROOF_PALETTE = [0x8b4513, 0x7a2e2e, 0x4a5560, 0x5c4033, 0x6b3a2a, 0x3e4a3d];
+const WALL_PALETTE = HOUSE.walls;
+const ROOF_PALETTE = HOUSE.roofs;
 const ROOF_TYPES = ['gable', 'pyramid', 'flat', 'hip', 'shed'];
 const WINDOW_LAYOUTS = ['pair', 'shutters', 'ribbon', 'grid', 'bay'];
 
@@ -40,8 +43,8 @@ function resolveOptions(options = {}) {
     out.roofType = pick(ROOF_TYPES);
     out.wallColor = pick(WALL_PALETTE);
     out.roofColor = pick(ROOF_PALETTE);
-    out.doorColor = 0x5a3a22;
-    out.windowColor = 0x9fd0ea;
+    out.doorColor = HOUSE.door;
+    out.windowColor = HOUSE.glass;
   }
 
   // Explicit values always win over random / defaults
@@ -87,7 +90,7 @@ function resolveOptions(options = {}) {
 }
 
 function mat(color, extras = {}) {
-  return new THREE.MeshStandardMaterial({ color, roughness: 0.85, metalness: 0.05, ...extras });
+  return new THREE.MeshStandardMaterial({ color, roughness: SURFACE.plaster.roughness, metalness: 0.02, ...extras });
 }
 
 function mesh(name, geometry, material, shadows) {
@@ -168,10 +171,10 @@ function addWindow(group, x, y, z, rotY, opts, index) {
   const winH = 0.85;
   const winD = 0.07;
   const material = mat(opts.windowColor, {
-    roughness: 0.35,
-    metalness: 0.1,
+    roughness: SURFACE.glass.roughness,
+    metalness: SURFACE.glass.metalness,
     emissive: new THREE.Color(opts.windowColor),
-    emissiveIntensity: 0.35
+    emissiveIntensity: 0.22
   });
   const win = mesh(`window_${index}`, new RoundedBoxGeometry(winW, winH, winD, 1, 0.02), material, opts);
   win.position.set(x, y, z);
@@ -220,12 +223,12 @@ function addWindows(group, opts) {
 // merged static mesh per house (plus one glass mesh and the hinged door).
 // ---------------------------------------------------------------------------
 
-const TRIM_PALETTE = [0xf4f1ea, 0xe9e2d0, 0xdfe6e8, 0xcfc8b8];
-const ACCENT_PALETTE = [0x2f4f3a, 0x1f3a5f, 0x7a1f2b, 0x654321, 0x3b2a1a, 0x8a5a2b];
-const BRICK_COLOR = 0x8a4b3a;
-const CAP_COLOR = 0x77736c;
-const DECK_COLOR = 0x8a7a66;
-const GARAGE_DOOR_COLOR = 0xd9d6cf;
+const TRIM_PALETTE = HOUSE.trims;
+const ACCENT_PALETTE = HOUSE.accents;
+const BRICK_COLOR = HOUSE.brick;
+const CAP_COLOR = HOUSE.cap;
+const DECK_COLOR = HOUSE.deck;
+const GARAGE_DOOR_COLOR = HOUSE.garageDoor;
 
 const DECK_H = 0.08; // porch deck thickness; the door pivot sits on top of it
 const PORCH_UNDERSIDE = 2.5; // lowest point of any porch roof (eye height is 1.6)
@@ -256,35 +259,56 @@ function sharedMaterial(key, make) {
   return m;
 }
 function staticMaterial() {
-  return sharedMaterial('static', () => new THREE.MeshStandardMaterial({
-    vertexColors: true, roughness: 0.85, metalness: 0.05
-  }));
+  // Roughness comes from the per-vertex attribute Parts writes (one draw call).
+  return sharedMaterial('static', () => createVertexMaterial({ metalness: 0.03 }));
 }
 function glassMaterial(color) {
   return sharedMaterial(`glass:${color}`, () => new THREE.MeshStandardMaterial({
-    color, roughness: 0.35, metalness: 0.1, emissive: new THREE.Color(color), emissiveIntensity: 0.35
+    color, roughness: SURFACE.glass.roughness, metalness: SURFACE.glass.metalness,
+    emissive: new THREE.Color(color), emissiveIntensity: 0.22
   }));
 }
 function doorMaterial(color) {
   return sharedMaterial(`door:${color}`, () => new THREE.MeshStandardMaterial({
-    color, roughness: 0.85, metalness: 0.05
+    color, roughness: SURFACE.wood.roughness, metalness: 0
   }));
 }
 
-let unitBox = null;
-function getUnitBox() {
-  if (!unitBox) {
-    // Soft rounded unit box. Radius is relative to the 1×1×1 cube, so it scales
-    // with the final box size and gives a gentle bevel on walls, roofs and props.
-    unitBox = new RoundedBoxGeometry(1, 1, 1, 2, 0.09).toNonIndexed();
+/**
+ * Baked vertex ambient occlusion for a box in its own (untransformed) space:
+ * the foot of each side face darkens and the underside is darker still, so
+ * walls and furniture sit on the ground instead of floating. Tops are left
+ * alone. Pure per-vertex colour: no lights, no textures, no draw calls.
+ */
+function boxAo(g, sy) {
+  const pos = g.attributes.position;
+  const nor = g.attributes.normal;
+  const n = pos.count;
+  const out = new Float32Array(n);
+  const span = Math.max(1e-4, Math.min(AO.height, sy));
+  for (let i = 0; i < n; i++) {
+    const ny = nor.getY(i);
+    if (ny > 0.5) { out[i] = 1; continue; }
+    if (ny < -0.5) { out[i] = 1 - AO.bottom; continue; }
+    const t = Math.min(1, Math.max(0, (pos.getY(i) + sy / 2) / span));
+    const s = t * t * (3 - 2 * t);
+    out[i] = 1 - AO.side * (1 - s);
   }
-  return unitBox;
+  return out;
 }
 
 /** Collects transformed geometry pieces and merges them into one BufferGeometry. */
 export class Parts {
-  constructor(colored) {
+  /**
+   * `colored` writes per-vertex colour (and roughness) for a vertex-coloured
+   * material. `ao` bakes the box ambient occlusion (default on for coloured
+   * parts; turn it off for unlit / emissive parts).
+   */
+  constructor(colored, { ao = colored } = {}) {
     this.colored = colored;
+    this.ao = !!(colored && ao);
+    this.rough = SURFACE.plaster.roughness;
+    this._boxes = new Map();
     this.list = [];
     this.frame = new THREE.Matrix4();
     this._m = new THREE.Matrix4();
@@ -302,7 +326,12 @@ export class Parts {
     this.frame.identity();
   }
 
-  addGeometry(geo, color, local) {
+  /** Sets the roughness of everything added next: a SURFACE preset name or a number. */
+  surface(kind) {
+    this.rough = typeof kind === 'number' ? kind : (SURFACE[kind] || SURFACE.plaster).roughness;
+  }
+
+  addGeometry(geo, color, local, aoSy = null) {
     const g = geo.index ? geo.toNonIndexed() : geo.clone();
     for (const k of Object.keys(g.attributes)) {
       if (k !== 'position' && k !== 'normal' && k !== 'uv') g.deleteAttribute(k);
@@ -311,27 +340,43 @@ export class Parts {
     if (!g.attributes.uv) {
       g.setAttribute('uv', new THREE.BufferAttribute(new Float32Array(g.attributes.position.count * 2), 2));
     }
+    // AO is read off the box's own normals and height, so it runs before the transform.
+    const ao = this.ao && aoSy !== null ? boxAo(g, aoSy) : null;
     g.applyMatrix4(this._m.multiplyMatrices(this.frame, local));
     if (this.colored) {
       const c = new THREE.Color(color);
       const n = g.attributes.position.count;
       const arr = new Float32Array(n * 3);
+      const rough = new Float32Array(n).fill(this.rough);
       for (let i = 0; i < n; i++) {
-        arr[i * 3] = c.r;
-        arr[i * 3 + 1] = c.g;
-        arr[i * 3 + 2] = c.b;
+        const f = ao ? ao[i] : 1;
+        arr[i * 3] = c.r * f;
+        arr[i * 3 + 1] = c.g * f;
+        arr[i * 3 + 2] = c.b * f;
       }
       g.setAttribute('color', new THREE.BufferAttribute(arr, 3));
+      g.setAttribute(ROUGH_ATTR, new THREE.BufferAttribute(rough, 1));
     }
     this.list.push(g);
   }
 
+  /**
+   * Adds a w x h x d box with absolute-radius rounded edges (see shapes.js).
+   * The geometry is built at its real size, so the bevel stays the same on a
+   * 9 m wall as on a 3 cm trim strip. Identical sizes are built once.
+   */
   box(color, sx, sy, sz, x, y, z, rx = 0, ry = 0, rz = 0) {
     this._p.set(x, y, z);
     this._q.setFromEuler(this._e.set(rx, ry, rz));
-    this._s.set(sx, sy, sz);
+    this._s.set(1, 1, 1);
     const local = new THREE.Matrix4().compose(this._p, this._q, this._s);
-    this.addGeometry(getUnitBox(), color, local);
+    const key = `${Math.round(sx * 1e4)}|${Math.round(sy * 1e4)}|${Math.round(sz * 1e4)}`;
+    let geo = this._boxes.get(key);
+    if (!geo) {
+      geo = bevelBox(sx, sy, sz);
+      this._boxes.set(key, geo);
+    }
+    this.addGeometry(geo, color, local, sy);
   }
 
   geometry(geo, color, x = 0, y = 0, z = 0) {
@@ -339,6 +384,8 @@ export class Parts {
   }
 
   merge() {
+    this._boxes.forEach((g) => g.dispose());
+    this._boxes.clear();
     if (this.list.length === 0) return null;
     const merged = mergeGeometries(this.list, false);
     this.list.forEach((g) => g.dispose());
@@ -438,6 +485,7 @@ function addMainRoof(parts, opts, rng) {
 function addWindowUnit(parts, glass, trim, accent, spec) {
   // Local frame: origin at the wall surface, +z pointing out of the wall.
   const { w, h, mullV = 0, mullH = 0, shutters = false } = spec;
+  parts.surface('trim');
   glass.box(null, w, h, 0.04, 0, 0, 0.02);
   const f = 0.06;
   parts.box(trim, w + f * 2, f, 0.1, 0, h / 2 + f / 2, 0.04);
@@ -452,6 +500,7 @@ function addWindowUnit(parts, glass, trim, accent, spec) {
   }
   parts.box(trim, w + 0.26, 0.06, 0.18, 0, -h / 2 - f - 0.03, 0.07);
   if (shutters) {
+    parts.surface('paint');
     const sw = Math.max(0.2, w * 0.42);
     parts.box(accent, sw, h + 0.12, 0.04, -w / 2 - f - sw / 2 - 0.01, 0, 0.03);
     parts.box(accent, sw, h + 0.12, 0.04, w / 2 + f + sw / 2 + 0.01, 0, 0.03);
@@ -489,13 +538,16 @@ function buildVariedHouse(group, opts) {
   const features = [];
 
   // --- walls, corner boards, roof --------------------------------------
+  parts.surface('plaster');
   parts.box(wallColor, width, height, depth, 0, height / 2, 0);
+  parts.surface('trim');
   for (const sx of [-1, 1]) {
     if (sx === eSide) continue;
     for (const sz of [-1, 1]) {
       parts.box(trim, 0.14, height, 0.14, sx * (hw + 0.005), height / 2, sz * (hd + 0.005));
     }
   }
+  parts.surface('roof');
   const roofY = addMainRoof(parts, opts, rng);
   features.push(`${opts.roofType} roof`);
 
@@ -517,7 +569,9 @@ function buildVariedHouse(group, opts) {
     }
     const base = lo - 0.2;
     const top = hi + 0.8;
+    parts.surface('brick');
     parts.box(BRICK_COLOR, s, top - base, s, cx, (base + top) / 2, cz);
+    parts.surface('stone');
     parts.box(CAP_COLOR, s + 0.14, 0.1, s + 0.14, cx, top + 0.05, cz);
     features.push('chimney');
   }
@@ -529,7 +583,9 @@ function buildVariedHouse(group, opts) {
     const pd = porch.depth;
     const pw = porch.width;
     deckH = DECK_H;
+    parts.surface('woodRaw');
     parts.box(DECK_COLOR, pw + 0.2, DECK_H, pd, 0, DECK_H / 2, hd + pd / 2);
+    parts.surface('roof');
     const roofLen = pd + 0.2;
     const frontZ = hd + roofLen;
     let tan = 0;
@@ -540,57 +596,131 @@ function buildVariedHouse(group, opts) {
     } else if (porch.roof === 'flat') {
       parts.box(opts.roofColor, pw + 0.3, 0.1, roofLen, 0, PORCH_UNDERSIDE + 0.05, hd + roofLen / 2);
     } else {
-      // shed
-      const high = PORCH_UNDERSIDE + 0.45;
-      const geo = makeShedGeometry((pw + 0.3) / 2, roofLen / 2, 0.45, 0.08, 1);
-      parts.geometry(geo, opts.roofColor, 0, PORCH_UNDERSIDE, hd + roofLen / 2);
-      geo.dispose();
-      tan = 0.45 / roofLen;
+      const theta = 0.09;
+      tan = Math.tan(theta);
+      const cy = PORCH_UNDERSIDE + 0.05 * Math.cos(theta) + (roofLen / 2) * Math.sin(theta);
+      parts.box(opts.roofColor, pw + 0.3, 0.1, roofLen, 0, cy, hd + roofLen / 2, theta, 0, 0);
     }
-    // posts
-    const postR = 0.08;
+    const postZ = hd + pd - 0.1;
+    const underAt = PORCH_UNDERSIDE + (frontZ - postZ) * tan;
+    parts.surface('trim');
     for (const sx of [-1, 1]) {
-      const px = sx * (pw / 2 - 0.15);
-      const pz = hd + pd - 0.15;
-      parts.box(trim, postR * 2, PORCH_UNDERSIDE - deckH, postR * 2, px, (PORCH_UNDERSIDE + deckH) / 2, pz);
-      foot.posts.push({ x: px, z: pz, radius: postR + 0.02 });
+      const px = sx * (pw / 2 - 0.05);
+      parts.box(trim, 0.14, underAt + 0.03 - DECK_H, 0.14, px, (DECK_H + underAt + 0.03) / 2, postZ);
+      foot.posts.push({ x: px, z: postZ, radius: 0.12 });
     }
-    grow(-pw / 2 - 0.2, pw / 2 + 0.2, hd, hd + pd + 0.2);
-    features.push('porch');
+    grow(-(pw / 2 + 0.15), pw / 2 + 0.15, -hd, frontZ);
+    frontClear = pw / 2 + 0.15 + 0.12;
+    features.push(`${porch.roof} porch`);
   }
 
-  // --- extension (garage / wing) ----------------------------------------
+  // --- door lintel ------------------------------------------------------
+  if (hasDoor) {
+    parts.surface('trim');
+    parts.box(trim, dw + 0.3, 0.1, 0.12, 0, deckH + dSize.height + 0.05, hd + 0.04);
+  }
+
+  // --- extension (garage / wing) -----------------------------------------
   let extCfg = null;
   if (ext) {
-    const side = eSide;
-    const ew = ext.width;
-    const ed = ext.depth ?? depth * 0.7;
-    const eh = height * 0.75;
-    const ex = side * (hw + ew / 2);
-    parts.box(wallColor, ew, eh, ed, ex, eh / 2, 0);
-    parts.box(opts.roofColor, ew + 0.2, 0.15, ed + 0.2, ex, eh + 0.075, 0);
-    if (ext.type === 'garage') {
-      parts.box(GARAGE_DOOR_COLOR, ew * 0.7, eh * 0.65, 0.08, ex, eh * 0.35, ed / 2 + 0.04);
+    const eW = ext.width;
+    const eType = ext.type;
+    const eH = eType === 'garage' ? 2.75 : Math.min(3.0, height - 0.5);
+    const eD = ext.depth ?? Math.min(depth - 1.6, eType === 'garage' ? 6.2 : 5.5);
+    const setback = 0.5;
+    const zF = hd - setback;
+    const zB = zF - eD;
+    const xCenter = eSide * (hw + eW / 2);
+    parts.surface('plaster');
+    parts.box(wallColor, eW, eH, eD, xCenter, eH / 2, (zF + zB) / 2);
+    if (eType === 'garage') {
+      parts.surface('roof');
+      parts.box(opts.roofColor, eW + 0.3, 0.2, eD + 0.5, eSide * (hw + (eW + 0.3) / 2), eH + 0.1, (zF + zB) / 2);
+      const gw = Math.min(eW - 0.5, 2.6);
+      const gh = 2.1;
+      parts.surface('trim');
+      parts.box(trim, gw + 0.2, 0.12, 0.08, xCenter, gh + 0.06, zF + 0.03);
+      parts.surface('metal');
+      parts.box(GARAGE_DOOR_COLOR, gw, gh, 0.06, xCenter, gh / 2, zF + 0.03);
+      for (const gy of [0.55, 1.05, 1.55]) {
+        parts.box(shade(GARAGE_DOOR_COLOR, 0.82), gw, 0.03, 0.02, xCenter, gy, zF + 0.065);
+      }
+      features.push('garage');
+    } else {
+      const rise = 0.4;
+      const outer = eW + 0.3;
+      const shape = new THREE.Shape();
+      shape.moveTo(0, 0);
+      shape.lineTo(eSide * outer, 0);
+      shape.lineTo(eSide * outer, 0.12);
+      shape.lineTo(0, rise);
+      shape.closePath();
+      const g = new THREE.ExtrudeGeometry(shape, { depth: eD + 0.5, bevelEnabled: false });
+      parts.surface('roof');
+      parts.geometry(g, opts.roofColor, eSide * hw, eH, zB - 0.25);
+      g.dispose();
+      parts.setFrame(xCenter, 1.4, zF, 0);
+      glass.setFrame(xCenter, 1.4, zF, 0);
+      addWindowUnit(parts, glass, trim, accent, { w: 0.8, h: 1.0, mullV: 1 });
+      parts.resetFrame();
+      glass.resetFrame();
+      features.push('side wing');
     }
-    foot.boxes.push({ id: 'extension', minX: ex - ew / 2, maxX: ex + ew / 2, minZ: -ed / 2, maxZ: ed / 2 });
-    grow(ex - ew / 2 - 0.15, ex + ew / 2 + 0.15, -ed / 2 - 0.15, ed / 2 + 0.15);
-    extCfg = { side, type: ext.type, width: ew, depth: ed };
-    features.push(ext.type);
+    const x0 = eSide > 0 ? hw : -hw - eW;
+    foot.boxes.push({ id: 'ext', minX: x0, maxX: x0 + eW, minZ: zB, maxZ: zF });
+    grow(x0, x0 + eW + 0.3, zB, zF + 0.25);
+    extCfg = { side: eSide, width: eW, type: eType };
   }
 
-  // --- front windows / bay ----------------------------------------------
-  const layout = opts.windowLayout || 'pair';
-  const winY = Math.min(Math.max(height * 0.62, (hasDoor ? 2.0 : 0) + 0.5), height - 0.6);
-  const bay = layout === 'bay' ? { w: 1.6, h: 1.2, d: 0.55, x: 0 } : null;
+  // --- front window layout -----------------------------------------------
+  const layout = opts.windowLayout;
+  const winY = 1.5;
+  const lo = Math.max(dw / 2 + 0.4, frontClear);
+  const hiEdge = hw - 0.5;
+  const mid = (lo + hiEdge) / 2;
+  const frontWins = []; // { x, w, h, y, mullV, mullH, shutters }
+  let bay = null;
+  if (layout === 'ribbon') {
+    const w = Math.min(2.2, hiEdge - lo);
+    for (const sx of [-1, 1]) frontWins.push({ x: sx * mid, w, h: 0.95, y: 1.6, mullV: 2, mullH: 0 });
+  } else if (layout === 'grid') {
+    const w = Math.min(1.15, hiEdge - lo);
+    for (const sx of [-1, 1]) frontWins.push({ x: sx * mid, w, h: 1.3, y: 1.5, mullV: 1, mullH: 1 });
+  } else if (layout === 'bay' && hiEdge - lo >= 1.95) {
+    bay = { x: -mid, w: 1.9, d: 0.55 };
+    frontWins.push({ x: mid, w: 0.85, h: 1.15, y: winY, mullV: 0, mullH: 1 });
+  } else {
+    const shut = layout === 'shutters';
+    const w = shut ? 0.75 : 0.85;
+    const reach = w / 2 + (shut ? 0.36 : 0.1);
+    let c = width * 0.28;
+    c = Math.min(Math.max(c, lo + reach), hiEdge - reach);
+    if (!(c >= lo + reach - 1e-6)) c = mid;
+    for (const sx of [-1, 1]) {
+      frontWins.push({ x: sx * c, w, h: 1.15, y: winY, mullV: 0, mullH: 1, shutters: shut });
+    }
+  }
+  for (const fw of frontWins) {
+    parts.setFrame(fw.x, fw.y, hd, 0);
+    glass.setFrame(fw.x, fw.y, hd, 0);
+    addWindowUnit(parts, glass, trim, accent, fw);
+  }
+  parts.resetFrame();
+  glass.resetFrame();
+
   if (bay) {
-    const by = winY - bay.h / 2;
-    const zc = hd;
-    parts.box(wallColor, bay.w, bay.h, bay.d, bay.x, by + bay.h / 2, zc + bay.d / 2);
+    const by = 0.35;
+    const bh = 1.7;
+    const zc = hd + bay.d / 2 - 0.05;
+    parts.surface('plaster');
+    parts.box(wallColor, bay.w, bh, bay.d + 0.1, bay.x, by + bh / 2, zc);
+    parts.surface('trim');
     parts.box(trim, bay.w + 0.1, 0.08, bay.d + 0.2, bay.x, by + 0.04, zc + 0.05);
-    parts.box(opts.roofColor, bay.w + 0.3, 0.1, bay.d + 0.35, bay.x, by + bay.h + 0.05, zc + 0.1);
-    parts.setFrame(bay.x, by + bay.h / 2 + 0.02, hd + bay.d, 0);
-    glass.setFrame(bay.x, by + bay.h / 2 + 0.02, hd + bay.d, 0);
-    addWindowUnit(parts, glass, trim, accent, { w: bay.w - 0.45, h: bay.h - 0.5, mullV: 2, mullH: 0 });
+    parts.surface('roof');
+    parts.box(opts.roofColor, bay.w + 0.3, 0.1, bay.d + 0.35, bay.x, by + bh + 0.05, zc + 0.1);
+    parts.setFrame(bay.x, by + bh / 2 + 0.02, hd + bay.d, 0);
+    glass.setFrame(bay.x, by + bh / 2 + 0.02, hd + bay.d, 0);
+    addWindowUnit(parts, glass, trim, accent, { w: bay.w - 0.45, h: bh - 0.5, mullV: 2, mullH: 0 });
     parts.resetFrame();
     glass.resetFrame();
     foot.boxes.push({ id: 'bay', minX: bay.x - bay.w / 2, maxX: bay.x + bay.w / 2, minZ: hd, maxZ: hd + bay.d });
@@ -739,7 +869,7 @@ export function generateHouse(options = {}) {
 
   const body = mesh(
     'body',
-    new RoundedBoxGeometry(width, height, depth, 2, Math.min(0.18, Math.min(width, depth, height) * 0.04)),
+    bevelBox(width, height, depth, { segments: 2, max: BEVEL.max * 1.5 }),
     mat(wallColor),
     opts
   );

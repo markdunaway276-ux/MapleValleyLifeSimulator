@@ -15,6 +15,8 @@ import { createVendingMachine, VENDING_SPAWN, vendingCollider } from './vending.
 import { createColliderWorld } from '../systems/collision.js';
 import { createHingedDoor } from '../systems/doors.js';
 import { createWorldState } from '../systems/interactables.js';
+import { sampleLighting } from './daynight.js';
+import { GROUND, HOUSE, LOOK, MAIN_HOUSE, PROPS } from './palette.js';
 
 function disposeGroup(group) {
   const materials = new Set();
@@ -71,18 +73,18 @@ function createGrassTexture(quality) {
       const ny = (y / size) * 8;
       const patch = fbm(nx, ny);
       const speck = hash2(x * 13, y * 17);
-      // Base 0x3a7d3a, with darker clumps and a few paler blades
-      let r = 58 + (patch - 0.5) * 36;
-      let g = 125 + (patch - 0.5) * 40;
-      let b = 58 + (patch - 0.5) * 22;
+      // Muted forest green (palette GROUND.grass), darker clumps, a few paler blades
+      let r = GROUND.grass[0] + (patch - 0.5) * 30;
+      let g = GROUND.grass[1] + (patch - 0.5) * 34;
+      let b = GROUND.grass[2] + (patch - 0.5) * 18;
       if (speck > 0.82) {
-        r += 18;
-        g += 22;
-        b += 8;
+        r += GROUND.grassLight[0];
+        g += GROUND.grassLight[1];
+        b += GROUND.grassLight[2];
       } else if (speck < 0.08) {
-        r -= 16;
-        g -= 22;
-        b -= 10;
+        r += GROUND.grassDark[0];
+        g += GROUND.grassDark[1];
+        b += GROUND.grassDark[2];
       }
       const i = (y * size + x) * 4;
       data[i] = Math.max(0, Math.min(255, r));
@@ -119,13 +121,13 @@ function createRoadTexture(quality) {
   for (let y = 0; y < across; y++) {
     for (let x = 0; x < along; x++) {
       const n = valueNoise(x / 20, y / 10) * 0.6 + hash2(x, y) * 0.4;
-      let r = 48 + n * 18;
-      let g = 48 + n * 18;
-      let b = 50 + n * 16;
+      let r = GROUND.road[0] + n * 16;
+      let g = GROUND.road[1] + n * 16;
+      let b = GROUND.road[2] + n * 15;
       // Dashed center line (on 40%, off 60% of the tile)
       const onDash = (x % 40) < 16;
       if (onDash && Math.abs(y - mid) <= 1.5) {
-        r = 220; g = 196; b = 64;
+        r = GROUND.line[0]; g = GROUND.line[1]; b = GROUND.line[2];
       }
       const i = (y * along + x) * 4;
       data[i] = r;
@@ -154,9 +156,11 @@ function createSidewalkTexture() {
   for (let y = 0; y < size; y++) {
     for (let x = 0; x < size; x++) {
       const n = valueNoise(x / 16, y / 16) * 0.7 + hash2(x, y) * 0.3;
-      const r = 186 + n * 18;
-      const g = 182 + n * 16;
-      const b = 172 + n * 14;
+      // A darker expansion joint every half tile breaks up the slab.
+      const joint = (x % 64 === 0 || y % 64 === 0) ? 0.78 : 1;
+      const r = (GROUND.walk[0] + n * 16) * joint;
+      const g = (GROUND.walk[1] + n * 15) * joint;
+      const b = (GROUND.walk[2] + n * 13) * joint;
       const i = (y * size + x) * 4;
       data[i] = r;
       data[i + 1] = g;
@@ -183,13 +187,13 @@ export const STREET = {
 };
 
 /** Large inverted dome, fog disabled, drawn behind the world. */
-function createSkyDome(quality) {
+function createSkyDome(quality, look) {
   const radius = quality.far * 0.85;
   const geometry = new THREE.SphereGeometry(radius, 16, 12);
   const uniforms = {
-    topColor: { value: new THREE.Color(0x4e9ad8) },
-    bottomColor: { value: new THREE.Color(0xd4ecfa) },
-    exponent: { value: 0.7 }
+    topColor: { value: new THREE.Color(look.skyTop) },
+    bottomColor: { value: new THREE.Color(look.skyBottom) },
+    exponent: { value: look.exponent }
   };
   const material = new THREE.ShaderMaterial({
     uniforms,
@@ -222,14 +226,45 @@ function createSkyDome(quality) {
   return sky;
 }
 
+/**
+ * The Kenney GLB ships every material with metalness 1 / roughness 1 (the glTF
+ * default). With no environment map a fully metallic surface has almost no
+ * diffuse light, which is why the house read as flat, muddy red. Give each
+ * material (matched by the GLB's own names) a palette colour and a real
+ * roughness / metalness. Names are kept: other code finds doors and windows by them.
+ */
+export function gradeMainHouse(model) {
+  const seen = new Set();
+  model.traverse((o) => {
+    if (!o.isMesh) return;
+    const list = Array.isArray(o.material) ? o.material : [o.material];
+    for (const m of list) {
+      if (!m || seen.has(m)) continue;
+      seen.add(m);
+      const spec = MAIN_HOUSE[m.name];
+      m.metalness = spec ? spec.metalness : 0;
+      m.roughness = spec ? spec.roughness : 0.9;
+      if (spec) {
+        m.color.setHex(spec.color);
+        if (spec.emissive !== undefined && m.emissive) m.emissive.setHex(spec.emissive);
+      }
+      m.needsUpdate = true;
+    }
+  });
+  return model;
+}
+
 export function createScene(quality) {
   const scene = new THREE.Scene();
   const colliders = createColliderWorld();
   scene.userData.colliders = colliders;
-  const horizon = new THREE.Color(0xd4ecfa);
+  // Start from the 10:00 key (the same palette daynight.js applies), so the
+  // first frame and the first day/night update agree: no flash of the old sky.
+  const look = sampleLighting(10 * 60);
+  const horizon = new THREE.Color(look.fog);
   scene.background = horizon;
-  scene.fog = new THREE.Fog(horizon, quality.far * 0.55, quality.far * 0.98);
-  scene.add(createSkyDome(quality));
+  scene.fog = new THREE.Fog(horizon, quality.far * LOOK.fog.near, quality.far * LOOK.fog.far);
+  scene.add(createSkyDome(quality, look));
 
   // Ground with a repeating grass canvas texture
   const groundGeo = new THREE.PlaneGeometry(100, 100);
@@ -291,8 +326,8 @@ export function createScene(quality) {
     height: 6,
     depth: 10,
     roofType: 'pyramid',
-    wallColor: 0xd2b48c,
-    roofColor: 0x8b4513,
+    wallColor: MAIN_HOUSE._defaultMat.color,
+    roofColor: MAIN_HOUSE.roof.color,
     hasDoor: false,
     shadows: quality.shadows
   });
@@ -307,7 +342,7 @@ export function createScene(quality) {
     width: 1.04, // matches the 1.04 m opening in the Kenney model
     height: 2.0,
     depth: 0.1,
-    color: 0x654321,
+    color: PROPS.doorWood,
     shadows: quality.shadows,
     id: 'main-door'
   });
@@ -322,13 +357,13 @@ export function createScene(quality) {
   // Extensions (garage / wing) face away from the Kenney house so the
   // walking gaps between lots stay open.
   const lots = [
-    { name: 'house-sw', x: -13, z: -10.8, rotY: 0, width: 7.5, depth: 9, height: 3.5, roofType: 'gable', wallColor: 0xa8c5e0, roofColor: 0x6b3a2a, windowCount: 4,
+    { name: 'house-sw', x: -13, z: -10.8, rotY: 0, width: 7.5, depth: 9, height: 3.5, roofType: 'gable', wallColor: HOUSE.lots[0].wall, roofColor: HOUSE.lots[0].roof, windowCount: 4,
       seed: 11, windowLayout: 'shutters', chimney: true, porch: { depth: 1.4, width: 3.2, roof: 'shed' } },
-    { name: 'house-se', x: 13.5, z: -10.05, rotY: 0, width: 8.25, depth: 9.3, height: 3.8, roofType: 'hip', wallColor: 0xe8d5b7, roofColor: 0x4a5560, windowCount: 3,
+    { name: 'house-se', x: 13.5, z: -10.05, rotY: 0, width: 8.25, depth: 9.3, height: 3.8, roofType: 'hip', wallColor: HOUSE.lots[1].wall, roofColor: HOUSE.lots[1].roof, windowCount: 3,
       seed: 22, windowLayout: 'bay', extension: { side: 1, type: 'garage', width: 3.2 } },
-    { name: 'house-nw', x: -13, z: 6.85, rotY: Math.PI, width: 7.5, depth: 8.7, height: 3.6, roofType: 'shed', wallColor: 0xd4d0c8, roofColor: 0x5c4033, windowCount: 3,
+    { name: 'house-nw', x: -13, z: 6.85, rotY: Math.PI, width: 7.5, depth: 8.7, height: 3.6, roofType: 'shed', wallColor: HOUSE.lots[2].wall, roofColor: HOUSE.lots[2].roof, windowCount: 3,
       seed: 33, windowLayout: 'ribbon', chimney: true, extension: { side: 1, type: 'wing', width: 3.0 } },
-    { name: 'house-ne', x: 13.2, z: 8.3, rotY: Math.PI, width: 7.8, depth: 9, height: 3.7, roofType: 'gable', wallColor: 0xc9a66b, roofColor: 0x7a2e2e, windowCount: 4,
+    { name: 'house-ne', x: 13.2, z: 8.3, rotY: Math.PI, width: 7.8, depth: 9, height: 3.7, roofType: 'gable', wallColor: HOUSE.lots[3].wall, roofColor: HOUSE.lots[3].roof, windowCount: 4,
       seed: 44, windowLayout: 'grid', chimney: true, porch: { depth: 1.2, width: 3.0, roof: 'gable' } }
   ];
   const streetHouses = lots.map((lot) => {
@@ -371,31 +406,35 @@ export function createScene(quality) {
   });
   scene.userData.streetHouses = streetHouses;
 
-  // Lighting: sky-blue hemisphere over grass, a soft ambient, and a warm sun
-  const hemi = new THREE.HemisphereLight(0x9ecbff, 0x3d6b32, 0.5);
+  // Lighting: a sky/ground hemisphere, a soft ambient and a warm sun, all
+  // starting from the 10:00 key (daynight.js then takes over).
+  const hemi = new THREE.HemisphereLight(look.hemiSky, look.hemiGround, look.hemiInt);
   hemi.name = 'hemi';
   scene.add(hemi);
 
-  const ambient = new THREE.AmbientLight(0xfff4e8, 0.2);
+  const ambient = new THREE.AmbientLight(look.ambient, look.ambientInt);
   ambient.name = 'ambient';
   scene.add(ambient);
 
-  const sun = new THREE.DirectionalLight(0xffe2b8, 1.25);
+  const sun = new THREE.DirectionalLight(look.sun, look.sunInt);
   sun.name = 'sun';
-  sun.position.set(22, 32, 16);
+  sun.position.set(look.sunPos[0], look.sunPos[1], look.sunPos[2]);
   sun.target.position.set(0, 0, -2);
   sun.castShadow = quality.shadows;
   if (quality.shadows) {
-    sun.shadow.mapSize.width = 1024;
-    sun.shadow.mapSize.height = 1024;
-    sun.shadow.camera.near = 1;
-    sun.shadow.camera.far = 110;
-    sun.shadow.camera.left = -44;
-    sun.shadow.camera.right = 44;
-    sun.shadow.camera.top = 44;
-    sun.shadow.camera.bottom = -44;
-    sun.shadow.bias = -0.0004;
-    sun.shadow.normalBias = 0.035;
+    // Desktop only. 2048 over ±38 m is ~3.7 cm a texel (was 1024 over ±44 m),
+    // which tightens the contact shadows under the rounded props and eaves.
+    const sh = LOOK.shadow;
+    sun.shadow.mapSize.width = sh.mapSize;
+    sun.shadow.mapSize.height = sh.mapSize;
+    sun.shadow.camera.near = sh.near;
+    sun.shadow.camera.far = sh.far;
+    sun.shadow.camera.left = -sh.extent;
+    sun.shadow.camera.right = sh.extent;
+    sun.shadow.camera.top = sh.extent;
+    sun.shadow.camera.bottom = -sh.extent;
+    sun.shadow.bias = sh.bias;
+    sun.shadow.normalBias = sh.normalBias;
   }
   scene.add(sun);
   scene.add(sun.target);
@@ -505,6 +544,7 @@ export function createScene(quality) {
           o.receiveShadow = quality.shadows;
         }
       });
+      gradeMainHouse(model);
       scene.add(model);
 
       // Swap out the placeholder procedural house

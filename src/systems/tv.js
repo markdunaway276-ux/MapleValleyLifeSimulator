@@ -6,6 +6,8 @@
  */
 import * as THREE from 'three';
 import { TV_CENTER, TV_SIZE, TV_INTERACT, TV_COLLIDER, TV_YAW } from '../world/interior.js';
+import { PROPS } from '../world/palette.js';
+import { bevelBox } from '../world/shapes.js';
 
 export { TV_CENTER, TV_SIZE, TV_INTERACT, TV_COLLIDER, TV_YAW };
 
@@ -75,22 +77,22 @@ export function createTv({ on = false, shadows = false } = {}) {
   group.name = 'tv';
   group.rotation.y = TV_YAW;
 
-  const standMat = new THREE.MeshLambertMaterial({ color: 0x4a3a2a });
-  const bodyMat = new THREE.MeshLambertMaterial({ color: 0x1a1c20 });
-  const stand = new THREE.Mesh(new THREE.BoxGeometry(0.28, 0.42, 0.2), standMat);
+  const standMat = new THREE.MeshLambertMaterial({ color: PROPS.tvStand });
+  const bodyMat = new THREE.MeshLambertMaterial({ color: PROPS.tvBody });
+  const stand = new THREE.Mesh(bevelBox(0.28, 0.42, 0.2, { max: 0.03 }), standMat);
   stand.name = 'tv-stand';
   stand.position.set(0, 0.21, 0);
   stand.castShadow = false;
   stand.receiveShadow = false;
   group.add(stand);
 
-  const neck = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.12, 0.06), standMat);
+  const neck = new THREE.Mesh(bevelBox(0.06, 0.12, 0.06, { max: 0.015 }), standMat);
   neck.position.set(0, 0.48, 0);
   neck.castShadow = false;
   neck.receiveShadow = false;
   group.add(neck);
 
-  const body = new THREE.Mesh(new THREE.BoxGeometry(TV_SIZE.width, 0.4, 0.08), bodyMat);
+  const body = new THREE.Mesh(bevelBox(TV_SIZE.width, 0.4, 0.08, { segments: 2, max: 0.03 }), bodyMat);
   body.name = 'tv-body';
   body.position.set(0, 0.7, 0);
   body.castShadow = false;

@@ -1,5 +1,7 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
+import { PROPS, SURFACE } from './palette.js';
+import { bevelBox } from './shapes.js';
 
 /**
  * Where the driver sits, in the car's local frame (+x is the nose, -z is the
@@ -12,7 +14,7 @@ export const CAR_SPAWN = { x: 6.8, z: -0.2, rotY: 0 };
 function lightGeometry(x, ys, zs, sx, sy, sz) {
   const parts = [];
   for (const z of zs) {
-    const g = new THREE.BoxGeometry(sx, sy, sz);
+    const g = bevelBox(sx, sy, sz, { max: 0.02 });
     g.translate(x, ys, z);
     parts.push(g);
   }
@@ -27,15 +29,15 @@ function lightGeometry(x, ys, zs, sx, sy, sz) {
  */
 export function createCarAssets(quality = {}) {
   const shadows = !!quality.shadows;
-  const bodyGeo = new THREE.BoxGeometry(4.0, 0.95, 1.75);
-  const cabinGeo = new THREE.BoxGeometry(1.9, 0.72, 1.62);
-  const wheelGeo = new THREE.CylinderGeometry(0.32, 0.32, 0.24, 10);
+  const bodyGeo = bevelBox(4.0, 0.95, 1.75, { segments: 2, max: 0.16 });
+  const cabinGeo = bevelBox(1.9, 0.72, 1.62, { segments: 2, max: 0.14 });
+  const wheelGeo = new THREE.CylinderGeometry(0.32, 0.32, 0.24, 14);
   const headGeo = lightGeometry(2.0, 0.72, [-0.58, 0.58], 0.06, 0.16, 0.34);
   const tailGeo = lightGeometry(-2.0, 0.76, [-0.62, 0.62], 0.06, 0.14, 0.3);
   const steerGeo = new THREE.TorusGeometry(0.17, 0.025, 6, 12);
-  const bodyMat = new THREE.MeshStandardMaterial({ color: 0x3a4a62, roughness: 0.55, metalness: 0.22 });
-  const cabinMat = new THREE.MeshStandardMaterial({ color: 0x1c2836, roughness: 0.3, metalness: 0.12 });
-  const wheelMat = new THREE.MeshStandardMaterial({ color: 0x1a1a1a, roughness: 0.95, metalness: 0 });
+  const bodyMat = new THREE.MeshStandardMaterial({ color: PROPS.carBody, roughness: SURFACE.carPaint.roughness, metalness: SURFACE.carPaint.metalness });
+  const cabinMat = new THREE.MeshStandardMaterial({ color: PROPS.carCabin, roughness: SURFACE.glass.roughness + 0.1, metalness: 0.18 });
+  const wheelMat = new THREE.MeshStandardMaterial({ color: PROPS.carWheel, roughness: SURFACE.rubber.roughness, metalness: 0 });
   const headMat = new THREE.MeshStandardMaterial({ color: 0xf2e6b0, emissive: 0x6a5d28, roughness: 0.4 });
   const tailMat = new THREE.MeshStandardMaterial({ color: 0xb02a2a, emissive: 0x3a0a0a, roughness: 0.5 });
   const steerMat = new THREE.MeshStandardMaterial({ color: 0x151515, roughness: 0.8 });

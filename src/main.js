@@ -12,6 +12,7 @@ import { updatePickups } from './world/pickups.js';
 import { createDebug } from './systems/debug.js';
 import { createClock } from './systems/time.js';
 import { createDayNight } from './world/daynight.js';
+import { LOOK } from './world/palette.js';
 import { createHudClock } from './ui/hudClock.js';
 import { createSfx, cueInteract } from './systems/sfx.js';
 import { createHudMute } from './ui/hudMute.js';
@@ -51,8 +52,8 @@ renderer.setPixelRatio(quality.pixelRatio);
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
-// Slightly lower exposure supports the darker, richer lighting palette.
-renderer.toneMappingExposure = 0.95;
+// Exposure comes from the palette file (0.95, set by 83bc107) next to the shadow settings.
+renderer.toneMappingExposure = LOOK.exposure;
 renderer.shadowMap.enabled = quality.shadows;
 if (quality.shadows) renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 document.body.appendChild(renderer.domElement);
