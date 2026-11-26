@@ -44,19 +44,24 @@ export function buyFromShop(shopOrId, ctx = {}, offer = null) {
   const toast = typeof ctx.toast === 'function' ? ctx.toast : null;
 
   if (!money || typeof money.spend !== 'function') return false;
-  if (!money.spend(price)) {
-    if (toast) toast(NOT_ENOUGH_CASH);
-    return false;
+  const details = { category: 'Purchase', label: (item.name || item.item) + ' · ' + shop.name };
+  const grant = () => inventory?.addItem?.(item.item, count);
+  let added;
+  if (typeof money.purchase === 'function') {
+    if (price <= 0 || !money.canAfford(price)) {
+      if (toast) toast(NOT_ENOUGH_CASH);
+      return false;
+    }
+    added = money.purchase(price, details, grant);
+  } else {
+    if (!money.spend(price, details)) {
+      if (toast) toast(NOT_ENOUGH_CASH);
+      return false;
+    }
+    added = grant();
+    if (!added) money.add(price);
   }
-  if (!inventory || typeof inventory.addItem !== 'function') {
-    money.add(price);
-    return false;
-  }
-  const added = inventory.addItem(item.item, count);
-  if (!added) {
-    money.add(price);
-    return false;
-  }
+  if (!added) return false;
   if (ctx.sfx && item.sfx && typeof ctx.sfx.play === 'function') ctx.sfx.play(item.sfx);
   if (toast) toast(shopToast(item));
   return added;

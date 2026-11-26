@@ -401,6 +401,7 @@ export function createPhone({
   canOpen = null,
   getTime = null,
   getMoney = null,
+  getFinances = null,
   onMoneyChange = null,
   clock = null,
   apps = PHONE_APPS,
@@ -528,6 +529,7 @@ export function createPhone({
 
   const ctx = {
     getTime: () => (typeof getTime === 'function' ? getTime() : (clock && typeof clock.getTime === 'function' ? clock.getTime() : null)),
+    getFinances,
     getMoney: () => (typeof getMoney === 'function' ? getMoney() : 0),
     onMoneyChange: typeof onMoneyChange === 'function' ? onMoneyChange : null,
     attachMap: typeof attachMap === 'function' ? attachMap : null,

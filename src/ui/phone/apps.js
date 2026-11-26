@@ -2,7 +2,7 @@
  * Phone app registry. Each later app is one entry: add it here and it
  * appears on the home grid.
  */
-import { formatCash } from '../../systems/money.js';
+import { renderBankApp } from './bank.js';
 import { renderStyleApp } from './style.js';
 import { renderCalendarApp } from './calendar.js';
 import { renderSkillsApp } from './skills.js';
@@ -22,24 +22,7 @@ export const PHONE_APPS = [
     id: 'bank',
     name: 'Bank',
     icon: '🏦',
-    render(screen, ctx) {
-      const title = document.createElement('h3');
-      title.className = 'phone-app-title';
-      title.textContent = 'Bank';
-      const label = document.createElement('p');
-      label.className = 'phone-bank-label';
-      label.textContent = 'Cash';
-      const bal = document.createElement('p');
-      bal.className = 'phone-bank-balance';
-      function paint(value) {
-        const raw = value != null ? value : (ctx.getMoney ? ctx.getMoney() : 0);
-        bal.textContent = formatCash(raw);
-      }
-      paint();
-      const off = ctx.onMoneyChange ? ctx.onMoneyChange(paint) : null;
-      screen.append(title, label, bal);
-      return () => { if (typeof off === 'function') off(); };
-    }
+    render: renderBankApp
   },
   {
     id: 'map',

@@ -18,7 +18,7 @@ export function createNeighbourFavour({ savedStage, money, save }) {
   function advance(expected, next, reward = 0) {
     if (stage !== expected) return false;
     stage = next;
-    if (reward) money.add(reward);
+    if (reward) money.add(reward, { category: 'Reward', label: "June's umbrella" });
     save();
     return true;
   }

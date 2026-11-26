@@ -142,9 +142,9 @@ installInteriorInteractables(scene);
 // --- money, mail inbox, look ---------------------------------------------
 const fromSaveBag = Array.isArray(saveData.inventory);
 const bagCash = extractCashFromItems(fromSaveBag ? saveData.inventory : []);
-const money = createMoney();
+const money = createMoney({ getTime: clock.getTime });
 if (saveData.money != null) money.apply(saveData);
-else if (fromSaveBag && bagCash.cash) money.set(bagCash.cash);
+else if (fromSaveBag && bagCash.cash) money.apply(bagCash.cash);
 const inbox = createInbox();
 if (saveData.inbox) inbox.apply(saveData.inbox);
 const appearance = createAppearance();
@@ -287,6 +287,7 @@ const phone = createPhone({
   canOpen: () => mode.canAct() && !mode.menu('dialogue'),
   getTime: () => clock.getTime(),
   getMoney: () => money.get(),
+  getFinances: money.statement,
   onMoneyChange: (fn) => money.onChange(fn),
   clock,
   apps: INSTALLED_APPS,
