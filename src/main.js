@@ -293,6 +293,19 @@ const phone = createPhone({
   bindKey: !isMobile,
   onBeforeOpen: () => { if (inventory.isOpen()) inventory.close(); },
   attachMap: (el) => minimap.attachPhone(el),
+  getDestinations: () => [
+    ...minimap.destinations(),
+    ...getTasks().filter(task => !task.complete && npcs.get(task.npcId)).map(task => ({
+      id: 'task:' + task.id,
+      name: task.title,
+      position: () => getTasks().some(active => active.id === task.id && !active.complete)
+        ? npcs.get(task.npcId)?.position
+        : null
+    }))
+  ],
+  getWaypointId: minimap.getWaypointId,
+  setWaypoint: minimap.setWaypoint,
+  capturePhoto: (aim) => g.presentation.capture(view.draw, renderer.domElement, aim),
   getAppearance: () => appearance.get(),
   setAppearance: (slot, id) => appearance.set(slot, id),
   onAppearanceChange: (fn) => appearance.onChange(fn),

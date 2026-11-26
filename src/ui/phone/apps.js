@@ -8,6 +8,7 @@ import { renderCalendarApp } from './calendar.js';
 import { renderSkillsApp } from './skills.js';
 import { renderMessagesApp } from './messages.js';
 import { renderTasksApp } from './tasks.js';
+import { CAMERA_APP, GALLERY_APP } from './photos.js';
 
 export const PHONE_APPS = [
   {
@@ -50,7 +51,24 @@ export const PHONE_APPS = [
       title.textContent = 'Map';
       const wrap = document.createElement('div');
       wrap.className = 'phone-map';
-      screen.append(title, wrap);
+      screen.append(title);
+      if (ctx.getDestinations) {
+        const select = document.createElement('select');
+        select.className = 'phone-map-destination';
+        select.setAttribute('aria-label', 'Map destination');
+        const destinations = ctx.getDestinations();
+        for (const { id, name } of [{ id: '', name: 'Choose a destination' }, ...destinations]) {
+          const option = document.createElement('option');
+          option.value = id;
+          option.textContent = name;
+          select.append(option);
+        }
+        select.value = ctx.getWaypointId();
+        if (select.selectedIndex < 0) select.value = '';
+        select.addEventListener('change', () => ctx.setWaypoint(destinations.find(item => item.id === select.value)));
+        screen.append(select);
+      }
+      screen.append(wrap);
       if (ctx && typeof ctx.attachMap === 'function') return ctx.attachMap(wrap);
       return null;
     }
@@ -134,7 +152,15 @@ const PHONE_SETTINGS_APP = {
       option.textContent = name;
       select.append(option);
     }
-    select.value = ctx.getPhonePrefs().wallpaper;
+    const currentWallpaper = ctx.getPhonePrefs().wallpaper;
+    if (currentWallpaper === 'photo') {
+      const photo = document.createElement('option');
+      photo.value = 'photo';
+      photo.textContent = 'Current photo';
+      photo.disabled = true;
+      select.append(photo);
+    }
+    select.value = currentWallpaper;
     select.addEventListener('change', () => ctx.setPhonePrefs({ wallpaper: select.value }));
     wallpaper.append(select);
     const sound = document.createElement('label');
@@ -152,7 +178,7 @@ const PHONE_SETTINGS_APP = {
   }
 };
 
-export const INSTALLED_APPS = PHONE_APPS.concat(SKILLS_APP, PHONE_SETTINGS_APP, {
+export const INSTALLED_APPS = PHONE_APPS.concat(SKILLS_APP, PHONE_SETTINGS_APP, CAMERA_APP, GALLERY_APP, {
   id: 'tasks', name: 'Tasks', icon: '📋', render: renderTasksApp
 }, CALENDAR_APP);
 

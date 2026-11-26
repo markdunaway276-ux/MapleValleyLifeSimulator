@@ -1,3 +1,4 @@
+import { createPhotoLibrary } from './photos.js';
 /**
  * Basic phone UI. A small HUD button (and P on desktop) opens a
  * phone-shaped overlay with a status bar (game time) and a home grid
@@ -14,7 +15,8 @@ function readPhonePrefs() {
   try {
     const saved = JSON.parse(localStorage.getItem(PHONE_PREFS_KEY));
     return {
-      wallpaper: Object.hasOwn(WALLPAPERS, saved?.wallpaper) ? saved.wallpaper : 'coast',
+      wallpaper: saved?.wallpaper === 'photo' || Object.hasOwn(WALLPAPERS, saved?.wallpaper) ? saved.wallpaper : 'coast',
+      photoId: typeof saved?.photoId === 'string' ? saved.photoId : null,
       sound: saved?.sound === true
     };
   } catch {
@@ -95,6 +97,31 @@ body.mobile #hud-phone {
 }
 .phone-device[data-wallpaper="dusk"] { background: linear-gradient(156deg, #51507f, #6b4857 48%, #1e2538); }
 .phone-device[data-wallpaper="forest"] { background: linear-gradient(156deg, #537768, #263e3c 50%, #152622); }
+.phone-device[data-wallpaper="photo"] {
+  background: linear-gradient(#151f3380, #151f3390), var(--phone-photo) center / cover;
+}
+.phone-overlay.is-thumb-active .phone-device::after {
+  content: ''; position: absolute; z-index: 4; pointer-events: none;
+  left: var(--phone-thumb-x); top: var(--phone-thumb-y);
+  width: 15%; height: 15%; border-radius: 45%;
+  transform: translate(-38%, -40%) rotate(24deg);
+  background: linear-gradient(110deg, #83bdca33, transparent), var(--phone-thumb-tint);
+  box-shadow: 0 2px 6px #12192266;
+}
+.phone-lock-preview {
+  width: min(100%, 250px); color: #fff; background: #243041bb; border: 0;
+  border-radius: 14px; min-height: 44px; padding: 8px; cursor: pointer;
+  text-align: left; overflow-wrap: anywhere;
+}
+.phone-lock-preview span { display: block; opacity: 0.8; }
+.phone-map-destination {
+  min-height: 44px; flex-shrink: 0; margin-bottom: 8px;
+  border-radius: 8px; color: white; background: #293748;
+}
+.phone-viewfinder { width: 100%; display: block; border-radius: 10px; touch-action: none; object-fit: contain; }
+.phone-photo-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
+.phone-photo-grid button { padding: 4px; min-width: 0; }
+.phone-photo-grid img { display: block; width: 100%; }
 .phone-status-left { touch-action: none; }
 .phone-shade-toggle {
   flex: 0 0 auto; min-width: 38px; min-height: 44px; padding: 0;
@@ -379,13 +406,21 @@ export function createPhone({
   onSkillsChange = null,
   getInbox = null,
   onInboxChange = null,
-  playNotification = null
+  playNotification = null,
+  getDestinations = null,
+  getWaypointId = null,
+  setWaypoint = null,
+  capturePhoto = null
 } = {}) {
   ensureStyles();
 
   let opened = false;
   let locked = false;
   let prefs = readPhonePrefs();
+  const photos = createPhotoLibrary({
+    getItem: (key) => localStorage.getItem(key),
+    setItem: (key, value) => localStorage.setItem(key, value)
+  });
   let current = null;
   let appCleanup = null;
 
@@ -406,7 +441,13 @@ export function createPhone({
 
   const device = document.createElement('div');
   device.className = 'phone-device';
-  device.dataset.wallpaper = prefs.wallpaper;
+  function applyWallpaper() {
+    const photo = prefs.wallpaper === 'photo' && photos.list().find(item => item.id === prefs.photoId);
+    device.dataset.wallpaper = prefs.wallpaper === 'photo' && !photo ? 'coast' : prefs.wallpaper;
+    if (photo) device.style.setProperty('--phone-photo', 'url("' + photo.image + '")');
+    else device.style.removeProperty('--phone-photo');
+  }
+  applyWallpaper();
 
   const status = document.createElement('div');
   status.className = 'phone-status';
@@ -477,11 +518,19 @@ export function createPhone({
     getInbox: typeof getInbox === 'function' ? getInbox : null,
     onInboxChange: typeof onInboxChange === 'function' ? onInboxChange : null,
     wallpapers: WALLPAPERS,
+    getDestinations,
+    getWaypointId,
+    setWaypoint,
+    capturePhoto,
+    photos,
+    openApp,
     getPhonePrefs: () => ({ ...prefs }),
     setPhonePrefs(patch) {
-      prefs = { ...prefs, ...patch };
-      device.dataset.wallpaper = prefs.wallpaper;
-      try { localStorage.setItem(PHONE_PREFS_KEY, JSON.stringify(prefs)); } catch { /* storage unavailable */ }
+      const next = { ...prefs, ...patch };
+      try { localStorage.setItem(PHONE_PREFS_KEY, JSON.stringify(next)); } catch { return false; }
+      prefs = next;
+      applyWallpaper();
+      return true;
     },
     previewNotification: () => playNotification?.(),
     clock: clock || null
@@ -605,7 +654,26 @@ export function createPhone({
     unlock.className = 'phone-lock-unlock';
     unlock.textContent = 'Unlock';
     unlock.addEventListener('click', renderHome);
-    lock.append(lockTime, lockDay, unlock);
+    lock.append(lockTime, lockDay);
+    const latest = (ctx.getInbox?.() ?? []).find(Boolean);
+    const task = ctx.getPinnedTask?.() ?? (ctx.getTasks?.() ?? []).find(item => !item.complete);
+    for (const [app, title, summary] of [
+      ['messages', latest?.from, latest?.body],
+      ['tasks', task?.title, task?.step]
+    ]) {
+      if (!title) continue;
+      const card = document.createElement('button');
+      card.type = 'button';
+      card.className = 'phone-lock-preview';
+      const name = document.createElement('strong');
+      name.textContent = title;
+      const preview = document.createElement('span');
+      preview.textContent = summary?.length > 92 ? summary.slice(0, 89) + '…' : summary || '';
+      card.append(name, preview);
+      card.addEventListener('click', () => openApp(app));
+      lock.append(card);
+    }
+    lock.append(unlock);
     swipe(lock, -1, renderHome);
     screen.append(lock);
   }

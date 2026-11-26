@@ -479,6 +479,7 @@ export function createMinimapSurface({
   getPlayer,
   getNpcs = null,
   getVehicles = null,
+  getWaypoint = null,
   cssWidth,
   cssHeight,
   pixelRatio = 1
@@ -530,6 +531,27 @@ export function createMinimapSurface({
     const vehicles = typeof getVehicles === 'function' ? getVehicles() : getVehicles;
     drawVehicles(ctx, vehicles, view);
     drawNpcDots(ctx, npcs, view);
+    const waypoint = getWaypoint?.();
+    if (waypoint && player?.position) {
+      const goal = toMap(view, waypoint.x, waypoint.z);
+      const start = toMap(view, player.position.x, player.position.z);
+      ctx.save();
+      ctx.beginPath();
+      ctx.setLineDash([4, 3]);
+      ctx.moveTo(start.x, start.y);
+      ctx.lineTo(goal.x, goal.y);
+      ctx.strokeStyle = '#6de8f1';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.beginPath();
+      ctx.arc(goal.x, goal.y, 4, 0, Math.PI * 2);
+      ctx.fillStyle = '#6de8f1';
+      ctx.fill();
+      ctx.strokeStyle = '#15323a';
+      ctx.stroke();
+      ctx.restore();
+    }
     drawPlayerArrow(ctx, player, view);
     paints++;
   }
@@ -566,6 +588,8 @@ export function createHudMinimap({
   let bakedInterior = false;
   const listeners = [];
   let phoneSurface = null;
+  let waypoint = null;
+  const getWaypoint = () => waypoint?.position() ?? null;
 
   const getWorld = () => gatherMinimapWorld(scene);
   const getPlayer = () => player;
@@ -598,6 +622,7 @@ export function createHudMinimap({
     getPlayer,
     getNpcs,
     getVehicles,
+    getWaypoint,
     cssWidth: HUD_MINIMAP_SIZE,
     cssHeight: HUD_MINIMAP_SIZE,
     pixelRatio
@@ -682,6 +707,7 @@ export function createHudMinimap({
       getPlayer,
       getNpcs,
       getVehicles,
+      getWaypoint,
       cssWidth: fallbackW,
       cssHeight: fallbackH,
       pixelRatio
@@ -765,6 +791,18 @@ export function createHudMinimap({
     setHudVisible,
     update,
     attachPhone,
+    destinations() {
+      const names = { mailbox: 'Home', market: 'Corner Market', desk: 'Home office' };
+      return getWorld().markers.filter(marker => Object.hasOwn(names, marker.id)).map(marker => ({
+        id: marker.id, name: names[marker.id], position: () => marker
+      }));
+    },
+    getWaypointId: () => waypoint?.id ?? '',
+    setWaypoint(next) {
+      waypoint = next ?? null;
+      hud.redraw();
+      phoneSurface?.redraw();
+    },
     onChange,
     rebuild: () => { hud.rebuild(); if (phoneSurface) phoneSurface.rebuild(); },
     redraw: () => { hud.redraw(); if (phoneSurface) phoneSurface.redraw(); },

@@ -90,14 +90,17 @@ function addGrip(phone, material, includePalm) {
   thumb.position.set(0.046, -0.041, 0.003);
   thumb.rotation.z = 0.23;
   phone.add(thumb);
+  return thumb;
 }
 
 export function createPresentation({ camera, scene, mode, playerBody }) {
   const arm = playerBody.arm;
   const first = makeHandset();
   const third = makeHandset();
-  addGrip(first.phone, arm.material, true);
-  addGrip(third.phone, arm.material, false);
+  const gripMaterial = arm.material.clone();
+  gripMaterial.emissive.setHex(0x377794);
+  gripMaterial.emissiveIntensity = 0;
+  const thumbs = [addGrip(first.phone, gripMaterial, true), addGrip(third.phone, gripMaterial, false)];
   camera.add(first.phone);
 
   // The handset stays attached to the wrist throughout the raise.
@@ -134,6 +137,31 @@ export function createPresentation({ camera, scene, mode, playerBody }) {
   let raise = 0;
   let focus = 0;
   const phoneOverlay = document.getElementById('phone');
+  const screenElement = phoneOverlay.querySelector('.phone-device');
+  const touch = new THREE.Vector2();
+  const thumbOffset = new THREE.Vector2();
+  let heldPointer = null;
+  function followPointer(event) {
+    const rect = screenElement.getBoundingClientRect();
+    if (!rect.width || !rect.height) return;
+    touch.set(
+      THREE.MathUtils.clamp((event.clientX - rect.left) / rect.width, 0.58, 1),
+      THREE.MathUtils.clamp((event.clientY - rect.top) / rect.height, 0.48, 0.92)
+    );
+  }
+  phoneOverlay.addEventListener('pointerdown', (event) => {
+    if (!screenElement.contains(event.target) || heldPointer !== null) return;
+    heldPointer = event.pointerId;
+    followPointer(event);
+  });
+  window.addEventListener('pointermove', (event) => {
+    if (event.pointerId === heldPointer) followPointer(event);
+  });
+  function releasePointer(event) {
+    if (event.pointerId === heldPointer) heldPointer = null;
+  }
+  window.addEventListener('pointerup', releasePointer);
+  window.addEventListener('pointercancel', releasePointer);
   let stride = 0;
   let swing = 0;
   const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
@@ -156,18 +184,31 @@ export function createPresentation({ camera, scene, mode, playerBody }) {
     switchView();
   });
 
-  function update(delta, moved) {
+  function update(delta, moved, minutes) {
     toggle.hidden = !mode.started() || mode.uiBlocked() || !canUseThird();
     const open = mode.menu('phone');
     const target = open ? 1 : 0;
     const closing = !open && focus > 0;
-    if (closing) focus = Math.max(0, focus - delta / FOCUS_SECONDS);
-    const step = reducedMotion.matches ? 1 : delta / RAISE_SECONDS;
+    if (closing) focus = Math.max(0, focus - delta / 0.36);
+    const step = reducedMotion.matches ? 1 : delta / (open ? RAISE_SECONDS : 0.52);
     if (!closing || reducedMotion.matches) raise += Math.sign(target - raise) * Math.min(Math.abs(target - raise), step);
     if (open && raise >= 1) focus = reducedMotion.matches ? 1 : Math.min(1, focus + delta / FOCUS_SECONDS);
     if (!open && reducedMotion.matches) focus = 0;
     const pose = THREE.MathUtils.smoothstep(raise, 0, 1);
     const glow = THREE.MathUtils.smoothstep(raise, 0.65, 1);
+    if (!open) heldPointer = null;
+    const pressing = heldPointer !== null && !reducedMotion.matches;
+    const settle = 1 - Math.exp(-24 * delta);
+    thumbOffset.x = THREE.MathUtils.lerp(thumbOffset.x, pressing ? (touch.x - 1) * SCREEN_WIDTH : 0, settle);
+    thumbOffset.y = THREE.MathUtils.lerp(thumbOffset.y, pressing ? (0.78 - touch.y) * SCREEN_HEIGHT : 0, settle);
+    for (const thumb of thumbs) {
+      thumb.position.set(0.046 + thumbOffset.x, -0.041 + thumbOffset.y, pressing ? 0.009 : 0.003);
+      thumb.rotation.z = 0.23 - thumbOffset.x * 9;
+    }
+    const evening = THREE.MathUtils.smoothstep(minutes, 18 * 60, 20 * 60);
+    const morning = 1 - THREE.MathUtils.smoothstep(minutes, 5 * 60, 7 * 60);
+    gripMaterial.color.copy(arm.material.color);
+    gripMaterial.emissiveIntensity = glow * (evening + morning) * 0.42;
     const walk = canUseThird() && !open && moved > 0.001;
     if (walk) stride += moved * 6;
     swing = THREE.MathUtils.lerp(swing, walk ? 0.38 : 0, 1 - Math.exp(-15 * delta));
@@ -200,6 +241,15 @@ export function createPresentation({ camera, scene, mode, playerBody }) {
         phoneOverlay.style.setProperty('--phone-screen-width', width + 'px');
         phoneOverlay.style.setProperty('--phone-screen-height', height + 'px');
       }
+    }
+    // Put the thumb over the interactive screen while preserving its touch target.
+    if (open && focus >= 1 && (pressing || thumbOffset.lengthSq() > 0.000001)) {
+      phoneOverlay.style.setProperty('--phone-thumb-x', (1 + thumbOffset.x / SCREEN_WIDTH) * 100 + '%');
+      phoneOverlay.style.setProperty('--phone-thumb-y', (0.78 - thumbOffset.y / SCREEN_HEIGHT) * 100 + '%');
+      phoneOverlay.style.setProperty('--phone-thumb-tint', '#' + gripMaterial.color.getHexString());
+      phoneOverlay.classList.add('is-thumb-active');
+    } else {
+      phoneOverlay.classList.remove('is-thumb-active');
     }
     first.screen.material.color.copy(dark).lerp(lit, glow * (1 - focus));
     third.screen.material.color.copy(dark).lerp(lit, glow);
@@ -243,5 +293,30 @@ export function createPresentation({ camera, scene, mode, playerBody }) {
     }
   }
 
-  return { update, draw };
+  function capture(render, source, { yaw = 0, pitch = 0 } = {}) {
+    const firstVisible = first.phone.visible;
+    const thirdVisible = third.phone.visible;
+    const saved = camera.quaternion.clone();
+    const look = new THREE.Euler().setFromQuaternion(saved, 'YXZ');
+    look.y += yaw;
+    look.x = THREE.MathUtils.clamp(look.x + pitch, -1.45, 1.45);
+    first.phone.visible = third.phone.visible = false;
+    camera.quaternion.setFromEuler(look);
+    try {
+      render();
+      const photo = document.createElement('canvas');
+      const scale = Math.min(1, 480 / Math.max(source.width, source.height));
+      photo.width = Math.max(1, Math.round(source.width * scale));
+      photo.height = Math.max(1, Math.round(source.height * scale));
+      photo.getContext('2d').drawImage(source, 0, 0, photo.width, photo.height);
+      return photo.toDataURL('image/jpeg', 0.76);
+    } finally {
+      camera.quaternion.copy(saved);
+      camera.updateMatrixWorld();
+      first.phone.visible = firstVisible;
+      third.phone.visible = thirdVisible;
+    }
+  }
+
+  return { update, draw, capture };
 }

@@ -34,8 +34,8 @@ export function startLoop(g) {
     else if (mode.sitting()) g.sitter.update(delta, { blocked: mode.uiBlocked() });
     else player.update(delta);
     g.playerBody.update(player);
-    g.presentation.update(delta, Math.hypot(player.position.x - prevX, player.position.z - prevZ));
     const currentTime = clock.getTime();
+    g.presentation.update(delta, Math.hypot(player.position.x - prevX, player.position.z - prevZ), currentTime.minutes);
     g.weather.update(delta, currentTime);
     const rain = g.weather.rainAmount();
     g.npcs.update(delta, {
