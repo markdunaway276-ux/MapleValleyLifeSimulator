@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
+import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 
 /** Gentle vignette + mild contrast/saturation grading. Desktop only. */
 const GradeShader = {
@@ -54,6 +55,10 @@ export function createPost({ renderer, scene, camera, enabled }) {
 
   const composer = new EffectComposer(renderer);
   composer.addPass(new RenderPass(scene, camera));
+  // RenderPass draws into a linear render target, so tone mapping (ACES, LOOK.exposure)
+  // and the sRGB conversion are NOT applied there. OutputPass applies them; without it
+  // the whole frame comes out far too dark. The grade below then works on display colours.
+  composer.addPass(new OutputPass());
   const grade = new ShaderPass(GradeShader);
   composer.addPass(grade);
 
