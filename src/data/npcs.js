@@ -22,6 +22,24 @@ export const SAM_PATROL = {
   idle: 2.5
 };
 
+/**
+ * North sidewalk, across the street from your house (road z -3.15..0.85,
+ * so this sidewalk covers z ≈ 0.85..2.35). It stays west of the parked car.
+ */
+export const JUNE_PATROL = {
+  z: 1.6,
+  x0: -7,
+  x1: 3.5,
+  startX: -3,
+  speed: 0.7,
+  idle: 3.5
+};
+
+/**
+ * `look` is the animated character (characterModel.js): body, hair file
+ * (hair-<name>.glb), hair colour and the painted-on outfit. `appearance`
+ * still colours the box placeholder shown while the model loads.
+ */
 export const NPC_DEFS = [
   {
     id: 'sam',
@@ -29,11 +47,35 @@ export const NPC_DEFS = [
     role: 'neighbour',
     jobId: null,
     dialogueId: 'sam',
-    appearance: { skin: 'tan', shirt: 'mustard', pants: 'denim' },
+    appearance: { skin: 'tan', shirt: 'forest', pants: 'denim' },
+    look: {
+      body: 'male',
+      hair: 'simpleparted',
+      hairColor: 0x4a2f1c,
+      outfit: { shirt: 0x3f5a44, pants: 0x3c4c68, shoes: 0x2a211a }
+    },
     radius: NPC_RADIUS,
     noticeRange: NPC_NOTICE_RANGE,
     talkRange: NPC_TALK_RANGE,
     patrol: SAM_PATROL
+  },
+  {
+    id: 'june',
+    name: 'June',
+    role: 'neighbour',
+    jobId: null,
+    dialogueId: 'june',
+    appearance: { skin: 'light', shirt: 'navy', pants: 'charcoal' },
+    look: {
+      body: 'female',
+      hair: 'long',
+      hairColor: 0x6e4a2a,
+      outfit: { shirt: 0x46627a, pants: 0x3a3a40, shoes: 0x2b2420, longSleeve: true }
+    },
+    radius: NPC_RADIUS,
+    noticeRange: NPC_NOTICE_RANGE,
+    talkRange: NPC_TALK_RANGE,
+    patrol: JUNE_PATROL
   }
 ];
 
