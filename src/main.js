@@ -41,6 +41,7 @@ import { createWeather } from './systems/weather.js';
 import { createRain, isInsideMainHouse } from './world/rain.js';
 import { createNpcs } from './world/npc.js';
 import { createDialogue } from './ui/dialogue.js';
+import { createNeighbourFavour } from './systems/neighbourFavour.js';
 import { createHudSave } from './ui/hudSave.js';
 import { createCar } from './systems/car.js';
 import { createSkills, registerCookInteractable } from './systems/skills.js';
@@ -286,7 +287,9 @@ const phone = createPhone({
   getInbox: () => inbox.get(),
   onInboxChange: (fn) => inbox.onChange(fn)
 });
+const neighbourFavour = createNeighbourFavour({ savedStage: saveData.neighbourFavour, money, save });
 const dialogue = createDialogue({
+  getExtraPage: neighbourFavour.pageFor,
   canvas: renderer.domElement,
   isMobile,
   isStarted: () => mode.started(),
@@ -300,7 +303,7 @@ const dialogue = createDialogue({
   getWeather: () => weather.get()
 });
 mode.attach({ phone, dialogue });
-Object.assign(g, { phone, dialogue });
+Object.assign(g, { phone, dialogue, neighbourFavour });
 setupInput(player, isMobile, { isInventoryOpen: () => mode.uiBlocked() });
 
 // --- HUD, mail, interact, start, loop -------------------------------------

@@ -72,7 +72,9 @@ export function startLoop(g) {
     if (g.tvSet) g.tvSet.update(delta, { position: player.position, indoor });
     updateDoors(scene.userData.doors, delta);
     updatePickups(scene.userData.interactables, delta);
-    g.dayNight.update(delta, clock.getTime());
+    const time = clock.getTime();
+    g.dayNight.update(delta, time);
+    scene.userData.frontYard?.update(time.totalMinutes);
     g.prompt.update();
     g.minimap.update(delta);
     g.view.draw();
@@ -81,5 +83,7 @@ export function startLoop(g) {
   frame();
 
   // Auto-save every 10 seconds
-  setInterval(() => g.save(), 10000);
+  setInterval(() => {
+    if (mode.started()) g.save();
+  }, 10000);
 }

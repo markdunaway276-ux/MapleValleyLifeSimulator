@@ -28,6 +28,7 @@ export function gameState(g) {
     interiorLights: g.lights.serialize(),
     tv: g.tvSet.serialize(),
     stats: g.stats ? g.stats.serialize() : undefined,
+    neighbourFavour: g.neighbourFavour.serialize(),
     savedAt: Date.now()
   };
 }

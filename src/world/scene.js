@@ -21,6 +21,7 @@ import { createGrassTexture, createRoadTexture, createSidewalkTexture } from './
 import { createContactShadows } from './contact.js';
 import { buildMainHouseDetails, findGlassPanes, tintGlassPanes } from './details.js';
 import { STREET, SURFACE_Y, surfaceHeightAt } from './street.js';
+import { buildFrontYard, textureHouseExterior } from './frontYard.js';
 
 function disposeGroup(group) {
   const materials = new Set();
@@ -440,6 +441,7 @@ export function createScene(quality) {
         }
       });
       gradeMainHouse(model);
+      textureHouseExterior(model, quality);
       scene.add(model);
 
       // Swap out the placeholder procedural house
@@ -454,6 +456,9 @@ export function createScene(quality) {
       const doorW = Math.min(1.04, Math.max(0.9, d.w * s)); // fills the 1.04 m painted opening
       const doorH = d.h * s;
       const doorZ = doorWorld.z + 0.06;
+      const frontYard = buildFrontYard({ x: doorWorld.x, z: doorZ }, quality);
+      pickups.add(frontYard.group);
+      scene.userData.frontYard = frontYard;
       // Pivot at the left jamb; the panel already matches the 1 × 2 m target size.
       door.position.set(doorWorld.x - doorW / 2, 0, doorZ);
       door.userData.interactLocal.set(doorW / 2, doorH / 2, 0);

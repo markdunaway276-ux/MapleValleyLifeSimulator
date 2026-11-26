@@ -71,3 +71,19 @@ test('clearSave removes the save', () => {
   clearSave();
   assert.deepEqual(loadSave(), {});
 });
+
+test('a running tab keeps saving to the slot it loaded after another tab changes the selection', async () => {
+  const tabOne = await import('../src/systems/save.js?tab=one');
+  const tabTwo = await import('../src/systems/save.js?tab=two');
+
+  tabOne.saveGame({ money: 50 });
+  tabTwo.setActiveSlot(2);
+  tabTwo.saveGame({ money: 100 });
+  tabOne.saveGame({ money: 60 });
+
+  assert.equal(tabOne.loadSave().money, 60);
+  assert.equal(tabTwo.loadSave().money, 100);
+  tabOne.clearSave();
+  assert.equal(tabOne.readSlot(1), null);
+  assert.equal(tabTwo.readSlot(2).money, 100);
+});

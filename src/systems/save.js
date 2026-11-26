@@ -23,8 +23,13 @@ export function getActiveSlot() {
 export function setActiveSlot(slot) {
   const ls = storage();
   const n = Math.min(SLOT_COUNT, Math.max(1, Math.floor(Number(slot)) || 1));
-  try { if (ls) ls.setItem(ACTIVE_SLOT_KEY, String(n)); } catch { /* blocked */ }
-  return n;
+  try {
+    if (!ls) return null;
+    ls.setItem(ACTIVE_SLOT_KEY, String(n));
+    return n;
+  } catch {
+    return null;
+  }
 }
 
 /** The raw save in a slot (no migration), or null if it is empty / unreadable. */
@@ -42,7 +47,7 @@ export function readSlot(slot) {
 
 export function clearSlot(slot) {
   const ls = storage();
-  try { if (ls) ls.removeItem(keyForSlot(slot)); return true; } catch { return false; }
+  try { if (!ls) return false; ls.removeItem(keyForSlot(slot)); return true; } catch { return false; }
 }
 
 // Set while the page is about to reload into another slot, so a late autosave
@@ -51,7 +56,13 @@ let frozen = false;
 export function freezeSaves() { frozen = true; }
 
 /** The active slot's storage key. */
-function currentKey() { return keyForSlot(getActiveSlot()); }
+let gameSlot;
+export function getGameSlot() {
+  gameSlot ??= getActiveSlot();
+  return gameSlot;
+}
+
+function currentKey() { return keyForSlot(getGameSlot()); }
 
 /**
  * Bump this whenever the save's shape changes, and add a matching step to
