@@ -112,14 +112,17 @@ export function createPresentation({ camera, scene, mode, playerBody }) {
     wrist.rotation.x = -2.28 * pose;
     first.phone.position.set(0.21 - 0.105 * pose, -0.42 + 0.28 * pose, -0.42);
     first.phone.rotation.set(0.5 * (1 - pose), 0.16, -0.2 * (1 - pose));
+    first.phone.scale.setScalar(1);
     if (focus > 0 || open) {
       const verticalFov = THREE.MathUtils.degToRad(camera.getEffectiveFOV());
       const focalPixels = window.innerHeight / (2 * Math.tan(verticalFov / 2));
-      const maxVisibleHeight = SCREEN_HEIGHT * focalPixels / (camera.near + 0.025);
-      const height = Math.min(window.innerHeight * 0.84, window.innerWidth * 0.86 * SCREEN_HEIGHT / SCREEN_WIDTH, 680, maxVisibleHeight);
+      const focusedScale = 1.14;
+      const maxVisibleHeight = SCREEN_HEIGHT * focusedScale * focalPixels / (camera.near + 0.025);
+      const height = Math.min(window.innerHeight * 0.91, window.innerWidth * 0.90 * SCREEN_HEIGHT / SCREEN_WIDTH, 740, maxVisibleHeight);
       const width = height * SCREEN_WIDTH / SCREEN_HEIGHT;
-      const depth = SCREEN_HEIGHT * focalPixels / height + 0.006;
+      const depth = focusedScale * (SCREEN_HEIGHT * focalPixels / height + 0.006);
       const zoom = THREE.MathUtils.smoothstep(focus, 0, 1);
+      first.phone.scale.setScalar(THREE.MathUtils.lerp(1, focusedScale, zoom));
       first.phone.position.x *= 1 - zoom;
       first.phone.position.y *= 1 - zoom;
       first.phone.position.z = THREE.MathUtils.lerp(-0.42, -depth, zoom);

@@ -190,14 +190,14 @@ body.mobile #hud-phone {
 }
 .phone-app-icon {
   box-sizing: border-box;
-  width: 56px; height: 56px; min-width: 44px; min-height: 44px;
+  width: 44px; height: 44px; min-width: 44px; min-height: 44px;
   display: flex;
   align-items: center;
   justify-content: center;
   border-radius: 50%;
   background: #d6ebe0;
   box-shadow: inset 0 -3px 6px rgba(0, 0, 0, 0.12);
-  font-size: 28px;
+  font-size: 23px;
   line-height: 1;
 }
 .phone-app:nth-child(3n + 2) .phone-app-icon { background: #dce2fa; }
