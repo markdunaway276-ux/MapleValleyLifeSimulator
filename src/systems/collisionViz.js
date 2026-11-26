@@ -18,7 +18,7 @@ const GREEN = new THREE.Color(0x4cd964);
 export function colliderSignature(list) {
   return list
     .map((c) => (c.type === 'aabb'
-      ? `${c.id}|b|${c.minX}|${c.maxX}|${c.minZ}|${c.maxZ}`
+      ? `${c.id}|b|${c.minX}|${c.maxX}|${c.minZ}|${c.maxZ}${c.disabled ? '|off' : ''}`
       : `${c.id}|c|${c.x}|${c.z}|${c.radius}`))
     .join(';');
 }
@@ -94,6 +94,7 @@ export function createCollisionViz({ scene, getWorld, getPlayerRadius = () => 0.
     const pos = [];
     const col = [];
     for (const c of list) {
+      if (c.disabled) continue; // e.g. the doorway while the front door is open
       if (c.type === 'aabb') addBox(pos, col, c);
       else if (c.type === 'circle') addCylinder(pos, col, c);
     }

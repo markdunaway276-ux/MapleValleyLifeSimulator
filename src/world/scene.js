@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { generateHouse, getHouseColliders } from './buildings.js';
+import { buildMainHouseInterior, removePaintedFrontDoor } from './interior.js';
 import { scatterTrees, TREE_PLACEMENTS } from './trees.js';
 import { createParkedCar } from './props.js';
 import { createColliderWorld } from '../systems/collision.js';
@@ -294,14 +295,14 @@ export function createScene(quality) {
   // Standalone interactable door (kept independent of the fallback / GLB house).
   // Hinged 1 × 2 m door; pivot sits at the left jamb of the fallback's front face.
   const door = createHingedDoor({
-    width: 1.0,
+    width: 1.04, // matches the 1.04 m opening in the Kenney model
     height: 2.0,
     depth: 0.1,
     color: 0x654321,
     shadows: quality.shadows,
     id: 'main-door'
   });
-  door.position.set(-0.5, 0, -4.94);
+  door.position.set(-0.52, 0, -4.94);
   scene.add(door);
 
   // Four generated houses on both sides of the street, facing the road.
@@ -467,23 +468,46 @@ export function createScene(quality) {
       const d = MODEL_FRONT_DOOR;
       const doorWorld = model.localToWorld(new THREE.Vector3(d.x, d.y, d.z));
       // Realign a ~0.9–1.0 × 2.0 m slab over the model's front door
-      const doorW = Math.min(1.0, Math.max(0.9, d.w * s));
+      const doorW = Math.min(1.04, Math.max(0.9, d.w * s)); // fills the 1.04 m painted opening
       const doorH = d.h * s;
       const doorZ = doorWorld.z + 0.06;
       // Pivot at the left jamb; the panel already matches the 1 × 2 m target size.
       door.position.set(doorWorld.x - doorW / 2, 0, doorZ);
       door.userData.interactLocal.set(doorW / 2, doorH / 2, 0);
 
-      // Replace the fallback collider with the Kenney footprint. Front (maxZ) is
-      // inset to the door slab so the porch stays walkable and the door is in range.
+      // The Kenney footprint, as before: front (maxZ) inset to the door slab so the
+      // porch stays walkable and the door is in range. The exterior outline of the
+      // colliders is unchanged; the interior is carved out of it below.
       const kenneyBox = new THREE.Box3().setFromObject(model);
-      colliders.addHouse({
-        id: 'main-house',
-        minX: kenneyBox.min.x,
-        maxX: kenneyBox.max.x,
-        minZ: kenneyBox.min.z,
-        maxZ: doorZ
+      const outer = { minX: kenneyBox.min.x, maxX: kenneyBox.max.x, minZ: kenneyBox.min.z, maxZ: doorZ };
+
+      // Interior: drop the painted-on front door (the hinged door replaces it),
+      // add the inward-facing room shell + furniture, and swap the single house
+      // box for wall colliders with a doorway that is only open with the door.
+      removePaintedFrontDoor(model, { x: doorWorld.x, z: doorWorld.z });
+      const interior = buildMainHouseInterior({
+        shadows: quality.shadows,
+        outer,
+        doorX: doorWorld.x,
+        doorZ,
+        door
       });
+      scene.add(interior.group);
+      colliders.remove('main-house');
+      interior.colliders.forEach((c) => {
+        const added = colliders.addHouse(c);
+        if (c.gate) {
+          // Blocks the doorway only while the door is closed (and nobody is standing in it).
+          Object.defineProperty(added, 'disabled', { get: () => interior.gateDisabled(colliders), enumerable: true });
+        }
+      });
+      scene.userData.interior = {
+        spawn: interior.spawn,
+        bounds: interior.bounds,
+        doorway: interior.doorway,
+        door,
+        group: interior.group
+      };
     },
     undefined,
     (err) => {

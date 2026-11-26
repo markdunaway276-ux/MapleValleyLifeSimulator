@@ -2,6 +2,8 @@
  * Lightweight 2D XZ collision for the neighborhood.
  * Houses are axis-aligned boxes from authored footprints (not Box3 of a
  * pyramid roof). Tree trunks are circles. No physics engine.
+ * A collider with a truthy `disabled` property (a getter is fine) is skipped,
+ * which is how the main house's doorway is open only while its door is open.
  */
 
 export const PLAYER_RADIUS = 0.32;
@@ -85,6 +87,10 @@ function resolveOne(x, z, r, collider, axis) {
 
 export function createColliderWorld() {
   const colliders = [];
+  // Last position handed to resolveMove/resolvePosition; used by gated
+  // colliders (e.g. the front doorway) to know whether someone is standing in them.
+  const lastPoint = { x: 0, z: 0 };
+  let hasLast = false;
 
   function remove(id) {
     const i = colliders.findIndex((c) => c.id === id);
@@ -116,6 +122,7 @@ export function createColliderWorld() {
   function overlaps(x, z, radius = PLAYER_RADIUS) {
     for (let i = 0; i < colliders.length; i++) {
       const c = colliders[i];
+      if (c.disabled) continue;
       if (c.type === 'aabb' && circleOverlapsAABB(x, z, radius, c)) return c;
       if (c.type === 'circle' && circleOverlapsCircle(x, z, radius, c)) return c;
     }
@@ -126,6 +133,7 @@ export function createColliderWorld() {
     for (let iter = 0; iter < 3; iter++) {
       let changed = false;
       for (let i = 0; i < colliders.length; i++) {
+        if (colliders[i].disabled) continue;
         if (axis === 'x') {
           const nx = resolveOne(x, z, radius, colliders[i], 'x');
           if (nx !== x) { x = nx; changed = true; }
@@ -142,6 +150,9 @@ export function createColliderWorld() {
   function resolveMove(x, z, dx, dz, radius = PLAYER_RADIUS) {
     const nx = resolveAxis(x + dx, z, radius, 'x');
     const nz = resolveAxis(nx, z + dz, radius, 'z');
+    lastPoint.x = nx;
+    lastPoint.z = nz;
+    hasLast = true;
     return { x: nx, z: nz };
   }
 
@@ -163,6 +174,7 @@ export function createColliderWorld() {
 
   return {
     colliders,
+    get lastPoint() { return hasLast ? lastPoint : null; },
     addHouse,
     addTree,
     remove,

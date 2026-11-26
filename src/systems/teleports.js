@@ -16,6 +16,7 @@ export const DOOR_STANDOFFS = [2.0, 1.7, 1.5, 2.3, 1.3, 2.6, 2.8];
 export const TELEPORT_PRESETS = [
   { id: 'street-start', label: 'Street start', key: 'F8', kind: 'spawn' },
   { id: 'main-door', label: 'Front of my house', kind: 'door', doorId: 'main-door' },
+  { id: 'inside-house', label: 'Inside my house', kind: 'interior' },
   { id: 'house-sw', label: 'SW neighbor door', kind: 'door', doorId: 'house-sw' },
   { id: 'house-se', label: 'SE neighbor door', kind: 'door', doorId: 'house-se' },
   { id: 'house-nw', label: 'NW neighbor door', kind: 'door', doorId: 'house-nw' },
@@ -156,6 +157,13 @@ export function resolveTeleport(preset, scene, world, radius = 0.32) {
     const s = settle(world, end.x, end.z, radius);
     if (!isClear(world, s.x, s.z, radius)) return null;
     return { id: preset.id, label: preset.label, x: s.x, y, z: s.z, yaw: end.yaw };
+  }
+
+  if (preset.kind === 'interior') {
+    const spot = scene.userData && scene.userData.interior && scene.userData.interior.spawn;
+    if (!spot) return null; // the Kenney model (and its interior) has not loaded
+    if (!isClear(world, spot.x, spot.z, radius)) return null;
+    return { id: preset.id, label: preset.label, x: spot.x, y, z: spot.z, yaw: spot.yaw || 0 };
   }
 
   if (preset.kind === 'car') {

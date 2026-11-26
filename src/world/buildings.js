@@ -277,7 +277,7 @@ function getUnitBox() {
 }
 
 /** Collects transformed geometry pieces and merges them into one BufferGeometry. */
-class Parts {
+export class Parts {
   constructor(colored) {
     this.colored = colored;
     this.list = [];
