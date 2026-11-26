@@ -6,7 +6,7 @@ import { createInventory } from './ui/inventory.js';
 import { STARTER_ITEMS } from './data/items.js';
 import { loadSave, saveGame } from './systems/save.js';
 import { createInteractPrompt, INTERACT_RANGE } from './ui/interactPrompt.js';
-import { nearestDoor, toggleDoor } from './systems/doors.js';
+import { nearestDoor, toggleDoor, updateDoors } from './systems/doors.js';
 
 const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || window.innerWidth < 800;
 
@@ -95,6 +95,7 @@ function animate() {
   lastTime = now;
 
   player.update(delta);
+  updateDoors(scene.userData.doors, delta);
   prompt.update();
   renderer.render(scene, camera);
 }
