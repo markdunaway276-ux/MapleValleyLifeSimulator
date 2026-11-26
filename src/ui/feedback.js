@@ -2,10 +2,12 @@
  * Screenshot markup ("feedback") dialog. Optional debug tool, built lazily the
  * first time a screenshot is taken. Nothing here runs during normal play.
  *
- * Flow: debug.screenshot() snapshots the 3D canvas, opens this dialog, the user
- * draws on it (pen, arrow, box, circle, X, numbered pin), types an optional note
- * and saves a PNG = marked screenshot + gold divider + caption band (note + meta).
- * Pointer events + touch-action:none so it works with mouse, pen and touch.
+ * Flow: debug.screenshot() (HUD camera button, F9, or Debug menu) snapshots the
+ * 3D canvas, opens this dialog, the user draws on it (pen, line, arrow, double
+ * arrow, box, circle, X, green check, question mark, numbered pin; a few colours),
+ * types an optional note and saves a PNG = marked screenshot + gold divider +
+ * caption band (note + meta). Pointer events + touch-action:none so it works
+ * with mouse, pen and touch. The toolbar wraps (and can scroll) on a phone.
  */
 
 export const NOTE_MAX = 2000;
@@ -15,12 +17,35 @@ export const DIVIDER_COLOR = '#d4a72c';
 
 export const TOOLS = [
   { id: 'pen', label: 'Pen' },
+  { id: 'line', label: 'Line' },
   { id: 'arrow', label: 'Arrow' },
+  { id: 'darrow', label: '2-Arrow' },
   { id: 'box', label: 'Box' },
   { id: 'circle', label: 'Circle' },
   { id: 'x', label: 'X' },
+  { id: 'check', label: 'Check' },
+  { id: 'question', label: '?' },
   { id: 'pin', label: 'Pin' }
 ];
+
+export const COLORS = [
+  { id: 'red', value: '#ff3b30' },
+  { id: 'gold', value: '#ffcc00' },
+  { id: 'green', value: '#22c55e' },
+  { id: 'blue', value: '#3b82f6' },
+  { id: 'white', value: '#ffffff' }
+];
+
+export const CHECK_COLOR = '#22c55e';
+
+export function colorForOp(op) {
+  if (op && op.color) return op.color;
+  if (op && op.tool === 'check') return CHECK_COLOR;
+  return MARK_COLOR;
+}
+
+/** Stamp tools are placed with a tap; the rest are dragged. */
+export const STAMP_TOOLS = ['x', 'pin', 'check', 'question'];
 
 const STYLE_ID = 'debug-feedback-styles';
 
@@ -33,17 +58,24 @@ const CSS = `
 #debug-feedback.is-open { display: flex; }
 #debug-feedback .fb-toolbar {
   display: flex; flex-wrap: wrap; gap: 6px; padding: 8px; background: #1a1a1a;
-  border-bottom: 1px solid #333;
+  border-bottom: 1px solid #333; overflow-x: auto; align-items: center;
 }
 #debug-feedback button {
-  margin: 0; min-height: 44px; min-width: 48px; padding: 8px 12px; font: 600 14px system-ui, sans-serif;
+  margin: 0; min-height: 44px; min-width: 44px; padding: 8px 10px; font: 600 14px system-ui, sans-serif;
   color: #fff; background: #2b2b2b; border: 1px solid #555; border-radius: 8px; cursor: pointer;
   touch-action: manipulation; -webkit-tap-highlight-color: transparent;
 }
 #debug-feedback button[aria-pressed="true"] { background: #b3261e; border-color: #ff6b61; }
 #debug-feedback button.fb-primary { background: #1f6f3a; border-color: #3fbf6a; }
 #debug-feedback button:disabled { opacity: 0.45; }
-#debug-feedback .fb-spacer { flex: 1 1 auto; }
+#debug-feedback .fb-spacer { flex: 1 1 auto; min-width: 8px; }
+#debug-feedback .fb-colors { display: flex; gap: 6px; align-items: center; flex: 0 0 auto; }
+#debug-feedback button.fb-color {
+  width: 44px; min-width: 44px; padding: 0; background: var(--swatch); border-width: 2px;
+}
+#debug-feedback button.fb-color[aria-pressed="true"] {
+  background: var(--swatch); border-color: #fff; box-shadow: 0 0 0 2px #111, 0 0 0 4px #fff;
+}
 #debug-feedback .fb-stage {
   flex: 1 1 auto; min-height: 0; display: flex; align-items: center; justify-content: center;
   overflow: hidden; padding: 6px;
@@ -99,10 +131,28 @@ export function markUnit(width) {
   return Math.max(3, Math.round(width / 300));
 }
 
+function strokeShaft(ctx, ax, ay, bx, by) {
+  ctx.beginPath();
+  ctx.moveTo(ax, ay);
+  ctx.lineTo(bx, by);
+  ctx.stroke();
+}
+
+function strokeHead(ctx, ax, ay, bx, by, head) {
+  const ang = Math.atan2(by - ay, bx - ax);
+  ctx.beginPath();
+  ctx.moveTo(bx, by);
+  ctx.lineTo(bx - head * Math.cos(ang - 0.45), by - head * Math.sin(ang - 0.45));
+  ctx.moveTo(bx, by);
+  ctx.lineTo(bx - head * Math.cos(ang + 0.45), by - head * Math.sin(ang + 0.45));
+  ctx.stroke();
+}
+
 export function drawOp(ctx, op, unit) {
   ctx.save();
-  ctx.strokeStyle = MARK_COLOR;
-  ctx.fillStyle = MARK_COLOR;
+  const color = colorForOp(op);
+  ctx.strokeStyle = color;
+  ctx.fillStyle = color;
   ctx.lineWidth = unit;
   ctx.lineCap = 'round';
   ctx.lineJoin = 'round';
@@ -122,21 +172,19 @@ export function drawOp(ctx, op, unit) {
       }
       break;
     }
+    case 'line': {
+      strokeShaft(ctx, op.a[0], op.a[1], op.b[0], op.b[1]);
+      break;
+    }
     case 'arrow': {
-      const [ax, ay] = op.a;
-      const [bx, by] = op.b;
-      const ang = Math.atan2(by - ay, bx - ax);
-      const head = unit * 5;
-      ctx.beginPath();
-      ctx.moveTo(ax, ay);
-      ctx.lineTo(bx, by);
-      ctx.stroke();
-      ctx.beginPath();
-      ctx.moveTo(bx, by);
-      ctx.lineTo(bx - head * Math.cos(ang - 0.45), by - head * Math.sin(ang - 0.45));
-      ctx.moveTo(bx, by);
-      ctx.lineTo(bx - head * Math.cos(ang + 0.45), by - head * Math.sin(ang + 0.45));
-      ctx.stroke();
+      strokeShaft(ctx, op.a[0], op.a[1], op.b[0], op.b[1]);
+      strokeHead(ctx, op.a[0], op.a[1], op.b[0], op.b[1], unit * 5);
+      break;
+    }
+    case 'darrow': {
+      strokeShaft(ctx, op.a[0], op.a[1], op.b[0], op.b[1]);
+      strokeHead(ctx, op.a[0], op.a[1], op.b[0], op.b[1], unit * 5);
+      strokeHead(ctx, op.b[0], op.b[1], op.a[0], op.a[1], unit * 5);
       break;
     }
     case 'box': {
@@ -161,6 +209,29 @@ export function drawOp(ctx, op, unit) {
       ctx.moveTo(x + s, y - s);
       ctx.lineTo(x - s, y + s);
       ctx.stroke();
+      break;
+    }
+    case 'check': {
+      const [x, y] = op.p;
+      const s = unit * 6;
+      ctx.lineWidth = unit * 1.3;
+      ctx.beginPath();
+      ctx.moveTo(x - s, y + s * 0.05);
+      ctx.lineTo(x - s * 0.25, y + s * 0.8);
+      ctx.lineTo(x + s, y - s * 0.85);
+      ctx.stroke();
+      break;
+    }
+    case 'question': {
+      const [x, y] = op.p;
+      const s = unit * 9;
+      ctx.font = `700 ${Math.round(s)}px system-ui, sans-serif`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.lineWidth = Math.max(2, unit / 2);
+      ctx.strokeStyle = color === '#ffffff' ? '#111111' : '#ffffff';
+      ctx.strokeText('?', x, y);
+      ctx.fillText('?', x, y);
       break;
     }
     case 'pin': {
@@ -338,9 +409,11 @@ export function createFeedback({
   let ops = [];
   let current = null;
   let tool = 'pen';
+  let color = MARK_COLOR;
   let opened = false;
   let unit = 3;
   let busy = false;
+  let colorButtons = [];
 
   function build() {
     if (root) return;
@@ -364,6 +437,23 @@ export function createFeedback({
       toolbar.appendChild(b);
       return b;
     });
+    const colors = document.createElement('span');
+    colors.className = 'fb-colors';
+    colorButtons = COLORS.map((c) => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'fb-color';
+      b.dataset.color = c.value;
+      b.dataset.colorId = c.id;
+      b.style.setProperty('--swatch', c.value);
+      b.setAttribute('aria-label', c.id);
+      b.setAttribute('aria-pressed', c.value === color ? 'true' : 'false');
+      b.title = c.id;
+      b.addEventListener('click', () => setColor(c.value));
+      colors.appendChild(b);
+      return b;
+    });
+    toolbar.appendChild(colors);
     const spacer = document.createElement('span');
     spacer.className = 'fb-spacer';
     toolbar.appendChild(spacer);
@@ -428,6 +518,14 @@ export function createFeedback({
   function setTool(id) {
     tool = id;
     for (const b of toolButtons) b.setAttribute('aria-pressed', b.dataset.tool === id ? 'true' : 'false');
+    // Check mark is green in Career Sim; switch the swatch so a tap is green
+    // unless the user then picks a different colour.
+    if (id === 'check') setColor(CHECK_COLOR);
+  }
+
+  function setColor(value) {
+    color = value || MARK_COLOR;
+    for (const b of colorButtons) b.setAttribute('aria-pressed', b.dataset.color === color ? 'true' : 'false');
   }
 
   function toCanvasPoint(e) {
@@ -458,10 +556,12 @@ export function createFeedback({
       try { canvas.setPointerCapture(e.pointerId); } catch { /* ignore */ }
     }
     const p = toCanvasPoint(e);
-    if (tool === 'pen') current = { tool: 'pen', points: [p] };
-    else if (tool === 'x') { ops.push({ tool: 'x', p }); redraw(); return; }
-    else if (tool === 'pin') { ops.push({ tool: 'pin', p, n: pinCount() + 1 }); redraw(); return; }
-    else current = { tool, a: p, b: p };
+    if (tool === 'pen') current = { tool: 'pen', points: [p], color };
+    else if (tool === 'x') { ops.push({ tool: 'x', p, color }); redraw(); return; }
+    else if (tool === 'check') { ops.push({ tool: 'check', p, color }); redraw(); return; }
+    else if (tool === 'question') { ops.push({ tool: 'question', p, color }); redraw(); return; }
+    else if (tool === 'pin') { ops.push({ tool: 'pin', p, n: pinCount() + 1, color }); redraw(); return; }
+    else current = { tool, a: p, b: p, color };
     redraw();
   }
 
@@ -544,6 +644,7 @@ export function createFeedback({
     saveBtn.disabled = false;
     shareBtn.style.display = typeof navigator !== 'undefined' && typeof navigator.canShare === 'function' &&
       typeof navigator.share === 'function' ? '' : 'none';
+    setColor(MARK_COLOR);
     setTool('pen');
     opened = true;
     root.classList.add('is-open');
@@ -608,11 +709,14 @@ export function createFeedback({
     undo,
     clear: clearMarks,
     setTool,
+    setColor,
     compose,
     isOpen: () => opened,
     getOps: () => ops,
     getNote: () => (noteEl ? noteEl.value : ''),
     setNote: (v) => { build(); noteEl.value = v; },
+    getColor: () => color,
+    getTool: () => tool,
     get element() { return root; },
     get canvas() { return canvas; }
   };

@@ -102,7 +102,7 @@ export function setupInput(player, isMobile, { isInventoryOpen } = {}) {
 
     document.addEventListener('touchstart', (e) => {
       if (blocked()) return;
-      if (e.target.closest && e.target.closest('#inventory, #inventory-toggle, #interact-prompt, .debug-ui')) return;
+      if (e.target.closest && e.target.closest('#inventory, #inventory-toggle, #interact-prompt, #hud-screenshot, .debug-ui, .hud-ui')) return;
       if (e.target === joystick || joystick.contains(e.target)) return;
       if (e.touches.length === 1) {
         lookTouch = e.touches[0].identifier;

@@ -22,10 +22,13 @@ Push any change and the link updates in ~1 minute. Open it on your phone anytime
 - `src/core/` — player + input
 - `src/world/` — scene building (`interior.js` = the walk-in interior of the main house: floors, partitions, furniture, doorway colliders)
 - `src/systems/` — save, collision, doors, and optional debug tools (`debug.js`, `collisionViz.js`)
-- `src/ui/` — inventory, door prompt, and debug UI (`debugMenu.js`, `debugOverlay.js`, `feedback.js`)
+- `src/ui/` — inventory, door prompt, HUD screenshot button (`hudScreenshot.js`), and debug UI (`debugMenu.js`, `debugOverlay.js`, `feedback.js`)
 
 ## Main house interior
 Open the front door (walk up and use the prompt) and walk in: a front room (sofa, dining table + chairs), a bedroom and a kitchen. The interior is a few merged single-sided meshes (2 draw calls, no shadow casters) plus one warm point light on desktop only. The doorway collider is open only while the door is open (and never traps you if the door is closed while you stand in it). Exterior and other houses are unchanged.
+
+## Screenshot
+After Start, a camera button (📷) sits in the top-right corner (just left of **Bag** on a phone). Tap it to capture the current view, mark it up, add an optional note, and save a PNG. Tools: pen, line, arrow, double arrow, box, circle, X, check (green by default), question mark, numbered pin, plus a few colours. The same markup dialog opens from `F9` or Debug → Screenshot + markup. `Esc` cancels, `Ctrl/Cmd+Enter` saves.
 
 ## Debug tools (all off by default)
 After pressing Start a small **Debug** button appears in the bottom-right corner (works on phone). It opens a menu with big toggles and buttons:
@@ -33,7 +36,7 @@ After pressing Start a small **Debug** button appears in the bottom-right corner
 - Collision boxes (red = houses/car, cyan = trees, green ring = you)
 - Highlight interactables (gold outline + 3 m ring on every door; turns green when you are in range)
 - Perf stats (draw calls, triangles, geometries, textures)
-- Screenshot + markup (draw with pen/arrow/box/circle/X/numbered pin, add a note, save a PNG with a caption band)
+- Screenshot + markup (same dialog as the HUD camera button: pen/line/arrow/double arrow/box/circle/X/check/question/numbered pin, colours, a note, and a PNG with a caption band)
 - Teleport list: street start, front of my house, inside my house, each neighbour door (SW, SE, NW, NE), west/east ends of the street, by the parked car
 - Clear saved game (tap twice to confirm; you are returned to the street start)
 

@@ -4,10 +4,12 @@ import { TELEPORT_PRESETS, resolveTeleport } from './teleports.js';
 import { createDebugOverlay } from '../ui/debugOverlay.js';
 import { createDebugMenu } from '../ui/debugMenu.js';
 import { createFeedback, snapshotCanvas } from '../ui/feedback.js';
+import { createHudScreenshotButton } from '../ui/hudScreenshot.js';
 
 /**
  * Optional debug utilities. Everything is OFF by default and built lazily:
  *   - corner "Debug" button (visible after Start) -> touch-friendly menu
+ *   - HUD camera button (visible after Start, hidden under inventory/menus)
  *   - FPS / position / quality-tier overlay, perf stats (draw calls, triangles)
  *   - collision visualizer
  *   - interactable highlighter (doors + scene.userData.interactables)
@@ -103,6 +105,20 @@ export function createDebug({
     onSaved: (info) => menu.toast(info.method === 'share' ? 'Shared screenshot' : 'Saved ' + info.filename),
     container
   });
+
+  const hudShot = createHudScreenshotButton({
+    onClick: () => screenshot(),
+    container
+  });
+
+  function syncHud() {
+    hudShot.setVisible(!!isStarted() && !isInventoryOpen() && !isModalOpen());
+  }
+
+  window.addEventListener('inventory-open', syncHud);
+  window.addEventListener('inventory-close', syncHud);
+  window.addEventListener('debug-modal-open', syncHud);
+  window.addEventListener('debug-modal-close', syncHud);
 
   function active() {
     return state.overlay || state.collision || state.highlight || state.perf;
@@ -353,6 +369,7 @@ export function createDebug({
       lastStarted = started;
       menu.setButtonVisible(started);
     }
+    syncHud();
     if (!active()) return;
     frames++;
     if (viz && viz.isEnabled()) viz.updatePlayer(player.position);
@@ -372,10 +389,16 @@ export function createDebug({
   function refresh() {
     lastStarted = !!isStarted();
     menu.setButtonVisible(lastStarted);
+    syncHud();
   }
 
   function dispose() {
     window.removeEventListener('keydown', onKeyDown);
+    window.removeEventListener('inventory-open', syncHud);
+    window.removeEventListener('inventory-close', syncHud);
+    window.removeEventListener('debug-modal-open', syncHud);
+    window.removeEventListener('debug-modal-close', syncHud);
+    hudShot.dispose();
     if (viz) viz.disable();
     if (highlighter) highlighter.disable();
   }
@@ -395,6 +418,7 @@ export function createDebug({
     clearSave,
     requestClearSave,
     screenshot,
+    hudButton: hudShot,
     openMenu,
     closeMenu,
     toggleMenu,
