@@ -1,14 +1,18 @@
 /**
- * Low-poly neighbourhood NPCs. Each one uses the same merged-primitive
- * body as the player, walks a sidewalk patrol, idles at the ends, and
- * stops to face you when you get close. A moving circle collider keeps
+ * Neighbourhood NPCs. Each one walks a sidewalk patrol, idles at the ends,
+ * and stops to face you when you get close. A moving circle collider keeps
  * them from walking through the player.
+ *
+ * The body is an animated character (characterModel.js: walk / idle / talk
+ * clips) once its files load; until then, or if they fail, the merged-box
+ * placeholder body stands in.
  */
 
 import { PLAYER_RADIUS } from '../systems/collision.js';
 import { createPlaceholderBody } from './playerBody.js';
 import { createContactBlob } from './contact.js';
 import { surfaceHeightAt } from './street.js';
+import { createCharacterModel, WALK_CLIP_SPEED } from './characterModel.js';
 import { NPC_DEFS, getNpc as lookupNpc, NPC_NOTICE_RANGE, NPC_TALK_RANGE, NPC_RADIUS } from '../data/npcs.js';
 
 function talkPrompt(name, isMobile) {
@@ -63,6 +67,25 @@ export function createNpc(def, { scene, shadows = false } = {}) {
   const group = body.group;
   group.position.set(x, 0, z);
   group.rotation.y = yaw;
+
+  // Swap in the animated character when it has loaded.
+  let model = null;
+  let disposed = false;
+  if (def.look) {
+    createCharacterModel({ ...def.look, shadows }).then((m) => {
+      if (!m) return;
+      if (disposed) { m.dispose(); return; }
+      model = m;
+      [body.shirt, body.pants, body.skin, body.head].forEach((mesh) => { if (mesh) mesh.visible = false; });
+      group.add(m.object);
+    });
+  }
+
+  function animate(state, seconds, timeScale = 1) {
+    if (!model) return;
+    model.play(state, { timeScale });
+    model.update(seconds);
+  }
 
   // A soft contact shadow under the feet (fake ambient occlusion). It is a
   // child of the body group, so it walks with the NPC; it works on mobile too.
@@ -148,6 +171,7 @@ export function createNpc(def, { scene, shadows = false } = {}) {
       phase = 0;
       moveTo(x, z, player);
       applyPose(0);
+      animate(talking ? 'talk' : 'idle', seconds);
       return;
     }
 
@@ -179,11 +203,16 @@ export function createNpc(def, { scene, shadows = false } = {}) {
       }
     }
 
-    const bob = mode === 'walk' ? Math.abs(Math.sin(phase)) * 0.04 : 0;
+    // The walk clip has its own bob; only the placeholder body needs the fake one.
+    const bob = !model && mode === 'walk' ? Math.abs(Math.sin(phase)) * 0.04 : 0;
     applyPose(bob);
+    const walking = mode === 'walk';
+    animate(walking ? 'walk' : 'idle', seconds, walking ? (patrol.speed || 0.8) / WALK_CLIP_SPEED : 1);
   }
 
   function dispose() {
+    disposed = true;
+    if (model) { group.remove(model.object); model.dispose(); model = null; }
     if (world && collider && typeof world.remove === 'function') world.remove(collider.id);
     if (scene && Array.isArray(scene.userData.interactables)) {
       scene.userData.interactables = scene.userData.interactables.filter((e) => e !== entry);
@@ -206,6 +235,7 @@ export function createNpc(def, { scene, shadows = false } = {}) {
     get id() { return def.id; },
     get name() { return name; },
     get mode() { return mode; },
+    get hasModel() { return !!model; },
     get position() { return { x, y: group.position.y, z }; },
     get yaw() { return yaw; },
     get radius() { return radius; }

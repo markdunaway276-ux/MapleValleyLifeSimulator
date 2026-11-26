@@ -57,6 +57,44 @@ export const DIALOGUE = {
   }
 };
 
+DIALOGUE.june = {
+  default: [
+    {
+      lines: [
+        "Oh, hi! You must be the one who moved into the house across the street.",
+        "I'm June. Welcome to Maple Valley."
+      ]
+    },
+    {
+      lines: [
+        'I walk this side every day. Sam takes the other one, so we wave across the road.'
+      ]
+    }
+  ],
+  dawn: [
+    {
+      lines: [
+        "Early start? Me too. It's the quietest time of day."
+      ]
+    }
+  ],
+  night: [
+    {
+      lines: [
+        "Still out? I'm just getting a little air before bed."
+      ]
+    }
+  ],
+  rain: [
+    {
+      lines: [
+        "A little rain never hurt anybody.",
+        'Besides, the street smells nice after.'
+      ]
+    }
+  ]
+};
+
 export function getDialoguePack(npcId, packs = DIALOGUE) {
   return (packs && packs[npcId]) || null;
 }
