@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { pushOutOBB, syncBoxCollider, PLAYER_RADIUS } from './collision.js';
+import { STREET } from '../world/street.js';
 import { CAR_SEAT, CAR_SIZE, CAR_SPAWN } from '../world/props.js';
 
 /**
@@ -125,11 +126,11 @@ function mtvOBBvsCircle(car, c) {
 }
 
 export function streetBounds(scene) {
-  const s = (scene && scene.userData && scene.userData.street) || { length: 44, roadWidth: 4, sidewalkWidth: 1.5, roadCenterZ: -1.15 };
+  const s = (scene && scene.userData && scene.userData.street) || STREET;
   const half = (s.length || 44) / 2;
-  const roadHalf = (s.roadWidth || 4) / 2;
-  const walk = s.sidewalkWidth || 1.5;
-  const cz = s.roadCenterZ !== undefined ? s.roadCenterZ : -1.15;
+  const roadHalf = (s.roadWidth || STREET.roadWidth) / 2;
+  const walk = s.sidewalkWidth || STREET.sidewalkWidth;
+  const cz = s.roadCenterZ !== undefined ? s.roadCenterZ : STREET.roadCenterZ;
   return { minX: -half + 0.5, maxX: half - 0.5, minZ: cz - roadHalf - walk, maxZ: cz + roadHalf + walk };
 }
 
@@ -344,7 +345,7 @@ export function createCar({
       if (world.overlaps(out.x, out.z, R * 0.99)) continue;
       return { x: out.x, z: out.z, side: ['left', 'right', 'behind', 'front'][i] };
     }
-    const spawn = (scene.userData && scene.userData.spawn) || { x: 0, z: -1.15 };
+    const spawn = (scene.userData && scene.userData.spawn) || STREET.spawn;
     const out = world.unstick(spawn.x, spawn.z, R, spawn);
     return { x: out.x, z: out.z, side: 'spawn' };
   }

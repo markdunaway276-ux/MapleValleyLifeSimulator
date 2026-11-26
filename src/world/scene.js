@@ -9,7 +9,7 @@ import { createLightSwitch } from '../systems/lights.js';
 import { createTv, tvCollider } from '../systems/tv.js';
 import { createSeats } from '../systems/sit.js';
 import { scatterTrees, TREE_PLACEMENTS } from './trees.js';
-import { createParkedCar } from './props.js';
+import { CAR_SPAWN, createParkedCar } from './props.js';
 import { createSnackPickup, createMailbox, MAILBOX_SPAWN, SNACK_SPAWN, mailboxCollider } from './pickups.js';
 import { createVendingMachine, VENDING_SPAWN, vendingCollider } from './vending.js';
 import { createColliderWorld } from '../systems/collision.js';
@@ -21,7 +21,7 @@ import { HOUSE, LOOK, MAIN_HOUSE, PROPS, TEXTURE } from './palette.js';
 import { createGrassTexture, createRoadTexture, createSidewalkTexture } from './textures.js';
 import { createContactShadows } from './contact.js';
 import { buildMainHouseDetails, findGlassPanes, tintGlassPanes } from './details.js';
-import { STREET, SURFACE_Y, surfaceHeightAt } from './street.js';
+import { NORTH_FRONTAGE_OFFSET, STREET, SURFACE_Y, surfaceHeightAt } from './street.js';
 import { buildFrontYard, textureHouseExterior } from './frontYard.js';
 
 function disposeGroup(group) {
@@ -213,9 +213,9 @@ export function createScene(quality) {
       seed: 11, windowLayout: 'shutters', chimney: true, porch: { depth: 1.4, width: 3.2, roof: 'shed' } },
     { name: 'house-se', x: 13.5, z: -10.05, rotY: 0, width: 8.25, depth: 9.3, height: 3.8, roofType: 'hip', wallColor: HOUSE.lots[1].wall, roofColor: HOUSE.lots[1].roof, windowCount: 3,
       seed: 22, windowLayout: 'bay', extension: { side: 1, type: 'garage', width: 3.2 } },
-    { name: 'house-nw', x: -13, z: 6.85, rotY: Math.PI, width: 7.5, depth: 8.7, height: 3.6, roofType: 'shed', wallColor: HOUSE.lots[2].wall, roofColor: HOUSE.lots[2].roof, windowCount: 3,
+    { name: 'house-nw', x: -13, z: 6.85 + NORTH_FRONTAGE_OFFSET, rotY: Math.PI, width: 7.5, depth: 8.7, height: 3.6, roofType: 'shed', wallColor: HOUSE.lots[2].wall, roofColor: HOUSE.lots[2].roof, windowCount: 3,
       seed: 33, windowLayout: 'ribbon', chimney: true, extension: { side: 1, type: 'wing', width: 3.0 } },
-    { name: 'house-ne', x: 13.2, z: 8.3, rotY: Math.PI, width: 7.8, depth: 9, height: 3.7, roofType: 'gable', wallColor: HOUSE.lots[3].wall, roofColor: HOUSE.lots[3].roof, windowCount: 4,
+    { name: 'house-ne', x: 13.2, z: 8.3 + NORTH_FRONTAGE_OFFSET, rotY: Math.PI, width: 7.8, depth: 9, height: 3.7, roofType: 'gable', wallColor: HOUSE.lots[3].wall, roofColor: HOUSE.lots[3].roof, windowCount: 4,
       seed: 44, windowLayout: 'grid', chimney: true, porch: { depth: 1.2, width: 3.0, roof: 'gable' } }
   ];
   const streetHouses = lots.map((lot) => {
@@ -308,7 +308,7 @@ export function createScene(quality) {
   // Parked car on the north side of the road, east of spawn, clear of the
   // Kenney walking path (x=0) and of the neighbour lots / door approaches.
   const car = createParkedCar({ shadows: quality.shadows });
-  car.position.set(6.8, 0, -0.2);
+  car.position.set(CAR_SPAWN.x, 0, CAR_SPAWN.z);
   scene.add(car);
   colliders.addHouse({
     id: 'parked-car',

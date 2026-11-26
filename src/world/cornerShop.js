@@ -4,8 +4,10 @@ import { getShop } from '../data/shops.js';
 import { getJob } from '../data/jobs.js';
 import { buyFromShop } from '../systems/shop.js';
 
+import { NORTH_FRONTAGE_OFFSET } from './street.js';
+
 const SHOP_X = 20.2;
-const FRONT_Z = 2.8;
+const FRONT_Z = 2.8 + NORTH_FRONTAGE_OFFSET;
 const WIDTH = 5.2;
 const DEPTH = 3.5;
 const HEIGHT = 2.9;

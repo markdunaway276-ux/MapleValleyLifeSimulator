@@ -9,6 +9,7 @@ import { getHouseBounds } from '../world/buildings.js';
 import { STREET } from '../world/scene.js';
 import { TREE_PLACEMENTS } from '../world/trees.js';
 import { MAILBOX_SPAWN } from '../world/pickups.js';
+import { CAR_SPAWN } from '../world/props.js';
 import { VENDING_SPAWN } from '../world/vending.js';
 import { DESK_CENTER } from '../world/interior.js';
 import { houseBounds } from '../systems/collision.js';
@@ -239,7 +240,7 @@ export function gatherMinimapWorld(scene) {
       live: !!ud.car
     });
   } else {
-    markers.push({ id: 'car', kind: 'car', x: 6.8, z: -0.2, rotY: 0, width: 4, depth: 1.85 });
+    markers.push({ id: 'car', kind: 'car', ...CAR_SPAWN, width: 4, depth: 1.85 });
   }
   markers.push({ id: 'desk', kind: 'desk', x: DESK_CENTER.x, z: DESK_CENTER.z });
 

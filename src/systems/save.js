@@ -1,3 +1,5 @@
+import { widenSavedStreetZ } from '../world/street.js';
+
 const BASE_KEY = 'mapleValleyLife_save';
 
 /**
@@ -69,7 +71,7 @@ function currentKey() { return keyForSlot(getGameSlot()); }
  * MIGRATIONS below that turns a save of the previous version into the new one.
  * Saves from before versioning count as version 0.
  */
-export const SAVE_VERSION = 1;
+export const SAVE_VERSION = 2;
 
 /**
  * MIGRATIONS[n] upgrades a version n-1 save to version n. Each step gets a
@@ -89,6 +91,12 @@ const MIGRATIONS = {
       }
       data.inventory = items;
       if (data.money == null && cash > 0) data.money = cash;
+    }
+    return data;
+  },
+  2(data) {
+    for (const point of [data.position, data.car]) {
+      if (point && Number.isFinite(point.z)) point.z = widenSavedStreetZ(point.z);
     }
     return data;
   }

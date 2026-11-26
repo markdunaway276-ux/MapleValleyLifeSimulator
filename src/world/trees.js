@@ -8,16 +8,18 @@ import { bakeFootAo, createPropMaterial } from './surfaces.js';
  * x ≈ -22..22), sidewalks, and the five house lots (Kenney at (0,-10), ~9.7×10.4 m,
  * plus four generated houses on both sides of the street).
  */
+import { NORTH_FRONTAGE_OFFSET } from './street.js';
+
 export const TREE_PLACEMENTS = [
   { x: -13.0, z: -18.0, seed: 101 }, // behind south-west house
   { x: 0.0, z: -19.5, seed: 202 },   // behind Kenney house
   { x: 13.5, z: -18.3, seed: 303 },  // behind south-east house
-  { x: -13.0, z: 15.5, seed: 404 },  // behind north-west house
-  { x: 13.2, z: 15.8, seed: 505 },   // behind north-east house
+  { x: -13.0, z: 15.5 + NORTH_FRONTAGE_OFFSET, seed: 404 },  // behind north-west house
+  { x: 13.2, z: 15.8 + NORTH_FRONTAGE_OFFSET, seed: 505 },   // behind north-east house
   { x: -21.5, z: -9.5, seed: 606 },  // west end, south yard
   { x: 24.0, z: -9.6, seed: 707 },   // east end, south yard (clear of the SE garage)
-  { x: -24.0, z: 6.5, seed: 808 },   // west end, north yard (clear of the NW wing)
-  { x: 21.5, z: 6.8, seed: 909 }     // east end, north yard
+  { x: -24.0, z: 6.5 + NORTH_FRONTAGE_OFFSET, seed: 808 },   // west end, north yard (clear of the NW wing)
+  { x: 21.5, z: 6.8 + NORTH_FRONTAGE_OFFSET, seed: 909 }     // east end, north yard
 ];
 
 function mulberry32(seed) {
