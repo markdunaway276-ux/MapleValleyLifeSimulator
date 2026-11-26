@@ -119,21 +119,25 @@ export function createColliderWorld() {
     return collider;
   }
 
-  function overlaps(x, z, radius = PLAYER_RADIUS) {
+  function skipped(c, skipId) {
+    return !c || c.disabled || (skipId && c.id === skipId);
+  }
+
+  function overlaps(x, z, radius = PLAYER_RADIUS, skipId) {
     for (let i = 0; i < colliders.length; i++) {
       const c = colliders[i];
-      if (c.disabled) continue;
+      if (skipped(c, skipId)) continue;
       if (c.type === 'aabb' && circleOverlapsAABB(x, z, radius, c)) return c;
       if (c.type === 'circle' && circleOverlapsCircle(x, z, radius, c)) return c;
     }
     return null;
   }
 
-  function resolveAxis(x, z, radius, axis) {
+  function resolveAxis(x, z, radius, axis, skipId) {
     for (let iter = 0; iter < 3; iter++) {
       let changed = false;
       for (let i = 0; i < colliders.length; i++) {
-        if (colliders[i].disabled) continue;
+        if (skipped(colliders[i], skipId)) continue;
         if (axis === 'x') {
           const nx = resolveOne(x, z, radius, colliders[i], 'x');
           if (nx !== x) { x = nx; changed = true; }
@@ -147,12 +151,21 @@ export function createColliderWorld() {
     return axis === 'x' ? x : z;
   }
 
-  function resolveMove(x, z, dx, dz, radius = PLAYER_RADIUS) {
-    const nx = resolveAxis(x + dx, z, radius, 'x');
-    const nz = resolveAxis(nx, z + dz, radius, 'z');
-    lastPoint.x = nx;
-    lastPoint.z = nz;
-    hasLast = true;
+  function moveOpts(opts) {
+    if (opts == null) return { skipId: null, record: true };
+    if (typeof opts === 'string') return { skipId: opts, record: true };
+    return { skipId: opts.skipId || null, record: opts.record !== false };
+  }
+
+  function resolveMove(x, z, dx, dz, radius = PLAYER_RADIUS, opts) {
+    const { skipId, record } = moveOpts(opts);
+    const nx = resolveAxis(x + dx, z, radius, 'x', skipId);
+    const nz = resolveAxis(nx, z + dz, radius, 'z', skipId);
+    if (record) {
+      lastPoint.x = nx;
+      lastPoint.z = nz;
+      hasLast = true;
+    }
     return { x: nx, z: nz };
   }
 
@@ -177,6 +190,7 @@ export function createColliderWorld() {
     get lastPoint() { return hasLast ? lastPoint : null; },
     addHouse,
     addTree,
+    addCircle: addTree,
     remove,
     overlaps,
     resolveMove,

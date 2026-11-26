@@ -56,11 +56,17 @@ export function enableBodyShadowLayers(root, layer = HIDDEN_FROM_FP_LAYER) {
   });
 }
 
-export function createPlayerBody({
+/**
+ * Shared low-poly stand-in (torso, legs, arms, head) used by the first-person
+ * player and by NPCs. Pass hideHead to keep the head out of the FP camera.
+ */
+export function createPlaceholderBody({
   scene,
-  camera,
   shadows = false,
-  appearance
+  appearance,
+  name = 'body',
+  prefix = 'body',
+  hideHead = false
 } = {}) {
   const shirtGeo = merge([
     boxAt(0.26, 0.38, 0.15, 0, 1.17, 0),
@@ -86,14 +92,14 @@ export function createPlayerBody({
   const headMat = skinMat('#e0b896');
 
   const shirt = new THREE.Mesh(shirtGeo, shirtMat);
-  shirt.name = 'player-shirt';
+  shirt.name = prefix + '-shirt';
   const pants = new THREE.Mesh(pantsGeo, pantsMat);
-  pants.name = 'player-pants';
+  pants.name = prefix + '-pants';
   const skin = new THREE.Mesh(skinGeo, armsMat);
-  skin.name = 'player-skin';
+  skin.name = prefix + '-skin';
   const head = new THREE.Mesh(headGeo, headMat);
-  head.name = 'player-head';
-  head.layers.set(HIDDEN_FROM_FP_LAYER);
+  head.name = prefix + '-head';
+  if (hideHead) head.layers.set(HIDDEN_FROM_FP_LAYER);
 
   const cast = !!shadows;
   shirt.castShadow = cast;
@@ -106,11 +112,11 @@ export function createPlayerBody({
   head.receiveShadow = false;
 
   const group = new THREE.Group();
-  group.name = 'player-body';
+  group.name = name;
   group.add(shirt, pants, skin, head);
 
   if (scene) scene.add(group);
-  if (shadows && scene) enableBodyShadowLayers(scene);
+  if (shadows && scene && hideHead) enableBodyShadowLayers(scene);
 
   function apply(data) {
     const state = normalizeAppearance(data);
@@ -157,4 +163,20 @@ export function createPlayerBody({
     apply,
     dispose
   };
+}
+
+export function createPlayerBody({
+  scene,
+  camera,
+  shadows = false,
+  appearance
+} = {}) {
+  return createPlaceholderBody({
+    scene,
+    shadows,
+    appearance,
+    name: 'player-body',
+    prefix: 'player',
+    hideHead: true
+  });
 }

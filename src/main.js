@@ -27,6 +27,8 @@ import { createAppearance } from './systems/appearance.js';
 import { createPlayerBody } from './world/playerBody.js';
 import { createWeather } from './systems/weather.js';
 import { createRain, isInsideMainHouse } from './world/rain.js';
+import { createNpcs } from './world/npc.js';
+import { createDialogue } from './ui/dialogue.js';
 
 const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || window.innerWidth < 800;
 
@@ -105,8 +107,11 @@ appearance.onChange((state) => {
   saveGame(gameState());
 });
 
+const npcs = createNpcs({ scene, shadows: quality.shadows });
+
 const instructions = document.getElementById('instructions');
 let phone;
+let dialogue;
 const inventory = createInventory({
   canvas: renderer.domElement,
   isStarted: () => instructions.classList.contains('hidden'),
@@ -178,8 +183,8 @@ phone = createPhone({
   canvas: renderer.domElement,
   isMobile,
   isStarted: () => instructions.classList.contains('hidden'),
-  isBlocked: () => inventory.isOpen() || debug.isModalOpen() || sleeper.isSleeping() || worker.isWorking(),
-  canOpen: () => instructions.classList.contains('hidden') && !sleeper.isSleeping() && !worker.isWorking(),
+  isBlocked: () => inventory.isOpen() || debug.isModalOpen() || sleeper.isSleeping() || worker.isWorking() || (dialogue && dialogue.isOpen()),
+  canOpen: () => instructions.classList.contains('hidden') && !sleeper.isSleeping() && !worker.isWorking() && !(dialogue && dialogue.isOpen()),
   getTime: () => clock.getTime(),
   getMoney: () => money.get(),
   onMoneyChange: (fn) => money.onChange(fn),
@@ -194,7 +199,21 @@ phone = createPhone({
   onWeatherChange: (fn) => weather.onChange(fn)
 });
 
-const uiBlocked = () => inventory.isOpen() || debug.isModalOpen() || sleeper.isSleeping() || worker.isWorking() || phone.isOpen();
+dialogue = createDialogue({
+  canvas: renderer.domElement,
+  isMobile,
+  isStarted: () => instructions.classList.contains('hidden'),
+  isBlocked: () => inventory.isOpen() || debug.isModalOpen() || sleeper.isSleeping() || worker.isWorking() || phone.isOpen(),
+  canOpen: () => instructions.classList.contains('hidden') && !sleeper.isSleeping() && !worker.isWorking(),
+  onBeforeOpen: () => {
+    if (inventory.isOpen()) inventory.close();
+    if (phone.isOpen()) phone.close();
+  },
+  getTime: () => clock.getTime(),
+  getWeather: () => weather.get()
+});
+
+const uiBlocked = () => inventory.isOpen() || debug.isModalOpen() || sleeper.isSleeping() || worker.isWorking() || phone.isOpen() || dialogue.isOpen();
 setupInput(player, isMobile, { isInventoryOpen: uiBlocked });
 
 const hudClock = createHudClock();
@@ -231,9 +250,12 @@ window.addEventListener('debug-modal-open', syncClockHud);
 window.addEventListener('debug-modal-close', syncClockHud);
 window.addEventListener('phone-open', syncClockHud);
 window.addEventListener('phone-close', syncClockHud);
+window.addEventListener('dialogue-open', syncClockHud);
+window.addEventListener('dialogue-close', syncClockHud);
 window.addEventListener('sleep-start', () => {
   if (inventory.isOpen()) inventory.close();
   if (phone.isOpen()) phone.close();
+  if (dialogue.isOpen()) dialogue.close();
   syncClockHud();
 });
 window.addEventListener('sleep-end', syncClockHud);
@@ -243,6 +265,7 @@ window.addEventListener('maple-slept', (e) => {
 window.addEventListener('work-start', () => {
   if (inventory.isOpen()) inventory.close();
   if (phone.isOpen()) phone.close();
+  if (dialogue.isOpen()) dialogue.close();
   syncClockHud();
 });
 window.addEventListener('work-end', syncClockHud);
@@ -307,7 +330,7 @@ window.addEventListener('interact', () => {
       picked: !!ud.picked,
       letterTaken: !!(ud.mail && ud.mail.letterTaken)
     };
-    activateTarget(target, { inventory, scene, player, sfx, money, toast: (msg) => hudMoney.toast(msg), sleep: () => sleeper.start(), work: () => worker.start() });
+    activateTarget(target, { inventory, scene, player, sfx, money, toast: (msg) => hudMoney.toast(msg), sleep: () => sleeper.start(), work: () => worker.start(), dialogue, talk: (def) => dialogue.open(def.id) });
     cueInteract(sfx, target, before);
     prompt.update();
     if (!sleeper.isSleeping() && !worker.isWorking()) saveGame(gameState());
@@ -331,6 +354,7 @@ function animate() {
   const prevZ = player.position.z;
   player.update(delta);
   playerBody.update(player);
+  npcs.update(delta, { player, talkingId: dialogue.isOpen() ? dialogue.currentNpc() : null });
   weather.update(delta, clock.getTime());
   weather.applyFog(scene, quality);
   const indoor = isInsideMainHouse(scene, player.position);

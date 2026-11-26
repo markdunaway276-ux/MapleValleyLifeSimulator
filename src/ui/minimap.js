@@ -1,8 +1,8 @@
 /**
  * Neighborhood minimap. A fixed north-up 2D view of the street, houses,
  * trees and a few landmarks, with the player as a heading arrow. The
- * static layer is painted once to an offscreen canvas; the player is
- * redrawn at about 10 Hz. The HUD chip sits in the bottom-left corner
+ * static layer is painted once to an offscreen canvas; the player and
+ * any NPC dots are redrawn at about 10 Hz. The HUD chip sits in the bottom-left corner
  * (above the joystick on a phone). Preference is stored in localStorage.
  */
 import { getHouseBounds } from '../world/buildings.js';
@@ -32,6 +32,8 @@ export const MINIMAP_COLORS = {
   car: '#3d4a5c',
   player: '#ffe566',
   playerStroke: '#1a1a12',
+  npc: '#e07a4a',
+  npcStroke: '#3a1c12',
   north: 'rgba(255,255,255,0.9)',
   frame: 'rgba(0,0,0,0.35)'
 };
@@ -411,6 +413,26 @@ export function drawPlayerArrow(ctx, player, view) {
   ctx.restore();
 }
 
+export function drawNpcDots(ctx, npcs, view) {
+  const C = MINIMAP_COLORS;
+  const list = Array.isArray(npcs) ? npcs : [];
+  if (!list.length || !view) return;
+  for (let i = 0; i < list.length; i++) {
+    const n = list[i];
+    const pos = n && (n.position || n);
+    if (!pos || pos.x == null || pos.z == null) continue;
+    const p = toMap(view, pos.x, pos.z);
+    const r = Math.max(2.6, 2.2 * (view.scale / 4) + 1.2);
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, r, 0, Math.PI * 2);
+    ctx.fillStyle = C.npc;
+    ctx.strokeStyle = C.npcStroke;
+    ctx.lineWidth = 1;
+    ctx.fill();
+    ctx.stroke();
+  }
+}
+
 function makeOffscreen(w, h) {
   const c = (typeof document !== 'undefined')
     ? document.createElement('canvas')
@@ -424,6 +446,7 @@ export function createMinimapSurface({
   canvas,
   getWorld,
   getPlayer,
+  getNpcs = null,
   cssWidth,
   cssHeight,
   pixelRatio = 1
@@ -471,6 +494,8 @@ export function createMinimapSurface({
     ctx.clearRect(0, 0, dest.width, dest.height);
     if (staticCanvas) ctx.drawImage(staticCanvas, 0, 0);
     const player = typeof getPlayer === 'function' ? getPlayer() : getPlayer;
+    const npcs = typeof getNpcs === 'function' ? getNpcs() : getNpcs;
+    drawNpcDots(ctx, npcs, view);
     drawPlayerArrow(ctx, player, view);
     paints++;
   }
@@ -510,6 +535,7 @@ export function createHudMinimap({
 
   const getWorld = () => gatherMinimapWorld(scene);
   const getPlayer = () => player;
+  const getNpcs = () => (scene && scene.userData && scene.userData.npcs) || [];
 
   const wrap = document.createElement('div');
   wrap.id = 'hud-minimap';
@@ -532,6 +558,7 @@ export function createHudMinimap({
     canvas: hudCanvas,
     getWorld,
     getPlayer,
+    getNpcs,
     cssWidth: HUD_MINIMAP_SIZE,
     cssHeight: HUD_MINIMAP_SIZE,
     pixelRatio
@@ -614,6 +641,7 @@ export function createHudMinimap({
       canvas,
       getWorld,
       getPlayer,
+      getNpcs,
       cssWidth: fallbackW,
       cssHeight: fallbackH,
       pixelRatio
