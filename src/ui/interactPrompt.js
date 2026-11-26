@@ -66,10 +66,26 @@ export function createInteractPrompt(options = {}) {
     isStarted = () => true,
     isInventoryOpen = () => false,
     door = null,
+    doors = null,
+    getTarget = null,
     player = null,
     range = INTERACT_RANGE,
     container = document.body
   } = options;
+
+  function inRangeOf(target) {
+    if (!target || !player || !player.position) return false;
+    const point = (target.userData && target.userData.interactLocal && typeof target.localToWorld === 'function')
+      ? target.localToWorld(target.userData.interactLocal.clone())
+      : target.position;
+    return !!(point && player.position.distanceTo(point) < range);
+  }
+
+  function currentDoor() {
+    if (typeof getTarget === 'function') return getTarget();
+    if (inRangeOf(door)) return door;
+    return null;
+  }
 
   ensureStyles();
 
@@ -96,9 +112,10 @@ export function createInteractPrompt(options = {}) {
   let label = el.textContent;
 
   function update() {
-    const open = !!(door && door.userData && door.userData.open);
+    const target = currentDoor();
+    const open = !!(target && target.userData && target.userData.open);
     const nextLabel = labelFor(isMobile, open);
-    const inRange = !!(door && player && player.position.distanceTo(door.position) < range);
+    const inRange = !!target;
     const nextShown = inRange && !!isStarted() && !isInventoryOpen();
 
     if (nextLabel !== label) {
@@ -116,6 +133,7 @@ export function createInteractPrompt(options = {}) {
     element: el,
     update,
     isVisible: () => shown,
+    getTarget: currentDoor,
     dispose() {
       el.removeEventListener('click', onActivate);
       el.remove();

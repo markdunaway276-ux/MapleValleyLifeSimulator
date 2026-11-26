@@ -2,7 +2,9 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { generateHouse } from './buildings.js';
 import { scatterTrees, TREE_PLACEMENTS } from './trees.js';
+import { createParkedCar } from './props.js';
 import { createColliderWorld } from '../systems/collision.js';
+import { createHingedDoor } from '../systems/doors.js';
 
 function disposeGroup(group) {
   const materials = new Set();
@@ -290,15 +292,17 @@ export function createScene(quality) {
   colliders.addHouse({ id: 'main-house', x: 0, z: -10, width: 9.5, depth: 10, rotY: 0 });
 
   // Standalone interactable door (kept independent of the fallback / GLB house).
-  // Sized like a normal door (~1 × 2 m) and placed on the fallback's front face.
-  const doorGeo = new THREE.BoxGeometry(1.0, 2.0, 0.1);
-  const doorMat = new THREE.MeshStandardMaterial({ color: 0x654321 });
-  const door = new THREE.Mesh(doorGeo, doorMat);
-  door.position.set(0, 1.0, -4.94);
-  door.castShadow = quality.shadows;
+  // Hinged 1 × 2 m door; pivot sits at the left jamb of the fallback's front face.
+  const door = createHingedDoor({
+    width: 1.0,
+    height: 2.0,
+    depth: 0.1,
+    color: 0x654321,
+    shadows: quality.shadows,
+    id: 'main-door'
+  });
+  door.position.set(-0.5, 0, -4.94);
   scene.add(door);
-  door.userData.isDoor = true;
-  door.userData.open = false;
 
   // Four generated houses on both sides of the street, facing the road.
   // The Kenney house (above) is the fifth house, on the south side at x=0.
@@ -332,6 +336,7 @@ export function createScene(quality) {
       depth: lot.depth,
       rotY: lot.rotY
     });
+    if (h.userData.door) h.userData.door.userData.doorId = lot.name;
     return h;
   });
   scene.userData.streetHouses = streetHouses;
@@ -376,7 +381,24 @@ export function createScene(quality) {
     });
   });
 
+  // Parked car on the north side of the road, east of spawn, clear of the
+  // Kenney walking path (x=0) and of the neighbour lots / door approaches.
+  const car = createParkedCar({ shadows: quality.shadows });
+  car.position.set(6.8, 0, -0.2);
+  scene.add(car);
+  colliders.addHouse({
+    id: 'parked-car',
+    x: car.position.x,
+    z: car.position.z,
+    width: car.userData.size.width,
+    depth: car.userData.size.depth,
+    rotY: car.rotation.y
+  });
+  scene.userData.prop = car;
+
+  const doors = [door, ...streetHouses.map((h) => h.userData.door).filter(Boolean)];
   scene.userData.door = door;
+  scene.userData.doors = doors;
   scene.userData.street = STREET;
   scene.userData.spawn = STREET.spawn;
 
@@ -427,8 +449,10 @@ export function createScene(quality) {
       // Realign a ~0.9–1.0 × 2.0 m slab over the model's front door
       const doorW = Math.min(1.0, Math.max(0.9, d.w * s));
       const doorH = d.h * s;
-      door.scale.set(doorW / 1.0, doorH / 2.0, 1);
-      door.position.set(doorWorld.x, doorH / 2, doorWorld.z + 0.06);
+      const doorZ = doorWorld.z + 0.06;
+      // Pivot at the left jamb; the panel already matches the 1 × 2 m target size.
+      door.position.set(doorWorld.x - doorW / 2, 0, doorZ);
+      door.userData.interactLocal.set(doorW / 2, doorH / 2, 0);
 
       // Replace the fallback collider with the Kenney footprint. Front (maxZ) is
       // inset to the door slab so the porch stays walkable and the door is in range.
@@ -438,7 +462,7 @@ export function createScene(quality) {
         minX: kenneyBox.min.x,
         maxX: kenneyBox.max.x,
         minZ: kenneyBox.min.z,
-        maxZ: door.position.z
+        maxZ: doorZ
       });
     },
     undefined,

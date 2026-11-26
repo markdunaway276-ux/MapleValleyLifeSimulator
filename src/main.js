@@ -6,6 +6,7 @@ import { createInventory } from './ui/inventory.js';
 import { STARTER_ITEMS } from './data/items.js';
 import { loadSave, saveGame } from './systems/save.js';
 import { createInteractPrompt, INTERACT_RANGE } from './ui/interactPrompt.js';
+import { nearestDoor, toggleDoor } from './systems/doors.js';
 
 const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || window.innerWidth < 800;
 
@@ -60,7 +61,7 @@ const prompt = createInteractPrompt({
   isMobile,
   isStarted: () => instructions.classList.contains('hidden'),
   isInventoryOpen: () => inventory.isOpen(),
-  door: scene.userData.door,
+  getTarget: () => nearestDoor(scene.userData.doors, player.position, INTERACT_RANGE),
   player,
   range: INTERACT_RANGE
 });
@@ -77,12 +78,11 @@ window.addEventListener('resize', () => {
   renderer.setSize(window.innerWidth, window.innerHeight);
 });
 
-// Interact only when close to door
-const door = scene.userData.door;
+// Interact with the nearest door within range
 window.addEventListener('interact', () => {
-  if (door && player.position.distanceTo(door.position) < INTERACT_RANGE) {
-    door.userData.open = !door.userData.open;
-    door.rotation.y = door.userData.open ? Math.PI / 2 : 0;
+  const target = nearestDoor(scene.userData.doors, player.position, INTERACT_RANGE);
+  if (target) {
+    toggleDoor(target);
     prompt.update();
   }
 });

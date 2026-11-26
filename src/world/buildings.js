@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { createHingedDoor } from '../systems/doors.js';
 
 const DEFAULTS = {
   width: 8,
@@ -118,18 +119,16 @@ function makeDoor(opts) {
   const doorWidth = opts.doorWidth ?? Math.min(1.0, Math.max(0.9, opts.width * 0.12));
   const doorHeight = opts.doorHeight ?? Math.min(2.0, Math.max(1.8, height - 1.2));
   const doorDepth = 0.08;
-  const door = mesh(
-    'door',
-    new THREE.BoxGeometry(doorWidth, doorHeight, doorDepth),
-    mat(doorColor),
-    opts
-  );
-  // Sit on the ground, slightly proud of the front face (+z)
-  door.position.set(0, doorHeight / 2, depth / 2 + doorDepth / 2);
-  door.userData.isDoor = true;
-  door.userData.open = false;
-  door.userData.doorWidth = doorWidth;
-  door.userData.doorHeight = doorHeight;
+  const door = createHingedDoor({
+    width: doorWidth,
+    height: doorHeight,
+    depth: doorDepth,
+    material: mat(doorColor),
+    castShadow: !!opts.castShadow,
+    receiveShadow: !!opts.receiveShadow
+  });
+  // Hinge at the left of the doorway, slightly proud of the front face (+z)
+  door.position.set(-doorWidth / 2, 0, depth / 2 + doorDepth / 2);
   return door;
 }
 
@@ -202,8 +201,8 @@ function addWindows(group, opts) {
  *                          that was not given explicitly
  *
  * The group's origin is the center of the base (y=0). The front faces +z.
- * Named children: body, roof, door, window_0...  Door mesh is also on
- * group.userData.door (null when hasDoor is false).
+ * Named children: body, roof, door (hinged Group), window_0...
+ * Door pivot is also on group.userData.door (null when hasDoor is false).
  */
 export function generateHouse(options = {}) {
   const opts = resolveOptions(options);
