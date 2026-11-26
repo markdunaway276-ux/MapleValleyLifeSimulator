@@ -52,7 +52,20 @@ body.mobile #hud-phone {
   pointer-events: auto;
   -webkit-tap-highlight-color: transparent;
 }
-.phone-overlay.is-open { display: flex; }
+.phone-overlay.is-open { display: flex; animation: phone-dim 0.20s 0.30s both; }
+.phone-overlay.is-open .phone-device { animation: phone-wake 0.22s 0.34s both; }
+@keyframes phone-dim {
+  from { background: transparent; }
+  to { background: rgba(0, 0, 0, 0.45); }
+}
+@keyframes phone-wake {
+  0% { opacity: 0; transform: translateY(20px) scale(0.96); }
+  45% { opacity: 1; filter: brightness(0.35); }
+  100% { opacity: 1; transform: none; filter: brightness(1); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .phone-overlay.is-open, .phone-overlay.is-open .phone-device { animation: none; }
+}
 
 .phone-device {
   box-sizing: border-box;
@@ -60,15 +73,20 @@ body.mobile #hud-phone {
   height: min(84vh, 620px);
   display: flex;
   flex-direction: column;
-  background: #14151c;
+  background: linear-gradient(158deg, #213f42, #1d2934 45%, #111721 82%);
   color: #fff;
-  border: 3px solid #2c2f3a;
+  border: 5px solid #22282c;
   border-radius: 36px;
   box-shadow: 0 16px 48px rgba(0, 0, 0, 0.5), inset 0 0 0 2px rgba(255, 255, 255, 0.06);
   overflow: hidden;
   position: relative;
 }
 
+.phone-device::before {
+  content: ''; position: absolute; left: 50%; top: 9px; transform: translateX(-50%);
+  width: 9px; height: 9px; background: #080d10; border-radius: 50%;
+  box-shadow: inset 0 0 0 2px #252d35; pointer-events: none;
+}
 .phone-status {
   display: flex;
   align-items: center;
@@ -150,8 +168,8 @@ body.mobile #hud-phone {
 .phone-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 16px 10px;
-  padding: 8px 0 4px;
+  gap: 18px 10px;
+  padding: 18px 0 4px;
 }
 .phone-app {
   box-sizing: border-box;
@@ -180,11 +198,15 @@ body.mobile #hud-phone {
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 16px;
-  background: #2a3144;
+  border-radius: 50%;
+  background: #d6ebe0;
+  box-shadow: inset 0 -3px 6px rgba(0, 0, 0, 0.12);
   font-size: 28px;
   line-height: 1;
 }
+.phone-app:nth-child(3n + 2) .phone-app-icon { background: #dce2fa; }
+.phone-app:nth-child(3n) .phone-app-icon { background: #f0dfca; }
+.phone-app:focus-visible .phone-app-icon { outline: 2px solid white; outline-offset: 2px; }
 .phone-app-name {
   font: 600 11px/1.2 system-ui, sans-serif;
   text-align: center;
@@ -252,21 +274,25 @@ body.mobile #hud-phone {
   align-items: center;
   justify-content: center;
   flex: 0 0 auto;
-  min-height: 56px;
-  padding: 8px 16px 14px;
+  min-height: 44px;
+  padding: 0 16px;
 }
 .phone-home {
   box-sizing: border-box;
-  width: 44px; height: 44px; min-width: 44px; min-height: 44px;
+  width: 104px; height: 44px;
   padding: 0; margin: 0;
-  border: 2px solid rgba(255, 255, 255, 0.55);
-  border-radius: 50%;
-  background: rgba(255, 255, 255, 0.06);
+  border: 0;
+  border-radius: 16px;
+  background: transparent;
   color: #fff;
   cursor: pointer;
   touch-action: manipulation;
 }
-.phone-home:hover, .phone-home:focus {
+.phone-home::after {
+  content: ''; display: block; width: 88px; height: 4px;
+  margin: auto; background: #e9eef0; border-radius: 8px;
+}
+.phone-home:hover, .phone-home:focus-visible {
   background: rgba(255, 255, 255, 0.16);
   outline: none;
 }
@@ -549,11 +575,13 @@ export function createPhone({
     if (e.target && e.target.closest && e.target.closest('input, textarea, [contenteditable]')) return;
     if (e.code === 'Escape' && opened) {
       e.preventDefault();
+      e.stopPropagation();
       close();
       return;
     }
-    if (bindKey && !isMobile && e.code === PHONE_KEY && !e.repeat) {
+    if (bindKey && !isMobile && e.code === PHONE_KEY && !e.repeat && (opened || allowedToOpen())) {
       e.preventDefault();
+      e.stopPropagation();
       toggle();
     }
   }

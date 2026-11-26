@@ -36,6 +36,7 @@ import { createPhone } from './ui/phone/phone.js';
 import { INSTALLED_APPS } from './ui/phone/apps.js';
 import { createHudMinimap } from './ui/minimap.js';
 import { createAppearance } from './systems/appearance.js';
+import { createPresentation } from './game/presentation.js';
 import { createPlayerBody } from './world/playerBody.js';
 import { createWeather } from './systems/weather.js';
 import { createRain, isInsideMainHouse } from './world/rain.js';
@@ -437,6 +438,7 @@ g.title = createTitleScreen({
   applyLive
 });
 
+g.presentation = createPresentation({ camera, scene, mode, playerBody });
 startLoop(g);
 
 console.log(`Maple Valley Life Simulator started — Mobile: ${isMobile}, Shadows: ${quality.shadows}, Post: ${!!view.post}`);
