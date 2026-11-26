@@ -1,14 +1,15 @@
 import * as THREE from 'three';
 import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
 
 /** Gentle vignette + mild contrast/saturation grading. Desktop only. */
 const GradeShader = {
   uniforms: {
     tDiffuse: { value: null },
-    vignette: { value: 0.55 },
-    contrast: { value: 1.06 },
+    vignette: { value: 0.18 },
+    contrast: { value: 1.02 },
     saturation: { value: 1.08 }
   },
   vertexShader: /* glsl */`
@@ -54,6 +55,7 @@ export function createPost({ renderer, scene, camera, enabled }) {
 
   const composer = new EffectComposer(renderer);
   composer.addPass(new RenderPass(scene, camera));
+  composer.addPass(new OutputPass());
   const grade = new ShaderPass(GradeShader);
   composer.addPass(grade);
 

@@ -37,7 +37,7 @@ export const LIGHT_KEYS = [
   // Golden hour — warmer, deeper
   { m: 17 * 60 + 30, skyTop: 0xc07038, skyBottom: 0xd8a068, fog: 0xc89058, hemiSky: 0xd8a878, hemiGround: 0x3a4820, hemiInt: 0.32, ambient: 0xe8c090, ambientInt: 0.12, sun: 0xffa048, sunInt: 0.75, sunPos: [-26, 14, 14], exponent: 0.75, interior: 0.25 },
   // Dusk
-  { m: 19 * 60 + 30, skyTop: 0x1e2a52, skyBottom: 0xa05840, fog: 0x704050, hemiSky: 0xa87060, hemiGround: 0x1e2e18, hemiInt: 0.18, ambient: 0xe09870, ambientInt: 0.08, sun: 0xee6030, sunInt: 0.18, sunPos: [-30, 4, 10], exponent: 0.9, interior: 0.7 },
+  { m: 19 * 60 + 30, skyTop: 0x1e2a52, skyBottom: 0xa05840, fog: 0x704050, hemiSky: 0x8f9bbc, hemiGround: 0x41483a, hemiInt: 0.34, ambient: 0xb3b1c5, ambientInt: 0.16, sun: 0xee6030, sunInt: 0.18, sunPos: [-30, 4, 10], exponent: 0.9, interior: 0.7 },
   // Evening into night
   { m: 21 * 60, skyTop: 0x0c1220, skyBottom: 0x141c30, fog: 0x141c30, hemiSky: 0x2a3a58, hemiGround: 0x121810, hemiInt: 0.12, ambient: 0x141c2c, ambientInt: 0.06, sun: 0xa8b8e0, sunInt: 0.08, sunPos: [-16, 20, -22], exponent: 1.1, interior: 1 },
   { m: MINUTES_PER_DAY, skyTop: 0x080c18, skyBottom: 0x10182a, fog: 0x10182a, hemiSky: 0x2a3a58, hemiGround: 0x121810, hemiInt: 0.12, ambient: 0x141c2c, ambientInt: 0.06, sun: 0xa8b8e0, sunInt: 0.06, sunPos: [-8, 22, -24], exponent: 1.15, interior: 1 }

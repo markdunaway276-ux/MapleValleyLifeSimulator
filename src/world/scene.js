@@ -21,6 +21,7 @@ import { createGrassTexture, createRoadTexture, createSidewalkTexture } from './
 import { createContactShadows } from './contact.js';
 import { buildMainHouseDetails, findGlassPanes, tintGlassPanes } from './details.js';
 import { STREET, SURFACE_Y, surfaceHeightAt } from './street.js';
+import { buildFrontYard, textureHouseExterior } from './frontYard.js';
 
 function disposeGroup(group) {
   const materials = new Set();
@@ -435,6 +436,7 @@ export function createScene(quality) {
         }
       });
       gradeMainHouse(model);
+      textureHouseExterior(model, quality);
       scene.add(model);
 
       // Swap out the placeholder procedural house
@@ -458,6 +460,10 @@ export function createScene(quality) {
       // colliders is unchanged; the interior is carved out of it below.
       const kenneyBox = new THREE.Box3().setFromObject(model);
       const outer = { minX: kenneyBox.min.x, maxX: kenneyBox.max.x, minZ: kenneyBox.min.z, maxZ: doorZ };
+
+      const frontYard = buildFrontYard({ x: doorWorld.x, z: doorZ }, quality);
+      pickups.add(frontYard.group);
+      scene.userData.frontYard = frontYard;
 
       // Interior: drop the painted-on front door (the hinged door replaces it),
       // add the inward-facing room shell + furniture, and swap the single house

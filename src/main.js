@@ -499,6 +499,7 @@ function animate() {
   updateDoors(scene.userData.doors, delta);
   updatePickups(scene.userData.interactables, delta);
   dayNight.update(delta, clock.getTime());
+  scene.userData.frontYard?.update(clock.getTime().totalMinutes);
   prompt.update();
   minimap.update(delta);
   if (post) post.render();
