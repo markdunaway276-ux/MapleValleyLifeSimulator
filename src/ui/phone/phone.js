@@ -5,7 +5,7 @@
  * look and movement are blocked, and the other HUD bits hide like
  * they do under the bag or Debug menu.
  */
-import { PHONE_APPS, getPhoneApp } from './apps.js';
+import { PHONE_APPS, INSTALLED_APPS, CALENDAR_APP, getPhoneApp } from './apps.js';
 
 const STYLE_ID = 'phone-styles';
 export const PHONE_KEY = 'KeyP';
@@ -325,7 +325,8 @@ export function createPhone({
     setAppearance: typeof setAppearance === 'function' ? setAppearance : null,
     onAppearanceChange: typeof onAppearanceChange === 'function' ? onAppearanceChange : null,
     getWeather: typeof getWeather === 'function' ? getWeather : null,
-    onWeatherChange: typeof onWeatherChange === 'function' ? onWeatherChange : null
+    onWeatherChange: typeof onWeatherChange === 'function' ? onWeatherChange : null,
+    clock: clock || null
   };
 
   function started() {
@@ -532,4 +533,4 @@ export function createPhone({
   };
 }
 
-export { getPhoneApp, PHONE_APPS };
+export { getPhoneApp, PHONE_APPS, INSTALLED_APPS, CALENDAR_APP };

@@ -22,6 +22,7 @@ import { createMoney, extractCashFromItems, attachMailboxMoney, queueDailyMail }
 import { createHudMoney } from './ui/hudMoney.js';
 import { createWork } from './systems/work.js';
 import { createPhone } from './ui/phone/phone.js';
+import { INSTALLED_APPS } from './ui/phone/apps.js';
 import { createHudMinimap } from './ui/minimap.js';
 import { createAppearance } from './systems/appearance.js';
 import { createPlayerBody } from './world/playerBody.js';
@@ -206,6 +207,7 @@ phone = createPhone({
   getMoney: () => money.get(),
   onMoneyChange: (fn) => money.onChange(fn),
   clock,
+  apps: INSTALLED_APPS,
   bindKey: !isMobile,
   onBeforeOpen: () => { if (inventory.isOpen()) inventory.close(); },
   attachMap: (el) => minimap.attachPhone(el),
