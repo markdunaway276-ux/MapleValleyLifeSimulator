@@ -14,6 +14,7 @@ import { createSnackPickup, createMailbox, MAILBOX_SPAWN, SNACK_SPAWN, mailboxCo
 import { createVendingMachine, VENDING_SPAWN, vendingCollider } from './vending.js';
 import { createColliderWorld } from '../systems/collision.js';
 import { createHingedDoor } from '../systems/doors.js';
+import { buildStreetlights } from './streetlights.js';
 import { buildCornerShop } from './cornerShop.js';
 import { createWorldState } from '../systems/interactables.js';
 import { sampleLighting } from './daynight.js';
@@ -323,6 +324,7 @@ export function createScene(quality) {
   const doors = [door, ...streetHouses.map((h) => h.userData.door).filter(Boolean)];
   scene.userData.door = door;
   scene.userData.doors = doors;
+  scene.userData.streetlights = buildStreetlights(scene, quality);
   scene.userData.street = STREET;
   scene.userData.spawn = STREET.spawn;
 

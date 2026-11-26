@@ -82,6 +82,7 @@ export function startLoop(g) {
     const time = clock.getTime();
     g.dayNight.update(delta, time);
     scene.userData.frontYard?.update(time.totalMinutes);
+    scene.userData.streetlights.update(time.minutes);
     g.prompt.update();
     g.minimap.update(delta);
     g.view.draw();
