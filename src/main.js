@@ -13,6 +13,8 @@ import { createDebug } from './systems/debug.js';
 import { createClock } from './systems/time.js';
 import { createDayNight } from './world/daynight.js';
 import { createHudClock } from './ui/hudClock.js';
+import { createSfx, cueInteract } from './systems/sfx.js';
+import { createHudMute } from './ui/hudMute.js';
 
 const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || window.innerWidth < 800;
 
@@ -61,6 +63,8 @@ const dayNight = createDayNight({ scene, quality });
 dayNight.apply(clock.getTime());
 clock.on('newDay', (e) => window.dispatchEvent(new CustomEvent('maple-new-day', { detail: e })));
 
+const sfx = createSfx({ getTime: () => clock.getTime(), getScene: () => scene });
+
 const instructions = document.getElementById('instructions');
 const inventory = createInventory({
   canvas: renderer.domElement,
@@ -79,18 +83,26 @@ const debug = createDebug({
   isStarted: () => instructions.classList.contains('hidden'),
   isInventoryOpen: () => inventory.isOpen(),
   saveApi: { saveGame, clearSave },
-  clock
+  clock,
+  sfx
 });
 const uiBlocked = () => inventory.isOpen() || debug.isModalOpen();
 setupInput(player, isMobile, { isInventoryOpen: uiBlocked });
 
 const hudClock = createHudClock();
+const hudMute = createHudMute({
+  isMuted: () => sfx.isMuted(),
+  onToggle: () => sfx.toggleMuted()
+});
 function syncClockHud() {
   const show = instructions.classList.contains('hidden') && !uiBlocked();
   hudClock.setVisible(show);
   if (show) hudClock.update(clock.getTime());
+  hudMute.setVisible(show);
+  hudMute.refresh();
 }
 clock.on('change', (t) => hudClock.update(t));
+sfx.on('mute', () => hudMute.refresh());
 window.addEventListener('inventory-open', syncClockHud);
 window.addEventListener('inventory-close', syncClockHud);
 window.addEventListener('debug-modal-open', syncClockHud);
@@ -108,6 +120,7 @@ const prompt = createInteractPrompt({
 document.getElementById('start').onclick = () => {
   instructions.classList.add('hidden');
   if (!isMobile && !inventory.isOpen()) renderer.domElement.requestPointerLock();
+  sfx.unlock();
   prompt.update();
   debug.refresh();
   syncClockHud();
@@ -132,7 +145,13 @@ function gameState() {
 window.addEventListener('interact', () => {
   const target = nearestActionTarget(scene, player.position, INTERACT_RANGE);
   if (target) {
-    activateTarget(target, { inventory, scene, player });
+    const ud = target.userData || {};
+    const before = {
+      picked: !!ud.picked,
+      letterTaken: !!(ud.mail && ud.mail.letterTaken)
+    };
+    activateTarget(target, { inventory, scene, player, sfx });
+    cueInteract(sfx, target, before);
     prompt.update();
     saveGame(gameState());
   }
@@ -145,8 +164,22 @@ function animate() {
   const delta = Math.min((now - lastTime) / 1000, 0.1);
   lastTime = now;
 
-  if (instructions.classList.contains('hidden')) clock.tick(delta);
+  const started = instructions.classList.contains('hidden');
+  if (started) clock.tick(delta);
+  const prevX = player.position.x;
+  const prevZ = player.position.z;
   player.update(delta);
+  if (started) {
+    const moved = Math.hypot(player.position.x - prevX, player.position.z - prevZ);
+    sfx.update(delta, {
+      x: player.position.x,
+      z: player.position.z,
+      moved,
+      onGround: player.onGround,
+      time: clock.getTime(),
+      scene
+    });
+  }
   updateDoors(scene.userData.doors, delta);
   updatePickups(scene.userData.interactables, delta);
   dayNight.update(delta, clock.getTime());

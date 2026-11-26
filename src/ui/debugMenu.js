@@ -61,6 +61,9 @@ body.mobile #debug-menu .dm-key { display: none; }
 }
 #debug-menu .dm-row[aria-checked="true"] .dm-switch { background: #2e9e4f; }
 #debug-menu .dm-row[aria-checked="true"] .dm-switch::after { transform: translateX(20px); }
+#debug-menu .dm-subrow[aria-checked="true"] .dm-switch { background: #2e9e4f; }
+#debug-menu .dm-subrow[aria-checked="true"] .dm-switch::after { transform: translateX(20px); }
+#debug-menu .dm-subrow[role="switch"] { width: 100%; }
 #debug-menu .dm-danger { border-color: #8a3a35; }
 #debug-menu .dm-danger.is-armed { background: #7a1f1a; border-color: #ff6b61; }
 #debug-menu .dm-foot { margin: 10px 4px 0; font-size: 12px; color: #8b8b95; }
@@ -121,7 +124,7 @@ export const MENU_ITEMS = [
   { id: 'clearSave', type: 'action', label: 'Clear saved game', key: 'Shift+F8 twice', danger: true }
 ];
 
-export function createDebugMenu({ actions, getState, getTeleports = () => [], getClock = null, onOpen = () => {}, onClose = () => {}, container = document.body }) {
+export function createDebugMenu({ actions, getState, getTeleports = () => [], getClock = null, getSfx = null, onOpen = () => {}, onClose = () => {}, container = document.body }) {
   ensureStyles();
 
   const button = document.createElement('button');
@@ -207,6 +210,7 @@ export function createDebugMenu({ actions, getState, getTeleports = () => [], ge
     }
 
     if (typeof getClock === 'function') panel.appendChild(buildTimeSection());
+    if (typeof getSfx === 'function') panel.appendChild(buildSoundSection());
 
     const foot = document.createElement('div');
     foot.className = 'dm-foot';
@@ -364,7 +368,65 @@ export function createDebugMenu({ actions, getState, getTeleports = () => [], ge
     return section;
   }
 
+  let soundEls = null;
+
+  function buildSoundSection() {
+    const section = document.createElement('div');
+    section.className = 'dm-section is-open';
+    section.dataset.item = 'sound';
+    const toggle = document.createElement('button');
+    toggle.type = 'button';
+    toggle.className = 'dm-section-toggle';
+    toggle.setAttribute('aria-expanded', 'true');
+    const title = document.createElement('span');
+    title.className = 'dm-label';
+    title.textContent = 'Sound';
+    const chev = document.createElement('span');
+    chev.className = 'dm-chevron';
+    chev.textContent = '▾';
+    toggle.append(title, chev);
+    const list = document.createElement('div');
+    list.className = 'dm-sublist';
+    const muteBtn = document.createElement('button');
+    muteBtn.type = 'button';
+    muteBtn.className = 'dm-subrow';
+    muteBtn.dataset.item = 'mute';
+    muteBtn.setAttribute('role', 'switch');
+    const label = document.createElement('span');
+    label.className = 'dm-label';
+    label.textContent = 'Mute';
+    const sw = document.createElement('span');
+    sw.className = 'dm-switch';
+    muteBtn.append(label, sw);
+    muteBtn.addEventListener('click', () => {
+      const sfx = getSfx && getSfx();
+      if (sfx && typeof sfx.toggleMuted === 'function') sfx.toggleMuted();
+      refreshMute();
+    });
+    list.appendChild(muteBtn);
+    toggle.addEventListener('click', () => {
+      const open = !section.classList.contains('is-open');
+      section.classList.toggle('is-open', open);
+      toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+    });
+    section.append(toggle, list);
+    soundEls = { section, muteBtn };
+    refreshMute();
+    return section;
+  }
+
+  function refreshMute() {
+    if (!soundEls || typeof getSfx !== 'function') return;
+    const sfx = getSfx();
+    const muted = !!(sfx && sfx.isMuted && sfx.isMuted());
+    soundEls.muteBtn.setAttribute('aria-checked', muted ? 'true' : 'false');
+    soundEls.muteBtn.setAttribute('aria-pressed', muted ? 'true' : 'false');
+    const label = soundEls.muteBtn.querySelector('.dm-label');
+    if (label) label.textContent = muted ? 'Muted' : 'Mute';
+  }
+
   function refreshTime() {
+
     if (!timeEls || typeof getClock !== 'function') return;
     const clock = getClock();
     if (!clock) return;
@@ -387,6 +449,7 @@ export function createDebugMenu({ actions, getState, getTeleports = () => [], ge
       if (rows[id]) rows[id].row.setAttribute('aria-checked', state[id] ? 'true' : 'false');
     }
     refreshTime();
+    refreshMute();
   }
 
   function open() {
@@ -441,6 +504,7 @@ export function createDebugMenu({ actions, getState, getTeleports = () => [], ge
     close,
     refresh,
     refreshTime,
+    refreshMute,
     toast,
     setButtonVisible,
     isOpen: () => opened,

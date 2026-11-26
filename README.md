@@ -21,14 +21,18 @@ Push any change and the link updates in ~1 minute. Open it on your phone anytime
 - `src/main.js` — entry, quality detection, loop
 - `src/core/` — player + input
 - `src/world/` — scene building (`interior.js` = the walk-in interior of the main house: floors, partitions, furniture, doorway colliders; `pickups.js` = snack and mailbox)
-- `src/systems/` — save, collision, doors, interactables, game clock (`time.js`), and optional debug tools (`debug.js`, `collisionViz.js`)
-- `src/ui/` — inventory, door prompt, HUD screenshot button (`hudScreenshot.js`), and debug UI (`debugMenu.js`, `debugOverlay.js`, `feedback.js`)
+- `src/systems/` — save, collision, doors, interactables, game clock (`time.js`), sound (`sfx.js`), and optional debug tools (`debug.js`, `collisionViz.js`)
+- `src/ui/` — inventory, door prompt, HUD screenshot button (`hudScreenshot.js`), HUD clock and mute (`hudClock.js`, `hudMute.js`), and debug UI (`debugMenu.js`, `debugOverlay.js`, `feedback.js`)
 
 ## Main house interior
 Open the front door (walk up and use the prompt) and walk in: a front room (sofa, dining table + chairs), a bedroom and a kitchen. The interior is a few merged single-sided meshes (2 draw calls, no shadow casters) plus one warm point light on desktop only. The doorway collider is open only while the door is open (and never traps you if the door is closed while you stand in it). Exterior and other houses are unchanged.
 
 ## Day and night
 A slow day/night cycle (one game day lasts 24 real minutes) tints the sky, fog and lights. Lighting is updated about 8 times a second so it stays cheap on a phone; shadows stay desktop-only. The house interior brightens a little at night. A small clock at the top-centre shows the day and time (hidden under inventory or menus). The game clock is saved with your position and inventory, and later features (sleep, needs, daily mail, work) can call `getTime`, `setTime`, `advance(minutes)` or listen for `onNewDay`.
+
+
+## Sound
+Footsteps change on grass, the road or sidewalk, and the main-house floor. Opening or closing a door (and the mailbox lid) has its own sound, and picking up the snack or the letter plays a short pickup chime. A very quiet ambient loop (soft wind and birds by day, crickets at night) follows the game clock. All of this is synthesized with the Web Audio API — there are no audio files to download. Sound unlocks when you press Start (required on a phone), and a small mute button sits under the camera button; the same mute toggle is in the Debug menu and is remembered in localStorage. Later systems can call `sfx.play('pickup')` (or `'sleep'`, `'eat'`, `'cash'`, `'vending'`, `'car'`).
 
 ## Pickups
 A snack sits on the dining table inside the main house: walk up and press E (or tap the prompt) to add it to your bag — it stacks with the snacks you already have, then disappears from the table and stays gone after a save and reload. A mailbox stands on the sidewalk in front of the house (east of the front door). Opening it toggles the lid and, the first time, gives you a Letter. Later mail (for example daily letters that pay cash) can hook into the mailbox's `userData.mail` without changing this path.
@@ -45,6 +49,7 @@ After pressing Start a small **Debug** button appears in the bottom-right corner
 - Screenshot + markup (same dialog as the HUD camera button: pen/line/arrow/double arrow/box/circle/X/check/question/numbered pin, colours, a note, and a PNG with a caption band)
 - Teleport list: street start, front of my house, inside my house, each neighbour door (SW, SE, NW, NE), west/east ends of the street, by the parked car
 - Time of day: a slider plus pause and speed (1×, 4×, 16×, 60×)
+- Sound: mute (same control as the HUD mute button; remembered in localStorage)
 - Clear saved game (tap twice to confirm; you are returned to the street start)
 
 Desktop shortcuts: `F2` or `` ` `` menu • `F3` overlay • `Shift+F3` perf stats • `F4` collision boxes • `Shift+F4` highlight interactables • `F8` teleport to street start • `Shift+F8` clear save (press twice within 4 s) • `F9` screenshot + markup. In the markup dialog: `Esc` cancels, `Ctrl/Cmd+Enter` saves.

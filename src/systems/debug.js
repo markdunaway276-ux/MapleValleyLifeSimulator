@@ -17,6 +17,7 @@ import { createHudScreenshotButton } from '../ui/hudScreenshot.js';
  *   - teleport list (street start, doors, street ends, parked car)
  *   - clear save (with confirm)
  *   - time-of-day slider, pause and speed (when a game clock is passed in)
+ *   - sound mute toggle (when an sfx API is passed in)
  * Further ideas: DEBUG-TODO.md
  * While nothing is toggled on, update() only compares one boolean per frame.
  *
@@ -67,6 +68,7 @@ export function createDebug({
   getWorld = () => scene.userData && scene.userData.colliders,
   saveApi = {},
   clock = null,
+  sfx = null,
   container = document.body,
   now = () => performance.now()
 }) {
@@ -96,10 +98,15 @@ export function createDebug({
     getState: () => state,
     getTeleports: () => TELEPORT_PRESETS,
     getClock: clock ? () => clock : null,
+    getSfx: sfx ? () => sfx : null,
     onOpen: modalOpened,
     onClose: modalClosed,
     container
   });
+
+  if (sfx && typeof sfx.on === 'function') {
+    sfx.on('mute', () => menu.refreshMute());
+  }
 
   const feedback = createFeedback({
     getMeta: captionMeta,
