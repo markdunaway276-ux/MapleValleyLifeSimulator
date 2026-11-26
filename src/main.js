@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { createScene } from './world/scene.js';
 import { createPlayer } from './core/player.js';
 import { setupInput } from './core/input.js';
+import { isMobileDevice } from './core/device.js';
 import { createInventory } from './ui/inventory.js';
 import { STARTER_ITEMS } from './data/items.js';
 import { loadSave, saveGame, clearSave } from './systems/save.js';
@@ -40,7 +41,8 @@ import { createInteriorLights, registerLightSwitchInteractable } from './systems
 import { createTvSet, registerTvInteractable } from './systems/tv.js';
 import { createPost } from './world/post.js';
 
-const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || window.innerWidth < 800;
+// Phone / tablet by device, not window width (see src/core/device.js; ?mobile=1 or ?mobile=0 overrides).
+const isMobile = isMobileDevice();
 
 const quality = {
   shadows: !isMobile,
