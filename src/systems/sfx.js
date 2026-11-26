@@ -691,6 +691,12 @@ export function createSfx({
       case 'cash': playCash(); break;
       case 'vending': playVending(); break;
       case 'car': playCar(); break;
+      case 'phone-notification': {
+        const t = now(ctx);
+        osc(ctx, sfxGain, t, { type: 'sine', freq: 660, dur: 0.10, peak: 0.075, a: 0.006 });
+        osc(ctx, sfxGain, t + 0.085, { type: 'sine', freq: 990, dur: 0.15, peak: 0.065, a: 0.006 });
+        break;
+      }
       case 'click': playClick(); break;
       default:
         return false;

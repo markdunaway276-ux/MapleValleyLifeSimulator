@@ -301,7 +301,8 @@ const phone = createPhone({
   getSkills: () => skills.get(),
   onSkillsChange: (fn) => skills.onChange(fn),
   getInbox: () => inbox.get(),
-  onInboxChange: (fn) => inbox.onChange(fn)
+  onInboxChange: (fn) => inbox.onChange(fn),
+  playNotification: () => sfx.play('phone-notification')
 });
 const dialogue = createDialogue({
   getExtraPages: (id) => [neighbourFavour.pageFor(id), snackFavour.pageFor(id)].filter(Boolean),

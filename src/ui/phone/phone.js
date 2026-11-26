@@ -7,6 +7,21 @@
  */
 import { PHONE_APPS, INSTALLED_APPS, CALENDAR_APP, SKILLS_APP, getPhoneApp } from './apps.js';
 
+const PHONE_PREFS_KEY = 'mapleValleyLife_phonePrefs';
+const WALLPAPERS = Object.freeze({ coast: 'Coast', dusk: 'Dusk', forest: 'Forest' });
+
+function readPhonePrefs() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(PHONE_PREFS_KEY));
+    return {
+      wallpaper: Object.hasOwn(WALLPAPERS, saved?.wallpaper) ? saved.wallpaper : 'coast',
+      sound: saved?.sound === true
+    };
+  } catch {
+    return { wallpaper: 'coast', sound: false };
+  }
+}
+
 const STYLE_ID = 'phone-styles';
 export const PHONE_KEY = 'KeyP';
 
@@ -78,6 +93,40 @@ body.mobile #hud-phone {
   width: 9px; height: 9px; background: #080d10; border-radius: 50%;
   box-shadow: inset 0 0 0 2px #252d35; pointer-events: none;
 }
+.phone-device[data-wallpaper="dusk"] { background: linear-gradient(156deg, #51507f, #6b4857 48%, #1e2538); }
+.phone-device[data-wallpaper="forest"] { background: linear-gradient(156deg, #537768, #263e3c 50%, #152622); }
+.phone-status-left { touch-action: none; }
+.phone-shade-toggle {
+  flex: 0 0 auto; min-width: 38px; min-height: 44px; padding: 0;
+  color: inherit; background: transparent; border: 0; font-size: 18px;
+  cursor: pointer; touch-action: manipulation;
+}
+.phone-lock {
+  display: grid; place-content: center; justify-items: center; gap: 8px;
+  flex: 1 0 auto; min-height: 170px; text-align: center; touch-action: none;
+}
+.phone-lock-time { font: 350 clamp(30px, 7vw, 64px)/1 system-ui, sans-serif; }
+.phone-lock-unlock, .phone-shade-row {
+  min-height: 44px; color: inherit; font: inherit; border: 0;
+  border-radius: 14px; background: #334355; padding: 8px 12px; cursor: pointer;
+}
+.phone-shade {
+  position: absolute; z-index: 2; inset: 0; padding: 14px;
+  overflow: auto; background: #202b39; color: white;
+}
+.phone-shade[hidden] { display: none; }
+.phone-shade-header {
+  display: flex; align-items: center; justify-content: space-between; gap: 4px;
+  touch-action: none;
+}
+.phone-shade-row { width: 100%; text-align: left; margin-bottom: 8px; }
+.phone-shade-row span { display: block; opacity: 0.8; overflow-wrap: anywhere; }
+.phone-pref {
+  display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between;
+  gap: 8px; min-height: 44px; margin-bottom: 8px;
+}
+.phone-pref select { min-height: 44px; color: #fff; background: #293748; border-radius: 8px; }
+.phone-pref input { width: 24px; height: 24px; accent-color: #9ed4c4; }
 .phone-status {
   display: flex;
   align-items: center;
@@ -329,11 +378,14 @@ export function createPhone({
   togglePinnedTask = null,
   onSkillsChange = null,
   getInbox = null,
-  onInboxChange = null
+  onInboxChange = null,
+  playNotification = null
 } = {}) {
   ensureStyles();
 
   let opened = false;
+  let locked = false;
+  let prefs = readPhonePrefs();
   let current = null;
   let appCleanup = null;
 
@@ -354,6 +406,7 @@ export function createPhone({
 
   const device = document.createElement('div');
   device.className = 'phone-device';
+  device.dataset.wallpaper = prefs.wallpaper;
 
   const status = document.createElement('div');
   status.className = 'phone-status';
@@ -373,7 +426,14 @@ export function createPhone({
   closeBtn.className = 'phone-close';
   closeBtn.setAttribute('aria-label', 'Close');
   closeBtn.textContent = '\u00d7';
-  status.append(statusLeft, closeBtn);
+  const shadeToggle = document.createElement('button');
+  shadeToggle.type = 'button';
+  shadeToggle.className = 'phone-shade-toggle';
+  shadeToggle.textContent = '⌄';
+  shadeToggle.title = 'Notifications';
+  shadeToggle.setAttribute('aria-label', 'Open notifications');
+  shadeToggle.setAttribute('aria-expanded', 'false');
+  status.append(statusLeft, shadeToggle, closeBtn);
 
   const screen = document.createElement('div');
   screen.className = 'phone-screen';
@@ -387,7 +447,14 @@ export function createPhone({
   homeBtn.title = 'Home';
   homeBar.appendChild(homeBtn);
 
-  device.append(status, screen, homeBar);
+  const lockTime = document.createElement('div');
+  lockTime.className = 'phone-lock-time';
+  const lockDay = document.createElement('div');
+  const shade = document.createElement('section');
+  shade.className = 'phone-shade';
+  shade.hidden = true;
+  shade.setAttribute('aria-label', 'Notifications');
+  device.append(status, screen, homeBar, shade);
   overlay.appendChild(device);
   container.append(button, overlay);
 
@@ -409,6 +476,14 @@ export function createPhone({
     onSkillsChange: typeof onSkillsChange === 'function' ? onSkillsChange : null,
     getInbox: typeof getInbox === 'function' ? getInbox : null,
     onInboxChange: typeof onInboxChange === 'function' ? onInboxChange : null,
+    wallpapers: WALLPAPERS,
+    getPhonePrefs: () => ({ ...prefs }),
+    setPhonePrefs(patch) {
+      prefs = { ...prefs, ...patch };
+      device.dataset.wallpaper = prefs.wallpaper;
+      try { localStorage.setItem(PHONE_PREFS_KEY, JSON.stringify(prefs)); } catch { /* storage unavailable */ }
+    },
+    previewNotification: () => playNotification?.(),
     clock: clock || null
   };
 
@@ -440,6 +515,8 @@ export function createPhone({
   function updateStatus(time) {
     const t = time || ctx.getTime();
     timeEl.textContent = (t && t.label) || '';
+    lockTime.textContent = t?.label?.match(/\b\d{1,2}:\d{2}\b/)?.[0] || '--:--';
+    lockDay.textContent = t?.day != null ? 'Day ' + t.day : 'Maple Lane';
     launcherWidget.textContent = t && t.day != null ? 'Maple Lane · Day ' + t.day : 'Maple Lane';
     paintWeather();
   }
@@ -453,8 +530,90 @@ export function createPhone({
     screen.replaceChildren();
   }
 
+  function setShade(open) {
+    shade.hidden = !open;
+    shadeToggle.setAttribute('aria-expanded', String(open));
+    status.inert = screen.inert = homeBar.inert = open;
+    if (open) renderShade();
+  }
+
+  function swipe(element, direction, action) {
+    let start = null;
+    element.addEventListener('pointerdown', (event) => {
+      if (event.isPrimary === false || event.button !== 0 || event.target.closest?.('button')) return;
+      start = { id: event.pointerId, x: event.clientX, y: event.clientY };
+      element.setPointerCapture?.(event.pointerId);
+    });
+    element.addEventListener('pointercancel', () => { start = null; });
+    element.addEventListener('pointerup', (event) => {
+      if (!start || event.pointerId !== start.id) return;
+      const dx = event.clientX - start.x;
+      const dy = (event.clientY - start.y) * direction;
+      start = null;
+      if (dy > 36 && dy > Math.abs(dx)) action();
+    });
+  }
+
+  function renderShade() {
+    shade.replaceChildren();
+    const header = document.createElement('div');
+    header.className = 'phone-shade-header';
+    const title = document.createElement('h3');
+    title.textContent = 'Notifications';
+    const dismiss = document.createElement('button');
+    dismiss.type = 'button';
+    dismiss.className = 'phone-shade-toggle';
+    dismiss.setAttribute('aria-label', 'Close notifications');
+    dismiss.textContent = '⌃';
+    dismiss.addEventListener('click', () => { setShade(false); shadeToggle.focus(); });
+    header.append(title, dismiss);
+    swipe(header, -1, () => setShade(false));
+    shade.append(header);
+    const notes = (ctx.getInbox?.() ?? []).filter(Boolean).slice(0, 3);
+    const tasks = (ctx.getTasks?.() ?? []).filter(task => !task.complete).slice(0, 3);
+    function addRow(app, heading, summary) {
+      const row = document.createElement('button');
+      row.type = 'button';
+      row.className = 'phone-shade-row';
+      const name = document.createElement('strong');
+      name.textContent = heading;
+      const preview = document.createElement('span');
+      preview.textContent = summary;
+      row.append(name, preview);
+      row.addEventListener('click', () => openApp(app));
+      shade.append(row);
+    }
+    for (const note of notes) addRow('messages', note.from || 'Mail', note.body || '');
+    for (const task of tasks) addRow('tasks', task.title, task.step || '');
+    if (!notes.length && !tasks.length) {
+      const empty = document.createElement('p');
+      empty.textContent = 'No messages or task reminders.';
+      shade.append(empty);
+    }
+  }
+
+  function renderLock() {
+    clearApp();
+    locked = true;
+    closeBtn.textContent = '\u00d7';
+    closeBtn.setAttribute('aria-label', 'Put phone away');
+    homeBtn.setAttribute('aria-label', 'Unlock phone');
+    const lock = document.createElement('div');
+    lock.className = 'phone-lock';
+    const unlock = document.createElement('button');
+    unlock.type = 'button';
+    unlock.className = 'phone-lock-unlock';
+    unlock.textContent = 'Unlock';
+    unlock.addEventListener('click', renderHome);
+    lock.append(lockTime, lockDay, unlock);
+    swipe(lock, -1, renderHome);
+    screen.append(lock);
+  }
+
   function renderHome() {
     clearApp();
+    locked = false;
+    homeBtn.setAttribute('aria-label', 'Home');
     closeBtn.textContent = '\u00d7';
     closeBtn.setAttribute('aria-label', 'Put phone away');
     const grid = document.createElement('div');
@@ -489,6 +648,9 @@ export function createPhone({
     const app = getPhoneApp(id, apps) || getPhoneApp(id, PHONE_APPS);
     if (!app) return null;
     clearApp();
+    setShade(false);
+    locked = false;
+    homeBtn.setAttribute('aria-label', 'Home');
     current = app.id;
     closeBtn.textContent = '‹';
     closeBtn.setAttribute('aria-label', 'Back to home');
@@ -516,7 +678,7 @@ export function createPhone({
     if (!allowedToOpen()) return;
     if (typeof onBeforeOpen === 'function') onBeforeOpen();
     opened = true;
-    renderHome();
+    renderLock();
     updateStatus();
     overlay.classList.add('is-open');
     overlay.setAttribute('aria-hidden', 'false');
@@ -529,6 +691,7 @@ export function createPhone({
   function close() {
     if (!opened) return;
     opened = false;
+    setShade(false);
     clearApp();
     overlay.classList.remove('is-open', 'is-focused');
     overlay.setAttribute('aria-hidden', 'true');
@@ -550,6 +713,16 @@ export function createPhone({
   function setVisible(v) {
     button.classList.toggle('is-visible', !!v);
   }
+
+  shadeToggle.addEventListener('click', () => setShade(true));
+  swipe(statusLeft, 1, () => setShade(true));
+  let knownMessages = new Set((ctx.getInbox?.() ?? []).filter(Boolean).map(note => note.id));
+  const offInbox = ctx.onInboxChange?.((list) => {
+    const ids = new Set((list ?? ctx.getInbox?.() ?? []).filter(Boolean).map(note => note.id));
+    if (prefs.sound && [...ids].some(id => !knownMessages.has(id))) playNotification?.();
+    knownMessages = ids;
+    if (!shade.hidden) renderShade();
+  });
 
   button.addEventListener('pointerdown', (e) => e.stopPropagation());
   button.addEventListener('touchstart', (e) => e.stopPropagation(), { passive: true });
@@ -580,7 +753,9 @@ export function createPhone({
     if (e.code === 'Escape' && opened) {
       e.preventDefault();
       e.stopPropagation();
-      close();
+      if (!shade.hidden) setShade(false);
+      else if (current && !locked) renderHome();
+      else close();
       return;
     }
     if (bindKey && !isMobile && e.code === PHONE_KEY && !e.repeat && (opened || allowedToOpen())) {
@@ -604,6 +779,7 @@ export function createPhone({
 
   function dispose() {
     document.removeEventListener('keydown', onKey);
+    offInbox?.();
     clearApp();
     button.remove();
     overlay.remove();

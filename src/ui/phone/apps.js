@@ -116,7 +116,43 @@ export const CALENDAR_APP = {
  * path; main.js passes INSTALLED_APPS so Skills and Calendar appear on the
  * live phone. Calendar stays last so older calendar tests keep passing.
  */
-export const INSTALLED_APPS = PHONE_APPS.concat(SKILLS_APP, {
+const PHONE_SETTINGS_APP = {
+  id: 'settings',
+  name: 'Settings',
+  icon: '⚙️',
+  render(screen, ctx) {
+    const heading = document.createElement('h3');
+    heading.className = 'phone-app-title';
+    heading.textContent = 'Phone settings';
+    const wallpaper = document.createElement('label');
+    wallpaper.className = 'phone-pref';
+    wallpaper.textContent = 'Wallpaper';
+    const select = document.createElement('select');
+    for (const [value, name] of Object.entries(ctx.wallpapers)) {
+      const option = document.createElement('option');
+      option.value = value;
+      option.textContent = name;
+      select.append(option);
+    }
+    select.value = ctx.getPhonePrefs().wallpaper;
+    select.addEventListener('change', () => ctx.setPhonePrefs({ wallpaper: select.value }));
+    wallpaper.append(select);
+    const sound = document.createElement('label');
+    sound.className = 'phone-pref';
+    sound.textContent = 'Notification sound';
+    const checkbox = document.createElement('input');
+    checkbox.type = 'checkbox';
+    checkbox.checked = ctx.getPhonePrefs().sound;
+    checkbox.addEventListener('change', () => {
+      ctx.setPhonePrefs({ sound: checkbox.checked });
+      if (checkbox.checked) ctx.previewNotification();
+    });
+    sound.append(checkbox);
+    screen.append(heading, wallpaper, sound);
+  }
+};
+
+export const INSTALLED_APPS = PHONE_APPS.concat(SKILLS_APP, PHONE_SETTINGS_APP, {
   id: 'tasks', name: 'Tasks', icon: '📋', render: renderTasksApp
 }, CALENDAR_APP);
 
