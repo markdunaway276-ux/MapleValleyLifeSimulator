@@ -21,7 +21,7 @@ Push any change and the link updates in ~1 minute. Open it on your phone anytime
 - `src/main.js` — entry, quality detection, loop
 - `src/core/` — player + input
 - `src/world/` — scene building (`interior.js` = the walk-in interior of the main house: floors, partitions, furniture, doorway colliders; `pickups.js` = snack and mailbox)
-- `src/systems/` — save, collision, doors, interactables, game clock (`time.js`), sound (`sfx.js`), and optional debug tools (`debug.js`, `collisionViz.js`)
+- `src/systems/` — save, collision, doors, interactables, game clock (`time.js`), sound (`sfx.js`), sleep (`sleep.js`), and optional debug tools (`debug.js`, `collisionViz.js`)
 - `src/ui/` — inventory, door prompt, HUD screenshot button (`hudScreenshot.js`), HUD clock and mute (`hudClock.js`, `hudMute.js`), and debug UI (`debugMenu.js`, `debugOverlay.js`, `feedback.js`)
 
 ## Main house interior
@@ -33,6 +33,10 @@ A slow day/night cycle (one game day lasts 24 real minutes) tints the sky, fog a
 
 ## Sound
 Footsteps change on grass, the road or sidewalk, and the main-house floor. Opening or closing a door (and the mailbox lid) has its own sound, and picking up the snack or the letter plays a short pickup chime. A very quiet ambient loop (soft wind and birds by day, crickets at night) follows the game clock. All of this is synthesized with the Web Audio API — there are no audio files to download. Sound unlocks when you press Start (required on a phone), and a small mute button sits under the camera button; the same mute toggle is in the Debug menu and is remembered in localStorage. Later systems can call `sfx.play('pickup')` (or `'sleep'`, `'eat'`, `'cash'`, `'vending'`, `'car'`).
+
+
+## Sleep
+Walk up to the bed in the main house's west bedroom and press E (or tap the prompt) to sleep. The screen fades to black, the game clock jumps to 07:00 the next morning (or the same day's 07:00 if it is still earlier than that), and you fade back in with a short "You slept." toast. Lighting and the HUD clock update immediately, and the new time is saved. A quiet sleep sound plays. Later systems (for example Energy) can listen for the `maple-slept` event or an `onSlept` hook.
 
 ## Pickups
 A snack sits on the dining table inside the main house: walk up and press E (or tap the prompt) to add it to your bag — it stacks with the snacks you already have, then disappears from the table and stays gone after a save and reload. A mailbox stands on the sidewalk in front of the house (east of the front door). Opening it toggles the lid and, the first time, gives you a Letter. Later mail (for example daily letters that pay cash) can hook into the mailbox's `userData.mail` without changing this path.

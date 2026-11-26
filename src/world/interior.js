@@ -37,6 +37,12 @@ export const CEILING_Y = 3.0;
 export const DOORWAY_PAD = 0.1;
 export const INTERIOR_SPAWN = { x: 0.03, z: -7.1, yaw: 0 };
 
+/** Centre of the west-bedroom bed (matches the furniture boxes below). */
+export const BED_CENTER = { x: -3.4, y: 0, z: -13.55 };
+export const BED_SIZE = { width: 1.5, height: 0.7, depth: 2.0 };
+/** Interact point on the east (room) side of the mattress. */
+export const BED_INTERACT = { x: -2.55, y: 0.6, z: -13.55 };
+
 const WALL = 0xe9dfc9;
 const WALL_SHADE = 0xded2b8;
 const FLOOR = 0x9a7048;

@@ -15,6 +15,7 @@ import { createDayNight } from './world/daynight.js';
 import { createHudClock } from './ui/hudClock.js';
 import { createSfx, cueInteract } from './systems/sfx.js';
 import { createHudMute } from './ui/hudMute.js';
+import { createSleep } from './systems/sleep.js';
 
 const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || window.innerWidth < 800;
 
@@ -86,7 +87,19 @@ const debug = createDebug({
   clock,
   sfx
 });
-const uiBlocked = () => inventory.isOpen() || debug.isModalOpen();
+const sleeper = createSleep({
+  clock,
+  dayNight,
+  sfx,
+  save: () => saveGame(gameState()),
+  onSlept: (detail) => {
+    /* later Hunger/Energy can also listen for maple-slept */
+    if (scene.userData && typeof scene.userData.onSlept === 'function') scene.userData.onSlept(detail);
+  }
+});
+scene.userData.sleep = sleeper;
+
+const uiBlocked = () => inventory.isOpen() || debug.isModalOpen() || sleeper.isSleeping();
 setupInput(player, isMobile, { isInventoryOpen: uiBlocked });
 
 const hudClock = createHudClock();
@@ -107,6 +120,11 @@ window.addEventListener('inventory-open', syncClockHud);
 window.addEventListener('inventory-close', syncClockHud);
 window.addEventListener('debug-modal-open', syncClockHud);
 window.addEventListener('debug-modal-close', syncClockHud);
+window.addEventListener('sleep-start', () => {
+  if (inventory.isOpen()) inventory.close();
+  syncClockHud();
+});
+window.addEventListener('sleep-end', syncClockHud);
 
 const prompt = createInteractPrompt({
   isMobile,
@@ -143,6 +161,7 @@ function gameState() {
 
 // Interact with the nearest door or pickup within range
 window.addEventListener('interact', () => {
+  if (sleeper.isSleeping()) return;
   const target = nearestActionTarget(scene, player.position, INTERACT_RANGE);
   if (target) {
     const ud = target.userData || {};
@@ -150,10 +169,10 @@ window.addEventListener('interact', () => {
       picked: !!ud.picked,
       letterTaken: !!(ud.mail && ud.mail.letterTaken)
     };
-    activateTarget(target, { inventory, scene, player, sfx });
+    activateTarget(target, { inventory, scene, player, sfx, sleep: () => sleeper.start() });
     cueInteract(sfx, target, before);
     prompt.update();
-    saveGame(gameState());
+    if (!sleeper.isSleeping()) saveGame(gameState());
   }
 });
 
@@ -165,11 +184,13 @@ function animate() {
   lastTime = now;
 
   const started = instructions.classList.contains('hidden');
-  if (started) clock.tick(delta);
+  const sleeping = sleeper.isSleeping();
+  if (started && !sleeping) clock.tick(delta);
   const prevX = player.position.x;
   const prevZ = player.position.z;
   player.update(delta);
-  if (started) {
+  sleeper.update(delta);
+  if (started && !sleeping) {
     const moved = Math.hypot(player.position.x - prevX, player.position.z - prevZ);
     sfx.update(delta, {
       x: player.position.x,

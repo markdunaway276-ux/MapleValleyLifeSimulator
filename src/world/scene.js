@@ -1,7 +1,8 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { generateHouse, getHouseColliders } from './buildings.js';
-import { buildMainHouseInterior, removePaintedFrontDoor } from './interior.js';
+import { buildMainHouseInterior, removePaintedFrontDoor, BED_CENTER } from './interior.js';
+import { createBed } from '../systems/sleep.js';
 import { scatterTrees, TREE_PLACEMENTS } from './trees.js';
 import { createParkedCar } from './props.js';
 import { createSnackPickup, createMailbox, MAILBOX_SPAWN, SNACK_SPAWN, mailboxCollider } from './pickups.js';
@@ -545,6 +546,20 @@ export function createScene(quality) {
         object: snack
       });
       scene.userData.snack = snack;
+
+      const bed = createBed();
+      bed.position.set(BED_CENTER.x, BED_CENTER.y, BED_CENTER.z);
+      // Sit with the other interactables, not in the merged interior mesh
+      // (that group stays at 2 draw calls).
+      pickups.add(bed);
+      scene.userData.interactables = (scene.userData.interactables || []).filter((e) => e.id !== 'bed');
+      scene.userData.interactables.push({
+        id: 'bed',
+        kind: 'sleep',
+        object: bed
+      });
+      scene.userData.bed = bed;
+
       if (scene.userData.world) scene.userData.world.apply({ pickups: { ...scene.userData.world.taken } });
     },
     undefined,
