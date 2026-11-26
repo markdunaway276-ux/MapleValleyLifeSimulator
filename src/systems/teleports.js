@@ -23,7 +23,9 @@ export const TELEPORT_PRESETS = [
   { id: 'house-ne', label: 'NE neighbor door', kind: 'door', doorId: 'house-ne' },
   { id: 'street-west', label: 'West end of street', kind: 'street-end', side: 'west' },
   { id: 'street-east', label: 'East end of street', kind: 'street-end', side: 'east' },
-  { id: 'parked-car', label: 'By the parked car', kind: 'car' }
+  { id: 'parked-car', label: 'By the parked car', kind: 'car' },
+  { id: 'laundromat', label: 'Laundromat door', kind: 'point', x: 29.5, z: -3.6, yaw: 0 },
+  { id: 'trailer-park', label: 'Trailer park', kind: 'point', x: -24.6, z: -3.6, yaw: Math.PI / 4 }
 ];
 
 export function findDoor(scene, doorId) {
@@ -157,6 +159,11 @@ export function resolveTeleport(preset, scene, world, radius = 0.32) {
     const s = settle(world, end.x, end.z, radius);
     if (!isClear(world, s.x, s.z, radius)) return null;
     return { id: preset.id, label: preset.label, x: s.x, y, z: s.z, yaw: end.yaw };
+  }
+
+  if (preset.kind === 'point') {
+    const s = settle(world, preset.x, preset.z, radius);
+    return { id: preset.id, label: preset.label, x: s.x, y, z: s.z, yaw: preset.yaw || 0 };
   }
 
   if (preset.kind === 'interior') {

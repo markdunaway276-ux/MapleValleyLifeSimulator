@@ -20,6 +20,15 @@ export function isInsideMainHouse(scene, position) {
   return x >= b.minX && x <= b.maxX && z >= b.minZ && z <= b.maxZ;
 }
 
+/** Inside the main house or any walk-in building that registered an indoor zone. */
+export function isIndoors(scene, position) {
+  if (isInsideMainHouse(scene, position)) return true;
+  const zones = (scene && scene.userData && scene.userData.indoorZones) || [];
+  if (!position) return false;
+  const x = position.x, z = position.z;
+  return zones.some((b) => x >= b.minX && x <= b.maxX && z >= b.minZ && z <= b.maxZ);
+}
+
 export function createRain({ scene, isMobile = false } = {}) {
   const count = isMobile ? RAIN_COUNT_MOBILE : RAIN_COUNT_DESKTOP;
   const positions = new Float32Array(count * 6);

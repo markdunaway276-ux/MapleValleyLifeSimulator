@@ -1,6 +1,6 @@
 import { updateDoors } from '../systems/doors.js';
 import { updatePickups } from '../world/pickups.js';
-import { isInsideMainHouse } from '../world/rain.js';
+import { isIndoors, isInsideMainHouse } from '../world/rain.js';
 
 /**
  * The frame loop. Order matters: clock, then whoever moves the player
@@ -44,7 +44,7 @@ export function startLoop(g) {
       raining: rain >= 0.25
     });
     g.weather.applyFog(scene, quality);
-    const indoor = isInsideMainHouse(scene, player.position);
+    const indoor = isIndoors(scene, player.position);
     g.rain.update(delta, { position: player.position, intensity: rain, indoor });
     if (typeof g.sfx.setRain === 'function') g.sfx.setRain(rain, { indoor });
     g.sleeper.update(delta);
@@ -76,7 +76,7 @@ export function startLoop(g) {
         indoor
       });
     }
-    if (g.tvSet) g.tvSet.update(delta, { position: player.position, indoor });
+    if (g.tvSet) g.tvSet.update(delta, { position: player.position, indoor: isInsideMainHouse(scene, player.position) });
     updateDoors(scene.userData.doors, delta);
     updatePickups(scene.userData.interactables, delta);
     const time = clock.getTime();
