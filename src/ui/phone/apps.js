@@ -3,6 +3,7 @@
  * entry: add it here and it appears on the home grid.
  */
 import { formatCash } from '../../systems/money.js';
+import { renderStyleApp } from './style.js';
 
 export const PHONE_APPS = [
   {
@@ -47,6 +48,14 @@ export const PHONE_APPS = [
       screen.append(title, wrap);
       if (ctx && typeof ctx.attachMap === 'function') return ctx.attachMap(wrap);
       return null;
+    }
+  },
+  {
+    id: 'style',
+    name: 'Style',
+    icon: '👕',
+    render(screen, ctx) {
+      return renderStyleApp(screen, ctx);
     }
   }
 ];

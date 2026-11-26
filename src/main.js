@@ -23,6 +23,8 @@ import { createHudMoney } from './ui/hudMoney.js';
 import { createWork } from './systems/work.js';
 import { createPhone } from './ui/phone/phone.js';
 import { createHudMinimap } from './ui/minimap.js';
+import { createAppearance } from './systems/appearance.js';
+import { createPlayerBody } from './world/playerBody.js';
 
 const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || window.innerWidth < 800;
 
@@ -82,6 +84,15 @@ const bagCash = extractCashFromItems(fromSaveBag ? saveData.inventory : []);
 const money = createMoney();
 if (saveData.money != null) money.apply(saveData);
 else if (fromSaveBag && bagCash.cash) money.set(bagCash.cash);
+
+const appearance = createAppearance();
+if (saveData.appearance) appearance.apply(saveData);
+const playerBody = createPlayerBody({ scene, camera, shadows: quality.shadows });
+playerBody.apply(appearance.get());
+appearance.onChange((state) => {
+  playerBody.apply(state);
+  saveGame(gameState());
+});
 
 const instructions = document.getElementById('instructions');
 let phone;
@@ -163,7 +174,10 @@ phone = createPhone({
   clock,
   bindKey: !isMobile,
   onBeforeOpen: () => { if (inventory.isOpen()) inventory.close(); },
-  attachMap: (el) => minimap.attachPhone(el)
+  attachMap: (el) => minimap.attachPhone(el),
+  getAppearance: () => appearance.get(),
+  setAppearance: (slot, id) => appearance.set(slot, id),
+  onAppearanceChange: (fn) => appearance.onChange(fn)
 });
 
 const uiBlocked = () => inventory.isOpen() || debug.isModalOpen() || sleeper.isSleeping() || worker.isWorking() || phone.isOpen();
@@ -259,7 +273,8 @@ function gameState() {
     pickups: scene.userData.world ? scene.userData.world.serialize() : undefined,
     time: clock.serialize(),
     needs: needs.serialize(),
-    money: money.serialize()
+    money: money.serialize(),
+    appearance: appearance.serialize()
   };
 }
 
@@ -296,6 +311,7 @@ function animate() {
   const prevX = player.position.x;
   const prevZ = player.position.z;
   player.update(delta);
+  playerBody.update(player);
   sleeper.update(delta);
   worker.update(delta);
   if (started && !busy) {

@@ -227,7 +227,10 @@ export function createPhone({
   apps = PHONE_APPS,
   bindKey = true,
   onBeforeOpen = null,
-  attachMap = null
+  attachMap = null,
+  getAppearance = null,
+  setAppearance = null,
+  onAppearanceChange = null
 } = {}) {
   ensureStyles();
 
@@ -285,7 +288,10 @@ export function createPhone({
     getTime: () => (typeof getTime === 'function' ? getTime() : (clock && typeof clock.getTime === 'function' ? clock.getTime() : null)),
     getMoney: () => (typeof getMoney === 'function' ? getMoney() : 0),
     onMoneyChange: typeof onMoneyChange === 'function' ? onMoneyChange : null,
-    attachMap: typeof attachMap === 'function' ? attachMap : null
+    attachMap: typeof attachMap === 'function' ? attachMap : null,
+    getAppearance: typeof getAppearance === 'function' ? getAppearance : null,
+    setAppearance: typeof setAppearance === 'function' ? setAppearance : null,
+    onAppearanceChange: typeof onAppearanceChange === 'function' ? onAppearanceChange : null
   };
 
   function started() {
