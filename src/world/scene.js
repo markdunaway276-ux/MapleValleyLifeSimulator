@@ -22,7 +22,7 @@ import { HOUSE, LOOK, MAIN_HOUSE, PROPS, TEXTURE } from './palette.js';
 import { createGrassTexture, createRoadTexture, createSidewalkTexture } from './textures.js';
 import { createContactShadows } from './contact.js';
 import { buildMainHouseDetails, findGlassPanes, tintGlassPanes } from './details.js';
-import { NORTH_FRONTAGE_OFFSET, STREET, SURFACE_Y, surfaceHeightAt } from './street.js';
+import { CURB_WIDTH, DRIVEWAY, GARAGE_LOT, NORTH_FRONTAGE_OFFSET, STREET, SURFACE_Y, drivewayWalkHeight, surfaceHeightAt } from './street.js';
 import { buildFrontYard, textureHouseExterior } from './frontYard.js';
 
 function disposeGroup(group) {
@@ -160,27 +160,79 @@ export function createScene(quality) {
     roughness: 0.88,
     metalness: 0
   });
-  const walkGeo = new THREE.PlaneGeometry(streetLen, sidewalkWidth);
-  const curbWidth = 0.14;
-  const curbGeo = new THREE.BoxGeometry(streetLen, SURFACE_Y.walk + 0.01, curbWidth);
   const curbMat = new THREE.MeshStandardMaterial({ color: 0xa6a092, roughness: 0.95 });
-  const southWalkZ = roadCenterZ - roadWidth / 2 - sidewalkWidth / 2;
-  const northWalkZ = roadCenterZ + roadWidth / 2 + sidewalkWidth / 2;
-  for (const [name, z] of [['sidewalk-south', southWalkZ], ['sidewalk-north', northWalkZ]]) {
-    const walk = new THREE.Mesh(walkGeo, walkMat);
-    walk.name = name;
-    walk.rotation.x = -Math.PI / 2;
-    walk.position.set(0, SURFACE_Y.walk, z);
-    walk.receiveShadow = quality.shadows;
-    scene.add(walk);
+  const halfStreet = streetLen / 2;
+  const southEdge = roadCenterZ - roadWidth / 2;
+  const northEdge = roadCenterZ + roadWidth / 2;
+  const { x: driveX, width: driveWidth, flare, endZ, rampDepth } = DRIVEWAY;
+  const left = driveX - driveWidth / 2;
+  const right = driveX + driveWidth / 2;
+  const cutStart = left - flare;
+  const cutEnd = right + flare;
 
-    const side = Math.sign(z - roadCenterZ);
-    const curb = new THREE.Mesh(curbGeo, curbMat);
-    curb.name = name + '-curb';
-    curb.position.set(0, SURFACE_Y.walk / 2, roadCenterZ + side * (roadWidth + curbWidth) / 2);
-    curb.receiveShadow = quality.shadows;
-    scene.add(curb);
+  function paving(name, geometry, material) {
+    const mesh = new THREE.Mesh(geometry, material);
+    mesh.name = name;
+    mesh.receiveShadow = quality.shadows;
+    scene.add(mesh);
+    return mesh;
   }
+
+  function curb(name, x0, x1, z) {
+    const height = SURFACE_Y.walk - 0.003;
+    const mesh = paving(name, new THREE.BoxGeometry(x1 - x0, height, CURB_WIDTH), curbMat);
+    mesh.position.set((x0 + x1) / 2, height / 2, z);
+  }
+
+  const northWalk = paving('sidewalk-north', new THREE.PlaneGeometry(streetLen, sidewalkWidth), walkMat);
+  northWalk.rotation.x = -Math.PI / 2;
+  northWalk.position.set(0, SURFACE_Y.walk, northEdge + sidewalkWidth / 2);
+  curb('sidewalk-north-curb', -halfStreet, halfStreet, northEdge + CURB_WIDTH / 2);
+  curb('sidewalk-south-curb-west', -halfStreet, cutStart, southEdge - CURB_WIDTH / 2);
+  curb('sidewalk-south-curb-east', cutEnd, halfStreet, southEdge - CURB_WIDTH / 2);
+
+  // Keep the sidewalk texture continuous across the ramp and its two flares.
+  const columns = [-halfStreet, cutStart, left, right, cutEnd, halfStreet];
+  const rows = [0, CURB_WIDTH, CURB_WIDTH + rampDepth, sidewalkWidth];
+  const positions = [];
+  const uv = [];
+  const indices = [];
+  for (const offset of rows) {
+    for (const x of columns) {
+      positions.push(x, drivewayWalkHeight(x, offset), southEdge - offset);
+      uv.push((x + halfStreet) / streetLen, offset / sidewalkWidth);
+    }
+  }
+  for (let row = 0; row < rows.length - 1; row++) {
+    for (let col = 0; col < columns.length - 1; col++) {
+      const i = row * columns.length + col;
+      const j = i + columns.length;
+      if (col === 3) indices.push(i, i + 1, j, i + 1, j + 1, j);
+      else indices.push(i, i + 1, j + 1, i, j + 1, j);
+    }
+  }
+  const southWalk = new THREE.BufferGeometry();
+  southWalk.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+  southWalk.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
+  southWalk.setIndex(indices);
+  southWalk.computeVertexNormals();
+  paving('sidewalk-south', southWalk, walkMat);
+
+  const driveStart = southEdge - sidewalkWidth;
+  const driveCenter = (driveStart + endZ) / 2;
+  const driveway = new THREE.PlaneGeometry(driveWidth, driveStart - endZ);
+  driveway.rotateX(-Math.PI / 2);
+  driveway.translate(driveX, 0, driveCenter);
+  const vertices = driveway.attributes.position;
+  for (let i = 0; i < vertices.count; i++) {
+    vertices.setY(i, vertices.getZ(i) > driveCenter ? SURFACE_Y.walk : SURFACE_Y.road);
+  }
+  driveway.computeVertexNormals();
+  const driveMap = walkTex.clone();
+  driveMap.repeat.set(2, 1);
+  paving('garage-driveway', driveway, new THREE.MeshStandardMaterial({
+    map: driveMap, color: 0xc3b8a6, roughness: 0.96
+  }));
 
   // Fallback procedural house. The Kenney GLB is the main house; this group
   // stays only while the model loads, or if the load fails.
@@ -222,8 +274,8 @@ export function createScene(quality) {
   const lots = [
     { name: 'house-sw', x: -13, z: -10.8, rotY: 0, width: 7.5, depth: 9, height: 3.5, roofType: 'gable', wallColor: HOUSE.lots[0].wall, roofColor: HOUSE.lots[0].roof, windowCount: 4,
       seed: 11, windowLayout: 'shutters', chimney: true, porch: { depth: 1.4, width: 3.2, roof: 'shed' } },
-    { name: 'house-se', x: 13.5, z: -10.05, rotY: 0, width: 8.25, depth: 9.3, height: 3.8, roofType: 'hip', wallColor: HOUSE.lots[1].wall, roofColor: HOUSE.lots[1].roof, windowCount: 3,
-      seed: 22, windowLayout: 'bay', extension: { side: 1, type: 'garage', width: 3.2 } },
+    { name: 'house-se', x: GARAGE_LOT.x, z: GARAGE_LOT.z, rotY: 0, width: GARAGE_LOT.width, depth: GARAGE_LOT.depth, height: 3.8, roofType: 'hip', wallColor: HOUSE.lots[1].wall, roofColor: HOUSE.lots[1].roof, windowCount: 3,
+      seed: 22, windowLayout: 'bay', extension: { side: 1, type: 'garage', width: GARAGE_LOT.garageWidth } },
     { name: 'house-nw', x: -13, z: 6.85 + NORTH_FRONTAGE_OFFSET, rotY: Math.PI, width: 7.5, depth: 8.7, height: 3.6, roofType: 'shed', wallColor: HOUSE.lots[2].wall, roofColor: HOUSE.lots[2].roof, windowCount: 3,
       seed: 33, windowLayout: 'ribbon', chimney: true, extension: { side: 1, type: 'wing', width: 3.0 } },
     { name: 'house-ne', x: 13.2, z: 8.3 + NORTH_FRONTAGE_OFFSET, rotY: Math.PI, width: 7.8, depth: 9, height: 3.7, roofType: 'gable', wallColor: HOUSE.lots[3].wall, roofColor: HOUSE.lots[3].roof, windowCount: 4,
