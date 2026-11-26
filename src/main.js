@@ -38,13 +38,15 @@ import { createSkills, registerCookInteractable } from './systems/skills.js';
 import { createSit, registerSitInteractables } from './systems/sit.js';
 import { createInteriorLights, registerLightSwitchInteractable } from './systems/lights.js';
 import { createTvSet, registerTvInteractable } from './systems/tv.js';
+import { createPost } from './world/post.js';
 
 const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || window.innerWidth < 800;
 
 const quality = {
   shadows: !isMobile,
   pixelRatio: isMobile ? Math.min(window.devicePixelRatio, 1.5) : Math.min(window.devicePixelRatio, 2),
-  far: isMobile ? 60 : 120
+  far: isMobile ? 60 : 120,
+  post: !isMobile
 };
 
 const renderer = new THREE.WebGLRenderer({ antialias: !isMobile });
@@ -61,6 +63,9 @@ document.body.appendChild(renderer.domElement);
 const scene = createScene(quality);
 const camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.1, quality.far);
 const player = createPlayer(camera, scene);
+
+// Desktop-only post-processing: soft vignette + mild contrast/saturation.
+const post = createPost({ renderer, scene, camera, enabled: quality.post });
 
 const spawn = scene.userData.spawn || { x: 0, y: 1.6, z: -1.15 };
 const saveData = loadSave();
@@ -396,6 +401,7 @@ window.addEventListener('resize', () => {
   camera.aspect = window.innerWidth / window.innerHeight;
   camera.updateProjectionMatrix();
   renderer.setSize(window.innerWidth, window.innerHeight);
+  if (post) post.setSize(window.innerWidth, window.innerHeight);
 });
 
 function gameState() {
@@ -495,7 +501,8 @@ function animate() {
   dayNight.update(delta, clock.getTime());
   prompt.update();
   minimap.update(delta);
-  renderer.render(scene, camera);
+  if (post) post.render();
+  else renderer.render(scene, camera);
   debug.update();
 }
 animate();
@@ -505,4 +512,4 @@ setInterval(() => {
   saveGame(gameState());
 }, 10000);
 
-console.log(`Maple Valley Life Simulator started — Mobile: ${isMobile}, Shadows: ${quality.shadows}`);
+console.log(`Maple Valley Life Simulator started — Mobile: ${isMobile}, Shadows: ${quality.shadows}, Post: ${!!post}`);
