@@ -5,6 +5,7 @@ import { setupInput } from './core/input.js';
 import { createInventory } from './ui/inventory.js';
 import { STARTER_ITEMS } from './data/items.js';
 import { loadSave, saveGame } from './systems/save.js';
+import { createInteractPrompt, INTERACT_RANGE } from './ui/interactPrompt.js';
 
 const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || window.innerWidth < 800;
 
@@ -55,9 +56,19 @@ const inventory = createInventory({
 });
 setupInput(player, isMobile, { isInventoryOpen: () => inventory.isOpen() });
 
+const prompt = createInteractPrompt({
+  isMobile,
+  isStarted: () => instructions.classList.contains('hidden'),
+  isInventoryOpen: () => inventory.isOpen(),
+  door: scene.userData.door,
+  player,
+  range: INTERACT_RANGE
+});
+
 document.getElementById('start').onclick = () => {
   instructions.classList.add('hidden');
   if (!isMobile && !inventory.isOpen()) renderer.domElement.requestPointerLock();
+  prompt.update();
 };
 
 window.addEventListener('resize', () => {
@@ -69,9 +80,10 @@ window.addEventListener('resize', () => {
 // Interact only when close to door
 const door = scene.userData.door;
 window.addEventListener('interact', () => {
-  if (door && player.position.distanceTo(door.position) < 3) {
+  if (door && player.position.distanceTo(door.position) < INTERACT_RANGE) {
     door.userData.open = !door.userData.open;
     door.rotation.y = door.userData.open ? Math.PI / 2 : 0;
+    prompt.update();
   }
 });
 
@@ -83,6 +95,7 @@ function animate() {
   lastTime = now;
 
   player.update(delta);
+  prompt.update();
   renderer.render(scene, camera);
 }
 animate();
