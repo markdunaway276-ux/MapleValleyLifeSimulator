@@ -20,6 +20,7 @@ export function gameState(g) {
     pickups: g.scene.userData.world ? g.scene.userData.world.serialize() : undefined,
     time: g.clock.serialize(),
     needs: g.needs.serialize(),
+    laundry: g.laundry ? g.laundry.serialize() : undefined,
     money: g.money.serialize(),
     appearance: g.appearance.serialize(),
     weather: g.weather.serialize(),

@@ -1,6 +1,7 @@
 import { createInteractPrompt, INTERACT_RANGE } from '../ui/interactPrompt.js';
 import { nearestActionTarget, activateTarget } from '../systems/interactables.js';
 import { cueInteract } from '../systems/sfx.js';
+import { ACTIONS, actionForTarget } from '../systems/playerActions.js';
 
 /**
  * E / tapping the prompt: works on the car or seat you are in, else the
@@ -36,7 +37,10 @@ export function setupInteract(g) {
       letterTaken: !!(ud.mail && ud.mail.letterTaken)
     };
     const toast = (msg) => g.hud.toast(msg);
-    activateTarget(target, {
+    // Hands: what this target does (door, mailbox, button…), decided before it changes state.
+    const planned = mode.driving() || mode.sitting() ? null : actionForTarget(target);
+    const actionBefore = g.actions ? g.actions.current : null;
+    const result = activateTarget(target, {
       inventory: g.inventory,
       scene,
       player,
@@ -50,6 +54,11 @@ export function setupInteract(g) {
       dialogue: g.dialogue,
       talk: (def) => g.dialogue.open(def.id)
     });
+    // A target can name its own animation by returning it (laundromat steps do).
+    const action = typeof result === 'string' && ACTIONS[result] ? result : ((result || ud.isDoor) ? planned : null);
+    // Something already started its own animation (a job, sitting down): leave it.
+    const started = g.actions && g.actions.current && g.actions.current !== actionBefore;
+    if (action && g.actions && !started) g.actions.play(action);
     cueInteract(g.sfx, target, before);
     prompt.update();
     if (!mode.busy()) g.save();

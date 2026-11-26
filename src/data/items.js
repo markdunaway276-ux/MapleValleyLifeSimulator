@@ -39,6 +39,14 @@ export const ITEM_DEFS = {
     stackable: true,
     use: { action: 'eat', label: 'Eat', need: 'hunger', amount: HUNGER_SNACK, sfx: 'eat' }
   },
+  detergent: {
+    id: 'detergent',
+    name: 'Detergent',
+    icon: '🧴',
+    description: 'One load of laundry detergent. Use it at a washer in the laundromat.',
+    color: '#3f7fb8',
+    stackable: true
+  },
   apple: {
     id: 'apple',
     name: 'Apple',

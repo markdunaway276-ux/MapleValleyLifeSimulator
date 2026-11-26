@@ -253,7 +253,7 @@ export function createSfx({
       master.gain.cancelScheduledValues(t);
       master.gain.setValueAtTime(muted ? 0 : volume.master, t);
     }
-    if (muted) { stopWind(); stopRain(); stopCar(); stopTv(); }
+    if (muted) { stopWind(); stopRain(); stopCar(); stopTv(); stopHum(); }
     else if (unlocked) { ensureAmbient(); ensureRain(); ensureCar(); ensureTv(); }
   }
 
@@ -352,6 +352,28 @@ export function createSfx({
     const t = now(ctx);
     osc(ctx, sfxGain, t, { type: 'square', freq: 140, dur: 0.1, peak: 0.06, a: 0.003 });
     osc(ctx, sfxGain, t + 0.14, { type: 'sine', freq: 880, dur: 0.1, peak: 0.08, a: 0.004 });
+  }
+
+  function playKnock() {
+    const t = now(ctx);
+    for (let i = 0; i < 3; i++) {
+      osc(ctx, sfxGain, t + i * 0.13, { type: 'sine', freq: 150, freqEnd: 90, dur: 0.07, peak: 0.16, a: 0.002 });
+      noiseBurst(t + i * 0.13, sfxGain, { dur: 0.04, peak: 0.08, freq: 900, q: 1.1, type: 'bandpass' });
+    }
+  }
+
+  function playWasherStart() {
+    const t = now(ctx);
+    osc(ctx, sfxGain, t, { type: 'square', freq: 1320, dur: 0.06, peak: 0.05, a: 0.002 });
+    osc(ctx, sfxGain, t + 0.09, { type: 'square', freq: 1760, dur: 0.08, peak: 0.05, a: 0.002 });
+    noiseBurst(t + 0.25, sfxGain, { dur: 0.5, peak: 0.05, freq: 500, q: 0.6, type: 'lowpass', a: 0.1 });
+  }
+
+  function playWasherDone() {
+    const t = now(ctx);
+    for (let i = 0; i < 3; i++) {
+      osc(ctx, sfxGain, t + i * 0.32, { type: 'square', freq: 520, dur: 0.22, peak: 0.05, a: 0.004 });
+    }
   }
 
   function playCar() {
@@ -465,6 +487,39 @@ export function createSfx({
     const t = now(ctx);
     rainFilter.frequency.setTargetAtTime(rainIndoor ? 700 : 1400, t, 0.08);
     rainGain.gain.setTargetAtTime(rainTargetGain(), t, 0.12);
+  }
+
+  // Laundromat machines: a low drum rumble whose level the world sets from distance.
+  let humSrc = null;
+  let humFilter = null;
+  let humGain = null;
+  let humLevel = 0;
+  function stopHum() {
+    if (humSrc) { try { humSrc.stop(); } catch { /* already stopped */ } try { humSrc.disconnect(); } catch { /* ignore */ } humSrc = null; }
+    if (humFilter) { try { humFilter.disconnect(); } catch { /* ignore */ } humFilter = null; }
+    if (humGain) { try { humGain.disconnect(); } catch { /* ignore */ } humGain = null; }
+  }
+  function setHum(level) {
+    humLevel = Math.max(0, Math.min(1, Number(level) || 0));
+    if (humLevel <= 0.001 || muted || !unlocked) { stopHum(); return humLevel; }
+    if (!ensureGraph() || !noiseBuf) return humLevel;
+    const t = now(ctx);
+    if (!humSrc) {
+      humSrc = ctx.createBufferSource();
+      humSrc.buffer = noiseBuf;
+      humSrc.loop = true;
+      humFilter = ctx.createBiquadFilter();
+      humFilter.type = 'lowpass';
+      humFilter.frequency.setValueAtTime(260, t);
+      humGain = ctx.createGain();
+      humGain.gain.setValueAtTime(0, t);
+      humSrc.connect(humFilter);
+      humFilter.connect(humGain);
+      humGain.connect(ambGain);
+      humSrc.start(t);
+    }
+    humGain.gain.setTargetAtTime(0.16 * humLevel, t, 0.3);
+    return humLevel;
   }
 
   /** Very quiet synthesized rain loop. `level` is 0..1 and respects mute. */
@@ -691,6 +746,9 @@ export function createSfx({
       case 'cash': playCash(); break;
       case 'vending': playVending(); break;
       case 'car': playCar(); break;
+      case 'knock': playKnock(); break;
+      case 'washer-start': playWasherStart(); break;
+      case 'washer-done': playWasherDone(); break;
       case 'click': playClick(); break;
       default:
         return false;
@@ -823,6 +881,7 @@ export function createSfx({
     toggleMuted,
     isMuted,
     setRain,
+    setHum,
     setCar,
     isCarHumming: () => !!carOsc,
     setTv,

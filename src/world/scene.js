@@ -592,7 +592,8 @@ export function createScene(quality) {
 
       const seats = createSeats();
       for (let i = 0; i < seats.length; i++) pickups.add(seats[i]);
-      scene.userData.seats = seats;
+      // Keep seats from other buildings (laundromat benches) alongside the house's.
+      scene.userData.seats = [...(scene.userData.seats || []), ...seats];
       // Cook and seats are registered as interactables from main.js (the same
       // way the car is) so older highlighter counts stay stable.
       if (typeof scene.userData.onInteriorReady === 'function') scene.userData.onInteriorReady(scene);

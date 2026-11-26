@@ -34,6 +34,7 @@ export function startLoop(g) {
     else if (mode.sitting()) g.sitter.update(delta, { blocked: mode.uiBlocked() });
     else player.update(delta);
     g.playerBody.update(player);
+    if (g.actions) g.actions.update(delta);
     const currentTime = clock.getTime();
     g.weather.update(delta, currentTime);
     const rain = g.weather.rainAmount();
@@ -47,6 +48,16 @@ export function startLoop(g) {
     const indoor = isIndoors(scene, player.position);
     g.rain.update(delta, { position: player.position, intensity: rain, indoor });
     if (typeof g.sfx.setRain === 'function') g.sfx.setRain(rain, { indoor });
+    const shop = scene.userData.laundromat;
+    if (g.laundry) {
+      g.laundry.update();
+      if (shop && typeof g.sfx.setHum === 'function') {
+        const n = g.laundry.runningCount();
+        const d = Math.hypot(player.position.x - (shop.position.x + 2), player.position.z - (shop.position.z - 5));
+        g.sfx.setHum(n ? Math.min(1, 0.4 + 0.15 * n) * Math.max(0, 1 - d / 18) : 0);
+      }
+    }
+    if (shop && shop.userData.update) shop.userData.update(delta, currentTime);
     g.sleeper.update(delta);
     g.worker.update(delta);
     if (started && !busy) {

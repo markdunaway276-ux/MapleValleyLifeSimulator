@@ -7,6 +7,18 @@
 import { getNpc } from './npcs.js';
 
 export const DIALOGUE = {
+  dottie: {
+    default: [
+      { lines: ["Welcome to Maple Lane Laundromat, hon. I'm Dottie.", 'Washers up front, dryers along the back.'] },
+      { lines: ['Need a little cash? Clock in back there and help me with the drop-off bags.', 'Wash, dry, fold, hand it back. Quick work gets tips.'] }
+    ],
+    night: [
+      { lines: ["Open twenty-four hours, and some nights it feels like it.", "There's always somebody's laundry."] }
+    ],
+    rain: [
+      { lines: ['Rainy days are my busiest. Everybody remembers their laundry at once.'] }
+    ]
+  },
   sam: {
     default: [
       {
