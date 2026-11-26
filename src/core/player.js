@@ -2,7 +2,7 @@ import * as THREE from 'three';
 
 export function createPlayer(camera, scene) {
   const player = {
-    position: new THREE.Vector3(0, 1.6, 5),
+    position: new THREE.Vector3(0, 1.6, -2.9),
     velocity: new THREE.Vector3(),
     rotation: new THREE.Euler(0, 0, 0, 'YXZ'),
     speed: 4.5,

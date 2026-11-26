@@ -1,20 +1,20 @@
 import * as THREE from 'three';
 
 /**
- * Deterministic placements, clear of:
- *   Kenney / fallback house around (0, 0, -10) (~6.5 x 7 m)
- *   neighbor generated house at (12, 0, -10)
- *   interactable door near (0, 0.67, -7.28)
- *   player spawn at (0, 1.6, 5)
- *   the walking line between spawn and the door (and the optional path)
+ * Deterministic neighborhood trees, clear of the east–west road (z ≈ -4.9..-0.9,
+ * x ≈ -18..18), sidewalks, and the five house lots (Kenney at (0,-10) plus
+ * four generated houses on both sides of the street).
  */
 export const TREE_PLACEMENTS = [
-  { x: -8.5, z: -8.0, seed: 101 },
-  { x: -7.0, z: -16.5, seed: 202 },
-  { x: 4.5, z: -18.0, seed: 303 },
-  { x: 20.0, z: -12.0, seed: 404 },
-  { x: -6.5, z: 3.5, seed: 505 },
-  { x: 7.5, z: 2.5, seed: 606 }
+  { x: -11.0, z: -16.5, seed: 101 }, // behind south-west house
+  { x: 0.0, z: -17.5, seed: 202 },   // behind Kenney house
+  { x: 11.0, z: -16.8, seed: 303 },  // behind south-east house
+  { x: -11.0, z: 10.0, seed: 404 },  // behind north-west house
+  { x: 10.0, z: 10.2, seed: 505 },   // behind north-east house
+  { x: -17.5, z: -9.0, seed: 606 },  // west end, south yard
+  { x: 17.5, z: -9.0, seed: 707 },   // east end, south yard
+  { x: -17.5, z: 4.0, seed: 808 },   // west end, north yard
+  { x: 16.5, z: 3.5, seed: 909 }     // east end, north yard
 ];
 
 function mulberry32(seed) {

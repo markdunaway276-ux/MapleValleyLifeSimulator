@@ -92,7 +92,45 @@ function createGrassTexture(quality) {
   return tex;
 }
 
-function createPathTexture() {
+/** Dark asphalt with a dashed center line. U runs along the street. */
+function createRoadTexture(quality) {
+  const along = quality.shadows ? 256 : 128;
+  const across = 64;
+  const canvas = document.createElement('canvas');
+  canvas.width = along;
+  canvas.height = across;
+  const ctx = canvas.getContext('2d');
+  const img = ctx.createImageData(along, across);
+  const data = img.data;
+  const mid = across / 2;
+  for (let y = 0; y < across; y++) {
+    for (let x = 0; x < along; x++) {
+      const n = valueNoise(x / 20, y / 10) * 0.6 + hash2(x, y) * 0.4;
+      let r = 48 + n * 18;
+      let g = 48 + n * 18;
+      let b = 50 + n * 16;
+      // Dashed center line (on 40%, off 60% of the tile)
+      const onDash = (x % 40) < 16;
+      if (onDash && Math.abs(y - mid) <= 1.5) {
+        r = 220; g = 196; b = 64;
+      }
+      const i = (y * along + x) * 4;
+      data[i] = r;
+      data[i + 1] = g;
+      data[i + 2] = b;
+      data[i + 3] = 255;
+    }
+  }
+  ctx.putImageData(img, 0, 0);
+  const tex = new THREE.CanvasTexture(canvas);
+  tex.wrapS = THREE.RepeatWrapping;
+  tex.wrapT = THREE.RepeatWrapping;
+  tex.colorSpace = THREE.SRGBColorSpace;
+  tex.needsUpdate = true;
+  return tex;
+}
+
+function createSidewalkTexture() {
   const size = 128;
   const canvas = document.createElement('canvas');
   canvas.width = size;
@@ -102,10 +140,10 @@ function createPathTexture() {
   const data = img.data;
   for (let y = 0; y < size; y++) {
     for (let x = 0; x < size; x++) {
-      const n = valueNoise(x / 18, y / 18) * 0.7 + hash2(x, y) * 0.3;
-      const r = 168 + n * 22;
-      const g = 156 + n * 18;
-      const b = 132 + n * 14;
+      const n = valueNoise(x / 16, y / 16) * 0.7 + hash2(x, y) * 0.3;
+      const r = 186 + n * 18;
+      const g = 182 + n * 16;
+      const b = 172 + n * 14;
       const i = (y * size + x) * 4;
       data[i] = r;
       data[i + 1] = g;
@@ -117,11 +155,19 @@ function createPathTexture() {
   const tex = new THREE.CanvasTexture(canvas);
   tex.wrapS = THREE.RepeatWrapping;
   tex.wrapT = THREE.RepeatWrapping;
-  tex.repeat.set(1, 8);
   tex.colorSpace = THREE.SRGBColorSpace;
   tex.needsUpdate = true;
   return tex;
 }
+
+/** East–west street in front of the Kenney house. Spawn sits on the road. */
+export const STREET = {
+  length: 36,
+  roadWidth: 4,
+  sidewalkWidth: 1.5,
+  roadCenterZ: -2.9,
+  spawn: { x: 0, y: 1.6, z: -2.9 }
+};
 
 /** Large inverted dome, fog disabled, drawn behind the world. */
 function createSkyDome(quality) {
@@ -184,22 +230,44 @@ export function createScene(quality) {
   ground.receiveShadow = quality.shadows;
   scene.add(ground);
 
-  // Simple path from the spawn toward the house front / door
-  const pathLen = 11.6;
-  const path = new THREE.Mesh(
-    new THREE.PlaneGeometry(1.6, pathLen),
+  // East–west road with sidewalks, running in front of the Kenney house
+  const { length: streetLen, roadWidth, sidewalkWidth, roadCenterZ } = STREET;
+  const roadTex = createRoadTexture(quality);
+  roadTex.repeat.set(streetLen / 8, 1);
+  const road = new THREE.Mesh(
+    new THREE.PlaneGeometry(streetLen, roadWidth),
     new THREE.MeshStandardMaterial({
-      map: createPathTexture(),
+      map: roadTex,
       color: 0xffffff,
-      roughness: 0.88,
+      roughness: 0.92,
       metalness: 0
     })
   );
-  path.name = 'path';
-  path.rotation.x = -Math.PI / 2;
-  path.position.set(0, 0.02, -0.4);
-  path.receiveShadow = quality.shadows;
-  scene.add(path);
+  road.name = 'road';
+  road.rotation.x = -Math.PI / 2;
+  road.position.set(0, 0.02, roadCenterZ);
+  road.receiveShadow = quality.shadows;
+  scene.add(road);
+
+  const walkTex = createSidewalkTexture();
+  walkTex.repeat.set(streetLen / 4, 1);
+  const walkMat = new THREE.MeshStandardMaterial({
+    map: walkTex,
+    color: 0xffffff,
+    roughness: 0.88,
+    metalness: 0
+  });
+  const walkGeo = new THREE.PlaneGeometry(streetLen, sidewalkWidth);
+  const southWalkZ = roadCenterZ - roadWidth / 2 - sidewalkWidth / 2;
+  const northWalkZ = roadCenterZ + roadWidth / 2 + sidewalkWidth / 2;
+  for (const [name, z] of [['sidewalk-south', southWalkZ], ['sidewalk-north', northWalkZ]]) {
+    const walk = new THREE.Mesh(walkGeo, walkMat);
+    walk.name = name;
+    walk.rotation.x = -Math.PI / 2;
+    walk.position.set(0, 0.03, z);
+    walk.receiveShadow = quality.shadows;
+    scene.add(walk);
+  }
 
   // Fallback procedural house. The Kenney GLB is the main house; this group
   // stays only while the model loads, or if the load fails.
@@ -226,20 +294,33 @@ export function createScene(quality) {
   door.userData.isDoor = true;
   door.userData.open = false;
 
-  // A second generated house so the generator is visible next to the GLB.
-  // Placed to the east, rotated to face the player spawn at (0, 1.6, 5).
-  const generatedHouse = generateHouse({
-    width: 5,
-    depth: 6,
-    height: 3.5,
-    roofType: 'gable',
-    wallColor: 0xa8c5e0,
-    windowCount: 4,
-    shadows: quality.shadows
+  // Four generated houses on both sides of the street, facing the road.
+  // The Kenney house (above) is the fifth house, on the south side at x=0.
+  const lots = [
+    { name: 'house-sw', x: -11, z: -9.5, rotY: 0, width: 5, depth: 6, height: 3.4, roofType: 'gable', wallColor: 0xa8c5e0, roofColor: 0x6b3a2a, windowCount: 4 },
+    { name: 'house-se', x: 11, z: -9.5, rotY: 0, width: 5.5, depth: 6.2, height: 3.8, roofType: 'pyramid', wallColor: 0xe8d5b7, roofColor: 0x4a5560, windowCount: 3 },
+    { name: 'house-nw', x: -11, z: 3.7, rotY: Math.PI, width: 5, depth: 5.8, height: 3.5, roofType: 'flat', wallColor: 0xd4d0c8, roofColor: 0x5c4033, windowCount: 4 },
+    { name: 'house-ne', x: 10, z: 3.8, rotY: Math.PI, width: 5.2, depth: 6, height: 3.6, roofType: 'gable', wallColor: 0xc9a66b, roofColor: 0x7a2e2e, windowCount: 4 }
+  ];
+  const streetHouses = lots.map((lot) => {
+    const h = generateHouse({
+      width: lot.width,
+      depth: lot.depth,
+      height: lot.height,
+      roofType: lot.roofType,
+      wallColor: lot.wallColor,
+      roofColor: lot.roofColor,
+      windowCount: lot.windowCount,
+      hasDoor: true,
+      shadows: quality.shadows
+    });
+    h.name = lot.name;
+    h.position.set(lot.x, 0, lot.z);
+    h.rotation.y = lot.rotY;
+    scene.add(h);
+    return h;
   });
-  generatedHouse.position.set(12, 0, -10);
-  generatedHouse.rotation.y = Math.atan2(0 - 12, 5 - (-10));
-  scene.add(generatedHouse);
+  scene.userData.streetHouses = streetHouses;
 
   // Lighting: sky-blue hemisphere over grass, a soft ambient, and a warm sun
   const hemi = new THREE.HemisphereLight(0x9ecbff, 0x3d6b32, 0.5);
@@ -253,17 +334,17 @@ export function createScene(quality) {
   const sun = new THREE.DirectionalLight(0xffe2b8, 1.25);
   sun.name = 'sun';
   sun.position.set(18, 28, 12);
-  sun.target.position.set(2, 0, -8);
+  sun.target.position.set(0, 0, -5);
   sun.castShadow = quality.shadows;
   if (quality.shadows) {
     sun.shadow.mapSize.width = 1024;
     sun.shadow.mapSize.height = 1024;
     sun.shadow.camera.near = 1;
     sun.shadow.camera.far = 90;
-    sun.shadow.camera.left = -32;
-    sun.shadow.camera.right = 32;
-    sun.shadow.camera.top = 32;
-    sun.shadow.camera.bottom = -32;
+    sun.shadow.camera.left = -36;
+    sun.shadow.camera.right = 36;
+    sun.shadow.camera.top = 36;
+    sun.shadow.camera.bottom = -36;
     sun.shadow.bias = -0.0004;
     sun.shadow.normalBias = 0.035;
   }
@@ -274,6 +355,8 @@ export function createScene(quality) {
   scene.userData.trees = trees;
 
   scene.userData.door = door;
+  scene.userData.street = STREET;
+  scene.userData.spawn = STREET.spawn;
 
   // Real house model (Kenney City Kit Suburban, CC0). The procedural house
   // and the standalone door above stay as a fallback until the model has loaded.
