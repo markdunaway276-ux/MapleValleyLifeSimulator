@@ -151,6 +151,23 @@ export function createScene(quality) {
   road.receiveShadow = quality.shadows;
   scene.add(road);
 
+  const stripeCount = 20;
+  const stripe = new THREE.PlaneGeometry(2.2, 0.26);
+  stripe.rotateX(-Math.PI / 2);
+  const paint = new THREE.MeshStandardMaterial({ color: 0xd8d6c7, roughness: 0.91 });
+  const crossings = new THREE.InstancedMesh(stripe, paint, STREET.crossings.length * stripeCount);
+  crossings.name = 'pedestrian-crossings';
+  crossings.receiveShadow = quality.shadows;
+  const matrix = new THREE.Matrix4();
+  let stripeIndex = 0;
+  for (const x of STREET.crossings) {
+    for (let i = 0; i < stripeCount; i++) {
+      const z = roadCenterZ + ((i + 0.5) / stripeCount - 0.5) * roadWidth;
+      crossings.setMatrixAt(stripeIndex++, matrix.makeTranslation(x, SURFACE_Y.road + 0.002, z));
+    }
+  }
+  scene.add(crossings);
+
   const walkTex = createSidewalkTexture(quality);
   // One tile is one pavement slab, so the joints line up with the tile edge.
   walkTex.repeat.set(Math.round(streetLen / TEXTURE.walk.slabMetres), 1);

@@ -68,8 +68,14 @@ export const PHONE_APPS = [
         select.addEventListener('change', () => ctx.setWaypoint(destinations.find(item => item.id === select.value)));
         screen.append(select);
       }
-      screen.append(wrap);
-      if (ctx && typeof ctx.attachMap === 'function') return ctx.attachMap(wrap);
+      const remaining = document.createElement('p');
+      remaining.className = 'phone-route-status';
+      remaining.hidden = true;
+      screen.append(remaining, wrap);
+      if (ctx && typeof ctx.attachMap === 'function') return ctx.attachMap(wrap, (label) => {
+        remaining.hidden = !label;
+        if (remaining.textContent !== label) remaining.textContent = label;
+      });
       return null;
     }
   },

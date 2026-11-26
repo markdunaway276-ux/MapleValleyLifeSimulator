@@ -14,11 +14,14 @@ const ROAD_CENTER_Z = SOUTH_CURB_Z + WIDER_WALK + ROAD_WIDTH / 2;
 // Keep the south property line and front walk in place as the pavement widens.
 export const NORTH_FRONTAGE_OFFSET = ROAD_WIDTH - OLD_ROAD_WIDTH + 2 * WIDER_WALK;
 
+export const MARKED_CROSSINGS = Object.freeze([0, 14]);
+
 export const STREET = {
   length: 44,
   roadWidth: ROAD_WIDTH,
   sidewalkWidth: SIDEWALK_WIDTH,
   parkingLaneWidth: 3,
+  crossings: MARKED_CROSSINGS,
   roadCenterZ: ROAD_CENTER_Z,
   spawn: { x: 0, y: 1.6, z: ROAD_CENTER_Z }
 };

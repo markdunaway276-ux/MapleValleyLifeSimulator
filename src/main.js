@@ -292,7 +292,7 @@ const phone = createPhone({
   apps: INSTALLED_APPS,
   bindKey: !isMobile,
   onBeforeOpen: () => { if (inventory.isOpen()) inventory.close(); },
-  attachMap: (el) => minimap.attachPhone(el),
+  attachMap: (el, onRoute) => minimap.attachPhone(el, undefined, onRoute),
   getDestinations: () => [
     ...minimap.destinations(),
     ...getTasks().filter(task => !task.complete && npcs.get(task.npcId)).map(task => ({
