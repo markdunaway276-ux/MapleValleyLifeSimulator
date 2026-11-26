@@ -15,7 +15,7 @@ const ROAD_CENTER_Z = SOUTH_CURB_Z + WIDER_WALK + ROAD_WIDTH / 2;
 export const NORTH_FRONTAGE_OFFSET = ROAD_WIDTH - OLD_ROAD_WIDTH + 2 * WIDER_WALK;
 
 export const STREET = {
-  length: 44,
+  length: 88, // x -44..44: laundromat at the east end, trailer park at the west
   roadWidth: ROAD_WIDTH,
   sidewalkWidth: SIDEWALK_WIDTH,
   parkingLaneWidth: 3,

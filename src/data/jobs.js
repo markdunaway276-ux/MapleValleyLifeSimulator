@@ -36,6 +36,19 @@ export const JOB_DEFS = [
     minEnergy: 10,
     tiredMessage: WORK_TIRED,
     sfx: 'cash'
+  },
+  {
+    id: 'laundry',
+    name: 'Laundromat attendant',
+    verb: 'fold laundry',
+    label: 'Folding laundry…',
+    duration: 5,
+    gameMinutes: 60,
+    pay: 14,
+    energy: 8,
+    minEnergy: 8,
+    tiredMessage: WORK_TIRED,
+    sfx: 'cash'
   }
 ];
 

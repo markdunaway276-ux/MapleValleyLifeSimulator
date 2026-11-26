@@ -30,6 +30,7 @@ export const MINIMAP_COLORS = {
   mailbox: '#c9a227',
   vending: '#c43b48',
   market: '#367d59',
+  laundromat: '#3f7fb8',
   desk: '#6ea0d8',
   car: '#3d4a5c',
   carActive: '#5b7aa6',
@@ -200,6 +201,7 @@ export function gatherMinimapWorld(scene) {
     const b = getHouseBounds(h, { x: h.position.x, z: h.position.z, rotY });
     if (b) houses.push({ id: h.name || ('house-' + i), ...b });
   }
+  for (const b of ud.mapBuildings || []) houses.push({ ...b });
   const main = boundsForMainHouse(ud);
   if (main) houses.push({ id: 'main-house', main: true, ...main });
 
@@ -225,6 +227,10 @@ export function gatherMinimapWorld(scene) {
   if (ud.cornerShop) {
     const market = posOf(ud.cornerShop);
     markers.push({ id: 'market', kind: 'market', x: market.x, z: market.z });
+  }
+  if (ud.laundromat) {
+    const l = posOf(ud.laundromat);
+    markers.push({ id: 'laundromat', kind: 'laundromat', x: l.x + 1, z: l.z - 3 });
   }
   const vending = posOf(ud.vending, VENDING_SPAWN);
   markers.push({ id: 'vending', kind: 'vending', x: vending.x, z: vending.z });

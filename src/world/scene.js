@@ -16,6 +16,8 @@ import { createColliderWorld } from '../systems/collision.js';
 import { createHingedDoor } from '../systems/doors.js';
 import { buildStreetlights } from './streetlights.js';
 import { buildCornerShop } from './cornerShop.js';
+import { buildLaundromat } from './laundromat.js';
+import { buildTrailerPark } from './trailerPark.js';
 import { createWorldState } from '../systems/interactables.js';
 import { sampleLighting } from './daynight.js';
 import { HOUSE, LOOK, MAIN_HOUSE, PROPS, TEXTURE } from './palette.js';
@@ -346,6 +348,8 @@ export function createScene(quality) {
   scene.userData.pickups = pickups;
   scene.userData.interactables = [];
   buildCornerShop(scene, quality);
+  buildLaundromat(scene, quality);
+  buildTrailerPark(scene, quality);
   scene.userData.world = createWorldState(scene);
 
   const mailbox = createMailbox({ shadows: quality.shadows });
