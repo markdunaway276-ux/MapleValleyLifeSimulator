@@ -1,5 +1,6 @@
 import * as THREE from 'three';
-import { bevelBox } from '../world/shapes.js';
+import { buildDoorGeometry } from '../world/details.js';
+import { createVertexMaterial } from '../world/surfaces.js';
 
 /** Local yaw for an open door: negative Y rotation swings the panel toward local +z (outward, toward the street). */
 export const DOOR_OPEN_ANGLE = -Math.PI / 2;
@@ -7,7 +8,7 @@ export const DOOR_OPEN_ANGLE = -Math.PI / 2;
 export const DOOR_ANIM_SPEED = (Math.PI / 2) / 0.25;
 
 /**
- * A hinged door: the panel geometry is translated so its origin is the hinge
+ * A hinged door: the panel geometry is built so its origin is the hinge
  * edge (left jamb, sitting on the ground). Rotating the Group around Y swings
  * the door like a real one; the hinge edge stays fixed in world space.
  * userData.interactLocal is the closed-door centre, used for range checks
@@ -20,19 +21,22 @@ export function createHingedDoor(options = {}) {
   const shadows = options.shadows !== undefined ? !!options.shadows : true;
   const castShadow = options.castShadow !== undefined ? !!options.castShadow : shadows;
   const receiveShadow = options.receiveShadow !== undefined ? !!options.receiveShadow : shadows;
-  const material = options.material || new THREE.MeshStandardMaterial({
-    color: options.color ?? 0x654321,
-    roughness: 0.72,
-    metalness: 0
-  });
+  const color = options.color ?? 0x654321;
+  // Vertex-coloured material: the slab, panels, glass and brass all share it.
+  const material = options.material || createVertexMaterial({ metalness: 0.04 });
 
   const pivot = new THREE.Group();
   pivot.name = 'door';
 
-  // BoxGeometry is centred on its origin; shift it so the left face (x = 0)
-  // is the hinge and the bottom sits at y = 0.
-  const geometry = bevelBox(width, height, depth, { max: 0.012 });
-  geometry.translate(width / 2, height / 2, 0);
+  // Detailed slab (raised panels or glazing, lever sets, hinges, kick plate),
+  // built in hinge-origin space: the left face (x = 0) is the hinge and the
+  // bottom sits at y = 0. One merged geometry, so still one mesh and one draw call.
+  const geometry = buildDoorGeometry({
+    width, height, depth, color,
+    glazed: !!options.glazed,
+    kick: options.kick !== false,
+    tint: options.glassTint
+  });
 
   const panel = new THREE.Mesh(geometry, material);
   panel.name = 'door-panel';

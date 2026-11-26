@@ -8,8 +8,10 @@
 import * as THREE from 'three';
 import { DEFAULT_SHOP, shopPrompt } from '../data/shops.js';
 import { buyFromShop, resolveShop } from '../systems/shop.js';
-import { PROPS } from './palette.js';
+import { DETAIL, PROPS } from './palette.js';
 import { bevelBox } from './shapes.js';
+import { Parts } from './parts.js';
+import { createVertexMaterial } from './surfaces.js';
 
 /**
  * Same sidewalk as the mailbox (z ≈ -4.4), but west of the front-door path.
@@ -38,6 +40,41 @@ function mesh(geo, material, name, shadows, { cast = shadows, receive = shadows 
 }
 
 /**
+ * The vending cabinet shell (centred): the rounded body plus a coin slot with
+ * a brass bezel, a row of selection buttons, a delivery flap and a darker top
+ * cap, merged into one vertex-coloured geometry. The foot is darkened by baked AO.
+ */
+function vendingBodyGeometry(w, h, d) {
+  const p = new Parts(true);
+  // The shell is a hair shallower than the cabinet; the lugs on the front and
+  // the vent on the back make up the difference, so the body still measures
+  // exactly VENDING_SIZE (its collider) from front to back.
+  const lug = 0.012;
+  const sd = d - lug * 2;
+  const fz = sd / 2;
+  const y0 = -h / 2;
+  p.bevelMax = 0.05;
+  p.bevelSegments = 2;
+  p.surface('appliance');
+  p.box(PROPS.vendingBody, w, h, sd, 0, 0, 0);
+  p.bevelMax = 0;
+  p.box(PROPS.vendingDark, w * 0.98, 0.06, sd * 0.98, 0, h / 2 - 0.03, 0);
+  p.surface('metal');
+  p.box(DETAIL.brass, 0.085, 0.15, lug, -w * 0.22, y0 + 0.47, fz + lug / 2);
+  p.box(DETAIL.iron, 0.012, 0.09, lug, -w * 0.22, y0 + 0.47, fz + lug / 2);
+  p.box(DETAIL.iron, w * 0.46, 0.15, lug, -w * 0.12, y0 + 0.24, fz + lug / 2);
+  p.box(DETAIL.brass, w * 0.46 + 0.02, 0.012, lug, -w * 0.12, y0 + 0.24 + 0.081, fz + lug / 2);
+  p.surface('paint');
+  [0xe6e0d0, 0xe6e0d0, 0xc23a32].forEach((c, i) => {
+    p.box(c, 0.045, 0.045, lug, w * 0.22 + (i - 1) * 0.065, y0 + 0.62, fz + lug / 2);
+  });
+  // Rear vent plate.
+  p.surface('metal');
+  p.box(PROPS.vendingDark, w * 0.5, 0.4, lug, 0, y0 + 0.5, -fz - lug / 2);
+  return p.merge();
+}
+
+/**
  * A simple vending cabinet facing +z (toward the street). Interacting buys
  * the shop's first stock item (a Snack for $5 by default).
  */
@@ -49,13 +86,13 @@ export function createVendingMachine({ shadows = false, shop = DEFAULT_SHOP } = 
   const d = VENDING_SIZE.depth;
   const h = VENDING_SIZE.height;
 
-  const bodyMat = mat(PROPS.vendingBody, shadows, { roughness: 0.42, metalness: 0.3 });
+  const bodyMat = createVertexMaterial({ metalness: 0.3 });
   const darkMat = mat(PROPS.vendingDark, shadows, { roughness: 0.4, metalness: 0.3 });
   const glowMat = new THREE.MeshBasicMaterial({ color: 0x7ee7ff });
   const windowMat = new THREE.MeshBasicMaterial({ color: 0x9af3c8 });
   const signMat = new THREE.MeshBasicMaterial({ color: 0xffe08a });
 
-  const body = mesh(bevelBox(w, h, d, { segments: 2, max: 0.05 }), bodyMat, 'vending-body', shadows);
+  const body = mesh(vendingBodyGeometry(w, h, d), bodyMat, 'vending-body', shadows);
   body.position.y = h / 2;
   group.add(body);
 

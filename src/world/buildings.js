@@ -1,10 +1,11 @@
 import * as THREE from 'three';
-import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 import { createHingedDoor } from '../systems/doors.js';
-import { AO, BEVEL, HOUSE, SURFACE, shade } from './palette.js';
+import { BEVEL, DETAIL, HOUSE, SURFACE, shade } from './palette.js';
 import { bevelBox } from './shapes.js';
-import { createVertexMaterial, ROUGH_ATTR } from './surfaces.js';
+import { createVertexMaterial, useVertexEmissive } from './surfaces.js';
+import { addGlassPane } from './details.js';
+import { Parts } from './parts.js';
 
 const DEFAULTS = {
   width: 8,
@@ -157,7 +158,10 @@ function makeDoor(opts, extra = {}) {
     width: doorWidth,
     height: doorHeight,
     depth: doorDepth,
-    material: extra.shared ? doorMaterial(doorColor) : mat(doorColor),
+    color: doorColor,
+    glazed: !!extra.glazed,
+    glassTint: opts.windowColor,
+    material: doorMaterial(),
     castShadow: !!opts.castShadow,
     receiveShadow: !!opts.receiveShadow
   });
@@ -262,136 +266,21 @@ function staticMaterial() {
   // Roughness comes from the per-vertex attribute Parts writes (one draw call).
   return sharedMaterial('static', () => createVertexMaterial({ metalness: 0.03 }));
 }
-function glassMaterial(color) {
-  return sharedMaterial(`glass:${color}`, () => new THREE.MeshStandardMaterial({
-    color, roughness: SURFACE.glass.roughness, metalness: SURFACE.glass.metalness,
-    emissive: new THREE.Color(color), emissiveIntensity: 0.22
-  }));
-}
-function doorMaterial(color) {
-  return sharedMaterial(`door:${color}`, () => new THREE.MeshStandardMaterial({
-    color, roughness: SURFACE.wood.roughness, metalness: 0
-  }));
-}
-
 /**
- * Baked vertex ambient occlusion for a box in its own (untransformed) space:
- * the foot of each side face darkens and the underside is darker still, so
- * walls and furniture sit on the ground instead of floating. Tops are left
- * alone. Pure per-vertex colour: no lights, no textures, no draw calls.
+ * One shared glass material for every house: the window colour, a vertical
+ * tint gradient and the reflection streak are baked into the glass vertices
+ * (details.js), and the emissive follows them so panes never go black at night.
  */
-function boxAo(g, sy) {
-  const pos = g.attributes.position;
-  const nor = g.attributes.normal;
-  const n = pos.count;
-  const out = new Float32Array(n);
-  const span = Math.max(1e-4, Math.min(AO.height, sy));
-  for (let i = 0; i < n; i++) {
-    const ny = nor.getY(i);
-    if (ny > 0.5) { out[i] = 1; continue; }
-    if (ny < -0.5) { out[i] = 1 - AO.bottom; continue; }
-    const t = Math.min(1, Math.max(0, (pos.getY(i) + sy / 2) / span));
-    const s = t * t * (3 - 2 * t);
-    out[i] = 1 - AO.side * (1 - s);
-  }
-  return out;
+function glassMaterial() {
+  return sharedMaterial('glass-vc', () => {
+    const m = createVertexMaterial({ metalness: SURFACE.glass.metalness, emissive: 0xffffff });
+    m.emissiveIntensity = 0.22;
+    return useVertexEmissive(m);
+  });
 }
-
-/** Collects transformed geometry pieces and merges them into one BufferGeometry. */
-export class Parts {
-  /**
-   * `colored` writes per-vertex colour (and roughness) for a vertex-coloured
-   * material. `ao` bakes the box ambient occlusion (default on for coloured
-   * parts; turn it off for unlit / emissive parts).
-   */
-  constructor(colored, { ao = colored } = {}) {
-    this.colored = colored;
-    this.ao = !!(colored && ao);
-    this.rough = SURFACE.plaster.roughness;
-    this._boxes = new Map();
-    this.list = [];
-    this.frame = new THREE.Matrix4();
-    this._m = new THREE.Matrix4();
-    this._q = new THREE.Quaternion();
-    this._e = new THREE.Euler();
-    this._p = new THREE.Vector3();
-    this._s = new THREE.Vector3();
-  }
-
-  setFrame(x = 0, y = 0, z = 0, ry = 0) {
-    this.frame.makeRotationY(ry).setPosition(x, y, z);
-  }
-
-  resetFrame() {
-    this.frame.identity();
-  }
-
-  /** Sets the roughness of everything added next: a SURFACE preset name or a number. */
-  surface(kind) {
-    this.rough = typeof kind === 'number' ? kind : (SURFACE[kind] || SURFACE.plaster).roughness;
-  }
-
-  addGeometry(geo, color, local, aoSy = null) {
-    const g = geo.index ? geo.toNonIndexed() : geo.clone();
-    for (const k of Object.keys(g.attributes)) {
-      if (k !== 'position' && k !== 'normal' && k !== 'uv') g.deleteAttribute(k);
-    }
-    if (!g.attributes.normal) g.computeVertexNormals();
-    if (!g.attributes.uv) {
-      g.setAttribute('uv', new THREE.BufferAttribute(new Float32Array(g.attributes.position.count * 2), 2));
-    }
-    // AO is read off the box's own normals and height, so it runs before the transform.
-    const ao = this.ao && aoSy !== null ? boxAo(g, aoSy) : null;
-    g.applyMatrix4(this._m.multiplyMatrices(this.frame, local));
-    if (this.colored) {
-      const c = new THREE.Color(color);
-      const n = g.attributes.position.count;
-      const arr = new Float32Array(n * 3);
-      const rough = new Float32Array(n).fill(this.rough);
-      for (let i = 0; i < n; i++) {
-        const f = ao ? ao[i] : 1;
-        arr[i * 3] = c.r * f;
-        arr[i * 3 + 1] = c.g * f;
-        arr[i * 3 + 2] = c.b * f;
-      }
-      g.setAttribute('color', new THREE.BufferAttribute(arr, 3));
-      g.setAttribute(ROUGH_ATTR, new THREE.BufferAttribute(rough, 1));
-    }
-    this.list.push(g);
-  }
-
-  /**
-   * Adds a w x h x d box with absolute-radius rounded edges (see shapes.js).
-   * The geometry is built at its real size, so the bevel stays the same on a
-   * 9 m wall as on a 3 cm trim strip. Identical sizes are built once.
-   */
-  box(color, sx, sy, sz, x, y, z, rx = 0, ry = 0, rz = 0) {
-    this._p.set(x, y, z);
-    this._q.setFromEuler(this._e.set(rx, ry, rz));
-    this._s.set(1, 1, 1);
-    const local = new THREE.Matrix4().compose(this._p, this._q, this._s);
-    const key = `${Math.round(sx * 1e4)}|${Math.round(sy * 1e4)}|${Math.round(sz * 1e4)}`;
-    let geo = this._boxes.get(key);
-    if (!geo) {
-      geo = bevelBox(sx, sy, sz);
-      this._boxes.set(key, geo);
-    }
-    this.addGeometry(geo, color, local, sy);
-  }
-
-  geometry(geo, color, x = 0, y = 0, z = 0) {
-    this.addGeometry(geo, color, new THREE.Matrix4().makeTranslation(x, y, z));
-  }
-
-  merge() {
-    this._boxes.forEach((g) => g.dispose());
-    this._boxes.clear();
-    if (this.list.length === 0) return null;
-    const merged = mergeGeometries(this.list, false);
-    this.list.forEach((g) => g.dispose());
-    this.list.length = 0;
-    return merged;
-  }
+/** One shared vertex-coloured material for every door slab (the colour is baked per door). */
+function doorMaterial() {
+  return sharedMaterial('door-vc', () => createVertexMaterial({ metalness: 0.04 }));
 }
 
 /** Hip roof (ridge along z) with a closed underside; flat-shaded. */
@@ -485,26 +374,55 @@ function addMainRoof(parts, opts, rng) {
 function addWindowUnit(parts, glass, trim, accent, spec) {
   // Local frame: origin at the wall surface, +z pointing out of the wall.
   const { w, h, mullV = 0, mullH = 0, shutters = false } = spec;
+  const tint = glass.tint ?? HOUSE.glass;
+  const f = DETAIL.frame;
+  const sash = shade(trim, 0.84);
+  const prevBevel = parts.bevelMax;
+  // Thin frame, sash and muntin pieces are plain boxes (a bevel that small is
+  // invisible); only the head cap and sill keep rounded edges.
+  parts.bevelMax = 0;
+  // Tinted glass with a sky-to-room gradient and a reflection streak.
+  addGlassPane(glass, w, h, tint);
   parts.surface('trim');
-  glass.box(null, w, h, 0.04, 0, 0, 0.02);
-  const f = 0.06;
+  // Outer frame (head, sill-side and jambs).
   parts.box(trim, w + f * 2, f, 0.1, 0, h / 2 + f / 2, 0.04);
   parts.box(trim, w + f * 2, f, 0.1, 0, -h / 2 - f / 2, 0.04);
   parts.box(trim, f, h, 0.1, -w / 2 - f / 2, 0, 0.04);
   parts.box(trim, f, h, 0.1, w / 2 + f / 2, 0, 0.04);
+  // Inner sash ring, a shade darker and a little proud of the glass.
+  parts.box(sash, w, 0.03, 0.06, 0, h / 2 - 0.015, 0.03);
+  parts.box(sash, w, 0.03, 0.06, 0, -h / 2 + 0.015, 0.03);
+  parts.box(sash, 0.03, h - 0.06, 0.06, -w / 2 + 0.015, 0, 0.03);
+  parts.box(sash, 0.03, h - 0.06, 0.06, w / 2 - 0.015, 0, 0.03);
+  // Mullions and muntins.
   for (let i = 1; i <= mullV; i++) {
     parts.box(trim, 0.035, h, 0.07, -w / 2 + (w * i) / (mullV + 1), 0, 0.045);
   }
   for (let i = 1; i <= mullH; i++) {
     parts.box(trim, w, 0.035, 0.07, 0, -h / 2 + (h * i) / (mullH + 1), 0.045);
   }
-  parts.box(trim, w + 0.26, 0.06, 0.18, 0, -h / 2 - f - 0.03, 0.07);
+  // Head cap above, and a sill with an apron below.
+  parts.bevelMax = 0.02;
+  parts.box(trim, w + 0.2, DETAIL.header, 0.14, 0, h / 2 + f + DETAIL.header / 2, 0.06);
+  parts.box(trim, w + 0.26, DETAIL.sill, 0.18, 0, -h / 2 - f - DETAIL.sill / 2, 0.07);
+  parts.bevelMax = 0;
+  parts.box(sash, w + 0.06, 0.05, 0.1, 0, -h / 2 - f - DETAIL.sill - 0.025, 0.04);
   if (shutters) {
     parts.surface('paint');
     const sw = Math.max(0.2, w * 0.42);
     parts.box(accent, sw, h + 0.12, 0.04, -w / 2 - f - sw / 2 - 0.01, 0, 0.03);
     parts.box(accent, sw, h + 0.12, 0.04, w / 2 + f + sw / 2 + 0.01, 0, 0.03);
+    // Louvre slats: darker bars across each shutter.
+    const slat = shade(accent, 0.74);
+    const slats = Math.max(3, Math.round(h / 0.2));
+    const sh = h + 0.12;
+    for (let i = 0; i < slats; i++) {
+      const sy = -sh / 2 + (sh * (i + 0.5)) / slats;
+      parts.box(slat, sw * 0.8, 0.025, 0.012, -w / 2 - f - sw / 2 - 0.01, sy, 0.053);
+      parts.box(slat, sw * 0.8, 0.025, 0.012, w / 2 + f + sw / 2 + 0.01, sy, 0.053);
+    }
   }
+  parts.bevelMax = prevBevel;
 }
 
 function doorSize(opts) {
@@ -525,7 +443,8 @@ function buildVariedHouse(group, opts) {
   const dSize = doorSize(opts);
   const dw = dSize.width;
   const parts = new Parts(true);
-  const glass = new Parts(false);
+  const glass = new Parts(true, { ao: false });
+  glass.tint = opts.windowColor;
   const foot = { boxes: [], posts: [], minX: -hw, maxX: hw, minZ: -hd, maxZ: hd };
   const grow = (x0, x1, z0, z1) => {
     foot.minX = Math.min(foot.minX, x0); foot.maxX = Math.max(foot.maxX, x1);
@@ -618,6 +537,22 @@ function buildVariedHouse(group, opts) {
   if (hasDoor) {
     parts.surface('trim');
     parts.box(trim, dw + 0.3, 0.1, 0.12, 0, deckH + dSize.height + 0.05, hd + 0.04);
+    // Casing (jambs), a worn threshold step and a small brass house number.
+    const cw = DETAIL.doorCasing;
+    for (const sx of [-1, 1]) {
+      parts.box(trim, cw, dSize.height, 0.1, sx * (dw / 2 + cw / 2), deckH + dSize.height / 2, hd + 0.04);
+    }
+    parts.surface('stone');
+    parts.box(shade(trim, 0.78), dw + 0.2, 0.05, 0.24, 0, deckH + 0.025, hd + 0.11);
+    parts.surface('metal');
+    const px = dw / 2 + 0.3;
+    const py = deckH + 1.5;
+    parts.bevelMax = 0;
+    parts.box(DETAIL.brass, 0.16, 0.1, 0.014, px, py, hd + 0.007);
+    parts.box(DETAIL.iron, 0.13, 0.07, 0.018, px, py, hd + 0.009);
+    parts.box(DETAIL.brass, 0.02, 0.048, 0.022, px - 0.03, py, hd + 0.011);
+    parts.box(DETAIL.brass, 0.02, 0.048, 0.022, px + 0.03, py, hd + 0.011);
+    parts.bevelMax = null;
   }
 
   // --- extension (garage / wing) -----------------------------------------
@@ -751,13 +686,13 @@ function buildVariedHouse(group, opts) {
 
   const glassGeo = glass.merge();
   if (glassGeo) {
-    const windows = new THREE.Mesh(glassGeo, glassMaterial(opts.windowColor));
+    const windows = new THREE.Mesh(glassGeo, glassMaterial());
     windows.name = 'windows';
     group.add(windows);
   }
 
   if (hasDoor) {
-    const door = makeDoor({ ...opts, doorColor }, { shared: true, y: deckH });
+    const door = makeDoor({ ...opts, doorColor }, { shared: true, y: deckH, glazed: ((opts.seed ?? 1) % 2) === 0 });
     group.add(door);
     group.userData.door = door;
   } else {
@@ -893,4 +828,4 @@ export function generateHouse(options = {}) {
   return group;
 }
 
-export { DEFAULTS as HOUSE_DEFAULTS };
+export { DEFAULTS as HOUSE_DEFAULTS, Parts };

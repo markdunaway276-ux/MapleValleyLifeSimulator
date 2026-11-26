@@ -1,7 +1,9 @@
 import * as THREE from 'three';
 import { hidePickup } from '../systems/interactables.js';
-import { PROPS } from './palette.js';
+import { DETAIL, PROPS } from './palette.js';
 import { bevelBox } from './shapes.js';
+import { Parts } from './parts.js';
+import { createVertexMaterial } from './surfaces.js';
 
 /** Front-room dining table (matches interior.js). Snack sits on the top face. */
 export const SNACK_SPAWN = { x: -1.55, y: 0.78, z: -7.7 };
@@ -33,6 +35,37 @@ function mesh(geo, material, name, shadows) {
   m.castShadow = !!shadows;
   m.receiveShadow = !!shadows;
   return m;
+}
+
+/** Mailbox post (centred) with a small iron base plate, as one vertex-coloured geometry. */
+function mailboxPostGeometry() {
+  const p = new Parts(true);
+  p.bevelMax = 0.015;
+  p.surface('woodRaw');
+  p.box(PROPS.mailPost, 0.08, 1.02, 0.08, 0, 0, 0);
+  p.surface('metal');
+  p.box(DETAIL.iron, 0.16, 0.03, 0.16, 0, -0.51 + 0.015, 0);
+  return p.merge();
+}
+
+/**
+ * Mailbox body (centred) with a front latch, a red signal flag on its side
+ * and a rolled seam along the top, merged into one vertex-coloured geometry.
+ */
+function mailboxBodyGeometry(w, h, d) {
+  const p = new Parts(true);
+  p.bevelMax = 0.04;
+  p.bevelSegments = 2;
+  p.surface('appliance');
+  p.box(PROPS.mailBox, w, h, d, 0, 0, 0);
+  p.bevelMax = 0;
+  p.bevelSegments = 1;
+  p.surface('metal');
+  p.box(DETAIL.brass, 0.05, 0.035, 0.014, 0, h * 0.18, d / 2 + 0.006);
+  p.box(DETAIL.iron, 0.014, 0.12, 0.02, w / 2 + 0.008, 0.02, -0.02);
+  p.surface('paint');
+  p.box(0xa8322c, 0.012, 0.075, 0.12, w / 2 + 0.008, 0.1, 0.03);
+  return p.merge();
 }
 
 /**
@@ -83,17 +116,17 @@ export function createMailbox({ shadows = false, onOpen } = {}) {
   const group = new THREE.Group();
   group.name = 'mailbox';
 
-  const postMat = mat(PROPS.mailPost, shadows, { roughness: 0.86 });
-  const boxMat = mat(PROPS.mailBox, shadows, { roughness: 0.42, metalness: 0.35 });
+  const postMat = createVertexMaterial({ metalness: 0.02 });
+  const boxMat = createVertexMaterial({ metalness: 0.3 });
   const lidMat = mat(PROPS.mailLid, shadows, { roughness: 0.4, metalness: 0.38 });
 
-  const post = mesh(bevelBox(0.08, 1.02, 0.08, { max: 0.015 }), postMat, 'mailbox-post', shadows);
+  const post = mesh(mailboxPostGeometry(), postMat, 'mailbox-post', shadows);
   post.position.y = 0.51;
   group.add(post);
 
   const bodyW = 0.36, bodyH = 0.26, bodyD = 0.22;
   const bodyY = 1.14;
-  const body = mesh(bevelBox(bodyW, bodyH, bodyD, { segments: 2, max: 0.04 }), boxMat, 'mailbox-body', shadows);
+  const body = mesh(mailboxBodyGeometry(bodyW, bodyH, bodyD), boxMat, 'mailbox-body', shadows);
   body.position.y = bodyY;
   group.add(body);
 

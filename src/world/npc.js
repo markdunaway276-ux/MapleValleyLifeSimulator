@@ -7,6 +7,8 @@
 
 import { PLAYER_RADIUS } from '../systems/collision.js';
 import { createPlaceholderBody } from './playerBody.js';
+import { createContactBlob } from './contact.js';
+import { surfaceHeightAt } from './street.js';
 import { NPC_DEFS, getNpc as lookupNpc, NPC_NOTICE_RANGE, NPC_TALK_RANGE, NPC_RADIUS } from '../data/npcs.js';
 
 function talkPrompt(name, isMobile) {
@@ -62,6 +64,12 @@ export function createNpc(def, { scene, shadows = false } = {}) {
   group.position.set(x, 0, z);
   group.rotation.y = yaw;
 
+  // A soft contact shadow under the feet (fake ambient occlusion). It is a
+  // child of the body group, so it walks with the NPC; it works on mobile too.
+  const blob = createContactBlob({ rx: radius * 1.1, rz: radius * 1.1, strength: 0.9 }, { shadows });
+  blob.userData.baseY = 0;
+  group.add(blob);
+
   const world = scene && scene.userData && scene.userData.colliders;
   let collider = null;
   if (world && typeof world.addTree === 'function') {
@@ -94,6 +102,8 @@ export function createNpc(def, { scene, shadows = false } = {}) {
   function applyPose(bob) {
     group.position.set(x, bob, z);
     group.rotation.y = yaw;
+    // Keep the blob on the pavement / road / grass, not bobbing with the walk.
+    blob.position.y = surfaceHeightAt(x, z) - bob;
     if (collider) {
       collider.x = x;
       collider.z = z;
@@ -178,6 +188,8 @@ export function createNpc(def, { scene, shadows = false } = {}) {
     if (scene && Array.isArray(scene.userData.interactables)) {
       scene.userData.interactables = scene.userData.interactables.filter((e) => e !== entry);
     }
+    group.remove(blob);
+    blob.geometry.dispose();
     body.dispose();
   }
 

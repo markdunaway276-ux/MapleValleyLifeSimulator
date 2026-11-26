@@ -17,8 +17,15 @@
 /** Renderer + shadow tuning. Exposure 0.95 is the value set by commit 83bc107. */
 export const LOOK = {
   exposure: 0.95,
-  /** Desktop sun shadow map: 2048 over ±38 m is ~3.7 cm a texel (was 1024 over ±44 m, ~8.6 cm). */
-  shadow: { mapSize: 2048, extent: 38, near: 1, far: 110, bias: -0.0003, normalBias: 0.03 },
+  /**
+   * Desktop sun shadow map: 2048 over ±38 m is ~3.7 cm a texel (was 1024 over ±44 m, ~8.6 cm).
+   * `type` is the soft 3x3 bilinear PCF. In three r169 that kernel is fixed (it ignores
+   * `radius`), so softness comes from the texel size plus the contact blobs (contact.js);
+   * `radius` is still set so it takes effect if the type is ever switched to plain PCF.
+   * bias / normalBias: checked with a no-bias control and grazing dawn sun on the lawn; at 3.7 cm
+   * a texel, -0.0003 (about 3 cm of depth) plus a 0.03 normal offset shows no acne and no peter-panning.
+   */
+  shadow: { type: 'PCFSoft', mapSize: 2048, extent: 38, near: 1, far: 110, bias: -0.0003, normalBias: 0.03, radius: 2.5 },
   /** Fog starts and ends this fraction of the camera far plane away (was 0.55 / 0.98). */
   fog: { near: 0.42, far: 0.96 }
 };
@@ -73,9 +80,28 @@ export const GROUND = {
   grass: [46, 92, 50],
   grassDark: [-14, -20, -9],
   grassLight: [14, 20, 7],
+  /** Autumn leaf litter flecks scattered on the lawn (0-255 RGB). */
+  leaf: [122, 92, 44],
+  /** Bare, dry patches of lawn. */
+  dry: [86, 96, 52],
   road: [40, 40, 44],
+  /** Tyre-worn lanes are darker and smoother; the kerb edges are paler grit. */
+  roadWear: -7,
+  roadGrit: 9,
   line: [206, 182, 74],
-  walk: [150, 146, 136]
+  walk: [150, 146, 136],
+  /** Slab joint darkening (multiplier) and the pale lip beside it. */
+  walkJoint: 0.7,
+  walkLip: 1.07
+};
+
+/** Canvas texture sizes (px) per tier. All of them tile seamlessly. */
+export const TEXTURE = {
+  grass: { desktop: 512, mobile: 256, anisotropy: 8, repeat: 20 },
+  /** [along the street, across it]. One tile spans 8 m along the street. */
+  road: { desktop: [256, 64], mobile: [128, 64], tileMetres: 8, dashes: 4 },
+  /** One slab per tile, so the joints land on the tile edge. */
+  walk: { size: 128, slabMetres: 1.5 }
 };
 
 /** Procedural street houses: walls, roofs, trims and accents. */
@@ -152,6 +178,45 @@ export const PROPS = {
   switchPlate: 0xcfc8ba,
   switchPaddle: 0xe8e4da,
   doorWood: 0x4e3320
+};
+
+/** Trees: bark and foliage. Darker autumn greens with a touch of olive and ochre. */
+export const TREE = {
+  trunks: [0x4f3523, 0x5d4129],
+  canopies: [0x2a5a2e, 0x35703a, 0x24542a, 0x4a6b2c],
+  /** Foliage gets darker towards the bottom (baked AO) and speckled per vertex. */
+  canopyFoot: 0.52,
+  canopyJitter: 0.14,
+  trunkFoot: 0.5
+};
+
+/** Fine detail on windows, doors and props (metres unless noted). */
+export const DETAIL = {
+  /** Window glass: top and bottom tint multipliers on the glass colour (a cheap sky reflection). */
+  glassTop: 1.18,
+  glassBottom: 0.5,
+  /** Pale diagonal reflection streak, as a mix towards white. */
+  glassStreak: 0.34,
+  /** Dark interior seen through the lower glass (mix towards this colour). */
+  glassInterior: 0x14202a,
+  frame: 0.06,
+  sill: 0.07,
+  header: 0.05,
+  doorCasing: 0.07,
+  brass: 0xb08d57,
+  iron: 0x23201e,
+  /** Door lever and plate stand this far off the slab face. */
+  handleOut: 0.035
+};
+
+/** Fake ambient occlusion: soft dark blobs on the ground under things. */
+export const CONTACT = {
+  /** Peak opacity of a blob; mobile has no sun shadows so it carries a little more. */
+  desktop: 0.5,
+  mobile: 0.62,
+  /** Metres above the surface the blob sits (it cannot z-fight the ground). */
+  lift: 0.012,
+  tint: 0x0a0806
 };
 
 // -------------------------------------------------------------- helpers ----

@@ -55,7 +55,7 @@ renderer.toneMapping = THREE.ACESFilmicToneMapping;
 // Exposure comes from the palette file (0.95, set by 83bc107) next to the shadow settings.
 renderer.toneMappingExposure = LOOK.exposure;
 renderer.shadowMap.enabled = quality.shadows;
-if (quality.shadows) renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+if (quality.shadows) renderer.shadowMap.type = LOOK.shadow.type === 'PCF' ? THREE.PCFShadowMap : THREE.PCFSoftShadowMap;
 document.body.appendChild(renderer.domElement);
 
 const scene = createScene(quality);

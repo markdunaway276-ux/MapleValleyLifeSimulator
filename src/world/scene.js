@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
-import { generateHouse, getHouseColliders } from './buildings.js';
+import { generateHouse, getHouseColliders, getHouseBounds } from './buildings.js';
 import { buildMainHouseInterior, removePaintedFrontDoor, BED_CENTER, DESK_CENTER, COOK_CENTER, lightSwitchPose, TV_CENTER } from './interior.js';
 import { createBed } from '../systems/sleep.js';
 import { createDesk } from '../systems/work.js';
@@ -16,7 +16,11 @@ import { createColliderWorld } from '../systems/collision.js';
 import { createHingedDoor } from '../systems/doors.js';
 import { createWorldState } from '../systems/interactables.js';
 import { sampleLighting } from './daynight.js';
-import { GROUND, HOUSE, LOOK, MAIN_HOUSE, PROPS } from './palette.js';
+import { HOUSE, LOOK, MAIN_HOUSE, PROPS, TEXTURE } from './palette.js';
+import { createGrassTexture, createRoadTexture, createSidewalkTexture } from './textures.js';
+import { createContactShadows } from './contact.js';
+import { buildMainHouseDetails, findGlassPanes, tintGlassPanes } from './details.js';
+import { STREET, SURFACE_Y, surfaceHeightAt } from './street.js';
 
 function disposeGroup(group) {
   const materials = new Set();
@@ -29,162 +33,7 @@ function disposeGroup(group) {
   materials.forEach((m) => m.dispose());
 }
 
-function hash2(ix, iy) {
-  let n = Math.imul(ix, 374761393) + Math.imul(iy, 668265263);
-  n = (n ^ (n >>> 13)) * 1274126177;
-  return ((n ^ (n >>> 16)) >>> 0) / 4294967296;
-}
-
-function valueNoise(x, y) {
-  const x0 = Math.floor(x);
-  const y0 = Math.floor(y);
-  const fx = x - x0;
-  const fy = y - y0;
-  const sx = fx * fx * (3 - 2 * fx);
-  const sy = fy * fy * (3 - 2 * fy);
-  const a = hash2(x0, y0);
-  const b = hash2(x0 + 1, y0);
-  const c = hash2(x0, y0 + 1);
-  const d = hash2(x0 + 1, y0 + 1);
-  return a + (b - a) * sx + (c - a) * sy + (d - a - b + c) * sx * sy;
-}
-
-function fbm(x, y) {
-  return (
-    valueNoise(x, y) * 0.55 +
-    valueNoise(x * 2.1, y * 2.1) * 0.3 +
-    valueNoise(x * 4.3, y * 4.3) * 0.15
-  );
-}
-
-/** Subtle grass variation. 512px + anisotropy on desktop, 256px on mobile. */
-function createGrassTexture(quality) {
-  const hi = !!quality.shadows;
-  const size = hi ? 512 : 256;
-  const canvas = document.createElement('canvas');
-  canvas.width = size;
-  canvas.height = size;
-  const ctx = canvas.getContext('2d');
-  const img = ctx.createImageData(size, size);
-  const data = img.data;
-  for (let y = 0; y < size; y++) {
-    for (let x = 0; x < size; x++) {
-      const nx = (x / size) * 8;
-      const ny = (y / size) * 8;
-      const patch = fbm(nx, ny);
-      const speck = hash2(x * 13, y * 17);
-      // Muted forest green (palette GROUND.grass), darker clumps, a few paler blades
-      let r = GROUND.grass[0] + (patch - 0.5) * 30;
-      let g = GROUND.grass[1] + (patch - 0.5) * 34;
-      let b = GROUND.grass[2] + (patch - 0.5) * 18;
-      if (speck > 0.82) {
-        r += GROUND.grassLight[0];
-        g += GROUND.grassLight[1];
-        b += GROUND.grassLight[2];
-      } else if (speck < 0.08) {
-        r += GROUND.grassDark[0];
-        g += GROUND.grassDark[1];
-        b += GROUND.grassDark[2];
-      }
-      const i = (y * size + x) * 4;
-      data[i] = Math.max(0, Math.min(255, r));
-      data[i + 1] = Math.max(0, Math.min(255, g));
-      data[i + 2] = Math.max(0, Math.min(255, b));
-      data[i + 3] = 255;
-    }
-  }
-  ctx.putImageData(img, 0, 0);
-
-  const tex = new THREE.CanvasTexture(canvas);
-  tex.wrapS = THREE.RepeatWrapping;
-  tex.wrapT = THREE.RepeatWrapping;
-  tex.repeat.set(20, 20);
-  tex.colorSpace = THREE.SRGBColorSpace;
-  tex.anisotropy = hi ? 8 : 1;
-  tex.minFilter = THREE.LinearMipmapLinearFilter;
-  tex.magFilter = THREE.LinearFilter;
-  tex.needsUpdate = true;
-  return tex;
-}
-
-/** Dark asphalt with a dashed center line. U runs along the street. */
-function createRoadTexture(quality) {
-  const along = quality.shadows ? 256 : 128;
-  const across = 64;
-  const canvas = document.createElement('canvas');
-  canvas.width = along;
-  canvas.height = across;
-  const ctx = canvas.getContext('2d');
-  const img = ctx.createImageData(along, across);
-  const data = img.data;
-  const mid = across / 2;
-  for (let y = 0; y < across; y++) {
-    for (let x = 0; x < along; x++) {
-      const n = valueNoise(x / 20, y / 10) * 0.6 + hash2(x, y) * 0.4;
-      let r = GROUND.road[0] + n * 16;
-      let g = GROUND.road[1] + n * 16;
-      let b = GROUND.road[2] + n * 15;
-      // Dashed center line (on 40%, off 60% of the tile)
-      const onDash = (x % 40) < 16;
-      if (onDash && Math.abs(y - mid) <= 1.5) {
-        r = GROUND.line[0]; g = GROUND.line[1]; b = GROUND.line[2];
-      }
-      const i = (y * along + x) * 4;
-      data[i] = r;
-      data[i + 1] = g;
-      data[i + 2] = b;
-      data[i + 3] = 255;
-    }
-  }
-  ctx.putImageData(img, 0, 0);
-  const tex = new THREE.CanvasTexture(canvas);
-  tex.wrapS = THREE.RepeatWrapping;
-  tex.wrapT = THREE.RepeatWrapping;
-  tex.colorSpace = THREE.SRGBColorSpace;
-  tex.needsUpdate = true;
-  return tex;
-}
-
-function createSidewalkTexture() {
-  const size = 128;
-  const canvas = document.createElement('canvas');
-  canvas.width = size;
-  canvas.height = size;
-  const ctx = canvas.getContext('2d');
-  const img = ctx.createImageData(size, size);
-  const data = img.data;
-  for (let y = 0; y < size; y++) {
-    for (let x = 0; x < size; x++) {
-      const n = valueNoise(x / 16, y / 16) * 0.7 + hash2(x, y) * 0.3;
-      // A darker expansion joint every half tile breaks up the slab.
-      const joint = (x % 64 === 0 || y % 64 === 0) ? 0.78 : 1;
-      const r = (GROUND.walk[0] + n * 16) * joint;
-      const g = (GROUND.walk[1] + n * 15) * joint;
-      const b = (GROUND.walk[2] + n * 13) * joint;
-      const i = (y * size + x) * 4;
-      data[i] = r;
-      data[i + 1] = g;
-      data[i + 2] = b;
-      data[i + 3] = 255;
-    }
-  }
-  ctx.putImageData(img, 0, 0);
-  const tex = new THREE.CanvasTexture(canvas);
-  tex.wrapS = THREE.RepeatWrapping;
-  tex.wrapT = THREE.RepeatWrapping;
-  tex.colorSpace = THREE.SRGBColorSpace;
-  tex.needsUpdate = true;
-  return tex;
-}
-
-/** East–west street in front of the Kenney house. Spawn sits on the road. */
-export const STREET = {
-  length: 44,
-  roadWidth: 4,
-  sidewalkWidth: 1.5,
-  roadCenterZ: -1.15,
-  spawn: { x: 0, y: 1.6, z: -1.15 }
-};
+export { STREET };
 
 /** Large inverted dome, fog disabled, drawn behind the world. */
 function createSkyDome(quality, look) {
@@ -283,7 +132,7 @@ export function createScene(quality) {
   // East–west road with sidewalks, running in front of the Kenney house
   const { length: streetLen, roadWidth, sidewalkWidth, roadCenterZ } = STREET;
   const roadTex = createRoadTexture(quality);
-  roadTex.repeat.set(streetLen / 8, 1);
+  roadTex.repeat.set(streetLen / TEXTURE.road.tileMetres, 1);
   const road = new THREE.Mesh(
     new THREE.PlaneGeometry(streetLen, roadWidth),
     new THREE.MeshStandardMaterial({
@@ -295,12 +144,13 @@ export function createScene(quality) {
   );
   road.name = 'road';
   road.rotation.x = -Math.PI / 2;
-  road.position.set(0, 0.02, roadCenterZ);
+  road.position.set(0, SURFACE_Y.road, roadCenterZ);
   road.receiveShadow = quality.shadows;
   scene.add(road);
 
-  const walkTex = createSidewalkTexture();
-  walkTex.repeat.set(streetLen / 4, 1);
+  const walkTex = createSidewalkTexture(quality);
+  // One tile is one pavement slab, so the joints line up with the tile edge.
+  walkTex.repeat.set(Math.round(streetLen / TEXTURE.walk.slabMetres), 1);
   const walkMat = new THREE.MeshStandardMaterial({
     map: walkTex,
     color: 0xffffff,
@@ -314,7 +164,7 @@ export function createScene(quality) {
     const walk = new THREE.Mesh(walkGeo, walkMat);
     walk.name = name;
     walk.rotation.x = -Math.PI / 2;
-    walk.position.set(0, 0.03, z);
+    walk.position.set(0, SURFACE_Y.walk, z);
     walk.receiveShadow = quality.shadows;
     scene.add(walk);
   }
@@ -424,7 +274,10 @@ export function createScene(quality) {
   if (quality.shadows) {
     // Desktop only. 2048 over ±38 m is ~3.7 cm a texel (was 1024 over ±44 m),
     // which tightens the contact shadows under the rounded props and eaves.
+    // PCFSoft + tuned bias / normalBias keep it soft without acne or floating
+    // shadows; contact blobs (contact.js) add the soft foot shadow on top.
     const sh = LOOK.shadow;
+    sun.shadow.radius = sh.radius;
     sun.shadow.mapSize.width = sh.mapSize;
     sun.shadow.mapSize.height = sh.mapSize;
     sun.shadow.camera.near = sh.near;
@@ -510,6 +363,43 @@ export function createScene(quality) {
   });
   scene.userData.vending = vending;
 
+  // Fake ambient occlusion: soft blobs under the trees, houses, car and props,
+  // merged into ONE mesh (one draw call, no light, no shadow caster). It sits
+  // on whatever surface is underneath (grass, road or pavement).
+  const surfaceY = surfaceHeightAt;
+  const contactItems = [];
+  trees.forEach((tree) => {
+    const r = tree.userData.radius || 1.2;
+    contactItems.push({ kind: 'blob', x: tree.position.x, z: tree.position.z, y: 0, rx: r * 1.15, rz: r * 1.15, strength: 0.5 });
+    contactItems.push({ kind: 'blob', x: tree.position.x, z: tree.position.z, y: 0, rx: tree.userData.trunkRadius * 3.4, rz: tree.userData.trunkRadius * 3.4, strength: 0.9 });
+  });
+  lots.forEach((lot, i) => {
+    const b = getHouseBounds(streetHouses[i], { x: lot.x, z: lot.z, rotY: lot.rotY });
+    if (!b) return;
+    const fp = streetHouses[i].userData.footprint.bounds;
+    const lcx = (fp.minX + fp.maxX) / 2;
+    const lcz = (fp.minZ + fp.maxZ) / 2;
+    const cos = Math.cos(lot.rotY);
+    const sin = Math.sin(lot.rotY);
+    contactItems.push({
+      kind: 'rect',
+      x: lot.x + lcx * cos + lcz * sin,
+      z: lot.z - lcx * sin + lcz * cos,
+      y: 0, w: fp.maxX - fp.minX, d: fp.maxZ - fp.minZ, margin: 0.85, rot: lot.rotY, strength: 0.7
+    });
+  });
+  // The main house (the placeholder and the Kenney model share this footprint).
+  contactItems.push({ kind: 'rect', x: 0, z: -10, y: 0, w: 8.9, d: 9.4, margin: 0.9, strength: 0.7 });
+  contactItems.push({
+    kind: 'rect', x: car.position.x, z: car.position.z, y: surfaceY(car.position.x, car.position.z),
+    w: car.userData.size.width - 0.5, d: car.userData.size.depth - 0.2, margin: 0.4, rot: car.rotation.y, strength: 0.85
+  });
+  contactItems.push({ kind: 'blob', x: MAILBOX_SPAWN.x, z: MAILBOX_SPAWN.z, y: surfaceY(MAILBOX_SPAWN.x, MAILBOX_SPAWN.z), rx: 0.34, rz: 0.34, strength: 0.8 });
+  contactItems.push({ kind: 'blob', x: VENDING_SPAWN.x, z: VENDING_SPAWN.z, y: surfaceY(VENDING_SPAWN.x, VENDING_SPAWN.z), rx: 0.62, rz: 0.55, strength: 0.85 });
+  const contact = createContactShadows(contactItems, quality);
+  scene.add(contact);
+  scene.userData.contactShadows = contact;
+
   // Real house model (Kenney City Kit Suburban, CC0). The procedural house
   // and the standalone door above stay as a fallback until the model has loaded.
   const HOUSE_URL = './assets/models/house_type02.glb'; // relative to the page, so it works under the Pages subpath
@@ -573,6 +463,20 @@ export function createScene(quality) {
       // add the inward-facing room shell + furniture, and swap the single house
       // box for wall colliders with a doorway that is only open with the door.
       removePaintedFrontDoor(model, { x: doorWorld.x, z: doorWorld.z });
+      // More detailed windows and door: tinted glass (vertex gradient) plus one
+      // merged detail mesh (muntins, sash lines, threshold, house number).
+      // It joins the pickups group so the swap still adds one scene child.
+      const glassPanes = findGlassPanes(model);
+      tintGlassPanes(glassPanes);
+      const houseDetails = buildMainHouseDetails(model, {
+        panes: glassPanes,
+        shadows: quality.shadows,
+        door: { x: doorWorld.x, z: doorZ, width: doorW, surroundZ: doorWorld.z + 0.223 }
+      });
+      if (houseDetails) {
+        pickups.add(houseDetails);
+        scene.userData.mainHouseDetails = houseDetails;
+      }
       const interior = buildMainHouseInterior({
         shadows: quality.shadows,
         outer,
