@@ -5,6 +5,8 @@ import { createDebugOverlay } from '../ui/debugOverlay.js';
 import { createDebugMenu } from '../ui/debugMenu.js';
 import { createFeedback, snapshotCanvas } from '../ui/feedback.js';
 import { createHudScreenshotButton } from '../ui/hudScreenshot.js';
+import { createFeedbackUploader } from './feedbackUpload.js';
+import { isInsideMainHouse } from '../world/rain.js';
 
 /**
  * Optional debug utilities. Everything is OFF by default and built lazily:
@@ -152,11 +154,18 @@ export function createDebug({
     }
   }
 
+  // F9 snapshots go into the game's feedback folder when it runs from play.bat.
+  const uploader = createFeedbackUploader({ getInfo: feedbackInfo });
   const feedback = createFeedback({
     getMeta: captionMeta,
     onOpen: modalOpened,
     onClose: modalClosed,
-    onSaved: (info) => menu.toast(info.method === 'share' ? 'Shared screenshot' : 'Saved ' + info.filename),
+    onSaved: (info) => menu.toast(
+      info.method === 'share' ? 'Shared screenshot'
+        : info.method === 'folder' ? `Saved F9 #${info.n} to the feedback folder`
+          : 'Downloaded ' + info.filename
+    ),
+    upload: (blob, opts) => uploader.upload(blob, opts),
     container
   });
 
@@ -215,6 +224,26 @@ export function createDebug({
       clock ? clock.getTime().label : null,
       localTimestamp()
     ];
+  }
+
+  /** Structured details for the feedback-list.md entry. */
+  function feedbackInfo() {
+    const p = player.position;
+    let inside = false;
+    try { inside = isInsideMainHouse(scene, p); } catch { inside = false; }
+    let weatherName = '';
+    try {
+      const w = typeof getWeather === 'function' && getWeather();
+      const cur = w && typeof w.get === 'function' ? w.get() : null;
+      weatherName = cur && cur.name ? cur.name : '';
+    } catch { weatherName = ''; }
+    return {
+      where: inside ? 'inside the main house' : 'outside',
+      spot: `x ${p.x.toFixed(1)}, z ${p.z.toFixed(1)}, facing ${facingDegrees()}°`,
+      clock: clock ? clock.getTime().label : '',
+      weather: weatherName,
+      device: `${tier}, view ${window.innerWidth}x${window.innerHeight}`
+    };
   }
 
   function overlayLines() {

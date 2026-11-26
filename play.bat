@@ -1,6 +1,7 @@
 @echo off
 title Maple Valley Life Simulator
 rem Starts the game: runs a small local web server in this folder and opens it in your browser.
+rem F9 snapshots (screenshot + note) are saved into the feedback folder here.
 rem Keep this file in the MapleValleyLifeSimulator folder (next to index.html).
 rem Close this window to stop the server when you are done playing.
 
@@ -33,8 +34,6 @@ if not defined PY (
   exit /b 0
 )
 
-echo Starting Maple Valley at http://localhost:%PORT%
-echo Leave this window open while you play. Close it to stop the game server.
-echo.
 start "" cmd /c "timeout /t 2 /nobreak >nul & start "" http://localhost:%PORT%"
-%PY% -m http.server %PORT%
+rem tools\dev-server.py serves the game and saves F9 snapshots into the feedback folder.
+%PY% tools\dev-server.py %PORT%

@@ -394,6 +394,9 @@ export function createFeedback({
   onOpen = () => {},
   onClose = () => {},
   onSaved = () => {},
+  // Optional: async (blob, { note, marked }) => { file, n } to save into the
+  // game's feedback folder (play.bat's local server). Return null to download instead.
+  upload = null,
   container = document.body
 } = {}) {
   let root = null;
@@ -499,7 +502,7 @@ export function createFeedback({
     saveBtn = document.createElement('button');
     saveBtn.type = 'button';
     saveBtn.className = 'fb-primary';
-    saveBtn.textContent = 'Save PNG';
+    saveBtn.textContent = 'Save';
     saveBtn.dataset.action = 'save';
     saveBtn.addEventListener('click', () => save());
     row.append(statusEl, cancelBtn, shareBtn, saveBtn);
@@ -682,6 +685,22 @@ export function createFeedback({
     try {
       const out = await compose();
       const blob = await canvasToBlob(out);
+      if (!share && typeof upload === 'function') {
+        let saved = null;
+        let failed = null;
+        try {
+          saved = await upload(blob, { note: noteEl.value, marked: ops.length > 0 });
+        } catch (e) {
+          failed = e;
+        }
+        if (saved) {
+          const info = { method: 'folder', filename: saved.file, n: saved.n, blob, width: out.width, height: out.height };
+          close();
+          onSaved(info);
+          return info;
+        }
+        if (failed) console.warn('Feedback folder save failed; downloading instead', failed);
+      }
       const filename = makeFilename(new Date());
       const result = await deliverBlob(blob, filename, { preferShare: share });
       if (result.method === 'cancelled') {
