@@ -18,8 +18,9 @@ export function setupInput(player, isMobile, { isInventoryOpen } = {}) {
 
   if (isMobile) document.body.classList.add('mobile');
 
+  const typing = (e) => !!(e.target && /^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName));
   document.addEventListener('keydown', (e) => {
-    if (blocked()) return;
+    if (blocked() || typing(e)) return;
     switch (e.code) {
       case 'KeyW': case 'ArrowUp': keys.forward = true; break;
       case 'KeyS': case 'ArrowDown': keys.back = true; break;

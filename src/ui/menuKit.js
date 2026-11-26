@@ -1,3 +1,5 @@
+import { readGithubFeedbackConfig, writeGithubFeedbackConfig, createGithubFeedback, DEFAULT_REPO } from '../systems/githubFeedback.js';
+
 /**
  * Shared look and building blocks for the full-screen menus (title screen and
  * pause menu): panel, buttons, sliders, tabs, and the tabbed Settings panel
@@ -47,6 +49,9 @@ const CSS = `
 .mv-keys { width: 100%; border-collapse: collapse; margin-top: 4px; }
 .mv-keys td { padding: 7px 4px; border-bottom: 1px solid rgba(255,255,255,0.08); }
 .mv-keys td:first-child { font-weight: 700; white-space: nowrap; padding-right: 14px; }
+.mv-input { width: 100%; box-sizing: border-box; min-height: 42px; padding: 8px 10px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.2); background: #1e1a16; color: inherit; font: 14px system-ui, sans-serif; }
+.mv-panel a { color: #e2b47a; }
+.mv-steps { margin: 6px 0 0; padding-left: 20px; font-size: 13px; line-height: 1.45; opacity: 0.9; }
 .mv-note { margin-top: 10px; font-size: 13px; opacity: 0.75; text-align: center; min-height: 1em; }
 .mv-stat { display: flex; justify-content: space-between; padding: 8px 2px; border-bottom: 1px solid rgba(255,255,255,0.08); }
 .mv-stat b { font-weight: 700; }
@@ -139,7 +144,7 @@ export function renderSettings(panel, {
   const rerender = () => renderSettings(panel, arguments[1]);
   panel.textContent = '';
   panel.append(heading('Settings', 'Saved on this device'));
-  const tabs = [['display', 'Display'], ['sound', 'Sound'], ['controls', 'Controls'], ['graphics', 'Graphics']];
+  const tabs = [['display', 'Display'], ['sound', 'Sound'], ['controls', 'Controls'], ['graphics', 'Graphics'], ['feedback', 'Feedback']];
   const bar = el('div', { class: 'mv-tabs', role: 'tablist' });
   for (const [id, label] of tabs) {
     bar.append(el('button', { type: 'button', role: 'tab', 'aria-selected': String(state.tab === id), text: label,
@@ -179,6 +184,8 @@ export function renderSettings(panel, {
       panel.append(el('p', { class: 'mv-note', text: 'Low is fastest on older phones. High adds sun shadows and the full film effect. Auto picks for your device. Changes apply after a reload.' }));
       if (onReload) panel.append(button('Reload now', onReload));
     }
+  } else if (state.tab === 'feedback') {
+    renderFeedbackTab(panel, rerender);
   } else {
     state.tab = 'display';
     if (display) {
@@ -190,4 +197,50 @@ export function renderSettings(panel, {
     }
   }
   panel.append(button('Back', onBack, { primary: true }));
+}
+
+/**
+ * Settings > Feedback: connect the camera button / F9 screenshots to the
+ * repo's feedback folder (githubFeedback.js). The token is typed by the player
+ * and kept in this browser only.
+ */
+function renderFeedbackTab(panel, rerender) {
+  const cfg = readGithubFeedbackConfig();
+  const folder = `https://github.com/${(cfg && cfg.repo) || DEFAULT_REPO}/tree/main/feedback`;
+  const status = el('div', { class: 'mv-note' });
+  panel.append(el('p', { class: 'mv-sub', text: cfg
+    ? 'Connected: screenshots you save with a note go to the feedback folder on GitHub.'
+    : 'Not set up: screenshots download to this device.' }));
+  panel.append(el('div', { class: 'mv-row' }, el('a', { href: folder, target: '_blank', rel: 'noopener', text: 'Open the feedback folder on GitHub' })));
+  if (cfg) {
+    panel.append(button('Test connection', async () => {
+      status.textContent = 'Checking…';
+      const r = await createGithubFeedback().test();
+      status.textContent = r.message;
+    }));
+    panel.append(button('Disconnect this device', () => { writeGithubFeedbackConfig(null); rerender(); }, { danger: true }));
+  } else {
+    panel.append(el('h3', { text: 'Set up (once per device)' }));
+    const steps = el('ol', { class: 'mv-steps' });
+    for (const t of [
+      'On github.com: Settings > Developer settings > Personal access tokens > Fine-grained tokens > Generate new token.',
+      'Repository access: Only select repositories > MapleValleyLifeSimulator.',
+      'Permissions: Contents > Read and write. Pick an expiry date, then Generate.',
+      'Copy the token and paste it below. It stays in this browser only.'
+    ]) steps.append(el('li', { text: t }));
+    panel.append(steps);
+    const input = el('input', { class: 'mv-input', type: 'password', placeholder: 'Paste your GitHub token', autocomplete: 'off', 'aria-label': 'GitHub token' });
+    input.addEventListener('keydown', (e) => e.stopPropagation());
+    panel.append(el('div', { class: 'mv-row' }, input));
+    panel.append(button('Save and test', async () => {
+      const token = input.value.trim();
+      if (!token) { status.textContent = 'Paste a token first.'; return; }
+      status.textContent = 'Checking…';
+      const config = { token, repo: DEFAULT_REPO, branch: 'main' };
+      const r = await createGithubFeedback({ getConfig: () => config }).test(config);
+      if (r.ok) { writeGithubFeedbackConfig(config); rerender(); }
+      else status.textContent = r.message + ' Nothing was saved.';
+    }, { primary: true }));
+  }
+  panel.append(status);
 }
