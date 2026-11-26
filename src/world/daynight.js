@@ -34,10 +34,10 @@ export const LIGHT_KEYS = [
   { m: 7 * 60, skyTop: 0x5a98c0, skyBottom: 0xd8c8a8, fog: 0xd0c0a0, hemiSky: 0xa0c8e8, hemiGround: 0x2a4a28, hemiInt: 0.95, ambient: 0xe8d8c0, ambientInt: 0.3, sun: 0xffc890, sunInt: 2.3, sunPos: [30, 18, 14], exponent: 0.75, interior: 0.2 },
   // Midday
   { m: 10 * 60, ...DAY },
-  // Early afternoon — slightly brighter but still controlled
-  { m: 13 * 60, skyTop: 0x4a98d0, skyBottom: 0xb8d8ec, fog: 0xb8d8ec, hemiSky: 0x90c0e8, hemiGround: 0x2a4a28, hemiInt: 1.2, ambient: 0xeee4d4, ambientInt: 0.38, sun: 0xffe8c0, sunInt: 3.2, sunPos: [8, 40, 18], exponent: 0.7, interior: 0 },
+  // Early afternoon — softer direct sun with neutral bounce in shaded areas
+  { m: 13 * 60, skyTop: 0x4a98d0, skyBottom: 0xb8d8ec, fog: 0xb8d8ec, hemiSky: 0x90c0e8, hemiGround: 0x47503d, hemiInt: 1.2, ambient: 0xece7dc, ambientInt: 0.4, sun: 0xffe8cc, sunInt: 2.65, sunPos: [8, 40, 18], exponent: 0.7, interior: 0 },
   // Golden hour — warmer, deeper
-  { m: 17 * 60 + 30, skyTop: 0xc07038, skyBottom: 0xd8a068, fog: 0xc89058, hemiSky: 0xd8a878, hemiGround: 0x3a4820, hemiInt: 0.8, ambient: 0xe8c090, ambientInt: 0.28, sun: 0xffa048, sunInt: 2.2, sunPos: [-26, 14, 14], exponent: 0.75, interior: 0.25 },
+  { m: 17 * 60 + 30, skyTop: 0xc07038, skyBottom: 0xd8a068, fog: 0xc89058, hemiSky: 0xd8a878, hemiGround: 0x3a4820, hemiInt: 0.8, ambient: 0xe8c090, ambientInt: 0.28, sun: 0xffaa62, sunInt: 1.85, sunPos: [-26, 14, 14], exponent: 0.75, interior: 0.25 },
   // Dusk
   { m: 19 * 60 + 30, skyTop: 0x1e2a52, skyBottom: 0xa05840, fog: 0x704050, hemiSky: 0xa87060, hemiGround: 0x1e2e18, hemiInt: 0.4, ambient: 0xe09870, ambientInt: 0.15, sun: 0xee6030, sunInt: 0.5, sunPos: [-30, 4, 10], exponent: 0.9, interior: 0.7 },
   // Evening into night
