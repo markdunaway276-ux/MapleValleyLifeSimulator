@@ -175,6 +175,11 @@ export function createSfx({
   let windSrc = null;
   let windFilter = null;
   let windGain = null;
+  let rainSrc = null;
+  let rainFilter = null;
+  let rainGain = null;
+  let rainLevel = 0;
+  let rainIndoor = false;
 
   function emitMute() {
     const list = listeners.mute;
@@ -221,8 +226,8 @@ export function createSfx({
       master.gain.cancelScheduledValues(t);
       master.gain.setValueAtTime(muted ? 0 : 1, t);
     }
-    if (muted) stopWind();
-    else if (unlocked) ensureAmbient();
+    if (muted) { stopWind(); stopRain(); }
+    else if (unlocked) { ensureAmbient(); ensureRain(); }
   }
 
   function noiseBurst(t, dest, { dur = 0.12, peak = 0.12, freq = 800, q = 1.2, type = 'bandpass', a = 0.004 } = {}) {
@@ -383,6 +388,65 @@ export function createSfx({
     if (changed || !windSrc) startWind(mode);
   }
 
+  function stopRain() {
+    if (rainSrc) {
+      try { rainSrc.stop(); } catch { /* already stopped */ }
+      try { rainSrc.disconnect(); } catch { /* ignore */ }
+      rainSrc = null;
+    }
+    if (rainFilter) { try { rainFilter.disconnect(); } catch { /* ignore */ } rainFilter = null; }
+    if (rainGain) { try { rainGain.disconnect(); } catch { /* ignore */ } rainGain = null; }
+  }
+
+  function startRain() {
+    if (!ctx || !noiseBuf || muted) return;
+    stopRain();
+    const t = now(ctx);
+    rainSrc = ctx.createBufferSource();
+    rainSrc.buffer = noiseBuf;
+    rainSrc.loop = true;
+    rainFilter = ctx.createBiquadFilter();
+    rainFilter.type = 'lowpass';
+    rainFilter.frequency.setValueAtTime(rainIndoor ? 700 : 1400, t);
+    rainGain = ctx.createGain();
+    rainGain.gain.setValueAtTime(0, t);
+    rainSrc.connect(rainFilter);
+    rainFilter.connect(rainGain);
+    rainGain.connect(ambGain);
+    try { rainSrc.start(t); } catch { /* ignore */ }
+  }
+
+  function rainTargetGain() {
+    const peak = rainIndoor ? 0.004 : 0.012;
+    return peak * Math.max(0, Math.min(1, rainLevel));
+  }
+
+  function ensureRain() {
+    if (!unlocked || muted || rainLevel <= 0.001) {
+      stopRain();
+      return;
+    }
+    if (!ensureGraph()) return;
+    if (!rainSrc) startRain();
+    if (!rainGain || !rainFilter) return;
+    const t = now(ctx);
+    rainFilter.frequency.setTargetAtTime(rainIndoor ? 700 : 1400, t, 0.08);
+    rainGain.gain.setTargetAtTime(rainTargetGain(), t, 0.12);
+  }
+
+  /** Very quiet synthesized rain loop. `level` is 0..1 and respects mute. */
+  function setRain(level, opts = {}) {
+    const n = typeof level === 'number' ? level : (level && level.level);
+    rainLevel = Math.max(0, Math.min(1, Number(n) || 0));
+    rainIndoor = !!(opts && opts.indoor);
+    if (rainLevel <= 0.001 || muted || !unlocked) {
+      stopRain();
+      return rainLevel;
+    }
+    ensureRain();
+    return rainLevel;
+  }
+
   function play(name) {
     playCount += 1;
     lastPlayed = name;
@@ -475,7 +539,9 @@ export function createSfx({
       }
     } else if (muted) {
       stopWind();
+      stopRain();
     }
+    if (unlocked && !muted) ensureRain();
 
     const onGround = opts.onGround !== false;
     const moved = opts.moved != null ? opts.moved : 0;
@@ -507,6 +573,7 @@ export function createSfx({
 
   function dispose() {
     stopWind();
+    stopRain();
     if (ctx && typeof ctx.close === 'function') {
       try { ctx.close(); } catch { /* ignore */ }
     }
@@ -522,6 +589,7 @@ export function createSfx({
     setMuted,
     toggleMuted,
     isMuted,
+    setRain,
     isUnlocked: () => unlocked,
     on,
     off,

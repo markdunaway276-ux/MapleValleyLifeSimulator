@@ -137,7 +137,7 @@ function applySample(scene, sample, quality = {}) {
  * Applies day/night colours to the sky, fog, lights and interior. Updates are
  * throttled to LIGHT_UPDATE_HZ; call apply() to force a sample (debug slider).
  */
-export function createDayNight({ scene, quality = {} } = {}) {
+export function createDayNight({ scene, quality = {}, modulate = null } = {}) {
   let acc = LIGHT_UPDATE_INTERVAL;
   let lastMinutes = null;
   let lastSample = null;
@@ -147,7 +147,8 @@ export function createDayNight({ scene, quality = {} } = {}) {
     const minutes = (timeOrMinutes && typeof timeOrMinutes === 'object')
       ? timeOrMinutes.minutes
       : timeOrMinutes;
-    const sample = sampleLighting(minutes);
+    const base = sampleLighting(minutes);
+    const sample = (typeof modulate === 'function') ? (modulate(base) || base) : base;
     applySample(scene, sample, quality);
     lastMinutes = wrapMinutes(minutes);
     lastSample = sample;

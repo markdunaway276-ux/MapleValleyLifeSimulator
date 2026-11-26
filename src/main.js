@@ -25,6 +25,8 @@ import { createPhone } from './ui/phone/phone.js';
 import { createHudMinimap } from './ui/minimap.js';
 import { createAppearance } from './systems/appearance.js';
 import { createPlayerBody } from './world/playerBody.js';
+import { createWeather } from './systems/weather.js';
+import { createRain, isInsideMainHouse } from './world/rain.js';
 
 const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || window.innerWidth < 800;
 
@@ -70,8 +72,17 @@ camera.position.copy(player.position);
 
 const clock = createClock();
 if (saveData.time) clock.apply(saveData);
-const dayNight = createDayNight({ scene, quality });
+const weather = createWeather({ clock });
+if (saveData.weather) weather.apply(saveData);
+else weather.roll({ immediate: true, time: clock.getTime() });
+const dayNight = createDayNight({
+  scene,
+  quality,
+  modulate: (sample) => weather.modulate(sample)
+});
 dayNight.apply(clock.getTime());
+weather.applyFog(scene, quality);
+const rain = createRain({ scene, isMobile });
 clock.on('newDay', (e) => window.dispatchEvent(new CustomEvent('maple-new-day', { detail: e })));
 
 const sfx = createSfx({ getTime: () => clock.getTime(), getScene: () => scene });
@@ -137,7 +148,8 @@ const debug = createDebug({
   sfx,
   needs,
   money,
-  getMinimap: () => minimap
+  getMinimap: () => minimap,
+  getWeather: () => weather
 });
 const sleeper = createSleep({
   clock,
@@ -177,7 +189,9 @@ phone = createPhone({
   attachMap: (el) => minimap.attachPhone(el),
   getAppearance: () => appearance.get(),
   setAppearance: (slot, id) => appearance.set(slot, id),
-  onAppearanceChange: (fn) => appearance.onChange(fn)
+  onAppearanceChange: (fn) => appearance.onChange(fn),
+  getWeather: () => weather.get(),
+  onWeatherChange: (fn) => weather.onChange(fn)
 });
 
 const uiBlocked = () => inventory.isOpen() || debug.isModalOpen() || sleeper.isSleeping() || worker.isWorking() || phone.isOpen();
@@ -193,7 +207,7 @@ const hudMoney = createHudMoney({ getMoney: () => money.get() });
 function syncClockHud() {
   const show = instructions.classList.contains('hidden') && !uiBlocked();
   hudClock.setVisible(show);
-  if (show) hudClock.update(clock.getTime());
+  if (show) hudClock.update(clock.getTime(), weather.get());
   hudMute.setVisible(show);
   hudMute.refresh();
   hudNeeds.setVisible(show);
@@ -203,7 +217,11 @@ function syncClockHud() {
   phone.setVisible(show);
   minimap.setHudVisible(show);
 }
-clock.on('change', (t) => hudClock.update(t));
+clock.on('change', (t) => hudClock.update(t, weather.get()));
+weather.onChange((w) => {
+  hudClock.update(clock.getTime(), w);
+  saveGame(gameState());
+});
 sfx.on('mute', () => hudMute.refresh());
 needs.onChange(() => hudNeeds.update());
 money.onChange(() => hudMoney.update());
@@ -274,7 +292,8 @@ function gameState() {
     time: clock.serialize(),
     needs: needs.serialize(),
     money: money.serialize(),
-    appearance: appearance.serialize()
+    appearance: appearance.serialize(),
+    weather: weather.serialize()
   };
 }
 
@@ -312,6 +331,11 @@ function animate() {
   const prevZ = player.position.z;
   player.update(delta);
   playerBody.update(player);
+  weather.update(delta, clock.getTime());
+  weather.applyFog(scene, quality);
+  const indoor = isInsideMainHouse(scene, player.position);
+  rain.update(delta, { position: player.position, intensity: weather.rainAmount(), indoor });
+  if (typeof sfx.setRain === 'function') sfx.setRain(weather.rainAmount(), { indoor });
   sleeper.update(delta);
   worker.update(delta);
   if (started && !busy) {

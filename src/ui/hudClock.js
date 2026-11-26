@@ -28,8 +28,16 @@ const CSS = `
   white-space: nowrap;
   letter-spacing: 0.02em;
   opacity: 0.9;
+  align-items: center;
+  gap: 6px;
 }
-#hud-clock.is-visible { display: block; }
+#hud-clock.is-visible { display: flex; }
+#hud-clock-icon {
+  font-size: 14px;
+  line-height: 1;
+}
+#hud-clock-icon:empty { display: none; }
+#hud-clock-label { margin: 0; }
 `;
 
 function ensureStyles() {
@@ -48,21 +56,36 @@ export function createHudClock({ container = document.body } = {}) {
   el.className = 'hud-ui';
   el.setAttribute('aria-live', 'polite');
   el.setAttribute('aria-label', 'Game time');
+  const iconEl = document.createElement('span');
+  iconEl.id = 'hud-clock-icon';
+  iconEl.setAttribute('aria-hidden', 'true');
+  const labelEl = document.createElement('span');
+  labelEl.id = 'hud-clock-label';
+  el.append(iconEl, labelEl);
   container.appendChild(el);
 
   let label = '';
+  let icon = '';
 
   function setVisible(v) {
     el.classList.toggle('is-visible', !!v);
   }
 
-  function update(time) {
-    if (!time) return;
-    const text = time.label || '';
+  function update(time, weather) {
+    if (!time && !weather) return;
+    const text = (time && time.label) || label;
+    const nextIcon = (weather && weather.icon) || '';
     if (text !== label) {
-      el.textContent = text;
+      labelEl.textContent = text;
       label = text;
     }
+    if (nextIcon !== icon) {
+      iconEl.textContent = nextIcon;
+      iconEl.setAttribute('aria-label', (weather && weather.name) || '');
+      icon = nextIcon;
+    }
+    const name = (weather && weather.name) || '';
+    el.setAttribute('aria-label', name ? ('Game time, ' + name) : 'Game time');
   }
 
   function dispose() {

@@ -138,7 +138,7 @@ export const MENU_ITEMS = [
   { id: 'clearSave', type: 'action', label: 'Clear saved game', key: 'Shift+F8 twice', danger: true }
 ];
 
-export function createDebugMenu({ actions, getState, getTeleports = () => [], getClock = null, getSfx = null, getNeeds = null, getMoney = null, getMinimap = null, onOpen = () => {}, onClose = () => {}, container = document.body }) {
+export function createDebugMenu({ actions, getState, getTeleports = () => [], getClock = null, getSfx = null, getNeeds = null, getMoney = null, getMinimap = null, getWeather = null, onOpen = () => {}, onClose = () => {}, container = document.body }) {
   ensureStyles();
 
   const button = document.createElement('button');
@@ -228,6 +228,7 @@ export function createDebugMenu({ actions, getState, getTeleports = () => [], ge
     if (typeof getNeeds === 'function') panel.appendChild(buildNeedsSection());
     if (typeof getMoney === 'function') panel.appendChild(buildMoneySection());
     if (typeof getMinimap === 'function') panel.appendChild(buildMinimapSection());
+    if (typeof getWeather === 'function') panel.appendChild(buildWeatherSection());
 
     const foot = document.createElement('div');
     foot.className = 'dm-foot';
@@ -645,6 +646,79 @@ export function createDebugMenu({ actions, getState, getTeleports = () => [], ge
     minimapEls.btn.setAttribute('aria-pressed', on ? 'true' : 'false');
   }
 
+  let weatherEls = null;
+
+  function buildWeatherSection() {
+    const section = document.createElement('div');
+    section.className = 'dm-section is-open';
+    section.dataset.item = 'weather';
+    const toggle = document.createElement('button');
+    toggle.type = 'button';
+    toggle.className = 'dm-section-toggle';
+    toggle.setAttribute('aria-expanded', 'true');
+    const title = document.createElement('span');
+    title.className = 'dm-label';
+    title.textContent = 'Weather';
+    const chev = document.createElement('span');
+    chev.className = 'dm-chevron';
+    chev.textContent = '▾';
+    toggle.append(title, chev);
+    const body = document.createElement('div');
+    body.className = 'dm-sublist';
+    const box = document.createElement('div');
+    box.className = 'dm-time';
+    const label = document.createElement('p');
+    label.className = 'dm-time-label';
+    label.textContent = 'Weather';
+    const row = document.createElement('div');
+    row.className = 'dm-time-row';
+    const btns = [];
+    const choices = [
+      { id: 'auto', label: 'Auto' },
+      { id: 'clear', label: 'Clear' },
+      { id: 'cloudy', label: 'Cloudy' },
+      { id: 'rain', label: 'Rain' }
+    ];
+    for (let i = 0; i < choices.length; i++) {
+      const c = choices[i];
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.dataset.weather = c.id;
+      btn.textContent = c.label;
+      btn.addEventListener('click', () => {
+        const w = getWeather && getWeather();
+        if (w && typeof w.setOverride === 'function') w.setOverride(c.id);
+        refreshWeather();
+      });
+      btns.push(btn);
+      row.appendChild(btn);
+    }
+    box.append(label, row);
+    body.appendChild(box);
+    toggle.addEventListener('click', () => {
+      const open = !section.classList.contains('is-open');
+      section.classList.toggle('is-open', open);
+      toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+    });
+    section.append(toggle, body);
+    weatherEls = { section, label, btns };
+    refreshWeather();
+    return section;
+  }
+
+  function refreshWeather() {
+    if (!weatherEls || typeof getWeather !== 'function') return;
+    const w = getWeather();
+    const cur = w && typeof w.get === 'function' ? w.get() : w;
+    const override = w && typeof w.getOverride === 'function' ? w.getOverride() : (cur && cur.override);
+    const active = override || 'auto';
+    const name = (cur && cur.name) || 'Clear';
+    weatherEls.label.textContent = override ? (name + '  (override)') : (name + '  (auto)');
+    for (const b of weatherEls.btns) {
+      b.setAttribute('aria-pressed', b.dataset.weather === active ? 'true' : 'false');
+    }
+  }
+
   function refresh() {
 
     if (!root) return;
@@ -657,6 +731,7 @@ export function createDebugMenu({ actions, getState, getTeleports = () => [], ge
     refreshNeeds();
     refreshMoney();
     refreshMinimap();
+    refreshWeather();
   }
 
   function open() {
@@ -715,6 +790,7 @@ export function createDebugMenu({ actions, getState, getTeleports = () => [], ge
     refreshNeeds,
     refreshMoney,
     refreshMinimap,
+    refreshWeather,
     toast,
     setButtonVisible,
     isOpen: () => opened,

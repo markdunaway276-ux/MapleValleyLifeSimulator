@@ -1,6 +1,6 @@
 /**
- * Phone app registry. Each later app (Map, Style, Weather, …) is one
- * entry: add it here and it appears on the home grid.
+ * Phone app registry. Each later app is one entry: add it here and it
+ * appears on the home grid.
  */
 import { formatCash } from '../../systems/money.js';
 import { renderStyleApp } from './style.js';
@@ -56,6 +56,31 @@ export const PHONE_APPS = [
     icon: '👕',
     render(screen, ctx) {
       return renderStyleApp(screen, ctx);
+    }
+  },
+  {
+    id: 'weather',
+    name: 'Weather',
+    icon: '🌦️',
+    render(screen, ctx) {
+      const title = document.createElement('h3');
+      title.className = 'phone-app-title';
+      title.textContent = 'Weather';
+      const icon = document.createElement('p');
+      icon.className = 'phone-weather-icon';
+      const name = document.createElement('p');
+      name.className = 'phone-weather-name';
+      function paint(state) {
+        const w = state || (ctx && ctx.getWeather ? ctx.getWeather() : null);
+        icon.textContent = (w && w.icon) || '☀️';
+        name.textContent = (w && w.name) || 'Clear';
+      }
+      paint();
+      const off = ctx && typeof ctx.onWeatherChange === 'function'
+        ? ctx.onWeatherChange(paint)
+        : null;
+      screen.append(title, icon, name);
+      return () => { if (typeof off === 'function') off(); };
     }
   }
 ];

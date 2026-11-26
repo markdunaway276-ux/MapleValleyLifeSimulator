@@ -78,6 +78,13 @@ body.mobile #hud-phone {
   padding: 8px 10px 4px 16px;
   flex: 0 0 auto;
 }
+.phone-status-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  flex: 1 1 auto;
+}
 .phone-status-time {
   margin: 0;
   font: 600 13px/1.2 system-ui, sans-serif;
@@ -86,6 +93,23 @@ body.mobile #hud-phone {
   overflow: hidden;
   text-overflow: ellipsis;
   flex: 1 1 auto;
+}
+.phone-status-weather {
+  flex: 0 0 auto;
+  font-size: 16px;
+  line-height: 1;
+}
+.phone-status-weather:empty { display: none; }
+.phone-weather-icon {
+  margin: 8px 0 0;
+  font-size: 48px;
+  line-height: 1;
+  text-align: center;
+}
+.phone-weather-name {
+  margin: 10px 0 0;
+  font: 650 18px/1.2 system-ui, sans-serif;
+  text-align: center;
 }
 .phone-close {
   box-sizing: border-box;
@@ -230,7 +254,9 @@ export function createPhone({
   attachMap = null,
   getAppearance = null,
   setAppearance = null,
-  onAppearanceChange = null
+  onAppearanceChange = null,
+  getWeather = null,
+  onWeatherChange = null
 } = {}) {
   ensureStyles();
 
@@ -261,12 +287,18 @@ export function createPhone({
   const timeEl = document.createElement('p');
   timeEl.className = 'phone-status-time';
   timeEl.setAttribute('aria-live', 'polite');
+  const weatherEl = document.createElement('span');
+  weatherEl.className = 'phone-status-weather';
+  weatherEl.setAttribute('aria-hidden', 'true');
+  const statusLeft = document.createElement('div');
+  statusLeft.className = 'phone-status-left';
+  statusLeft.append(timeEl, weatherEl);
   const closeBtn = document.createElement('button');
   closeBtn.type = 'button';
   closeBtn.className = 'phone-close';
   closeBtn.setAttribute('aria-label', 'Close');
   closeBtn.textContent = '\u00d7';
-  status.append(timeEl, closeBtn);
+  status.append(statusLeft, closeBtn);
 
   const screen = document.createElement('div');
   screen.className = 'phone-screen';
@@ -291,7 +323,9 @@ export function createPhone({
     attachMap: typeof attachMap === 'function' ? attachMap : null,
     getAppearance: typeof getAppearance === 'function' ? getAppearance : null,
     setAppearance: typeof setAppearance === 'function' ? setAppearance : null,
-    onAppearanceChange: typeof onAppearanceChange === 'function' ? onAppearanceChange : null
+    onAppearanceChange: typeof onAppearanceChange === 'function' ? onAppearanceChange : null,
+    getWeather: typeof getWeather === 'function' ? getWeather : null,
+    onWeatherChange: typeof onWeatherChange === 'function' ? onWeatherChange : null
   };
 
   function started() {
@@ -311,9 +345,18 @@ export function createPhone({
     return started();
   }
 
+  function paintWeather(state) {
+    const w = state || (ctx.getWeather ? ctx.getWeather() : null);
+    weatherEl.textContent = (w && w.icon) || '';
+    if (w && w.name) weatherEl.setAttribute('aria-label', w.name);
+    else weatherEl.removeAttribute('aria-label');
+    weatherEl.setAttribute('aria-hidden', weatherEl.textContent ? 'false' : 'true');
+  }
+
   function updateStatus(time) {
     const t = time || ctx.getTime();
     timeEl.textContent = (t && t.label) || '';
+    paintWeather();
   }
 
   function clearApp() {
@@ -462,6 +505,9 @@ export function createPhone({
 
   if (clock && typeof clock.on === 'function') {
     clock.on('change', (t) => { if (opened) updateStatus(t); });
+  }
+  if (typeof onWeatherChange === 'function') {
+    onWeatherChange(() => { if (opened) paintWeather(); });
   }
 
   function dispose() {
