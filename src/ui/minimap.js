@@ -28,6 +28,7 @@ export const MINIMAP_COLORS = {
   tree: '#1f5a28',
   mailbox: '#c9a227',
   vending: '#c43b48',
+  market: '#367d59',
   desk: '#6ea0d8',
   car: '#3d4a5c',
   carActive: '#5b7aa6',
@@ -220,6 +221,10 @@ export function gatherMinimapWorld(scene) {
   const markers = [];
   const mailbox = posOf(ud.mailbox, MAILBOX_SPAWN);
   markers.push({ id: 'mailbox', kind: 'mailbox', x: mailbox.x, z: mailbox.z });
+  if (ud.cornerShop) {
+    const market = posOf(ud.cornerShop);
+    markers.push({ id: 'market', kind: 'market', x: market.x, z: market.z });
+  }
   const vending = posOf(ud.vending, VENDING_SPAWN);
   markers.push({ id: 'vending', kind: 'vending', x: vending.x, z: vending.z });
   const car = ud.prop;
@@ -393,7 +398,7 @@ function drawMarker(ctx, view, m) {
   const r = m.kind === 'desk' ? Math.max(2.5, 1.6 * (view.scale / 4)) : Math.max(2.4, 2 * (view.scale / 4) + 1.2);
   ctx.beginPath();
   ctx.arc(p.x, p.y, r, 0, Math.PI * 2);
-  ctx.fillStyle = m.kind === 'mailbox' ? C.mailbox : m.kind === 'vending' ? C.vending : C.desk;
+  ctx.fillStyle = C[m.kind] ?? C.desk;
   ctx.fill();
 }
 

@@ -14,6 +14,7 @@ import { createSnackPickup, createMailbox, MAILBOX_SPAWN, SNACK_SPAWN, mailboxCo
 import { createVendingMachine, VENDING_SPAWN, vendingCollider } from './vending.js';
 import { createColliderWorld } from '../systems/collision.js';
 import { createHingedDoor } from '../systems/doors.js';
+import { buildCornerShop } from './cornerShop.js';
 import { createWorldState } from '../systems/interactables.js';
 import { sampleLighting } from './daynight.js';
 import { HOUSE, LOOK, MAIN_HOUSE, PROPS, TEXTURE } from './palette.js';
@@ -332,6 +333,7 @@ export function createScene(quality) {
   scene.add(pickups);
   scene.userData.pickups = pickups;
   scene.userData.interactables = [];
+  buildCornerShop(scene, quality);
   scene.userData.world = createWorldState(scene);
 
   const mailbox = createMailbox({ shadows: quality.shadows });

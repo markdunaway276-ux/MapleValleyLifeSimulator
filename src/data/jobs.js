@@ -23,6 +23,19 @@ export const JOB_DEFS = [
     minEnergy: WORK_MIN_ENERGY,
     tiredMessage: WORK_TIRED,
     sfx: 'cash'
+  },
+  {
+    id: 'restock',
+    name: 'Market restocking',
+    verb: 'restock shelves',
+    label: 'Restocking shelves…',
+    duration: 5,
+    gameMinutes: 60,
+    pay: 15,
+    energy: 10,
+    minEnergy: 10,
+    tiredMessage: WORK_TIRED,
+    sfx: 'cash'
   }
 ];
 

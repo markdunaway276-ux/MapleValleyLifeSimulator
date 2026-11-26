@@ -44,7 +44,7 @@ export function setupInteract(g) {
       money: g.money,
       toast,
       sleep: () => g.sleeper.start(),
-      work: () => g.worker.start(),
+      work: (jobId) => g.worker.start(typeof jobId === 'string' ? { jobId } : {}),
       cook: () => g.skills.cook({ clock: g.clock, needs: g.needs, sfx: g.sfx, toast }),
       sit: g.sitter,
       dialogue: g.dialogue,
