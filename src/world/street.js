@@ -3,6 +3,8 @@
  * Kept in its own small module so props and NPCs can ask what surface is
  * under them without importing the whole scene.
  */
+import { expansionSurface, parkLayout } from './parkLayout.js';
+
 const OLD_ROAD_WIDTH = 4;
 const SOUTH_CURB_Z = -3.15;
 const ROAD_WIDTH = 14;
@@ -25,6 +27,7 @@ export const STREET = {
   roadCenterZ: ROAD_CENTER_Z,
   spawn: { x: 0, y: 1.6, z: ROAD_CENTER_Z }
 };
+STREET.expansion = parkLayout(STREET);
 
 /** Keep the same relative position within the road or alongside the shifted frontage. */
 export function widenSavedStreetZ(z, fromWidth, toWidth) {
@@ -62,6 +65,8 @@ export function drivewayWalkHeight(x, offset) {
 
 /** Height of the ground surface at x, z: grass, road or pavement. */
 export function surfaceHeightAt(x, z) {
+  const expansion = expansionSurface(x, z, STREET.expansion);
+  if (expansion) return expansion === 'road' ? SURFACE_Y.road : SURFACE_Y.walk;
   const { length, roadWidth, sidewalkWidth, roadCenterZ } = STREET;
   if (Math.abs(x) > length / 2) return SURFACE_Y.grass;
   const dz = Math.abs(z - roadCenterZ);

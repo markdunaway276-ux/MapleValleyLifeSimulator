@@ -13,8 +13,8 @@ import { CAR_SEAT, CAR_SIZE, CAR_SPAWN } from '../world/props.js';
  * wheel angle eases off as the car gets faster.
  *
  * Collision is an oriented box (SAT) against every collider in the world
- * (houses, trees, mailbox, vending machine, the NPCs' circles), plus the street
- * rectangle. It is advanced in sub-steps of at most STEP_MAX metres, so a
+ * (houses, trees, mailbox, vending machine, the NPCs' circles), plus the road
+ * boundaries. It is advanced in sub-steps of at most STEP_MAX metres, so a
  * frame can never carry the car through a thin obstacle. The car's own collider
  * (id 'parked-car') moves with it, so the player and NPCs walk around it.
  */
@@ -131,11 +131,15 @@ export function streetBounds(scene) {
   const roadHalf = (s.roadWidth || STREET.roadWidth) / 2;
   const walk = s.sidewalkWidth || STREET.sidewalkWidth;
   const cz = s.roadCenterZ !== undefined ? s.roadCenterZ : STREET.roadCenterZ;
-  return { minX: -half + 0.5, maxX: half - 0.5, minZ: cz - roadHalf - walk, maxZ: cz + roadHalf + walk };
+  return {
+    minX: -half + 0.5, maxX: half - 0.5,
+    minZ: cz - roadHalf - walk, maxZ: cz + roadHalf + walk,
+    expansion: s.expansion?.drive
+  };
 }
 
 /**
- * Push the car out of everything it overlaps and keep it inside the street.
+ * Push the car out of everything it overlaps and keep it on the road network.
  * `pose` is { x, z, rotY }; returns { x, z, hit }.
  */
 export function resolveCarPose(world, pose, { skipId = CAR_ID, bounds = null, size = CAR_SIZE } = {}) {
@@ -157,8 +161,16 @@ export function resolveCarPose(world, pose, { skipId = CAR_ID, bounds = null, si
       if (m) { box.x += m.x; box.z += m.z; moved = true; hit = true; }
     }
     if (bounds) {
-      const nx = clamp(box.x, bounds.minX + ex, bounds.maxX - ex);
-      const nz = clamp(box.z, bounds.minZ + ez, bounds.maxZ - ez);
+      let nx = clamp(box.x, bounds.minX + ex, bounds.maxX - ex);
+      let nz = clamp(box.z, bounds.minZ + ez, bounds.maxZ - ez);
+      let distance = (nx - box.x) ** 2 + (nz - box.z) ** 2;
+      for (const strip of bounds.expansion ?? []) {
+        if (!distance) break;
+        const x = clamp(box.x, strip.minX + ex, strip.maxX - ex);
+        const z = clamp(box.z, strip.minZ + ez, strip.maxZ - ez);
+        const candidate = (x - box.x) ** 2 + (z - box.z) ** 2;
+        if (candidate < distance) { nx = x; nz = z; distance = candidate; }
+      }
       if (nx !== box.x || nz !== box.z) { box.x = nx; box.z = nz; moved = true; hit = true; }
     }
     if (!moved) break;

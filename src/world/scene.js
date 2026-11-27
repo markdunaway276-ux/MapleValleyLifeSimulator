@@ -18,6 +18,7 @@ import { buildStreetlights } from './streetlights.js';
 import { buildCornerShop } from './cornerShop.js';
 import { buildLaundromat } from './laundromat.js';
 import { buildClinic } from './clinic.js';
+import { buildPark } from './park.js';
 import { buildTrailerPark } from './trailerPark.js';
 import { createWorldState } from '../systems/interactables.js';
 import { sampleLighting } from './daynight.js';
@@ -122,7 +123,12 @@ export function createScene(quality) {
   scene.add(createSkyDome(quality, look));
 
   // Ground with a repeating grass canvas texture
-  const groundGeo = new THREE.PlaneGeometry(100, 100);
+  const groundGeo = new THREE.PlaneGeometry(180, 125);
+  groundGeo.translate(40, -12.5, 0);
+  const groundUv = groundGeo.getAttribute('uv');
+  for (let i = 0; i < groundUv.count; i++) {
+    groundUv.setXY(i, groundUv.getX(i) * 1.8, groundUv.getY(i) * 1.25 - 0.25);
+  }
   const groundMat = new THREE.MeshStandardMaterial({
     map: createGrassTexture(quality),
     color: 0xffffff,
@@ -493,6 +499,7 @@ export function createScene(quality) {
   buildCornerShop(scene, quality);
   buildLaundromat(scene, quality);
   buildClinic(scene, quality);
+  buildPark(scene, quality);
   buildTrailerPark(scene, quality);
   scene.userData.world = createWorldState(scene);
 
