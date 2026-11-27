@@ -45,6 +45,45 @@ function plaque(text, width, height, x, y, z, facesStreet) {
   return sign;
 }
 
+function anatomyPrint() {
+  const canvas = document.createElement('canvas');
+  canvas.width = 256;
+  canvas.height = 320;
+  const ctx = canvas.getContext('2d');
+  ctx.fillStyle = '#f7f3e8';
+  ctx.fillRect(0, 0, 256, 320);
+  ctx.fillStyle = '#315d54';
+  ctx.font = 'bold 22px sans-serif';
+  ctx.textAlign = 'center';
+  ctx.fillText('HUMAN SKELETON', 128, 32);
+  ctx.strokeStyle = '#6d8b7a';
+  ctx.lineWidth = 7;
+  ctx.lineCap = 'round';
+  ctx.beginPath();
+  ctx.ellipse(128, 72, 17, 23, 0, 0, Math.PI * 2);
+  ctx.moveTo(128, 97);
+  ctx.lineTo(128, 192);
+  for (const side of [-1, 1]) {
+    ctx.moveTo(128, 110);
+    ctx.lineTo(128 + side * 35, 117);
+    ctx.lineTo(128 + side * 46, 152);
+    ctx.lineTo(128 + side * 51, 188);
+    ctx.moveTo(128, 186);
+    ctx.lineTo(128 + side * 19, 198);
+    ctx.lineTo(128 + side * 20, 237);
+    ctx.lineTo(128 + side * 23, 280);
+    for (const y of [124, 137, 150, 163]) {
+      ctx.moveTo(128, y);
+      ctx.quadraticCurveTo(128 + side * 27, y - 8, 128 + side * 24, y + 4);
+    }
+  }
+  ctx.stroke();
+  const map = new THREE.CanvasTexture(canvas);
+  map.colorSpace = THREE.SRGBColorSpace;
+  map.anisotropy = 4;
+  return new THREE.MeshStandardMaterial({ map, roughness: 0.9 });
+}
+
 function makeStucco() {
   const canvas = document.createElement('canvas');
   canvas.width = 128;
@@ -227,6 +266,22 @@ export function buildClinic(scene, quality) {
   box(0x303b3d, 0.44, 0.29, 0.07, 3.65, 1.28, 2.17);
   box(0x707c7a, 0.19, 0.04, 0.15, 3.65, 1.16, 2.17);
   clinic.add(plaque('RECEPTION', 1.35, 0.25, 3.65, 0.81, 1.666, true));
+  box(0x80918b, 0.34, 0.10, 0.19, 2.88, 1.18, 2.06);
+  for (const [x, color] of [[2.78, 0xded4ab], [2.88, 0x94bbaa], [2.98, 0x749c98]]) {
+    box(color, 0.075, 0.15, 0.022, x, 1.24, 2.045, -0.16);
+  }
+  box(TEAL, 0.63, 0.195, 0.025, 4.22, 1.226, 1.98);
+  clinic.add(plaque('CHECK IN HERE', 0.62, 0.18, 4.22, 1.226, 1.966, true));
+
+  const clockX = 4.78;
+  const clockY = 2.42;
+  parts.cylinder(0x456259, 0.235, 0.235, 0.038, clockX, clockY, 3.264, Math.PI / 2, 0, 0, 20);
+  parts.cylinder(WHITE, 0.207, 0.207, 0.012, clockX, clockY, 3.239, Math.PI / 2, 0, 0, 20);
+  for (const [dx, dy] of [[0, 0.168], [0.168, 0], [0, -0.168], [-0.168, 0]]) {
+    box(0x3c4945, 0.026, 0.026, 0.006, clockX + dx, clockY + dy, 3.23);
+  }
+  box(0x3c4945, 0.018, 0.128, 0.008, clockX + 0.031, clockY + 0.04, 3.225, 0, 0, -0.65);
+  box(0x3c4945, 0.02, 0.094, 0.009, clockX - 0.026, clockY + 0.023, 3.224, 0, 0, 0.96);
   // The rear wall of the lobby is visible through the street windows.
   box(0x785744, 4.00, 2.18, 0.04, 3.8, 1.30, 3.34);
   for (let i = 0; i < 20; i++) {
@@ -261,6 +316,8 @@ export function buildClinic(scene, quality) {
   solid('outside-bench', TEAL, 1.65, 0.1, 0.43, -4.2, 0.52, -0.48);
   box(TEAL, 1.65, 0.28, 0.07, -4.2, 0.75, -0.27);
   for (const x of [-4.85, -3.55]) box(0x4d5855, 0.07, 0.37, 0.34, x, 0.286, -0.48);
+  const anatomy = anatomyPrint();
+  const printGeometry = new THREE.PlaneGeometry(0.42, 0.525);
   for (const side of [-1, 1]) {
     solid('exam-front-' + side, WALL, 6, 2.83, 0.12, 3.88 * side, 1.5, 3.42);
     solid('exam-wall-' + side, WALL, 0.12, 2.83, 1.95, 0.94 * side, 1.5, 6.10);
@@ -274,6 +331,22 @@ export function buildClinic(scene, quality) {
     box(0xbfc9c4, 0.38, 0.025, 0.27, 2.43 * side, 1.015, 6.75);
     box(0x9faeaa, 0.043, 0.15, 0.05, 2.43 * side, 1.09, 6.89);
     box(0x9faeaa, 0.043, 0.04, 0.14, 2.43 * side, 1.15, 6.835);
+    const printX = 3.35 * side;
+    box(0x526b61, 0.47, 0.58, 0.038, printX, 1.92, 6.956);
+    const chart = new THREE.Mesh(printGeometry, anatomy);
+    chart.position.set(printX, 1.92, 6.935);
+    chart.rotation.y = Math.PI;
+    clinic.add(chart);
+
+    box(WHITE, 0.20, 0.31, 0.105, 1.75 * side, 1.45, 6.91);
+    box(0x799692, 0.10, 0.037, 0.01, 1.75 * side, 1.39, 6.853);
+    box(0xb5c2bd, 2.12, 0.048, 0.058, 5.33 * side, 2.88, 4.28);
+    // Stack the curtain at the outer wall so the table stays approachable.
+    for (let pleat = 0; pleat < 8; pleat++) {
+      const curtainX = (5.82 + pleat * 0.066) * side;
+      box(pleat % 2 ? 0x9eb6aa : 0x899f94, 0.075, 1.97, 0.034, curtainX, 1.78,
+        4.28 + (pleat % 2 ? 0.019 : -0.019), 0, (pleat % 2 ? 0.38 : -0.38) * side);
+    }
   }
 
   const fixtureParts = new Parts(false);
