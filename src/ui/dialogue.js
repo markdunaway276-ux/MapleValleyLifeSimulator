@@ -184,8 +184,10 @@ export function createDialogue({
     const weather = ctx.weather || (typeof getWeather === 'function' ? getWeather() : null);
     const tree = getDialogue(id, { time, period: time && time.period, weather });
     name = tree.name;
-    pages = tree.pages && tree.pages.length ? tree.pages : [{ lines: ['…'] }];
-    pages.push(...(getExtraPages?.(id) ?? []));
+    const extra = getExtraPages?.(id) ?? [];
+    // Story characters may speak only through extra pages; no placeholder page then.
+    pages = tree.pages && tree.pages.length ? tree.pages.slice() : (extra.length ? [] : [{ lines: ['…'] }]);
+    pages.push(...extra);
     index = 0;
     npcId = id;
     opened = true;

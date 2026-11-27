@@ -418,7 +418,7 @@ const phone = createPhone({
   playNotification: () => sfx.play('phone-notification')
 });
 const dialogue = createDialogue({
-  getExtraPages: (id) => [neighbourFavour.pageFor(id), snackFavour.pageFor(id), dottiePage(id), dirtyPage(id)].filter(Boolean),
+  getExtraPages: (id) => [...(g.dayOne?.pagesFor(id) ?? []), neighbourFavour.pageFor(id), snackFavour.pageFor(id), dottiePage(id), dirtyPage(id)].filter(Boolean),
   canvas: renderer.domElement,
   isMobile,
   isStarted: () => mode.started(),

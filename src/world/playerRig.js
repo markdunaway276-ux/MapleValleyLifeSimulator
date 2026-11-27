@@ -16,7 +16,11 @@ const ACTION_CLIPS = {
   eat: { key: 'eat', rate: 1.3 },
   fold: { key: 'fold', loop: true },
   restock: { key: 'restock', loop: true },
-  typing: { key: 'typing', loop: true }
+  typing: { key: 'typing', loop: true },
+  takeKeys: { key: 'reach', rate: 1.4 },
+  liftBox: { key: 'pickup', rate: 2.2 },
+  setBoxDown: { key: 'load', rate: 2.2 },
+  unpack: { key: 'restock', loop: true }
 };
 const ACTION_FILES = Object.fromEntries(
   ['door', 'press', 'reach', 'pickup', 'load', 'eat', 'fold', 'restock', 'typing', 'carry'].map((k) => [k, 'actions/' + k + '.json'])
@@ -84,10 +88,15 @@ export function attachPlayerRig(body, { shadows, appearance }) {
   const pile = new THREE.Mesh(new THREE.SphereGeometry(0.17, 10, 8), clothes);
   pile.scale.set(1.35, 0.55, 0.85);
   pile.position.y = 0.1;
-  basket.add(tub, pile);
+  // A moving box (move-in story) is held the same way as the basket.
+  const cardboard = new THREE.Mesh(new THREE.BoxGeometry(0.46, 0.34, 0.36),
+    new THREE.MeshStandardMaterial({ color: 0xb98d5b, roughness: 0.9 }));
+  cardboard.position.y = 0.06;
+  cardboard.visible = false;
+  basket.add(tub, pile, cardboard);
   basket.position.set(0, 1.0, -0.36);
   basket.visible = false;
-  for (const m of [tub, pile]) m.castShadow = !!shadows;
+  for (const m of [tub, pile, cardboard]) m.castShadow = !!shadows;
   body.group.add(basket);
   const loadColors = { dirty: 0x8a6d52, wet: 0x3d4f66, dry: 0xc9b8e0, folded: 0x4a7fb8 };
   if (typeof window !== 'undefined') {
@@ -95,6 +104,8 @@ export function attachPlayerRig(body, { shadows, appearance }) {
       const d = event.detail || {};
       carrying = d.carrying || null;
       if (carrying) clothes.color.setHex(loadColors[carrying] || loadColors.dirty);
+      tub.visible = pile.visible = carrying !== 'box';
+      cardboard.visible = carrying === 'box';
       basket.visible = rigShown && !!carrying;
       if (d.name === 'idle') { acting = null; return; }
       if (d.name === 'carry' || ['sit', 'stand'].includes(d.name)) return;
