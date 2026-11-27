@@ -8,6 +8,7 @@ import { createHudScreenshotButton } from '../ui/hudScreenshot.js';
 import { createFeedbackUploader } from './feedbackUpload.js';
 import { createGithubFeedback } from './githubFeedback.js';
 import { isInsideMainHouse } from '../world/rain.js';
+import { requestPointerLock, exitPointerLock } from '../core/pointerLock.js';
 
 /**
  * Optional debug utilities. Everything is OFF by default and built lazily:
@@ -209,7 +210,7 @@ export function createDebug({
   }
 
   function modalOpened() {
-    if (typeof document.exitPointerLock === 'function') document.exitPointerLock();
+    exitPointerLock();
     window.dispatchEvent(new Event('debug-modal-open'));
   }
 
@@ -217,11 +218,8 @@ export function createDebug({
     if (isModalOpen()) return;
     window.dispatchEvent(new Event('debug-modal-close'));
     const canvas = renderer && renderer.domElement;
-    if (!isMobile && isStarted() && !isInventoryOpen() && canvas && typeof canvas.requestPointerLock === 'function') {
-      try {
-        const p = canvas.requestPointerLock();
-        if (p && typeof p.catch === 'function') p.catch(() => {});
-      } catch { /* ignore */ }
+    if (!isMobile && isStarted() && !isInventoryOpen()) {
+      requestPointerLock(canvas);
     }
   }
 

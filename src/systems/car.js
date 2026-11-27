@@ -502,8 +502,9 @@ export function createCar({
     player.mouseX = 0;
     player.mouseY = 0;
     if (!blocked && (mx || my)) {
-      lookYaw = clamp(lookYaw - mx * CAR_LOOK.SENS, -CAR_LOOK.YAW, CAR_LOOK.YAW);
-      lookPitch = clamp(lookPitch - my * CAR_LOOK.SENS, -CAR_LOOK.PITCH, CAR_LOOK.PITCH);
+      const look = CAR_LOOK.SENS * (player.lookSensitivity || 1);
+      lookYaw = clamp(lookYaw - mx * look, -CAR_LOOK.YAW, CAR_LOOK.YAW);
+      lookPitch = clamp(lookPitch - my * look * (player.invertY ? -1 : 1), -CAR_LOOK.PITCH, CAR_LOOK.PITCH);
       lookIdle = 0;
     } else {
       lookIdle += dt;

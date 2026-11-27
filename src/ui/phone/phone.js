@@ -7,6 +7,7 @@ import { createPhotoLibrary } from './photos.js';
  * they do under the bag or Debug menu.
  */
 import { PHONE_APPS, INSTALLED_APPS, CALENDAR_APP, SKILLS_APP, getPhoneApp } from './apps.js';
+import { requestPointerLock, exitPointerLock } from '../../core/pointerLock.js';
 
 const MESSAGE_ALERT_MS = 6500;
 const PHONE_PREFS_KEY = 'mapleValleyLife_phonePrefs';
@@ -783,9 +784,7 @@ export function createPhone({
     updateStatus();
     overlay.classList.add('is-open');
     overlay.setAttribute('aria-hidden', 'false');
-    if (typeof document !== 'undefined' && typeof document.exitPointerLock === 'function') {
-      document.exitPointerLock();
-    }
+    exitPointerLock();
     window.dispatchEvent(new Event('phone-open'));
   }
 
@@ -797,8 +796,8 @@ export function createPhone({
     overlay.classList.remove('is-open', 'is-focused');
     overlay.setAttribute('aria-hidden', 'true');
     window.dispatchEvent(new Event('phone-close'));
-    if (!mobile() && started() && !blocked() && canvas && typeof canvas.requestPointerLock === 'function') {
-      canvas.requestPointerLock();
+    if (!mobile() && started() && !blocked()) {
+      requestPointerLock(canvas);
     }
   }
 

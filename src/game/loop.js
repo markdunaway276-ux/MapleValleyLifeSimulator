@@ -30,9 +30,11 @@ export function startLoop(g) {
     if (started && !busy) clock.tick(delta);
     const prevX = player.position.x;
     const prevZ = player.position.z;
-    if (mode.driving()) g.car.update(delta, { blocked: mode.uiBlocked() });
-    else if (mode.sitting()) g.sitter.update(delta, { blocked: mode.uiBlocked() });
-    else player.update(delta);
+    if (started) {
+      if (mode.driving()) g.car.update(delta, { blocked: mode.uiBlocked() });
+      else if (mode.sitting()) g.sitter.update(delta, { blocked: mode.uiBlocked() });
+      else player.update(delta);
+    }
     g.playerBody.update(player);
     if (g.actions) g.actions.update(delta);
     const currentTime = clock.getTime();

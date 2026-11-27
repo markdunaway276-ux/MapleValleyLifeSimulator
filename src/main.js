@@ -20,6 +20,7 @@ import { createPlayer } from './core/player.js';
 import { setupInput } from './core/input.js';
 import { isMobileDevice } from './core/device.js';
 import { createPlayerMode } from './core/mode.js';
+import { requestPointerLock, exitPointerLock } from './core/pointerLock.js';
 import { createInventory } from './ui/inventory.js';
 import { STARTER_ITEMS } from './data/items.js';
 import { loadSave, saveGame, clearSave } from './systems/save.js';
@@ -208,6 +209,7 @@ Object.assign(g, { car, sitter });
 const inventory = createInventory({
   canvas: renderer.domElement,
   isStarted: () => mode.started(),
+  isBlocked: () => mode.busy() || mode.menuOpen({ except: 'inventory' }),
   items: fromSaveBag ? bagCash.items : STARTER_ITEMS,
   onUse: ({ use }) => {
     if (use && use.action === 'open') {
@@ -380,7 +382,7 @@ const phone = createPhone({
   isMobile,
   isStarted: () => mode.started(),
   isBlocked: () => mode.busy() || mode.menuOpen({ except: 'phone' }),
-  canOpen: () => mode.canAct() && !mode.menu('dialogue'),
+  canOpen: () => mode.canAct() && !mode.menu('dialogue') && !mode.menu('pause') && !mode.menu('debug'),
   getTime: () => clock.getTime(),
   getMoney: () => money.get(),
   getFinances: money.statement,
@@ -440,7 +442,7 @@ g.prompt = prompt;
 
 document.getElementById('start').onclick = () => {
   instructions.classList.add('hidden');
-  if (!isMobile && !inventory.isOpen()) renderer.domElement.requestPointerLock();
+  if (!isMobile && !inventory.isOpen()) requestPointerLock(renderer.domElement);
   sfx.unlock();
   prompt.update();
   debug.refresh();
@@ -465,10 +467,7 @@ if (!isMobile) {
   const canLook = () => mode.started() && !mode.uiBlocked() && !inventory.isOpen();
   const relock = () => {
     if (document.pointerLockElement === canvas || !canLook()) return;
-    try {
-      const p = canvas.requestPointerLock();
-      if (p && typeof p.catch === 'function') p.catch(() => {});
-    } catch { /* browser refused; the hint stays up and the next click tries again */ }
+    requestPointerLock(canvas);
   };
   canvas.addEventListener('click', () => { cursorFree = false; relock(); });
   window.addEventListener('keydown', (e) => {
@@ -476,7 +475,7 @@ if (!isMobile) {
     e.preventDefault();
     if (document.pointerLockElement === canvas) {
       cursorFree = true;
-      document.exitPointerLock();
+      exitPointerLock();
     } else {
       cursorFree = false;
       relock();
@@ -516,7 +515,7 @@ if (saveData.stats) stats.apply(saveData);
 g.stats = stats;
 g.settings = settings;
 
-// Pause menu: Esc / P on a desktop (or losing mouse look while playing), the II button anywhere.
+// Pause menu: Esc on a desktop (or losing mouse look while playing), the II button anywhere.
 const pause = createPauseMenu({
   mode,
   isMobile,

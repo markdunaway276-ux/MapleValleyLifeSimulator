@@ -6,6 +6,7 @@
  */
 
 import { getDialogue } from '../data/dialogue.js';
+import { requestPointerLock, exitPointerLock } from '../core/pointerLock.js';
 
 const STYLE_ID = 'maple-dialogue-css';
 
@@ -192,9 +193,7 @@ export function createDialogue({
     overlay.classList.add('is-open');
     overlay.setAttribute('aria-hidden', 'false');
     overlay.setAttribute('aria-label', name);
-    if (typeof document !== 'undefined' && typeof document.exitPointerLock === 'function') {
-      document.exitPointerLock();
-    }
+    exitPointerLock();
     window.dispatchEvent(new Event('dialogue-open'));
     return true;
   }
@@ -208,8 +207,8 @@ export function createDialogue({
     overlay.classList.remove('is-open');
     overlay.setAttribute('aria-hidden', 'true');
     window.dispatchEvent(new Event('dialogue-close'));
-    if (!mobile() && started() && !blocked() && canvas && typeof canvas.requestPointerLock === 'function') {
-      canvas.requestPointerLock();
+    if (!mobile() && started() && !blocked()) {
+      requestPointerLock(canvas);
     }
   }
 

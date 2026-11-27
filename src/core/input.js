@@ -16,6 +16,9 @@ export function setupInput(player, isMobile, { isInventoryOpen } = {}) {
   window.addEventListener('sleep-start', clearMotion);
   window.addEventListener('phone-open', clearMotion);
   window.addEventListener('pause-open', clearMotion);
+  window.addEventListener('dialogue-open', clearMotion);
+  window.addEventListener('work-start', clearMotion);
+  window.addEventListener('blur', clearMotion);
 
 
   if (isMobile) document.body.classList.add('mobile');
@@ -49,8 +52,8 @@ export function setupInput(player, isMobile, { isInventoryOpen } = {}) {
   document.addEventListener('mousemove', (e) => {
     if (blocked()) return;
     if (document.pointerLockElement) {
-      player.mouseX = e.movementX;
-      player.mouseY = e.movementY;
+      player.mouseX += e.movementX;
+      player.mouseY += e.movementY;
     }
   });
 
@@ -95,6 +98,9 @@ export function setupInput(player, isMobile, { isInventoryOpen } = {}) {
     window.addEventListener('sleep-start', resetTouch);
     window.addEventListener('phone-open', resetTouch);
     window.addEventListener('pause-open', resetTouch);
+    window.addEventListener('dialogue-open', resetTouch);
+    window.addEventListener('work-start', resetTouch);
+    window.addEventListener('blur', resetTouch);
 
     joystick.addEventListener('touchstart', (e) => {
       if (blocked()) return;
