@@ -24,6 +24,16 @@ export const SHOP_DEFS = [
     ]
   },
   {
+    id: 'gas-station',
+    name: 'Maple Lane Fuel & Go',
+    stock: [
+      { item: 'coffee', name: 'Coffee', price: 3, sfx: 'cash' },
+      { item: 'slushie', name: 'Slushie', price: 2, sfx: 'cash' },
+      { item: 'snack', name: 'Snack', price: 4, sfx: 'cash' },
+      { item: 'sandwich', name: 'Sandwich', price: 7, sfx: 'cash' }
+    ]
+  },
+  {
     id: 'corner-shop',
     name: 'Maple Lane Market',
     stock: [

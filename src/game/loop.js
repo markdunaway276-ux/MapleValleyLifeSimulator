@@ -97,6 +97,7 @@ export function startLoop(g) {
     scene.userData.streetlights.update(time.minutes);
     scene.userData.cornerShop?.userData.updateFrontage?.(time.minutes);
     scene.userData.clinic?.userData.updateLighting?.(time.minutes);
+    scene.userData.gasStation?.userData.updateLighting?.(time.minutes);
     g.prompt.update();
     g.minimap.update(delta);
     g.presentation.draw(g.view.draw);

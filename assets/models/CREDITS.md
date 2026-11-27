@@ -28,3 +28,10 @@
 - **Author:** [Neberkenezer](https://sketchfab.com/neberkenezer)
 - **License:** [Creative Commons Attribution 4.0 International (CC BY 4.0)](https://creativecommons.org/licenses/by/4.0/)
 - **Changes:** Extracted the clinic, cropped the exterior above the ground floor, resized and repositioned it, and re-encoded the original 1024 px texture. Maple Lane supplies the ground floor, signage, and interior.
+
+## gas-station.glb, gas-asphalt.webp
+
+- **Source:** [Gas station](https://elbolilloduro.itch.io/gas-station)
+- **Author:** Elbolilloduro
+- **License:** Creative Commons Zero (CC0 1.0)
+- **Changes:** Kept the store, canopy, pumps and price sign; removed the surrounding scenery and restroom block. Narrowed the canopy to fit the lot, moved the store closer, scaled the sign down. Replaced the "6twelve" branding with an original "Fuel & Go" logo, new canopy stripe colours and new fuel prices. Textures re-encoded as WebP (max 512 px).

@@ -18,6 +18,7 @@ import { buildStreetlights } from './streetlights.js';
 import { buildCornerShop } from './cornerShop.js';
 import { buildLaundromat } from './laundromat.js';
 import { buildClinic } from './clinic.js';
+import { buildGasStation } from './gasStation.js';
 import { buildTrailerPark } from './trailerPark.js';
 import { createWorldState } from '../systems/interactables.js';
 import { sampleLighting } from './daynight.js';
@@ -493,6 +494,7 @@ export function createScene(quality) {
   buildCornerShop(scene, quality);
   buildLaundromat(scene, quality);
   buildClinic(scene, quality);
+  buildGasStation(scene, quality);
   buildTrailerPark(scene, quality);
   scene.userData.world = createWorldState(scene);
 
