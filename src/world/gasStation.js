@@ -220,17 +220,31 @@ export function buildGasStation(scene, quality) {
   spot('gas-register', -2.92, 1.25, 20.6, shift.verb + ' ($' + shift.pay + ')', (ctx) => ctx.work?.(shift.id) ?? false, 'press', 1.7);
 
   // Night lighting: canopy downlights and a store light.
+  const lightPool = data && data.lightPool;
   const canopyLights = [];
   for (const z of [3.6, 9.6]) {
-    const light = new THREE.SpotLight(0xfff3dc, 0, 13, Math.PI / 3.2, 0.7, 1.6);
-    light.position.set(-0.8, 6.3, z);
-    light.target.position.set(-0.8, 0, z);
-    station.add(light, light.target);
-    canopyLights.push(light);
+    if (lightPool) {
+      canopyLights.push(lightPool.addSpot({
+        x: X - 0.8, y: 6.3, z: FRONT + z,
+        tx: X - 0.8, ty: 0, tz: FRONT + z,
+        color: 0xfff3dc, intensity: 0, distance: 13, angle: Math.PI / 3.2, penumbra: 0.7, decay: 1.6
+      }));
+    } else {
+      const light = new THREE.SpotLight(0xfff3dc, 0, 13, Math.PI / 3.2, 0.7, 1.6);
+      light.position.set(-0.8, 6.3, z);
+      light.target.position.set(-0.8, 0, z);
+      station.add(light, light.target);
+      canopyLights.push(light);
+    }
   }
-  const storeLight = new THREE.PointLight(0xfff1dc, 20, 14, 2);
-  storeLight.position.set(0.5, 3.5, 23);
-  station.add(storeLight);
+  let storeLight;
+  if (lightPool) {
+    storeLight = lightPool.addPoint({ x: X + 0.5, y: 3.5, z: FRONT + 23, color: 0xfff1dc, intensity: 20, distance: 14, decay: 2 });
+  } else {
+    storeLight = new THREE.PointLight(0xfff1dc, 20, 14, 2);
+    storeLight.position.set(0.5, 3.5, 23);
+    station.add(storeLight);
+  }
 
   const glowing = [];
   const panes = [];

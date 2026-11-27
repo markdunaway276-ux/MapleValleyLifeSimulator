@@ -428,10 +428,18 @@ export function buildClinic(scene, quality) {
     halo.position.set(x, 2.921, z);
     clinic.add(halo);
     if (exam) {
-      const examLight = new THREE.SpotLight(0xe6f2ff, 13, 4.1, Math.PI / 3.5, 0.84, 2);
-      examLight.position.set(x, 2.78, z);
-      examLight.target.position.set(x, 0.1, z);
-      clinic.add(examLight, examLight.target);
+      if (data.lightPool) {
+        data.lightPool.addSpot({
+          x: X + x, y: 2.78, z: FRONT + z,
+          tx: X + x, ty: 0.1, tz: FRONT + z,
+          color: 0xe6f2ff, intensity: 13, distance: 4.1, angle: Math.PI / 3.5, penumbra: 0.84, decay: 2
+        });
+      } else {
+        const examLight = new THREE.SpotLight(0xe6f2ff, 13, 4.1, Math.PI / 3.5, 0.84, 2);
+        examLight.position.set(x, 2.78, z);
+        examLight.target.position.set(x, 0.1, z);
+        clinic.add(examLight, examLight.target);
+      }
       continue;
     }
     fixtureParts.box(0, 1.45, 0.045, 0.33, x, 2.9, z);
@@ -444,12 +452,23 @@ export function buildClinic(scene, quality) {
   model.castShadow = model.receiveShadow = !!quality.shadows;
   clinic.add(model, fixtures);
 
-  const lobbyLight = new THREE.PointLight(0xffdfb3, 18, 8, 2);
-  lobbyLight.position.set(-1.8, 2.66, 2.2);
-  const canopyLight = new THREE.SpotLight(0xffe4be, 0, 4, Math.PI / 4, 0.78, 2);
-  canopyLight.position.set(0, 2.30, -0.48);
-  canopyLight.target.position.set(0, 0.08, -0.83);
-  clinic.add(lobbyLight, canopyLight, canopyLight.target);
+  let lobbyLight;
+  let canopyLight;
+  if (data.lightPool) {
+    lobbyLight = data.lightPool.addPoint({ x: X - 1.8, y: 2.66, z: FRONT + 2.2, color: 0xffdfb3, intensity: 18, distance: 8, decay: 2 });
+    canopyLight = data.lightPool.addSpot({
+      x: X, y: 2.30, z: FRONT - 0.48,
+      tx: X, ty: 0.08, tz: FRONT - 0.83,
+      color: 0xffe4be, intensity: 0, distance: 4, angle: Math.PI / 4, penumbra: 0.78, decay: 2
+    });
+  } else {
+    lobbyLight = new THREE.PointLight(0xffdfb3, 18, 8, 2);
+    lobbyLight.position.set(-1.8, 2.66, 2.2);
+    canopyLight = new THREE.SpotLight(0xffe4be, 0, 4, Math.PI / 4, 0.78, 2);
+    canopyLight.position.set(0, 2.30, -0.48);
+    canopyLight.target.position.set(0, 0.08, -0.83);
+    clinic.add(lobbyLight, canopyLight, canopyLight.target);
+  }
   clinic.userData.updateLighting = (minutes) => {
     const dusk = THREE.MathUtils.smoothstep(minutes, 1080, 1200);
     const dawn = 1 - THREE.MathUtils.smoothstep(minutes, 330, 450);

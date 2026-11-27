@@ -28,6 +28,7 @@ import { buildContactGeometry, contactMaterial, createContactBlob, createContact
 import { buildMainHouseDetails, findGlassPanes, tintGlassPanes } from './details.js';
 import { CURB_WIDTH, DRIVEWAY, GARAGE_LOT, NORTH_FRONTAGE_OFFSET, STREET, SURFACE_Y, drivewayWalkHeight, surfaceHeightAt } from './street.js';
 import { buildFrontYard, textureHouseExterior } from './frontYard.js';
+import { createLightPool } from './lightPool.js';
 
 function disposeGroup(group) {
   const materials = new Set();
@@ -480,6 +481,12 @@ export function createScene(quality) {
   const doors = [door, ...streetHouses.map((h) => h.userData.door).filter(Boolean)];
   scene.userData.door = door;
   scene.userData.doors = doors;
+  scene.userData.lightPool = createLightPool({
+    scene,
+    quality,
+    PointLight: THREE.PointLight,
+    SpotLight: THREE.SpotLight
+  });
   scene.userData.streetlights = buildStreetlights(scene, quality);
   scene.userData.street = STREET;
   scene.userData.spawn = STREET.spawn;
@@ -501,30 +508,28 @@ export function createScene(quality) {
   const mailbox = createMailbox({ shadows: quality.shadows });
   mailbox.position.set(MAILBOX_SPAWN.x, 0, MAILBOX_SPAWN.z);
   pickups.add(mailbox);
+  mailbox.updateMatrixWorld(true);
+  const mailboxPoint = mailbox.localToWorld(mailbox.userData.interactLocal.clone());
   colliders.addHouse(mailboxCollider(mailbox));
   scene.userData.interactables.push({
     id: 'mailbox',
     kind: 'mailbox',
     object: mailbox,
-    getPoint: () => {
-      mailbox.updateMatrixWorld(true);
-      return mailbox.localToWorld(mailbox.userData.interactLocal.clone());
-    }
+    getPoint: () => mailboxPoint
   });
   scene.userData.mailbox = mailbox;
 
   const vending = createVendingMachine({ shadows: quality.shadows });
   vending.position.set(VENDING_SPAWN.x, 0, VENDING_SPAWN.z);
   pickups.add(vending);
+  vending.updateMatrixWorld(true);
+  const vendingPoint = vending.localToWorld(vending.userData.interactLocal.clone());
   colliders.addHouse(vendingCollider(vending));
   scene.userData.interactables.push({
     id: 'vending',
     kind: 'vending',
     object: vending,
-    getPoint: () => {
-      vending.updateMatrixWorld(true);
-      return vending.localToWorld(vending.userData.interactLocal.clone());
-    }
+    getPoint: () => vendingPoint
   });
   scene.userData.vending = vending;
 
@@ -630,7 +635,7 @@ export function createScene(quality) {
       const doorW = Math.min(1.04, Math.max(0.9, d.w * s)); // fills the 1.04 m painted opening
       const doorH = d.h * s;
       const doorZ = doorWorld.z + 0.06;
-      const frontYard = buildFrontYard({ x: doorWorld.x, z: doorZ }, quality);
+      const frontYard = buildFrontYard({ x: doorWorld.x, z: doorZ }, quality, scene.userData.lightPool);
       pickups.add(frontYard.group);
       scene.userData.frontYard = frontYard;
       // Pivot at the left jamb; the panel already matches the 1 × 2 m target size.

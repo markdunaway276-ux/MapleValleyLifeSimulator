@@ -78,16 +78,22 @@ export function segmentHitsBox(ax, az, bx, bz, c) {
   let t0 = 0;
   let t1 = 1;
   const dx = bx - ax;
+  if (Math.abs(dx) < 1e-12) {
+    if (ax < c.minX || ax > c.maxX) return false;
+  } else {
+    let ta = (c.minX - ax) / dx;
+    let tb = (c.maxX - ax) / dx;
+    if (ta > tb) { const t = ta; ta = tb; tb = t; }
+    if (ta > t0) t0 = ta;
+    if (tb < t1) t1 = tb;
+    if (t0 > t1) return false;
+  }
   const dz = bz - az;
-  const slabs = [[dx, ax, c.minX, c.maxX], [dz, az, c.minZ, c.maxZ]];
-  for (let i = 0; i < 2; i++) {
-    const [d, a, lo, hi] = slabs[i];
-    if (Math.abs(d) < 1e-12) {
-      if (a < lo || a > hi) return false;
-      continue;
-    }
-    let ta = (lo - a) / d;
-    let tb = (hi - a) / d;
+  if (Math.abs(dz) < 1e-12) {
+    if (az < c.minZ || az > c.maxZ) return false;
+  } else {
+    let ta = (c.minZ - az) / dz;
+    let tb = (c.maxZ - az) / dz;
     if (ta > tb) { const t = ta; ta = tb; tb = t; }
     if (ta > t0) t0 = ta;
     if (tb < t1) t1 = tb;
@@ -110,30 +116,46 @@ export function hasLineOfReach(world, from, to) {
   return true;
 }
 
+const _candidates = [];
+const _reach = new Map();
+const _point = new THREE.Vector3();
+
 export function nearestActionTarget(scene, position, range = INTERACT_RANGE, { development = false } = {}) {
   if (!scene || !position) return null;
-  const candidates = [];
-  const doors = (scene.userData && scene.userData.doors) || [];
-  for (let i = 0; i < doors.length; i++) candidates.push(doors[i]);
-  const extras = enabledInteractables(scene);
-  // An entry may set its own, shorter reach (`range`, metres from the eye).
-  const reach = new Map();
-  for (let i = 0; i < extras.length; i++) {
-    const obj = extras[i].object || extras[i];
-    if (obj && !candidates.includes(obj)) candidates.push(obj);
-    if (!development && obj && Number(extras[i].range) > 0) reach.set(obj, Math.min(range, Number(extras[i].range)));
+  _candidates.length = 0;
+  _reach.clear();
+  const ud = scene.userData;
+  const doors = (ud && ud.doors) || null;
+  if (doors) {
+    for (let i = 0; i < doors.length; i++) _candidates.push(doors[i]);
   }
-  const world = scene.userData && scene.userData.colliders;
-  const p = new THREE.Vector3();
+  const list = (ud && ud.interactables) || null;
+  // An entry may set its own, shorter reach (`range`, metres from the eye).
+  if (list) {
+    for (let i = 0; i < list.length; i++) {
+      const entry = list[i];
+      if (!isInteractableEnabled(entry)) continue;
+      const obj = entry.object || entry;
+      if (obj && !_candidates.includes(obj)) _candidates.push(obj);
+      if (!development && obj && Number(entry.range) > 0) _reach.set(obj, Math.min(range, Number(entry.range)));
+    }
+  }
+  const world = ud && ud.colliders;
   let best = null;
   let bestD = range;
-  for (let i = 0; i < candidates.length; i++) {
-    const dist = position.distanceTo(targetInteractPoint(candidates[i], p));
-    if (dist < bestD && dist <= (reach.get(candidates[i]) ?? range) && hasLineOfReach(world, position, p)) {
-      best = candidates[i];
+  for (let i = 0; i < _candidates.length; i++) {
+    const cand = _candidates[i];
+    const tp = targetInteractPoint(cand, _point);
+    const dist = typeof position.distanceTo === 'function'
+      ? position.distanceTo(tp)
+      : Math.hypot((position.x || 0) - tp.x, (position.y || 0) - tp.y, (position.z || 0) - tp.z);
+    if (dist < bestD && dist <= (_reach.get(cand) ?? range) && hasLineOfReach(world, position, tp)) {
+      best = cand;
       bestD = dist;
     }
   }
+  _candidates.length = 0;
+  _reach.clear();
   return best;
 }
 

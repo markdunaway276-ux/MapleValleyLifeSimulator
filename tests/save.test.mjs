@@ -105,3 +105,22 @@ test('a seven-metre road save moves only once to the widened sidewalk layout', (
   assert.deepEqual(loadSave(), next);
   assert.deepEqual(JSON.parse(store.get(SAVE_KEY + '_backup_v2')), old);
 });
+
+test('repeated saveGame calls reuse the cached save without redundant JSON.parse', () => {
+  saveGame({ money: 50 });
+  const origParse = JSON.parse;
+  let parses = 0;
+  JSON.parse = (...args) => { parses += 1; return origParse(...args); };
+  try {
+    saveGame({ position: { x: 3, y: 1.6, z: 4 } });
+    saveGame({ weather: 'rain' });
+    assert.equal(parses, 0);
+    const merged = loadSave();
+    assert.equal(parses, 0);
+    assert.equal(merged.money, 50);
+    assert.deepEqual(merged.position, { x: 3, y: 1.6, z: 4 });
+    assert.equal(merged.weather, 'rain');
+  } finally {
+    JSON.parse = origParse;
+  }
+});

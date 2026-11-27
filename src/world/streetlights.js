@@ -17,6 +17,7 @@ export function buildStreetlights(scene, quality) {
   const poleHeight = 3.6;
   const arm = 0.76;
 
+  const pool = scene.userData && scene.userData.lightPool;
   for (const { x, side } of LOCATIONS) {
     const z = STREET.roadCenterZ + side * (STREET.roadWidth / 2 + STREET.sidewalkWidth - 0.15);
     const headZ = z - side * arm;
@@ -27,11 +28,19 @@ export function buildStreetlights(scene, quality) {
     fixtures.box(metal, 0.29, 0.15, 0.45, x, ground + poleHeight, headZ);
     lenses.box(0xffffff, 0.23, 0.025, 0.35, x, ground + poleHeight - 0.074, headZ);
 
-    const light = new THREE.SpotLight(0xffdbab, 0, 7.2, Math.PI / 3.4, 0.55, 2);
-    light.position.set(x, ground + poleHeight - 0.14, headZ);
-    light.target.position.set(x, ground, headZ - side * 0.45);
-    lights.push(light);
-    scene.add(light, light.target);
+    if (pool) {
+      lights.push(pool.addSpot({
+        x, y: ground + poleHeight - 0.14, z: headZ,
+        tx: x, ty: ground, tz: headZ - side * 0.45,
+        color: 0xffdbab, intensity: 0, distance: 7.2, angle: Math.PI / 3.4, penumbra: 0.55, decay: 2
+      }));
+    } else {
+      const light = new THREE.SpotLight(0xffdbab, 0, 7.2, Math.PI / 3.4, 0.55, 2);
+      light.position.set(x, ground + poleHeight - 0.14, headZ);
+      light.target.position.set(x, ground, headZ - side * 0.45);
+      lights.push(light);
+      scene.add(light, light.target);
+    }
     scene.userData.colliders.addTree({ id: 'streetlight-' + x, x, z, radius: 0.145 });
   }
 
