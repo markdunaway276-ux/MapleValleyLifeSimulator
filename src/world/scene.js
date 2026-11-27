@@ -22,7 +22,7 @@ import { createWorldState } from '../systems/interactables.js';
 import { sampleLighting } from './daynight.js';
 import { HOUSE, LOOK, MAIN_HOUSE, PROPS, TEXTURE } from './palette.js';
 import { createGrassTexture, createRoadTexture, createSidewalkTexture } from './textures.js';
-import { createContactShadows } from './contact.js';
+import { buildContactGeometry, contactMaterial, createContactShadows } from './contact.js';
 import { buildMainHouseDetails, findGlassPanes, tintGlassPanes } from './details.js';
 import { CURB_WIDTH, DRIVEWAY, GARAGE_LOT, NORTH_FRONTAGE_OFFSET, STREET, SURFACE_Y, drivewayWalkHeight, surfaceHeightAt } from './street.js';
 import { buildFrontYard, textureHouseExterior } from './frontYard.js';
@@ -128,6 +128,21 @@ export function createScene(quality) {
     roughness: 0.95,
     metalness: 0
   });
+  // Modulate the repeated tile across the entire ground plane in metre coordinates.
+  groundMat.onBeforeCompile = shader => {
+    shader.vertexShader = shader.vertexShader
+      .replace('#include <common>', '#include <common>\nvarying vec2 vLawnMetres;')
+      .replace('#include <begin_vertex>', '#include <begin_vertex>\nvLawnMetres = position.xy;');
+    shader.fragmentShader = shader.fragmentShader
+      .replace('#include <common>', '#include <common>\nvarying vec2 vLawnMetres;')
+      .replace('#include <map_fragment>', `#include <map_fragment>
+        vec2 p = vLawnMetres;
+        float broad = sin(p.x * 0.39 + p.y * 0.16) * sin(p.y * 0.32 - p.x * 0.12);
+        float fine = sin(p.x * 1.54 - p.y * 1.12) * sin(p.y * 1.18 + p.x * 0.72);
+        float dry = smoothstep(0.24, 0.85, broad + fine * 0.22);
+        diffuseColor.rgb *= mix(vec3(0.88, 0.94, 0.90), vec3(1.18, 1.08, 0.86), dry) + fine * 0.055;
+      `);
+  };
   const ground = new THREE.Mesh(groundGeo, groundMat);
   ground.name = 'ground';
   ground.rotation.x = -Math.PI / 2;
@@ -340,6 +355,64 @@ export function createScene(quality) {
   });
   scene.userData.streetHouses = streetHouses;
 
+  // Worn footpaths join the front of each lot to the nearest sidewalk.
+  const patches = [];
+  const plantings = [];
+  for (const lot of lots) {
+    const facing = lot.rotY === 0 ? 1 : -1;
+    const edge = roadCenterZ - facing * (roadWidth / 2 + sidewalkWidth);
+    const porch = lot.z + facing * (lot.depth / 2 + (lot.porch?.depth ?? 0));
+    const length = (edge - porch) * facing;
+    if (length < 0.25) continue;
+    patches.push({
+      kind: 'rect', x: lot.x, z: (porch + edge) / 2, y: 0,
+      w: 0.56, d: length, margin: 0.27, strength: 0.82
+    });
+    if (lot.porch) {
+      const z = porch + facing * Math.min(0.45, length * 0.45);
+      for (const side of [-1, 1]) {
+        const x = lot.x + side * (lot.porch.width / 2 + 0.35);
+        plantings.push({ x, z, side });
+        patches.push({ x, z, y: 0, rx: 0.44, rz: 0.31, strength: 0.58 });
+      }
+    }
+  }
+  const soilGeometry = buildContactGeometry(patches);
+  const soilColors = soilGeometry.attributes.color;
+  for (let i = 0; i < soilColors.count; i++) soilColors.setXYZ(i, 1, 1, 1);
+  const soilMaterial = new THREE.MeshStandardMaterial({
+    color: 0x756747, roughness: 1, alphaMap: contactMaterial().alphaMap,
+    vertexColors: true, transparent: true, depthWrite: false
+  });
+  const soil = new THREE.Mesh(soilGeometry, soilMaterial);
+  soil.name = 'worn-lawn-paths';
+  soil.receiveShadow = quality.shadows;
+  scene.add(soil);
+
+  const shrubs = new THREE.InstancedMesh(
+    new THREE.IcosahedronGeometry(1, 1),
+    new THREE.MeshStandardMaterial({ roughness: 0.92 }),
+    plantings.length * 5
+  );
+  const plant = new THREE.Object3D();
+  const leafColor = new THREE.Color();
+  let foliage = 0;
+  for (const { x, z, side } of plantings) {
+    for (let i = 0; i < 5; i++) {
+      const angle = i * 2.4 + side;
+      plant.position.set(x + Math.cos(angle) * 0.19, 0.15 + i * 0.014, z + Math.sin(angle) * 0.14);
+      plant.scale.set(0.18 - i * 0.008, 0.19 - i * 0.008, 0.15);
+      plant.rotation.y = angle;
+      plant.updateMatrix();
+      shrubs.setMatrixAt(foliage, plant.matrix);
+      shrubs.setColorAt(foliage++, leafColor.setHex([0x435c3a, 0x60734a, 0x526c46, 0x3f5736, 0x69794f][i]));
+    }
+  }
+  shrubs.name = 'porch-shrubs';
+  shrubs.castShadow = quality.shadows;
+  shrubs.receiveShadow = quality.shadows;
+  scene.add(shrubs);
+
   // Lighting: a sky/ground hemisphere, a soft ambient and a warm sun, all
   // starting from the 10:00 key (daynight.js then takes over).
   const hemi = new THREE.HemisphereLight(look.hemiSky, look.hemiGround, look.hemiInt);
@@ -458,7 +531,7 @@ export function createScene(quality) {
   const contactItems = [];
   trees.forEach((tree) => {
     const r = tree.userData.radius || 1.2;
-    contactItems.push({ kind: 'blob', x: tree.position.x, z: tree.position.z, y: 0, rx: r * 1.15, rz: r * 1.15, strength: 0.5 });
+    contactItems.push({ kind: 'blob', x: tree.position.x, z: tree.position.z, y: 0, rx: r * 1.15, rz: r * 1.15, strength: 0.69 });
     contactItems.push({ kind: 'blob', x: tree.position.x, z: tree.position.z, y: 0, rx: tree.userData.trunkRadius * 3.4, rz: tree.userData.trunkRadius * 3.4, strength: 0.9 });
   });
   lots.forEach((lot, i) => {
