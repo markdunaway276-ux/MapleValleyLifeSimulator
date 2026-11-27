@@ -71,6 +71,7 @@ export function createNeeds({
   }
 
   const listeners = { change: [] };
+  let developmentMode = false;
 
   function emit() {
     const snap = snapshot();
@@ -84,7 +85,7 @@ export function createNeeds({
     const items = [];
     for (let i = 0; i < list.length; i++) {
       const d = list[i];
-      const value = state[d.id];
+      const value = get(d.id);
       valuesOut[d.id] = value;
       items.push({
         id: d.id,
@@ -100,12 +101,14 @@ export function createNeeds({
 
   function get(id) {
     if (id == null) return snapshot();
+    if (developmentMode && state[id] != null) return defById(list, id).max ?? NEED_MAX;
     return state[id];
   }
 
   function set(id, value) {
     const def = defById(list, id);
     if (!def) return undefined;
+    if (developmentMode) return get(id);
     const next = clampNeed(def, value);
     if (next === state[id]) return next;
     state[id] = next;
@@ -119,6 +122,7 @@ export function createNeeds({
   }
 
   function refill(id) {
+    if (developmentMode) return get();
     if (id) {
       const def = defById(list, id);
       if (!def) return get();
@@ -136,6 +140,7 @@ export function createNeeds({
   }
 
   function drain(id) {
+    if (developmentMode) return get();
     if (id) {
       const def = defById(list, id);
       if (!def) return get();
@@ -159,6 +164,7 @@ export function createNeeds({
    * (Energy is handled by the sleep hook or a job's own drain).
    */
   function update(gameMinutes, opts = {}) {
+    if (developmentMode) return get();
     const dt = Number(gameMinutes);
     if (!(dt > 0)) return get();
     let changed = false;
@@ -246,6 +252,12 @@ export function createNeeds({
     off,
     onChange,
     defs: list,
-    LOW_THRESHOLD
+    LOW_THRESHOLD,
+    isDevelopmentMode: () => developmentMode,
+    setDevelopmentMode(on) {
+      if (developmentMode === !!on) return;
+      developmentMode = !!on;
+      emit();
+    }
   };
 }

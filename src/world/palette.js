@@ -118,7 +118,7 @@ export const GROUND = {
 export const TEXTURE = {
   grass: { desktop: 512, mobile: 256, anisotropy: 8, repeat: 20 },
   /** [along the street, across it]. One tile spans 8 m along the street. */
-  road: { desktop: [256, 64], mobile: [128, 64], tileMetres: 8, dashes: 4 },
+  road: { desktop: [512, 256], mobile: [256, 128], tileMetres: 8, dashes: 4 },
   /** One slab per tile, so the joints land on the tile edge. */
   walk: { size: 128, slabMetres: 1.5 }
 };

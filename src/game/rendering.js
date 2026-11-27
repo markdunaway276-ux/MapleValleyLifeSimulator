@@ -7,7 +7,7 @@ function sizeRenderer(renderer, quality, isMobile) {
   const { innerWidth: width, innerHeight: height } = window;
   // Bound fill cost on large high-DPI screens when using automatic quality.
   const ratio = isMobile && quality.level === 'auto'
-    ? Math.min(quality.pixelRatio, Math.sqrt(750000 / Math.max(1, width * height)))
+    ? Math.min(quality.pixelRatio, Math.sqrt(1050000 / Math.max(1, width * height)))
     : quality.pixelRatio;
   renderer.setPixelRatio(ratio);
   renderer.setSize(width, height);
