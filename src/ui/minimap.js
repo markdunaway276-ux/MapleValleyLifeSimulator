@@ -284,6 +284,10 @@ export function worldBounds(world) {
     minZ: cz - roadHalf - walk,
     maxZ: cz + roadHalf + walk
   };
+  for (const road of s.expansion?.roads ?? []) {
+    expand(b, road.minX, road.minZ);
+    expand(b, road.maxX, road.maxZ);
+  }
   const houses = (world && world.houses) || [];
   for (let i = 0; i < houses.length; i++) {
     const h = houses[i];
@@ -350,6 +354,29 @@ export function drawStaticLayer(ctx, world, view) {
 
   ctx.fillStyle = C.grass;
   ctx.fillRect(0, 0, view.width, view.height);
+
+  const expansion = s.expansion;
+  if (expansion) {
+    const fill = (rect) => fillRectWorld(ctx, view, rect.minX, rect.maxX, rect.minZ, rect.maxZ);
+    ctx.fillStyle = '#647c4b';
+    fill(expansion.park);
+    ctx.fillStyle = '#527d83';
+    const { minX, minZ, maxX, maxZ } = expansion.pond;
+    const pondCenter = toMap(view, (minX + maxX) / 2, (minZ + maxZ) / 2);
+    ctx.beginPath();
+    ctx.ellipse(pondCenter.x, pondCenter.y, (maxX - minX) * view.scale / 2,
+      (maxZ - minZ) * view.scale / 2, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = C.road;
+    for (const road of expansion.roads) fill(road);
+    ctx.fillStyle = C.sidewalk;
+    fill(expansion.southSidewalk);
+    for (const path of expansion.paths) fill(path);
+    ctx.fillStyle = '#b8a68a';
+    for (const trail of expansion.gravel) fill(trail);
+    ctx.fillStyle = '#dedbca';
+    fill(expansion.crossing);
+  }
 
   ctx.fillStyle = C.sidewalk;
   fillRectWorld(ctx, view, -half, half, cz - roadHalf - walk, cz - roadHalf);

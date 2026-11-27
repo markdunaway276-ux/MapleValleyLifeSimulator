@@ -1,3 +1,5 @@
+import { expansionSurface } from '../world/parkLayout.js';
+
 /**
  * Small Web Audio sound API for Maple Valley. All sounds are synthesized
  * (no sample files) so the game stays mobile-friendly and has nothing to
@@ -78,6 +80,8 @@ export function surfaceAt(x, z, scene) {
   if (b && x >= b.minX && x <= b.maxX && z >= b.minZ && z <= b.maxZ) return 'floor';
 
   const street = (scene && scene.userData && scene.userData.street) || DEFAULT_STREET;
+  const expansion = expansionSurface(x, z, street.expansion);
+  if (expansion) return expansion;
   const halfLen = (street.length || DEFAULT_STREET.length) / 2;
   const roadHalf = (street.roadWidth || DEFAULT_STREET.roadWidth) / 2;
   const walkW = street.sidewalkWidth || DEFAULT_STREET.sidewalkWidth;

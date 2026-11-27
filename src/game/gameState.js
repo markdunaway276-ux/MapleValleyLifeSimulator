@@ -32,6 +32,7 @@ export function gameState(g) {
     neighbourFavour: g.neighbourFavour.serialize(),
     snackFavour: g.snackFavour.serialize(),
     pinnedTaskId: g.getPinnedTask()?.id ?? null,
+    dayOne: g.dayOne?.serialize(),
     savedAt: Date.now()
   };
 }

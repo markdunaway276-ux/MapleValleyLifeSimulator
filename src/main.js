@@ -65,6 +65,7 @@ import { createLaundry, FOLD_JOB } from './systems/laundry.js';
 import { LOW_THRESHOLD } from './systems/needs.js';
 import { setupDailyMail } from './game/dailyMail.js';
 import { setupInteract } from './game/interact.js';
+import { createDayOne } from './game/dayOne.js';
 import { startLoop } from './game/loop.js';
 
 const g = {};
@@ -440,14 +441,20 @@ setupDailyMail(g);
 const { prompt } = setupInteract(g);
 g.prompt = prompt;
 
-document.getElementById('start').onclick = () => {
+function beginPlay() {
   instructions.classList.add('hidden');
-  if (!isMobile && !inventory.isOpen()) requestPointerLock(renderer.domElement);
-  sfx.unlock();
+  if (!isMobile && !inventory.isOpen() && navigator.userActivation?.isActive !== false) {
+    requestPointerLock(renderer.domElement);
+  }
   prompt.update();
   debug.refresh();
   g.hud.sync();
   window.dispatchEvent(new Event('game-start'));
+}
+g.dayOne = createDayOne(g, saveData, beginPlay);
+document.getElementById('start').onclick = () => {
+  sfx.unlock();
+  g.dayOne.start();
 };
 
 // Desktop mouse look needs pointer lock. Esc, switching windows or a refused request
