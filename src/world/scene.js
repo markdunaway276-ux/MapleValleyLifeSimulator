@@ -17,6 +17,7 @@ import { createHingedDoor } from '../systems/doors.js';
 import { buildStreetlights } from './streetlights.js';
 import { buildCornerShop } from './cornerShop.js';
 import { buildLaundromat } from './laundromat.js';
+import { buildClinic } from './clinic.js';
 import { buildTrailerPark } from './trailerPark.js';
 import { createWorldState } from '../systems/interactables.js';
 import { sampleLighting } from './daynight.js';
@@ -491,6 +492,7 @@ export function createScene(quality) {
   scene.userData.interactables = [];
   buildCornerShop(scene, quality);
   buildLaundromat(scene, quality);
+  buildClinic(scene, quality);
   buildTrailerPark(scene, quality);
   scene.userData.world = createWorldState(scene);
 

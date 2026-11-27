@@ -21,3 +21,10 @@
 - **Author:** Elbolilloduro
 - **License:** Creative Commons Zero (CC0 1.0)
 - **Notes:** One mobile home with its porch, interior furniture removed, textures resized to 256 px (WebP). Used three times with different siding colours.
+
+## clinic-roof.glb
+
+- **Source:** [CCity Building Set 1](https://sketchfab.com/3d-models/ccity-building-set-1-a2d5c7bfcc2148fb8994864c43dfcc97)
+- **Author:** [Neberkenezer](https://sketchfab.com/neberkenezer)
+- **License:** [Creative Commons Attribution 4.0 International (CC BY 4.0)](https://creativecommons.org/licenses/by/4.0/)
+- **Changes:** Extracted the clinic, cropped the exterior above the ground floor, resized and repositioned it, and re-encoded the original 1024 px texture. Maple Lane supplies the ground floor, signage, and interior.
