@@ -24,7 +24,7 @@ import { createWorldState } from '../systems/interactables.js';
 import { sampleLighting } from './daynight.js';
 import { HOUSE, LOOK, MAIN_HOUSE, PROPS, TEXTURE } from './palette.js';
 import { createGrassTexture, createRoadTexture, createSidewalkTexture } from './textures.js';
-import { buildContactGeometry, contactMaterial, createContactShadows } from './contact.js';
+import { buildContactGeometry, contactMaterial, createContactBlob, createContactShadows } from './contact.js';
 import { buildMainHouseDetails, findGlassPanes, tintGlassPanes } from './details.js';
 import { CURB_WIDTH, DRIVEWAY, GARAGE_LOT, NORTH_FRONTAGE_OFFSET, STREET, SURFACE_Y, drivewayWalkHeight, surfaceHeightAt } from './street.js';
 import { buildFrontYard, textureHouseExterior } from './frontYard.js';
@@ -555,15 +555,25 @@ export function createScene(quality) {
   });
   // The main house (the placeholder and the Kenney model share this footprint).
   contactItems.push({ kind: 'rect', x: 0, z: -10, y: 0, w: 8.9, d: 9.4, margin: 0.9, strength: 0.7 });
-  contactItems.push({
-    kind: 'rect', x: car.position.x, z: car.position.z, y: surfaceY(car.position.x, car.position.z),
-    w: car.userData.size.width - 0.5, d: car.userData.size.depth - 0.2, margin: 0.4, rot: car.rotation.y, strength: 0.85
-  });
   contactItems.push({ kind: 'blob', x: MAILBOX_SPAWN.x, z: MAILBOX_SPAWN.z, y: surfaceY(MAILBOX_SPAWN.x, MAILBOX_SPAWN.z), rx: 0.34, rz: 0.34, strength: 0.8 });
   contactItems.push({ kind: 'blob', x: VENDING_SPAWN.x, z: VENDING_SPAWN.z, y: surfaceY(VENDING_SPAWN.x, VENDING_SPAWN.z), rx: 0.62, rz: 0.55, strength: 0.85 });
   const contact = createContactShadows(contactItems, quality);
   scene.add(contact);
   scene.userData.contactShadows = contact;
+
+  // Dynamic contact shadow attached to the car so it moves and turns with the car.
+  const carShadow = createContactBlob({
+    kind: 'rect',
+    w: car.userData.size.width - 0.5,
+    d: car.userData.size.depth - 0.2,
+    margin: 0.4,
+    y: 0,
+    strength: 0.85
+  }, quality);
+  carShadow.name = 'car-contact-shadow';
+  carShadow.position.y = Math.max(SURFACE_Y.road, surfaceY(car.position.x, car.position.z));
+  car.add(carShadow);
+  car.userData.contactShadow = carShadow;
 
   // Real house model (Kenney City Kit Suburban, CC0). The procedural house
   // and the standalone door above stay as a fallback until the model has loaded.

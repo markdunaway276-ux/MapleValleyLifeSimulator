@@ -152,9 +152,12 @@ export function createContactShadows(items, quality = {}) {
   return mesh;
 }
 
-/** One blob as its own mesh (a child of a moving thing, e.g. an NPC). */
-export function createContactBlob({ rx = 0.4, rz = 0.4, y = 0, strength = 1 } = {}, quality = {}) {
-  const geo = buildContactGeometry([{ kind: 'blob', x: 0, z: 0, y, rx, rz, strength }], contactStrength(quality));
+/** One blob or soft-edged rect as its own mesh (a child of a moving thing, e.g. an NPC or car). */
+export function createContactBlob({ kind = 'blob', rx = 0.4, rz = 0.4, w = 0, d = 0, margin = 0, y = 0, strength = 1 } = {}, quality = {}) {
+  const item = kind === 'rect'
+    ? { kind: 'rect', x: 0, z: 0, y, w, d, margin, strength }
+    : { kind: 'blob', x: 0, z: 0, y, rx, rz, strength };
+  const geo = buildContactGeometry([item], contactStrength(quality));
   const mesh = finish(new THREE.Mesh(geo, contactMaterial()));
   mesh.name = 'contact-blob';
   return mesh;

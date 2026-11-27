@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { pushOutOBB, syncBoxCollider, PLAYER_RADIUS } from './collision.js';
-import { STREET } from '../world/street.js';
+import { STREET, SURFACE_Y, surfaceHeightAt } from '../world/street.js';
 import { CAR_SEAT, CAR_SIZE, CAR_SPAWN } from '../world/props.js';
 import { carBoundsClamp } from './carBounds.js';
 import { createFuelTank, FUEL } from './fuel.js';
@@ -295,6 +295,8 @@ export function createCar({
     car.rotation.y = state.rotY;
     const wheels = car.userData && car.userData.frontWheels;
     if (wheels) for (let i = 0; i < wheels.length; i++) wheels[i].rotation.y = -state.steer;
+    const shadow = car.userData && car.userData.contactShadow;
+    if (shadow) shadow.position.y = Math.max(SURFACE_Y.road, surfaceHeightAt(state.x, state.z));
     syncCollider();
   }
 

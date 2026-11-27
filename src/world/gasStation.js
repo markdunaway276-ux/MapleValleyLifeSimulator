@@ -234,9 +234,11 @@ export function buildGasStation(scene, quality) {
 
   const glowing = [];
   const panes = [];
+  let lastMinutes = 600;
   station.userData.updateLighting = (minutes) => {
-    const dusk = THREE.MathUtils.smoothstep(minutes, 1080, 1200);
-    const dawn = 1 - THREE.MathUtils.smoothstep(minutes, 330, 450);
+    if (Number.isFinite(minutes)) lastMinutes = minutes;
+    const dusk = THREE.MathUtils.smoothstep(lastMinutes, 1080, 1200);
+    const dawn = 1 - THREE.MathUtils.smoothstep(lastMinutes, 330, 450);
     const night = Math.max(dusk, dawn);
     for (const light of canopyLights) light.intensity = night * 150;
     storeLight.intensity = 20 + night * 12;
@@ -286,6 +288,6 @@ export function buildGasStation(scene, quality) {
       }
     });
     station.add(model);
-    station.userData.updateLighting(data.lastMinutes ?? 600);
+    station.userData.updateLighting(lastMinutes);
   }, undefined, (error) => console.warn('Gas station failed to load', error));
 }
