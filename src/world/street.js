@@ -14,11 +14,14 @@ const ROAD_CENTER_Z = SOUTH_CURB_Z + WIDER_WALK + ROAD_WIDTH / 2;
 // Keep the south property line and front walk in place as the pavement widens.
 export const NORTH_FRONTAGE_OFFSET = ROAD_WIDTH - OLD_ROAD_WIDTH + 2 * WIDER_WALK;
 
+export const MARKED_CROSSINGS = Object.freeze([0, 14]);
+
 export const STREET = {
   length: 88, // x -44..44: laundromat at the east end, trailer park at the west
   roadWidth: ROAD_WIDTH,
   sidewalkWidth: SIDEWALK_WIDTH,
   parkingLaneWidth: 3,
+  crossings: MARKED_CROSSINGS,
   roadCenterZ: ROAD_CENTER_Z,
   spawn: { x: 0, y: 1.6, z: ROAD_CENTER_Z }
 };
@@ -41,12 +44,34 @@ export function widenSavedSidewalkZ(z) {
 /** Heights the road and pavement planes sit at (scene.js places them here). */
 export const SURFACE_Y = { grass: 0, road: 0.02, walk: 0.11 };
 
+export const CURB_WIDTH = 0.14;
+export const GARAGE_LOT = { x: 13.5, z: -10.05, width: 8.25, depth: 9.3, garageWidth: 3.2 };
+export const DRIVEWAY = {
+  x: GARAGE_LOT.x + (GARAGE_LOT.width + GARAGE_LOT.garageWidth) / 2,
+  endZ: GARAGE_LOT.z + GARAGE_LOT.depth / 2 - 0.5,
+  width: GARAGE_LOT.garageWidth,
+  flare: 0.45,
+  rampDepth: 0.65
+};
+
+export function drivewayWalkHeight(x, offset) {
+  const edge = (Math.abs(x - DRIVEWAY.x) - DRIVEWAY.width / 2) / DRIVEWAY.flare;
+  const rise = Math.min(1, Math.max(0, edge, (offset - CURB_WIDTH) / DRIVEWAY.rampDepth));
+  return SURFACE_Y.road + rise * (SURFACE_Y.walk - SURFACE_Y.road);
+}
+
 /** Height of the ground surface at x, z: grass, road or pavement. */
 export function surfaceHeightAt(x, z) {
   const { length, roadWidth, sidewalkWidth, roadCenterZ } = STREET;
   if (Math.abs(x) > length / 2) return SURFACE_Y.grass;
   const dz = Math.abs(z - roadCenterZ);
   if (dz <= roadWidth / 2) return SURFACE_Y.road;
-  if (dz <= roadWidth / 2 + sidewalkWidth) return SURFACE_Y.walk;
+  if (dz <= roadWidth / 2 + sidewalkWidth) {
+    return z < roadCenterZ ? drivewayWalkHeight(x, dz - roadWidth / 2) : SURFACE_Y.walk;
+  }
+  if (z < roadCenterZ && z >= DRIVEWAY.endZ && Math.abs(x - DRIVEWAY.x) <= DRIVEWAY.width / 2) {
+    const edgeZ = roadCenterZ - roadWidth / 2 - sidewalkWidth;
+    return SURFACE_Y.road + (SURFACE_Y.walk - SURFACE_Y.road) * (z - DRIVEWAY.endZ) / (edgeZ - DRIVEWAY.endZ);
+  }
   return SURFACE_Y.grass;
 }

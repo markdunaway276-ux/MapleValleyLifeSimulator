@@ -164,6 +164,12 @@ export function renderSettings(panel, {
     }
   } else if (state.tab === 'controls') {
     if (s) {
+      if (isMobile) {
+        panel.append(slider('Touch look speed', { min: 0.5, max: 3, step: 0.1, value: s.touchLookSpeed,
+          format: (v) => v.toFixed(1) + '×',
+          onInput: (v) => { settings.set({ touchLookSpeed: v }); if (applyLive.look) applyLive.look(settings.get()); }
+        }));
+      }
       panel.append(slider('Look sensitivity', { min: 0.2, max: 3, step: 0.1, value: s.sensitivity, format: (v) => v.toFixed(1) + '×',
         onInput: (v) => { settings.set({ sensitivity: v }); if (applyLive.look) applyLive.look(settings.get()); } }));
       panel.append(button(s.invertY ? 'Invert look up/down: On' : 'Invert look up/down: Off', () => {

@@ -97,12 +97,12 @@ export function createLaundry({
   }
 
   function pay(amount) {
-    if (amount > 0 && money && typeof money.add === 'function') money.add(amount);
+    if (amount > 0 && money && typeof money.add === 'function') money.add(amount, { category: 'Pay', label: 'Laundromat order pay and tip' });
   }
 
-  function spend(amount) {
+  function spend(amount, label) {
     if (!money || typeof money.spend !== 'function') return true;
-    if (money.spend(amount)) return true;
+    if (money.spend(amount, { category: 'Purchase', label })) return true;
     toast('Not enough cash.');
     return false;
   }
@@ -158,7 +158,7 @@ export function createLaundry({
       return {
         prompt: `load ${possessive(ownerName(carry.owner))} laundry${price ? ` ($${price})` : ''}`, action: 'load',
         run: () => {
-          if (price && !spend(price)) return false;
+          if (price && !spend(price, 'Laundromat ' + noun)) return false;
           m.load = { owner: carry.owner };
           m.doneAt = now() + (isWasher ? WASH_MINUTES : DRY_MINUTES);
           carry = null;
@@ -174,7 +174,7 @@ export function createLaundry({
         run: () => {
           const idx = detergentIndex();
           if (idx < 0) { toast('You need Detergent — the vending machine out front sells it.'); return false; }
-          if (!spend(WASH_PRICE)) return false;
+          if (!spend(WASH_PRICE, 'Laundromat washer')) return false;
           inventory.consume(idx, 1);
           m.load = { owner: 'you' };
           m.doneAt = now() + WASH_MINUTES;

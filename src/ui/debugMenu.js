@@ -633,7 +633,7 @@ export function createDebugMenu({ actions, getState, getTeleports = () => [], ge
     addBtn.textContent = '+$100';
     addBtn.addEventListener('click', () => {
       const money = getMoney && getMoney();
-      if (money && typeof money.add === 'function') money.add(100);
+      if (money && typeof money.add === 'function') money.add(100, { category: 'Adjustment', label: 'Debug cash added' });
       refreshMoney();
     });
     const resetBtn = document.createElement('button');

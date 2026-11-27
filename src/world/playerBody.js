@@ -11,6 +11,7 @@
  */
 
 import * as THREE from 'three';
+import { attachPlayerRig } from './playerRig.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { getOptionColor, normalizeAppearance } from '../data/appearance.js';
 
@@ -68,12 +69,13 @@ export function createPlaceholderBody({
   prefix = 'body',
   hideHead = false
 } = {}) {
+  const articulated = hideHead;
   const shirtGeo = merge([
     boxAt(0.26, 0.38, 0.15, 0, 1.17, 0),
-    boxAt(0.07, 0.32, 0.07, 0.165, 1.18, 0),
+    ...(!articulated ? [boxAt(0.07, 0.32, 0.07, 0.165, 1.18, 0)] : []),
     boxAt(0.07, 0.32, 0.07, -0.165, 1.18, 0)
   ]);
-  const pantsGeo = merge([
+  const pantsGeo = articulated ? boxAt(0.24, 0.18, 0.135, 0, 0.92, 0) : merge([
     boxAt(0.09, 0.82, 0.10, 0.065, 0.49, 0),
     boxAt(0.09, 0.82, 0.10, -0.065, 0.49, 0),
     boxAt(0.10, 0.08, 0.16, 0.065, 0.04, 0),
@@ -81,7 +83,7 @@ export function createPlaceholderBody({
   ]);
   const skinGeo = merge([
     boxAt(0.09, 0.12, 0.09, 0, 1.42, 0.01),
-    boxAt(0.065, 0.26, 0.065, 0.165, 0.88, 0),
+    ...(!articulated ? [boxAt(0.065, 0.26, 0.065, 0.165, 0.88, 0)] : []),
     boxAt(0.065, 0.26, 0.065, -0.165, 0.88, 0)
   ]);
   const headGeo = sphereAt(0.11, 0, 1.58, 0.03);
@@ -115,6 +117,42 @@ export function createPlaceholderBody({
   group.name = name;
   group.add(shirt, pants, skin, head);
 
+  const shoulder = new THREE.Group();
+  const elbow = new THREE.Group();
+  const hand = new THREE.Group();
+  const armMeshes = [];
+  const legs = [];
+  if (articulated) {
+    shoulder.position.set(0.165, 1.34, 0);
+    elbow.position.y = -0.30;
+    hand.position.y = -0.24;
+    for (const [joint, material, width, length] of [
+      [shoulder, shirtMat, 0.075, 0.30],
+      [elbow, armsMat, 0.062, 0.25],
+      [hand, armsMat, 0.065, 0.08]
+    ]) {
+      const segment = new THREE.Mesh(boxAt(width, length, width, 0, -length / 2, 0), material);
+      segment.castShadow = cast;
+      joint.add(segment);
+      armMeshes.push(segment);
+    }
+    group.add(shoulder);
+    shoulder.add(elbow);
+    elbow.add(hand);
+    for (const side of [-1, 1]) {
+      const hip = new THREE.Group();
+      hip.position.set(side * 0.065, 0.90, 0);
+      const leg = new THREE.Mesh(merge([
+        boxAt(0.09, 0.82, 0.10, 0, -0.41, 0),
+        boxAt(0.10, 0.08, 0.16, 0, -0.86, -0.015)
+      ]), pantsMat);
+      leg.castShadow = cast;
+      hip.add(leg);
+      group.add(hip);
+      legs.push(hip);
+    }
+  }
+
   if (scene) scene.add(group);
   if (shadows && scene && hideHead) enableBodyShadowLayers(scene);
 
@@ -143,6 +181,8 @@ export function createPlaceholderBody({
 
   function dispose() {
     if (scene) scene.remove(group);
+    for (const segment of armMeshes) segment.geometry.dispose();
+    for (const leg of legs) leg.children[0].geometry.dispose();
     shirtGeo.dispose();
     pantsGeo.dispose();
     skinGeo.dispose();
@@ -156,6 +196,8 @@ export function createPlaceholderBody({
   return {
     group,
     head,
+    legs,
+    arm: articulated ? { shoulder, elbow, hand, segments: armMeshes, material: armsMat, sleeve: shirtMat } : null,
     shirt,
     pants,
     skin,
@@ -171,12 +213,12 @@ export function createPlayerBody({
   shadows = false,
   appearance
 } = {}) {
-  return createPlaceholderBody({
+  return attachPlayerRig(createPlaceholderBody({
     scene,
     shadows,
     appearance,
     name: 'player-body',
     prefix: 'player',
     hideHead: true
-  });
+  }), { shadows, appearance });
 }

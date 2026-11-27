@@ -20,7 +20,7 @@ export function startLoop(g) {
 
     // Paused: draw the frozen frame behind the menu and nothing else moves.
     if (mode.menu('pause')) {
-      g.view.draw();
+      g.presentation.draw(g.view.draw);
       return;
     }
 
@@ -36,6 +36,7 @@ export function startLoop(g) {
     g.playerBody.update(player);
     if (g.actions) g.actions.update(delta);
     const currentTime = clock.getTime();
+    g.presentation.update(delta, Math.hypot(player.position.x - prevX, player.position.z - prevZ), currentTime.minutes);
     g.weather.update(delta, currentTime);
     const rain = g.weather.rainAmount();
     g.npcs.update(delta, {
@@ -96,7 +97,7 @@ export function startLoop(g) {
     scene.userData.streetlights.update(time.minutes);
     g.prompt.update();
     g.minimap.update(delta);
-    g.view.draw();
+    g.presentation.draw(g.view.draw);
     g.debug.update();
   }
   frame();

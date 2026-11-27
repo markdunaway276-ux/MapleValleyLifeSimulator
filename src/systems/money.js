@@ -76,7 +76,7 @@ export function collectPendingMail(mail) {
  * Messages are toasted and stored in the optional inbox; items go to the
  * inventory (or ctx.inventory). The first-time Letter is unchanged.
  */
-export function attachMailboxMoney({ mailbox, money, sfx, toast, inbox, inventory } = {}) {
+export function attachMailboxMoney({ mailbox, money, sfx, toast, inbox, inventory, toastMessages = true } = {}) {
   if (!mailbox || !mailbox.userData) return null;
   if (!mailbox.userData.mail) mailbox.userData.mail = { letterTaken: false, pending: [] };
   const mail = mailbox.userData.mail;
@@ -95,8 +95,8 @@ export function attachMailboxMoney({ mailbox, money, sfx, toast, inbox, inventor
         continue;
       }
       if (item.type === 'message') {
-        if (box && typeof box.add === 'function') box.add(item);
-        if (typeof toastFn === 'function') {
+        const delivered = box && typeof box.add === 'function' ? box.add(item) : null;
+        if ((toastMessages || !delivered) && typeof toastFn === 'function') {
           const from = item.from || 'Mail';
           const body = item.body || '';
           toastFn(body ? (from + ': ' + body) : ('Mail from ' + from));
@@ -117,7 +117,7 @@ export function attachMailboxMoney({ mailbox, money, sfx, toast, inbox, inventor
     }
     if (leftover.length) mail.pending = leftover.concat(mail.pending || []);
     if (total > 0 && money && typeof money.add === 'function') {
-      money.add(total);
+      money.add(total, { category: 'Mail', label: 'Cash collected from mailbox' });
       if (sfx && typeof sfx.play === 'function') sfx.play('cash');
       if (typeof toastFn === 'function') toastFn('+' + formatCash(total));
     }
@@ -125,9 +125,21 @@ export function attachMailboxMoney({ mailbox, money, sfx, toast, inbox, inventor
   return mail;
 }
 
-export function createMoney({ cash = STARTING_CASH } = {}) {
+function cleanTransaction(entry) {
+  if (!entry || !Number.isFinite(entry.amount) || entry.amount === 0) return null;
+  return {
+    amount: entry.amount,
+    category: typeof entry.category === 'string' ? entry.category.slice(0, 40) : 'Other',
+    label: typeof entry.label === 'string' ? entry.label.slice(0, 100) : 'Cash movement',
+    time: typeof entry.time === 'string' ? entry.time.slice(0, 48) : '',
+    balance: Number.isFinite(entry.balance) && entry.balance >= 0 ? entry.balance : null
+  };
+}
+
+export function createMoney({ cash = STARTING_CASH, getTime = null } = {}) {
   let balance = clampCash(cash, STARTING_CASH);
   const listeners = [];
+  let transactions = [];
 
   function emit() {
     const value = balance;
@@ -139,17 +151,25 @@ export function createMoney({ cash = STARTING_CASH } = {}) {
     return balance;
   }
 
-  function set(amount) {
+  function set(amount, details = {}) {
     const next = clampCash(amount, balance);
     if (next === balance) return balance;
+    const entry = cleanTransaction({
+      amount: next - balance,
+      balance: next,
+      category: details.category ?? 'Adjustment',
+      label: details.label ?? 'Balance adjustment',
+      time: getTime?.()?.label
+    });
     balance = next;
+    transactions.push(entry);
     return emit();
   }
 
-  function add(amount) {
+  function add(amount, details = {}) {
     const n = Number(amount);
     if (!Number.isFinite(n) || n === 0) return balance;
-    return set(balance + n);
+    return set(balance + n, { category: 'Other', label: 'Cash movement', ...details });
   }
 
   function canAfford(amount) {
@@ -159,16 +179,25 @@ export function createMoney({ cash = STARTING_CASH } = {}) {
   }
 
   /** Deduct `amount` and return true, or leave the balance and return false. */
-  function spend(amount) {
+  function spend(amount, details = {}) {
     const n = Number(amount);
     if (!Number.isFinite(n) || n <= 0) return false;
     if (balance < n) return false;
-    set(balance - n);
+    set(balance - n, { category: 'Purchase', label: 'Cash payment', ...details });
     return true;
   }
 
+  // Inventory grants are synchronous. A failed grant should never debit the wallet.
+  function purchase(amount, details, grant) {
+    if (amount <= 0 || !canAfford(amount)) return false;
+    const item = grant();
+    if (!item) return false;
+    spend(amount, details);
+    return item;
+  }
+
   function reset() {
-    return set(STARTING_CASH);
+    return set(STARTING_CASH, { label: 'Debug cash reset' });
   }
 
   function onChange(fn) {
@@ -182,16 +211,27 @@ export function createMoney({ cash = STARTING_CASH } = {}) {
     if (i >= 0) listeners.splice(i, 1);
   }
 
+  function statement() {
+    let income = 0;
+    let spending = 0;
+    for (const entry of transactions) {
+      if (entry.category === 'Adjustment') continue;
+      if (entry.amount > 0) income += entry.amount;
+      else spending -= entry.amount;
+    }
+    return { balance, income, spending, transactions: transactions.slice().reverse().map(entry => ({ ...entry })) };
+  }
+
   function serialize() {
-    return { cash: balance };
+    return { cash: balance, transactions: transactions.map(entry => ({ ...entry })) };
   }
 
   function apply(data) {
     const src = data && data.money != null ? data.money : data;
-    if (src == null) return get();
-    if (typeof src === 'number') return set(src);
-    if (typeof src === 'object' && src.cash != null) return set(src.cash);
-    return get();
+    if (typeof src !== 'number' && (typeof src !== 'object' || src?.cash == null)) return get();
+    balance = clampCash(typeof src === 'number' ? src : src.cash, balance);
+    transactions = Array.isArray(src.transactions) ? src.transactions.map(cleanTransaction).filter(Boolean) : [];
+    return emit();
   }
 
   return {
@@ -199,6 +239,8 @@ export function createMoney({ cash = STARTING_CASH } = {}) {
     set,
     add,
     spend,
+    purchase,
+    statement,
     canAfford,
     reset,
     onChange,

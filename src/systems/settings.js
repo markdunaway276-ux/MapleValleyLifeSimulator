@@ -10,6 +10,7 @@ export const QUALITY_LEVELS = Object.freeze(['auto', 'low', 'medium', 'high']);
 
 export const SETTINGS_DEFAULTS = Object.freeze({
   sensitivity: 1,
+  touchLookSpeed: 1.6,
   invertY: false,
   fov: 70,
   volume: Object.freeze({ master: 1, effects: 1, ambience: 1 }),
@@ -27,6 +28,7 @@ export function normalizeSettings(raw) {
   const D = SETTINGS_DEFAULTS;
   return {
     sensitivity: clamp(s.sensitivity, 0.2, 3, D.sensitivity),
+    touchLookSpeed: clamp(s.touchLookSpeed ?? D.touchLookSpeed, 0.5, 3, D.touchLookSpeed),
     invertY: !!s.invertY,
     fov: clamp(s.fov, 50, 100, D.fov),
     volume: {

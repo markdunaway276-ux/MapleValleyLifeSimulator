@@ -65,12 +65,18 @@ function load(file) {
 }
 
 /** Shader patch that paints clothes onto the bind-pose body. */
-export function paintClothes(material, { shirt, pants, shoes, longSleeve = false, zones }) {
+export function paintClothes(material, { shirt, pants, shoes, skin = null, longSleeve = false, zones }) {
   const z = zones || BODY_ZONES.male;
+  const palette = {
+    cShirt: { value: new THREE.Color(shirt) },
+    cPants: { value: new THREE.Color(pants) },
+    cSkin: { value: new THREE.Color(skin ?? 0xffffff) }
+  };
+  material.userData.clothes = palette;
   material.onBeforeCompile = (sh) => {
     Object.assign(sh.uniforms, {
-      cShirt: { value: new THREE.Color(shirt) },
-      cPants: { value: new THREE.Color(pants) },
+      ...palette,
+      skinOverride: { value: skin == null ? 0 : 1 },
       cShoes: { value: new THREE.Color(shoes) },
       zNeck: { value: z.neck },
       zWaist: { value: z.waist },
@@ -81,7 +87,7 @@ export function paintClothes(material, { shirt, pants, shoes, longSleeve = false
       .replace('#include <common>', '#include <common>\nvarying vec3 vBind;')
       .replace('#include <begin_vertex>', '#include <begin_vertex>\nvBind = position;');
     sh.fragmentShader = sh.fragmentShader
-      .replace('#include <common>', '#include <common>\nvarying vec3 vBind;\nuniform vec3 cShirt, cPants, cShoes;\nuniform float zNeck, zWaist, zAnkle, zSleeve;')
+      .replace('#include <common>', '#include <common>\nvarying vec3 vBind;\nuniform vec3 cShirt, cPants, cShoes, cSkin;\nuniform float skinOverride;\nuniform float zNeck, zWaist, zAnkle, zSleeve;')
       .replace('#include <map_fragment>', `#include <map_fragment>
       {
         float y = vBind.y;
@@ -93,7 +99,7 @@ export function paintClothes(material, { shirt, pants, shoes, longSleeve = false
         float shoes = step(y, zAnkle);
         // Faint weave so the cloth is not a flat fill.
         float n = fract(sin(dot(floor(vBind.xy * 220.0), vec2(12.9898, 78.233))) * 43758.5453) * 0.05;
-        vec3 c = diffuseColor.rgb;
+        vec3 c = mix(diffuseColor.rgb, cSkin * (0.82 + 0.18 * diffuseColor.r), skinOverride);
         c = mix(c, cShirt * (0.97 + n), shirt);
         c = mix(c, cPants * (0.97 + n), pants);
         c = mix(c, cShoes, shoes);

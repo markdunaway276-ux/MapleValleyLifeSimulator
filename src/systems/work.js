@@ -180,7 +180,7 @@ export function createWork({
       needs.add('energy', -Math.abs(jobDef.energy));
     }
     if (money && jobDef.pay && typeof money.add === 'function') {
-      money.add(jobDef.pay);
+      money.add(jobDef.pay, { category: 'Pay', label: jobDef.name || 'Shift pay' });
     }
     if (sfx && jobDef.sfx && typeof sfx.play === 'function') {
       sfx.play(jobDef.sfx);

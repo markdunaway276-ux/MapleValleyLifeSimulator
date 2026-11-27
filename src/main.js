@@ -36,6 +36,7 @@ import { createPhone } from './ui/phone/phone.js';
 import { INSTALLED_APPS } from './ui/phone/apps.js';
 import { createHudMinimap } from './ui/minimap.js';
 import { createAppearance } from './systems/appearance.js';
+import { createPresentation } from './game/presentation.js';
 import { createPlayerBody } from './world/playerBody.js';
 import { createWeather } from './systems/weather.js';
 import { createRain, isInsideMainHouse } from './world/rain.js';
@@ -144,9 +145,9 @@ installInteriorInteractables(scene);
 // --- money, mail inbox, look ---------------------------------------------
 const fromSaveBag = Array.isArray(saveData.inventory);
 const bagCash = extractCashFromItems(fromSaveBag ? saveData.inventory : []);
-const money = createMoney();
+const money = createMoney({ getTime: clock.getTime });
 if (saveData.money != null) money.apply(saveData);
-else if (fromSaveBag && bagCash.cash) money.set(bagCash.cash);
+else if (fromSaveBag && bagCash.cash) money.apply(bagCash.cash);
 const inbox = createInbox();
 if (saveData.inbox) inbox.apply(saveData.inbox);
 const appearance = createAppearance();
@@ -352,12 +353,26 @@ const phone = createPhone({
   canOpen: () => mode.canAct() && !mode.menu('dialogue'),
   getTime: () => clock.getTime(),
   getMoney: () => money.get(),
+  getFinances: money.statement,
   onMoneyChange: (fn) => money.onChange(fn),
   clock,
   apps: INSTALLED_APPS,
   bindKey: !isMobile,
   onBeforeOpen: () => { if (inventory.isOpen()) inventory.close(); },
-  attachMap: (el) => minimap.attachPhone(el),
+  attachMap: (el, onRoute) => minimap.attachPhone(el, undefined, onRoute),
+  getDestinations: () => [
+    ...minimap.destinations(),
+    ...getTasks().filter(task => !task.complete && npcs.get(task.npcId)).map(task => ({
+      id: 'task:' + task.id,
+      name: task.title,
+      position: () => getTasks().some(active => active.id === task.id && !active.complete)
+        ? npcs.get(task.npcId)?.position
+        : null
+    }))
+  ],
+  getWaypointId: minimap.getWaypointId,
+  setWaypoint: minimap.setWaypoint,
+  capturePhoto: (aim) => g.presentation.capture(view.draw, renderer.domElement, aim),
   getAppearance: () => appearance.get(),
   setAppearance: (slot, id) => appearance.set(slot, id),
   onAppearanceChange: (fn) => appearance.onChange(fn),
@@ -366,7 +381,8 @@ const phone = createPhone({
   getSkills: () => skills.get(),
   onSkillsChange: (fn) => skills.onChange(fn),
   getInbox: () => inbox.get(),
-  onInboxChange: (fn) => inbox.onChange(fn)
+  onInboxChange: (fn) => inbox.onChange(fn),
+  playNotification: () => sfx.play('phone-notification')
 });
 const dialogue = createDialogue({
   getExtraPages: (id) => [neighbourFavour.pageFor(id), snackFavour.pageFor(id), dottiePage(id), dirtyPage(id)].filter(Boolean),
@@ -454,7 +470,11 @@ if (!isMobile) {
 const settings = createSettings();
 const applyLive = {
   volume: (v) => sfx.setVolumes(v),
-  look: (s) => { player.lookSensitivity = s.sensitivity; player.invertY = s.invertY; },
+  look: (s) => {
+    player.lookSensitivity = s.sensitivity;
+    player.touchLookSpeed = s.touchLookSpeed;
+    player.invertY = s.invertY;
+  },
   fov: (v) => { camera.fov = v; camera.updateProjectionMatrix(); }
 };
 applyLive.volume(settings.get().volume);
@@ -499,6 +519,7 @@ g.title = createTitleScreen({
   applyLive
 });
 
+g.presentation = createPresentation({ camera, scene, mode, playerBody, actionRig: actions.rig });
 startLoop(g);
 
 console.log(`Maple Valley Life Simulator started — Mobile: ${isMobile}, Shadows: ${quality.shadows}, Post: ${!!view.post}`);

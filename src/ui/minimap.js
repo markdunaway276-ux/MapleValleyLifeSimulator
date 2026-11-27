@@ -6,7 +6,8 @@
  * (above the joystick on a phone). Preference is stored in localStorage.
  */
 import { getHouseBounds } from '../world/buildings.js';
-import { STREET } from '../world/scene.js';
+import { STREET } from '../world/street.js';
+import { walkingRoute } from '../world/walkingRoute.js';
 import { TREE_PLACEMENTS } from '../world/trees.js';
 import { MAILBOX_SPAWN } from '../world/pickups.js';
 import { CAR_SPAWN } from '../world/props.js';
@@ -46,6 +47,16 @@ export const MINIMAP_COLORS = {
 const STYLE_ID = 'hud-minimap-styles';
 
 const CSS = `
+#hud-nav-route {
+  position: absolute; z-index: 34; pointer-events: none;
+  left: max(12px, env(safe-area-inset-left));
+  bottom: calc(max(16px, env(safe-area-inset-bottom)) + 138px);
+  max-width: min(48vw, 250px); padding: 5px 8px; border-radius: 8px;
+  background: #152734ec; color: #c6fbff; font: 600 12px/1.3 system-ui, sans-serif;
+}
+body.mobile #hud-nav-route { bottom: 310px; }
+.phone-route-status { min-height: 1.3em; margin: 0 0 8px; font-size: 13px; color: #c6fbff; }
+
 #hud-minimap {
   position: absolute;
   z-index: 34;
@@ -355,6 +366,9 @@ export function drawStaticLayer(ctx, world, view) {
     }
   }
 
+  ctx.fillStyle = '#dedbca';
+  for (const x of s.crossings ?? []) fillRectWorld(ctx, view, x - 1.1, x + 1.1, cz - roadHalf, cz + roadHalf);
+
   const houses = (world && world.houses) || [];
   for (let i = 0; i < houses.length; i++) {
     const h = houses[i];
@@ -485,6 +499,7 @@ export function createMinimapSurface({
   getPlayer,
   getNpcs = null,
   getVehicles = null,
+  getRoute = null,
   cssWidth,
   cssHeight,
   pixelRatio = 1
@@ -536,6 +551,32 @@ export function createMinimapSurface({
     const vehicles = typeof getVehicles === 'function' ? getVehicles() : getVehicles;
     drawVehicles(ctx, vehicles, view);
     drawNpcDots(ctx, npcs, view);
+    const route = getRoute?.();
+    if (route) {
+      const goal = toMap(view, route.goal.x, route.goal.z);
+      ctx.save();
+      if (!route.arrived) {
+        ctx.beginPath();
+        for (let i = 0; i < route.points.length; i++) {
+          const point = toMap(view, route.points[i].x, route.points[i].z);
+          if (i === 0) ctx.moveTo(point.x, point.y);
+          else ctx.lineTo(point.x, point.y);
+        }
+        ctx.strokeStyle = '#15323a';
+        ctx.lineWidth = 4;
+        ctx.stroke();
+        ctx.strokeStyle = '#6de8f1';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+      }
+      ctx.beginPath();
+      ctx.arc(goal.x, goal.y, 4, 0, Math.PI * 2);
+      ctx.fillStyle = route.arrived ? '#a8f0a2' : '#6de8f1';
+      ctx.fill();
+      ctx.strokeStyle = '#15323a';
+      ctx.stroke();
+      ctx.restore();
+    }
     drawPlayerArrow(ctx, player, view);
     paints++;
   }
@@ -572,6 +613,27 @@ export function createHudMinimap({
   let bakedInterior = false;
   const listeners = [];
   let phoneSurface = null;
+  let waypoint = null;
+  let route = null;
+  let showPhoneRoute = null;
+  const getRoute = () => route;
+  const routeChip = document.createElement('div');
+  routeChip.id = 'hud-nav-route';
+  routeChip.hidden = true;
+  routeChip.setAttribute('role', 'status');
+
+  function refreshRoute() {
+    const goal = waypoint?.position();
+    if (!goal) route = null;
+    else if (!route?.arrived) {
+      const walk = walkingRoute(player?.position, goal, scene?.userData?.street ?? STREET);
+      route = walk ? { ...walk, goal } : null;
+    }
+    const label = route ? (route.arrived ? 'Arrived · ' : Math.ceil(route.metres) + ' m · ') + waypoint.name : '';
+    if (routeChip.textContent !== label) routeChip.textContent = label;
+    routeChip.hidden = !hudShown || !label;
+    showPhoneRoute?.(label);
+  }
 
   const getWorld = () => gatherMinimapWorld(scene);
   const getPlayer = () => player;
@@ -604,18 +666,20 @@ export function createHudMinimap({
     getPlayer,
     getNpcs,
     getVehicles,
+    getRoute,
     cssWidth: HUD_MINIMAP_SIZE,
     cssHeight: HUD_MINIMAP_SIZE,
     pixelRatio
   });
 
-  if (container) container.append(wrap, toggleBtn);
+  if (container) container.append(wrap, toggleBtn, routeChip);
 
   function emit() {
     for (let i = 0; i < listeners.length; i++) listeners[i](enabled);
   }
 
   function syncChrome() {
+    routeChip.hidden = !hudShown || !route;
     wrap.classList.toggle('is-visible', !!(hudShown && enabled));
     toggleBtn.classList.toggle('is-visible', !!(hudShown && !enabled));
   }
@@ -664,16 +728,17 @@ export function createHudMinimap({
 
   function update(dt) {
     maybeRebuild();
-    const need = (hudShown && enabled) || !!phoneSurface;
+    const need = (hudShown && enabled) || !!phoneSurface || !!waypoint;
     if (!need) return;
     acc += Math.max(0, Number(dt) || 0);
     if (acc < 1 / MINIMAP_HZ) return;
     acc = 0;
+    refreshRoute();
     if (hudShown && enabled) hud.redraw();
     if (phoneSurface) phoneSurface.redraw();
   }
 
-  function attachPhone(parent, size) {
+  function attachPhone(parent, size, onRoute = null) {
     if (!parent) return () => {};
     ensureStyles();
     parent.classList.add('phone-map');
@@ -688,11 +753,14 @@ export function createHudMinimap({
       getPlayer,
       getNpcs,
       getVehicles,
+      getRoute,
       cssWidth: fallbackW,
       cssHeight: fallbackH,
       pixelRatio
     });
     phoneSurface = surface;
+    showPhoneRoute = onRoute;
+    refreshRoute();
 
     function fit() {
       const w = Math.max(parent.clientWidth || 0, fallbackW);
@@ -709,7 +777,10 @@ export function createHudMinimap({
 
     return () => {
       if (ro) ro.disconnect();
-      if (phoneSurface === surface) phoneSurface = null;
+      if (phoneSurface === surface) {
+        phoneSurface = null;
+        showPhoneRoute = null;
+      }
       canvas.remove();
     };
   }
@@ -758,6 +829,7 @@ export function createHudMinimap({
     if (typeof document !== 'undefined') document.removeEventListener('keydown', onKey);
     wrap.remove();
     toggleBtn.remove();
+    routeChip.remove();
   }
 
   syncChrome();
@@ -771,6 +843,20 @@ export function createHudMinimap({
     setHudVisible,
     update,
     attachPhone,
+    destinations() {
+      const names = { mailbox: 'Home', market: 'Corner Market', desk: 'Home office' };
+      return getWorld().markers.filter(marker => Object.hasOwn(names, marker.id)).map(marker => ({
+        id: marker.id, name: names[marker.id], position: () => marker
+      }));
+    },
+    getWaypointId: () => waypoint?.id ?? '',
+    setWaypoint(next) {
+      waypoint = next ?? null;
+      route = null;
+      refreshRoute();
+      hud.redraw();
+      phoneSurface?.redraw();
+    },
     onChange,
     rebuild: () => { hud.rebuild(); if (phoneSurface) phoneSurface.rebuild(); },
     redraw: () => { hud.redraw(); if (phoneSurface) phoneSurface.redraw(); },

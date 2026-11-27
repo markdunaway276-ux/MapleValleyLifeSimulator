@@ -14,7 +14,7 @@ export function createSnackFavour({ savedStage, inventory, money, save }) {
     const index = snackIndex();
     if (index < 0 || !inventory.consume(index, 1)) return false;
     stage = 'done';
-    money.add(10);
+    money.add(10, { category: 'Reward', label: 'Snack for June' });
     save();
     return true;
   }
