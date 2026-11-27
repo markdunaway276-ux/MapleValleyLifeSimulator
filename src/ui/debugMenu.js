@@ -590,7 +590,7 @@ export function createDebugMenu({ actions, getState, getTeleports = () => [], ge
       refreshNeeds();
     });
     const help = document.createElement('p');
-    help.textContent = 'Keeps needs full and extends interaction reach while testing.';
+    help.textContent = 'Keeps needs full and lets you use things up to 12 m away (not through walls) while testing.';
     row.append(developmentBtn, refillBtn, drainBtn);
     body.append(help);
     body.append(label, row);
