@@ -1,16 +1,18 @@
 import * as THREE from 'three';
+import { AISLE_STOCK, buildMarketStock } from './marketStock.js';
 import { Parts } from './parts.js';
+import { contactMaterial, createContactShadows } from './contact.js';
 import { getShop } from '../data/shops.js';
 import { getJob } from '../data/jobs.js';
 import { buyFromShop } from '../systems/shop.js';
 
 import { NORTH_FRONTAGE_OFFSET } from './street.js';
 
-const SHOP_X = 20.2;
+const SHOP_X = 33;
 const FRONT_Z = 2.8 + NORTH_FRONTAGE_OFFSET;
-const WIDTH = 5.2;
-const DEPTH = 3.5;
-const HEIGHT = 2.9;
+const WIDTH = 20;
+const DEPTH = 16;
+const HEIGHT = 4.2;
 
 function registerSpot(scene, shop, { id, x, z, prompt, interact, action = null }) {
   const object = new THREE.Group();
@@ -45,83 +47,199 @@ function sign() {
   const texture = new THREE.CanvasTexture(canvas);
   texture.colorSpace = THREE.SRGBColorSpace;
   const mesh = new THREE.Mesh(
-    new THREE.PlaneGeometry(4.3, 0.71),
+    new THREE.PlaneGeometry(7.0, 1.02),
     new THREE.MeshBasicMaterial({ map: texture })
   );
-  mesh.position.set(0, 2.78, -0.24);
+  mesh.position.set(0, 3.57, -0.19);
   mesh.rotation.y = Math.PI;
   return mesh;
 }
 
 export function buildCornerShop(scene, quality) {
+  const data = scene.userData;
   const shop = new THREE.Group();
   shop.name = 'corner-shop';
   shop.position.set(SHOP_X, 0, FRONT_Z);
   scene.add(shop);
-  scene.userData.cornerShop = shop;
-
+  data.cornerShop = shop;
+  const half = WIDTH / 2;
+  const backRoom = 12.8;
+  const opening = 1.65;
+  const wallColor = 0xb8ab96;
+  const trim = 0x34433d;
   const shell = new Parts(true);
-  const walls = 0xa18b70;
-  const trim = 0x343e36;
-  const wall = (id, color, x, y, z, w, h, d) => {
-    shell.box(color, w, h, d, x, y, z);
-    scene.userData.colliders.addHouse({
-      id: 'market-' + id,
-      x: SHOP_X + x,
-      z: FRONT_Z + z,
-      width: w,
-      depth: d
-    });
-  };
-  wall('left', walls, -WIDTH / 2, HEIGHT / 2, DEPTH / 2, 0.18, HEIGHT, DEPTH);
-  wall('right', walls, WIDTH / 2, HEIGHT / 2, DEPTH / 2, 0.18, HEIGHT, DEPTH);
-  wall('back', walls, 0, HEIGHT / 2, DEPTH, WIDTH, HEIGHT, 0.18);
-  // Two solid front piers leave an opening a metre and a half wide.
-  for (const side of [-1, 1]) {
-    wall('front-' + side, walls, side * 1.68, HEIGHT / 2, 0, 1.86, HEIGHT, 0.18);
-    shell.box(trim, 1.28, 1.21, 0.06, side * 1.7, 1.48, -0.11);
-    shell.box(0x606b64, 1.13, 1.05, 0.02, side * 1.7, 1.48, -0.15);
-    shell.box(trim, 1.35, 0.08, 0.17, side * 1.7, 0.90, -0.14);
+  const stockDisplay = [];
+  function solid(id, x, z, w, d) {
+    data.colliders.addHouse({ id: 'market-' + id, x: SHOP_X + x, z: FRONT_Z + z, width: w, depth: d });
   }
-  shell.box(trim, 1.5, 0.61, 0.16, 0, 2.595, 0);
-  shell.box(trim, WIDTH + 0.3, 0.18, DEPTH + 0.35, 0, 2.98, DEPTH / 2);
-  shell.box(0x51765d, WIDTH + 0.03, 0.15, 0.46, 0, 2.33, -0.24);
-  shell.box(0xc6bda9, WIDTH, 0.035, DEPTH, 0, 0.0175, DEPTH / 2);
-  shell.box(0xa9a398, 1.56, 0.028, 0.62, 0, 0.014, -0.31);
-
-  const shelfColors = [0xa74b44, 0xc58b45, 0xd1b989];
-  const market = getShop('corner-shop');
-  market.stock.forEach((offer, i) => {
-    const x = (i - 1) * 1.27;
-    wall('shelf-' + i, 0x594839, x, 0.6, 3.11, 1.08, 1.2, 0.57);
-    shell.box(0xb19a7e, 1.12, 0.06, 0.62, x, 1.22, 3.08);
-    for (const offset of [-0.28, 0, 0.28]) {
-      shell.box(shelfColors[i], 0.19, 0.20, 0.22, x + offset, 1.35, 3.01);
-    }
-    registerSpot(scene, shop, {
-      id: 'market-' + offer.item, x, z: 2.57,
-      prompt: 'buy ' + offer.name + ' ($' + offer.price + ')',
-      action: 'grab',
-      interact: (ctx) => !!buyFromShop(market, ctx, offer)
-    });
+  function box(id, color, x, z, w, h, d, y = h / 2) {
+    shell.box(color, w, h, d, x, y, z);
+    if (id) solid(id, x, z, w, d);
+  }
+  (data.mapBuildings ??= []).push({
+    id: 'corner-market', minX: SHOP_X - half, maxX: SHOP_X + half,
+    minZ: FRONT_Z - 0.16, maxZ: FRONT_Z + DEPTH
+  });
+  (data.indoorZones ??= []).push({
+    id: 'corner-market', minX: SHOP_X - half + 0.15, maxX: SHOP_X + half - 0.15,
+    minZ: FRONT_Z + 0.05, maxZ: FRONT_Z + DEPTH - 0.15
   });
 
-  wall('stock-crate', 0x977448, 1.93, 0.36, 1.15, 0.75, 0.72, 0.83);
-  shell.box(0xbe9c6f, 0.79, 0.05, 0.86, 1.93, 0.74, 1.15);
+  for (const side of [-1, 1]) box('side-' + side, wallColor, side * half, DEPTH / 2, 0.20, HEIGHT, DEPTH);
+  box('back', wallColor, 0, DEPTH, WIDTH, HEIGHT, 0.20);
+  box(null, 0xc9c1af, 0, DEPTH / 2, WIDTH, 0.036, DEPTH);
+  box(null, 0x49554c, 0, DEPTH / 2, WIDTH + 0.35, 0.25, DEPTH + 0.33, HEIGHT);
+  box(null, trim, 0, 0, WIDTH, 1.23, 0.20, HEIGHT - 0.615);
+  box(null, 0x667b68, 0, -0.48, 6.2, 0.14, 1.02, 3.03);
+  box(null, 0xa49d90, 0, -0.23, 3.28, 0.05, 0.52);
+
+  const windowWidth = half - opening;
+  for (const side of [-1, 1]) {
+    const x = side * (opening + windowWidth / 2);
+    box('front-' + side, 0x706357, x, 0, windowWidth, 0.75, 0.19);
+    box(null, trim, x, 0, windowWidth, 0.09, 0.24, 2.93);
+    for (let bay = 0; bay <= 4; bay++) {
+      box(null, trim, side * (opening + windowWidth * bay / 4), 0, 0.10, 2.25, 0.20, 1.83);
+    }
+    shell.bevelMax = 0;
+    for (let row = 0; row < 5; row++) {
+      const left = x - windowWidth / 2;
+      const right = x + windowWidth / 2;
+      const shades = [0xa06c58, 0x8f594b, 0x96604e];
+      for (let i = 0, start = left - (row % 2) * 0.17; start < right; i++, start += 0.34) {
+        const a = Math.max(left, start);
+        const b = Math.min(right, start + 0.326);
+        if (b - a > 0.002) box(null, shades[(i * 2 + row) % 3], (a + b) / 2, -0.104, b - a, 0.133, 0.028, 0.078 + row * 0.15);
+      }
+    }
+    shell.bevelMax = null;
+  }
+
+  shell.bevelMax = 0;
+  // Checkout fixtures are beside the entrance, with a clear central entrance lane.
+  for (const [i, x] of [5.6, 8.0].entries()) {
+    box('checkout-' + i, 0x78817b, x, 2.0, 0.76, 0.91, 2.25);
+    box(null, 0x303732, x, 2.10, 0.72, 0.057, 1.38, 0.95);
+    box(null, 0x252d2b, x + 0.07, 2.79, 0.33, 0.26, 0.15, 1.10);
+  }
+  for (const [i, x] of [-7.25, -4.75].entries()) {
+    box('produce-' + i, 0x654b33, x, 2.3, 1.65, 0.77, 1.1);
+    for (let row = 0; row < 3; row++) {
+      for (let col = 0; col < 8; col++) {
+        stockDisplay.push({sku: ['apples','pears','oranges'][(i + row) % 3],
+          x: x - 0.66 + col*0.184, y: 0.78, z: 1.99 + 0.29*row});
+      }
+    }
+  }
+
+  // Four double-sided shelf rows with cross-aisles at both ends.
+  const aisleXs = [-6.6, -2.9, 0.9, 4.7];
+
+  for (const [aisle, x] of aisleXs.entries()) {
+    box('aisle-' + aisle, 0x74786e, x, 7.0, 0.34, 1.64, 5.8);
+    // Extend collision to the edges of the shelf decks.
+    solid('aisle-decks-' + aisle, x, 7.0, 1.04, 5.8);
+    for (const [level,y] of [0.30, 0.72, 1.14, 1.56].entries()) {
+      box(null, 0xaaa99b, x, 7.0, 1.04, 0.064, 5.8, y);
+      for (const side of [-1, 1]) {
+        for (let j = 0; j < 21; j++) {
+          if ((j + 3*level + aisle) % 19 === 0) continue;
+          const sku = AISLE_STOCK[aisle][(Math.floor(j/7)+level+(side>0?1:0))%3];
+          for (const depth of [0.30,0.47]) stockDisplay.push({
+            sku, x:x+side*depth, y:y+0.033, z:4.31+j*0.267, yaw:side*Math.PI/2
+          });
+        }
+      }
+    }
+  }
+
+  for (let i = 0; i < 5; i++) {
+    const z = 4.9 + i * 1.48;
+    solid('cooler-' + i, 9.42, z, 0.92, 1.4);
+    box(null, 0x637271, 9.85, z, 0.10, 2.17, 1.4);
+    box(null, 0x50605f, 9.40, z, 0.91, 0.26, 1.40);
+    box(null, 0x81918d, 9.39, z, 0.91, 0.12, 1.40, 2.12);
+    for (const side of [-1,1]) box(null, 0x70807a, 9.42, z+side*0.67, 0.92, 1.95, 0.067, 1.16);
+    for (const [tier,y] of [0.31,0.70,1.10,1.50].entries()) {
+      box(null, 0xd6d7cc, 9.38, z, 0.83, 0.038, 1.29,y);
+      for(let j=0;j<5;j++) stockDisplay.push({
+        sku:['milk','yogurt','sandwich','juice'][(i+tier)%4],
+        x:9.10,y:y+0.021,z:z-0.47+j*0.234,yaw:-Math.PI/2
+      });
+    }
+    box(null, 0xc1cbc7, 8.895, z - 0.4, 0.09, 0.35, 0.04, 1.18);
+  }
+
+  // Leave an open service passage into the rear stockroom.
+  box('stock-wall-west', 0xb1aa9c, -3.9, backRoom, 12.2, 3.1, 0.18);
+  box('stock-wall-east', 0xb1aa9c, 7.0, backRoom, 6.0, 3.1, 0.18);
+  for (const [i, x] of [-5.5, -3.2, 6.6].entries()) {
+    box('stock-pallet-' + i, 0x72543a, x, 15.0, 1.15, 0.14, 1.0);
+    box(null, 0xaa8460, x, 15.0, 0.95, 0.87, 0.91, 0.57);
+  }
+
+  // Existing offers, prices and restock job use their normal interactions.
+  getShop('corner-shop').stock.forEach((offer, i) => {
+    const stand = [{ x: -7.25, z: 3.24 }, { x: -1.95, z: 6.85 }, { x: 8.58, z: 7.86 }][i]
+      ?? { x: 6.0, z: 10.4 + i * 0.1 };
+    registerSpot(scene, shop, {
+      id: 'market-' + offer.item, ...stand,
+      prompt: 'buy ' + offer.name + ' ($' + offer.price + ')', action: 'grab',
+      interact: ctx => !!buyFromShop('corner-shop', ctx, offer)
+    });
+  });
   const shift = getJob('restock');
   registerSpot(scene, shop, {
-    id: 'market-restock', x: 1.39, z: 1.15,
+    id: 'market-restock', x: 3.15, z: 14.25,
     prompt: 'restock shelves ($' + shift.pay + ')',
-    interact: (ctx) => ctx.work?.(shift.id) ?? false
+    interact: ctx => ctx.work?.(shift.id) ?? false
   });
 
-  const mesh = new THREE.Mesh(
-    shell.merge(),
-    new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.9 })
-  );
-  mesh.receiveShadow = !!quality.shadows;
+  const mesh = new THREE.Mesh(shell.merge(), new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.89 }));
+  mesh.castShadow = mesh.receiveShadow = !!quality.shadows;
   shop.add(mesh, sign());
-  const light = new THREE.PointLight(0xffddae, 11, 7);
-  light.position.set(0, 2.25, DEPTH / 2);
-  shop.add(light);
+  buildMarketStock(shop, stockDisplay, quality);
+  const glazing = new THREE.MeshStandardMaterial({
+    color: 0x91adae, transparent: true, opacity: 0.29, depthWrite: false,
+    side: THREE.DoubleSide, roughness: 0.43, emissive: 0xffcd95, emissiveIntensity: 0
+  });
+  const pane = new THREE.PlaneGeometry(windowWidth, 2.16);
+  for (const side of [-1, 1]) {
+    const window = new THREE.Mesh(pane, glazing);
+    window.position.set(side * (opening + windowWidth / 2), 1.84, -0.021);
+    shop.add(window);
+  }
+  const lights = [];
+  const fittings = new Parts(true);
+  const fixtureMaterial = new THREE.MeshBasicMaterial({ vertexColors: true });
+  for (const z of [2.5, 7.4, 11.1, 14.2]) {
+    fittings.box(0xeae7d3, 11.8, 0.038, 0.18, 0, 3.86, z);
+    const lamp = new THREE.PointLight(0xffe7c4, 20, 10, 2);
+    lamp.position.set(0, 3.48, z);
+    lights.push(lamp);
+    shop.add(lamp);
+  }
+  shop.add(new THREE.Mesh(fittings.merge(), fixtureMaterial));
+  shop.add(createContactShadows([
+    { kind: 'rect', x: -5.8, z: -0.09, w: 7.8, d: 0.17, margin: 0.26, strength: 0.58 },
+    { kind: 'rect', x: 5.8, z: -0.09, w: 7.8, d: 0.17, margin: 0.26, strength: 0.58 }
+  ], quality));
+  const poolMaterial = new THREE.MeshBasicMaterial({
+    color: 0xe9a971, alphaMap: contactMaterial().alphaMap, transparent: true,
+    blending: THREE.AdditiveBlending, depthWrite: false, opacity: 0
+  });
+  const pool = new THREE.Mesh(new THREE.PlaneGeometry(4.1, 1.65), poolMaterial);
+  pool.position.set(0, 0.118, -0.92);
+  pool.rotation.x = -Math.PI / 2;
+  pool.visible = false;
+  shop.add(pool);
+  shop.userData.updateFrontage = minutes => {
+    const evening = THREE.MathUtils.smoothstep(minutes, 18 * 60, 19.5 * 60);
+    const dawn = 1 - THREE.MathUtils.smoothstep(minutes, 5.5 * 60, 7 * 60);
+    const night = Math.min(1, evening + dawn);
+    glazing.emissiveIntensity = 0.32 * night;
+    for (const lamp of lights) lamp.intensity = 20 + 6 * night;
+    poolMaterial.opacity = 0.23 * night;
+    pool.visible = night > 0;
+  };
 }

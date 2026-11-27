@@ -4,6 +4,9 @@ import { createHingedDoor } from '../systems/doors.js';
 import { createSeat, SIT_EYE_HEIGHT, SIT_RANGE } from '../systems/sit.js';
 import { getShop } from '../data/shops.js';
 import { buyFromShop } from '../systems/shop.js';
+import { Parts } from './parts.js';
+import { contactMaterial, createContactShadows } from './contact.js';
+import { STREET } from './street.js';
 import { WASHER_IDS, DRYER_IDS } from '../systems/laundry.js';
 
 /**
@@ -103,6 +106,55 @@ function bagMesh() {
   return g;
 }
 
+function buildEntrance(group, quality) {
+  const parts = new Parts(true);
+  parts.surface('metal');
+  const frame = 0x46504f;
+  for (const side of [-1, 1]) {
+    parts.box(frame, 0.085, 2.64, 0.11, side * 0.62, 1.32, 0.16);
+  }
+  parts.box(frame, 1.32, 0.10, 0.15, 0, 2.56, 0.16);
+  parts.box(0x7b776b, 1.28, 0.022, 0.22, 0, 0.011, 0.19);
+  parts.box(frame, 0.42, 0.09, 0.24, 0, 2.69, 0.25);
+  parts.surface('stone');
+  parts.box(0x615c53, 5.49, 0.16, 0.08, -3.36, 0.08, 0.16);
+  parts.box(0x615c53, 7.48, 0.16, 0.08, 4.36, 0.08, 0.16);
+  const sidewalk = STREET.roadCenterZ - STREET.roadWidth / 2 - STREET.sidewalkWidth - LAUNDROMAT.z;
+  const start = 0.22;
+  const span = (sidewalk - start) / 3;
+  for (let i = 0; i < 3; i++) {
+    parts.box([0x9a9487, 0xaaa294, 0xa39a8a][i], 1.55, 0.028, span - 0.012,
+      0, 0.014, start + (i + 0.5) * span);
+  }
+  const entrance = new THREE.Mesh(parts.merge(), new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.88 }));
+  entrance.name = 'laundromat-entrance';
+  entrance.receiveShadow = !!quality.shadows;
+  group.add(entrance, createContactShadows([
+    { kind: 'rect', x: 0, z: 0.27, y: 0.028, w: 1.53, d: 0.13, margin: 0.23, strength: 0.48 },
+    { kind: 'rect', x: -3.25, z: 0.15, w: 5.3, d: 0.19, margin: 0.35, strength: 0.55 },
+    { kind: 'rect', x: 4.3, z: 0.14, w: 7.3, d: 0.20, margin: 0.35, strength: 0.55 },
+    { x: -1.9, z: 0.35, rx: 1.10, rz: 0.49, strength: 0.74 }
+  ], quality));
+  const lensMaterial = new THREE.MeshStandardMaterial({ color: 0xb1a28a, emissive: 0xffd3a0, emissiveIntensity: 0 });
+  const lens = new THREE.Mesh(new THREE.BoxGeometry(0.32, 0.025, 0.16), lensMaterial);
+  lens.position.set(0, 2.64, 0.25);
+  group.add(lens);
+  const poolMaterial = new THREE.MeshBasicMaterial({
+    color: 0xe6a662, alphaMap: contactMaterial().alphaMap, transparent: true,
+    opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending
+  });
+  const pool = new THREE.Mesh(new THREE.PlaneGeometry(2.8, 1.55), poolMaterial);
+  pool.rotation.x = -Math.PI / 2;
+  pool.position.set(0, 0.034, 0.83);
+  pool.visible = false;
+  group.add(pool);
+  return night => {
+    lensMaterial.emissiveIntensity = 1.18 * night;
+    poolMaterial.opacity = 0.22 * night;
+    pool.visible = night > 0;
+  };
+}
+
 export function buildLaundromat(scene, quality) {
   const ud = scene.userData;
   const world = (x, z) => ({ x: LAUNDROMAT.x + x, z: LAUNDROMAT.z + z });
@@ -121,6 +173,7 @@ export function buildLaundromat(scene, quality) {
   group.position.set(LAUNDROMAT.x, 0, LAUNDROMAT.z);
   scene.add(group);
   ud.laundromat = group;
+  const updateEntrance = buildEntrance(group, quality);
 
   ud.indoorZones = ud.indoorZones || [];
   ud.indoorZones.push({
@@ -239,6 +292,7 @@ export function buildLaundromat(scene, quality) {
   Object.defineProperty(gate, 'disabled', { get: () => !!door.userData.open || Math.abs(door.rotation.y) > 0.05, enumerable: true });
 
   const signMats = [];
+  const windowMats = new Set();
   new GLTFLoader().load(URL, (gltf) => {
     const model = gltf.scene;
     model.traverse((o) => {
@@ -249,6 +303,11 @@ export function buildLaundromat(scene, quality) {
       o.receiveShadow = !!quality.shadows;
       if (!m) return;
       m.shadowSide = THREE.DoubleSide;
+      if (/^(BrickSmallPainted|Roof_tiles|RooftilesMetal)/.test(m.name) && m.map) {
+        m.map.anisotropy = Math.max(m.map.anisotropy, quality.shadows ? 8 : 4);
+        m.map.needsUpdate = true;
+      }
+      if (/^Glass/.test(m.name) && m.emissive) windowMats.add(m);
       if (/^Emissor/.test(m.name) && !signMats.includes(m)) signMats.push(m);
       if (m.map && !OUTSIDE.test(m.name) && !m.userData.stripLit) {
         m.emissiveMap = m.map;
@@ -278,12 +337,17 @@ export function buildLaundromat(scene, quality) {
     const waiting = l ? Math.min(bags.length, l.waitingCount()) : 0;
     bags.forEach((b, i) => { b.visible = i < waiting; });
     clockScreen.material.color.setHex(l && l.onShift ? 0x40e070 : 0x2a4a2a);
-    if (time && signMats.length) {
+    if (time) {
       const m = time.minutes;
       const dusk = THREE.MathUtils.smoothstep(m, 17.5 * 60, 19.5 * 60);
       const dawn = 1 - THREE.MathUtils.smoothstep(m, 5.5 * 60, 7 * 60);
       const night = Math.min(1, dusk + dawn);
       for (const s of signMats) s.emissiveIntensity = 0.55 + 1.6 * night;
+      for (const window of windowMats) {
+        window.emissive.setHex(0xffd29a);
+        window.emissiveIntensity = 0.24 * night;
+      }
+      updateEntrance(night);
     }
   };
 

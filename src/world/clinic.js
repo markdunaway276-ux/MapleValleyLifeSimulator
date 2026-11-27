@@ -45,6 +45,45 @@ function plaque(text, width, height, x, y, z, facesStreet) {
   return sign;
 }
 
+function anatomyPrint() {
+  const canvas = document.createElement('canvas');
+  canvas.width = 256;
+  canvas.height = 320;
+  const ctx = canvas.getContext('2d');
+  ctx.fillStyle = '#f7f3e8';
+  ctx.fillRect(0, 0, 256, 320);
+  ctx.fillStyle = '#315d54';
+  ctx.font = 'bold 22px sans-serif';
+  ctx.textAlign = 'center';
+  ctx.fillText('HUMAN SKELETON', 128, 32);
+  ctx.strokeStyle = '#6d8b7a';
+  ctx.lineWidth = 7;
+  ctx.lineCap = 'round';
+  ctx.beginPath();
+  ctx.ellipse(128, 72, 17, 23, 0, 0, Math.PI * 2);
+  ctx.moveTo(128, 97);
+  ctx.lineTo(128, 192);
+  for (const side of [-1, 1]) {
+    ctx.moveTo(128, 110);
+    ctx.lineTo(128 + side * 35, 117);
+    ctx.lineTo(128 + side * 46, 152);
+    ctx.lineTo(128 + side * 51, 188);
+    ctx.moveTo(128, 186);
+    ctx.lineTo(128 + side * 19, 198);
+    ctx.lineTo(128 + side * 20, 237);
+    ctx.lineTo(128 + side * 23, 280);
+    for (const y of [124, 137, 150, 163]) {
+      ctx.moveTo(128, y);
+      ctx.quadraticCurveTo(128 + side * 27, y - 8, 128 + side * 24, y + 4);
+    }
+  }
+  ctx.stroke();
+  const map = new THREE.CanvasTexture(canvas);
+  map.colorSpace = THREE.SRGBColorSpace;
+  map.anisotropy = 4;
+  return new THREE.MeshStandardMaterial({ map, roughness: 0.9 });
+}
+
 function makeStucco() {
   const canvas = document.createElement('canvas');
   canvas.width = 128;
@@ -85,6 +124,58 @@ function addWindowReflection(material, daylight) {
   };
 }
 
+function clinicTileMaterial() {
+  const size = 128;
+  const canvas = document.createElement('canvas');
+  canvas.width = canvas.height = size;
+  const context = canvas.getContext('2d');
+  const pixels = context.createImageData(size, size);
+  let seed = 82;
+  for (let y = 0; y < size; y++) {
+    for (let x = 0; x < size; x++) {
+      seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0;
+      const grout = x < 2 || y < 2;
+      const tone = grout ? 154 : 185 + (seed >>> 29);
+      pixels.data.set([tone + 8, tone + 5, tone, 255], (y * size + x) * 4);
+    }
+  }
+  context.putImageData(pixels, 0, 0);
+  const map = new THREE.CanvasTexture(canvas);
+  map.colorSpace = THREE.SRGBColorSpace;
+  map.wrapS = map.wrapT = THREE.RepeatWrapping;
+  map.anisotropy = 8;
+  return new THREE.MeshStandardMaterial({ map, roughness: 0.78 });
+}
+
+function setClinicFloor(clinic, material, x, z, width, depth, shadows) {
+  const geometry = new THREE.PlaneGeometry(width, depth);
+  geometry.rotateX(-Math.PI / 2);
+  const position = geometry.attributes.position;
+  const uv = geometry.attributes.uv;
+  for (let i = 0; i < uv.count; i++) {
+    uv.setXY(i, (position.getX(i) + x) / 0.65, (position.getZ(i) + z) / 0.65);
+  }
+  const floor = new THREE.Mesh(geometry, material);
+  floor.position.set(x, 0.085, z);
+  floor.receiveShadow = !!shadows;
+  clinic.add(floor);
+}
+
+function fixtureHaloMaterial(color) {
+  const canvas = document.createElement('canvas');
+  canvas.width = canvas.height = 64;
+  const context = canvas.getContext('2d');
+  const glow = context.createRadialGradient(32, 32, 7, 32, 32, 32);
+  glow.addColorStop(0, 'rgba(255,255,255,0.34)');
+  glow.addColorStop(0.55, 'rgba(255,255,255,0.12)');
+  glow.addColorStop(1, 'rgba(255,255,255,0)');
+  context.fillStyle = glow;
+  context.fillRect(0, 0, 64, 64);
+  return new THREE.MeshBasicMaterial({
+    color, map: new THREE.CanvasTexture(canvas), transparent: true, depthWrite: false
+  });
+}
+
 export function buildClinic(scene, quality) {
   const data = scene.userData;
   const clinic = new THREE.Group();
@@ -116,7 +207,22 @@ export function buildClinic(scene, quality) {
   }
   parts.surface('plaster');
   box(WHITE, 13.66, 0.09, 7, 0, 2.97, 3.6);
-  box(0xd2d5cc, 13.8, 0.08, 7.1, 0, 0.044, 3.6);
+  box(0xaeb2a9, 13.8, 0.08, 7.1, 0, 0.044, 3.6);
+  const tile = clinicTileMaterial();
+  const examFloor = new THREE.MeshStandardMaterial({ color: 0xaab9b1, roughness: 0.96 });
+  setClinicFloor(clinic, tile, 0, 1.79, 13.57, 3.18, quality.shadows);
+  setClinicFloor(clinic, tile, 0, 5.16, 1.76, 3.56, quality.shadows);
+  const baseboard = 0x7b8b7f;
+  for (const side of [-1, 1]) {
+    setClinicFloor(clinic, examFloor, 3.84 * side, 5.19, 5.92, 3.56, quality.shadows);
+    box(baseboard, 0.035, 0.095, 6.76, 6.765 * side, 0.135, 3.55);
+    box(baseboard, 5.82, 0.095, 0.034, 3.86 * side, 0.135, 3.34);
+    box(baseboard, 5.82, 0.095, 0.034, 3.86 * side, 0.135, 3.50);
+    box(baseboard, 0.034, 0.095, 1.80, 0.858 * side, 0.135, 6.08);
+    box(baseboard, 0.034, 0.095, 1.80, 1.022 * side, 0.135, 6.08);
+    box(baseboard, 5.9, 0.095, 0.034, 3.84 * side, 0.135, 6.96);
+    box(baseboard, 5.9, 0.095, 0.034, 3.84 * side, 0.135, 0.24);
+  }
   box(0xb8b8ad, 8.4, 0.105, 0.7, 0, 0.0525, -0.35);
   box(0xb8b8ad, 2.8, SURFACE_Y.walk, 0.7, 0, SURFACE_Y.walk / 2, -0.65);
   box(0xb8b8ad, 1.72, 0.10, DOOR_RECESS, 0, 0.05, DOOR_RECESS / 2);
@@ -227,6 +333,22 @@ export function buildClinic(scene, quality) {
   box(0x303b3d, 0.44, 0.29, 0.07, 3.65, 1.28, 2.17);
   box(0x707c7a, 0.19, 0.04, 0.15, 3.65, 1.16, 2.17);
   clinic.add(plaque('RECEPTION', 1.35, 0.25, 3.65, 0.81, 1.666, true));
+  box(0x80918b, 0.34, 0.10, 0.19, 2.88, 1.18, 2.06);
+  for (const [x, color] of [[2.78, 0xded4ab], [2.88, 0x94bbaa], [2.98, 0x749c98]]) {
+    box(color, 0.075, 0.15, 0.022, x, 1.24, 2.045, -0.16);
+  }
+  box(TEAL, 0.63, 0.195, 0.025, 4.22, 1.226, 1.98);
+  clinic.add(plaque('CHECK IN HERE', 0.62, 0.18, 4.22, 1.226, 1.966, true));
+
+  const clockX = 4.78;
+  const clockY = 2.42;
+  parts.cylinder(0x456259, 0.235, 0.235, 0.038, clockX, clockY, 3.264, Math.PI / 2, 0, 0, 20);
+  parts.cylinder(WHITE, 0.207, 0.207, 0.012, clockX, clockY, 3.239, Math.PI / 2, 0, 0, 20);
+  for (const [dx, dy] of [[0, 0.168], [0.168, 0], [0, -0.168], [-0.168, 0]]) {
+    box(0x3c4945, 0.026, 0.026, 0.006, clockX + dx, clockY + dy, 3.23);
+  }
+  box(0x3c4945, 0.018, 0.128, 0.008, clockX + 0.031, clockY + 0.04, 3.225, 0, 0, -0.65);
+  box(0x3c4945, 0.02, 0.094, 0.009, clockX - 0.026, clockY + 0.023, 3.224, 0, 0, 0.96);
   // The rear wall of the lobby is visible through the street windows.
   box(0x785744, 4.00, 2.18, 0.04, 3.8, 1.30, 3.34);
   for (let i = 0; i < 20; i++) {
@@ -261,6 +383,8 @@ export function buildClinic(scene, quality) {
   solid('outside-bench', TEAL, 1.65, 0.1, 0.43, -4.2, 0.52, -0.48);
   box(TEAL, 1.65, 0.28, 0.07, -4.2, 0.75, -0.27);
   for (const x of [-4.85, -3.55]) box(0x4d5855, 0.07, 0.37, 0.34, x, 0.286, -0.48);
+  const anatomy = anatomyPrint();
+  const printGeometry = new THREE.PlaneGeometry(0.42, 0.525);
   for (const side of [-1, 1]) {
     solid('exam-front-' + side, WALL, 6, 2.83, 0.12, 3.88 * side, 1.5, 3.42);
     solid('exam-wall-' + side, WALL, 0.12, 2.83, 1.95, 0.94 * side, 1.5, 6.10);
@@ -274,13 +398,47 @@ export function buildClinic(scene, quality) {
     box(0xbfc9c4, 0.38, 0.025, 0.27, 2.43 * side, 1.015, 6.75);
     box(0x9faeaa, 0.043, 0.15, 0.05, 2.43 * side, 1.09, 6.89);
     box(0x9faeaa, 0.043, 0.04, 0.14, 2.43 * side, 1.15, 6.835);
+    const printX = 3.35 * side;
+    box(0x526b61, 0.47, 0.58, 0.038, printX, 1.92, 6.956);
+    const chart = new THREE.Mesh(printGeometry, anatomy);
+    chart.position.set(printX, 1.92, 6.935);
+    chart.rotation.y = Math.PI;
+    clinic.add(chart);
+
+    box(WHITE, 0.20, 0.31, 0.105, 1.75 * side, 1.45, 6.91);
+    box(0x799692, 0.10, 0.037, 0.01, 1.75 * side, 1.39, 6.853);
+    box(0xb5c2bd, 2.12, 0.048, 0.058, 5.33 * side, 2.88, 4.28);
+    // Stack the curtain at the outer wall so the table stays approachable.
+    for (let pleat = 0; pleat < 8; pleat++) {
+      const curtainX = (5.82 + pleat * 0.066) * side;
+      box(pleat % 2 ? 0x9eb6aa : 0x899f94, 0.075, 1.97, 0.034, curtainX, 1.78,
+        4.28 + (pleat % 2 ? 0.019 : -0.019), 0, (pleat % 2 ? 0.38 : -0.38) * side);
+    }
   }
 
   const fixtureParts = new Parts(false);
   fixtureParts.box(0, 1.05, 0.045, 0.21, 0, 2.397, -0.42);
+  const warmGlow = fixtureHaloMaterial(0xffedd1);
+  const coolGlow = fixtureHaloMaterial(0xe0efff);
+  const haloGeometry = new THREE.PlaneGeometry(2.9, 1.24);
+  haloGeometry.rotateX(Math.PI / 2);
   for (const [x, z] of [[-3.8, 1.9], [3.8, 1.9], [0, 5], [-4.2, 5.5], [4.2, 5.5]]) {
+    const exam = z > 5;
+    const halo = new THREE.Mesh(haloGeometry, exam ? coolGlow : warmGlow);
+    halo.position.set(x, 2.921, z);
+    clinic.add(halo);
+    if (exam) {
+      const examLight = new THREE.SpotLight(0xe6f2ff, 13, 4.1, Math.PI / 3.5, 0.84, 2);
+      examLight.position.set(x, 2.78, z);
+      examLight.target.position.set(x, 0.1, z);
+      clinic.add(examLight, examLight.target);
+      continue;
+    }
     fixtureParts.box(0, 1.45, 0.045, 0.33, x, 2.9, z);
   }
+  const examFixtures = new Parts(false);
+  for (const side of [-1, 1]) examFixtures.box(0, 1.45, 0.045, 0.33, side * 4.2, 2.9, 5.5);
+  clinic.add(new THREE.Mesh(examFixtures.merge(), new THREE.MeshBasicMaterial({ color: 0xe7f2ff })));
   const fixtures = new THREE.Mesh(fixtureParts.merge(), new THREE.MeshBasicMaterial({ color: 0xfff0d3 }));
   const model = new THREE.Mesh(parts.merge(), createVertexMaterial());
   model.castShadow = model.receiveShadow = !!quality.shadows;
