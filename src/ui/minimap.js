@@ -845,9 +845,17 @@ export function createHudMinimap({
     attachPhone,
     destinations() {
       const names = { mailbox: 'Home', market: 'Corner Market', desk: 'Home office' };
-      return getWorld().markers.filter(marker => Object.hasOwn(names, marker.id)).map(marker => ({
+      const list = getWorld().markers.filter(marker => Object.hasOwn(names, marker.id)).map(marker => ({
         id: marker.id, name: names[marker.id], position: () => marker
       }));
+      // Buildings at the street ends: route to the sidewalk in front of them, not inside.
+      const ud = scene?.userData || {};
+      if (ud.laundromat) {
+        const p = ud.laundromat.position;
+        list.push({ id: 'laundromat', name: 'Laundromat', position: () => ({ x: p.x, z: p.z + 2.0 }) });
+      }
+      if (ud.trailerPark) list.push({ id: 'trailer-park', name: 'Trailer Park', position: () => ({ x: -30.5, z: -4.3 }) });
+      return list;
     },
     getWaypointId: () => waypoint?.id ?? '',
     setWaypoint(next) {
