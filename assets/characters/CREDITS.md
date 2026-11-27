@@ -36,3 +36,7 @@ Third-person player actions, each a Mixamo animation (https://www.mixamo.com, Ad
 | walk.json | Walking (in place) | walking, for the player's own character (surviver.glb) |
 
 
+
+## surviver.glb (the player)
+
+The user's own character, made in Blender with MakeHuman / MPFB. The MakeHuman system assets it uses (base mesh, middle-aged skin, braid01 hair, eyebrow006, eyelashes03, brown eyes, female_casualsuit02, shoes02) are CC0. Converted with `tools/convert_makehuman.py`.
