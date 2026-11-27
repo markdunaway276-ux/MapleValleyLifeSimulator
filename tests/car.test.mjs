@@ -90,3 +90,16 @@ test('resolveCarPose and stepCar stop against house AABBs, circle trees, and str
   assert.equal(boundHit.hit, true);
   assert.ok(boundHit.x <= bounds.maxX - 2 + 1e-6);
 });
+
+test('Route 9 fits the car at the town merge and stops it at the western end', async () => {
+  const { STREET, surfaceHeightAt, SURFACE_Y } = await import('../src/world/street.js');
+  const { routeDriveAreas } = await import('../src/world/route9.js');
+  const { streetBounds } = await import('../src/systems/car.js');
+  const z = STREET.roadCenterZ;
+  const bounds = [streetBounds(null), ...routeDriveAreas(z)];
+  for (let x = -290; x <= 0; x += 0.25) {
+    assert.equal(resolveCarPose(null, { x, z, rotY: 0 }, { bounds }).x, x);
+    assert.equal(surfaceHeightAt(x, z), SURFACE_Y.road);
+  }
+  assert.ok(resolveCarPose(null, { x: -305, z, rotY: 0 }, { bounds }).x >= -300);
+});

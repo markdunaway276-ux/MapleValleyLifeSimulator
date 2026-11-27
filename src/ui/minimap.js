@@ -1,3 +1,4 @@
+import { ROUTE_9, routeHalfWidth } from '../world/route9.js';
 /**
  * Neighborhood minimap. A fixed north-up 2D view of the street, houses,
  * trees and a few landmarks, with the player as a heading arrow. The
@@ -279,7 +280,7 @@ export function worldBounds(world) {
   const walk = s.sidewalkWidth || STREET.sidewalkWidth;
   const cz = s.roadCenterZ !== undefined ? s.roadCenterZ : STREET.roadCenterZ;
   const b = {
-    minX: -half,
+    minX: ROUTE_9.minX,
     maxX: half,
     minZ: cz - roadHalf - walk,
     maxZ: cz + roadHalf + walk
@@ -355,6 +356,13 @@ export function drawStaticLayer(ctx, world, view) {
   ctx.fillStyle = C.grass;
   ctx.fillRect(0, 0, view.width, view.height);
 
+  ctx.fillStyle = C.road;
+  ctx.beginPath();
+  const roadPoints = [[ROUTE_9.minX, -4], [ROUTE_9.taper, -4], [-half, -routeHalfWidth(-half)],
+    [-half, routeHalfWidth(-half)], [ROUTE_9.taper, 4], [ROUTE_9.minX, 4]];
+  for (const [x,z] of roadPoints) { const point=toMap(view,x,cz+z); ctx.lineTo(point.x,point.y); }
+  ctx.closePath();
+  ctx.fill();
   const expansion = s.expansion;
   if (expansion) {
     const fill = (rect) => fillRectWorld(ctx, view, rect.minX, rect.maxX, rect.minZ, rect.maxZ);

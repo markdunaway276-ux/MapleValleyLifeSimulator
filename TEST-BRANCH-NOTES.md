@@ -2,17 +2,16 @@
 
 ## Playable now
 
-- The short Day One opening is a skippable camera tour of home, Corner Market, and the park. The sidewalk tutorial covers movement, opening the phone, and using the minimap to reach the market. Tutorial progress is saved.
+- Day One opens with a skippable Route 9 road trip and ends in the parked car. Get out to meet Rita, receive the keys, unload the trunk, and unpack at home. The rest of the tutorial covers the phone and market. Progress is saved.
 - The street and park expansion includes matching road materials, a drivable service-road loop, playground, basketball court, picnic shelters, pond, footbridge, and trails.
 - Selecting a saved slot opens it directly. To see the opening, choose New game in an empty slot.
-- Existing first-person actions include the phone grip, door and car entry, eating, and laundry. The new hand fixes and move-in animations are pending.
+- Existing first-person actions include the phone grip, door and car entry, eating, and laundry. The current build includes the move-in key and box animations, plus wheel grips that follow steering.
 
 ## Remaining work
 
-1. Integrate the current upgrades from `main` into `test` while preserving the park, Day One, save-slot behavior, and browser test link. The last comparison found Fuel & Go and fuel, the Surviver player model, updated neighbors and the clerk, and sprinting on `main`. Fetch both branches before integrating and test the combined build with new and existing saves.
-2. Improve first-person hand contact in `src/systems/playerActions.js`. Anchor both hands to the laundry basket's grips and check pickup, carry, turning, and set-down. Aim door reaches at the actual handles and limit blocked or out-of-range reaches. Check the phone grip for regressions. The downloaded hand-animation pack has not been identified.
-3. Build the longer Day One move-in sequence. Drive into town, pull up to the house, meet the realtor out front, and receive the keys during a conversation. Open the trunk, carry several boxes inside with both hands, and unpack them. Save progress at the keys and after each box. Use the realtor dialogue to set up later introductions or opportunities. The current short tutorial is the playable version.
-4. Park Day is a proposed follow-up story. The park itself is already playable.
+- The merge from `main` brought in Fuel & Go, fuel, the updated characters and sprinting, as well as the Rita move-in story and hand fixes. Route 9 and its scenery, cabin, loading card, and opening music are on top of that merge.
+- Recheck door and basket grip contact in play. The separately downloaded hand-animation pack has not been identified.
+- Park Day remains a proposed follow-up story.
 
 ## Playtest
 

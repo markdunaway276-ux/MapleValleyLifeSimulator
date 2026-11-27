@@ -507,7 +507,26 @@ export function createPlayerActions({ camera, appearance = null } = {}) {
     if (camera && Math.abs(dip) > 0.001) camera.position.y += dip;
   }
 
+  const gripRotation = new THREE.Quaternion();
+  const cameraInverse = new THREE.Quaternion();
+  function drive(grips) {
+    rig.visible = true;
+    basket.visible = box.visible = false;
+    rig.updateWorldMatrix(true, false);
+    camera.getWorldQuaternion(cameraInverse).invert();
+    for (const [index, arm] of [armL, armR].entries()) {
+      const grip = grips[index];
+      grip.getWorldPosition(arm.position);
+      rig.worldToLocal(arm.position);
+      grip.getWorldQuaternion(gripRotation);
+      arm.quaternion.copy(cameraInverse).multiply(gripRotation);
+      arm.rotateZ(index ? -0.54 : 0.54);
+      layForearm(arm);
+    }
+  }
+
   return {
+    drive,
     play,
     stop,
     setCarry,

@@ -1,3 +1,4 @@
+import { createCarInterior } from './world/carInterior.js';
 /**
  * Maple Valley Life Simulator: builds every system in order and connects them.
  *
@@ -451,6 +452,7 @@ function beginPlay() {
   g.hud.sync();
   window.dispatchEvent(new Event('game-start'));
 }
+g.cabin = createCarInterior(g.car.object);
 g.dayOne = createDayOne(g, saveData, beginPlay);
 document.getElementById('start').onclick = () => {
   sfx.unlock();

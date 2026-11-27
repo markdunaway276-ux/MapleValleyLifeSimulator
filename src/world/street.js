@@ -1,3 +1,4 @@
+import { onRoute9 } from './route9.js';
 /**
  * East–west street in front of the Kenney house. Spawn sits on the road.
  * Kept in its own small module so props and NPCs can ask what surface is
@@ -65,6 +66,7 @@ export function drivewayWalkHeight(x, offset) {
 
 /** Height of the ground surface at x, z: grass, road or pavement. */
 export function surfaceHeightAt(x, z) {
+  if (onRoute9(x, z, STREET.roadCenterZ)) return SURFACE_Y.road;
   const expansion = expansionSurface(x, z, STREET.expansion);
   if (expansion) return expansion === 'road' ? SURFACE_Y.road : SURFACE_Y.walk;
   const { length, roadWidth, sidewalkWidth, roadCenterZ } = STREET;
