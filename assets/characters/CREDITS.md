@@ -16,3 +16,20 @@ To add more clips, rebuild `anims.glb` from `UAL1_Standard.glb` and add the name
 ## Standing animation
 
 `mixamo-breathing-idle.json` is Mixamo's **Breathing Idle** (https://www.mixamo.com, Adobe), baked to per-bone rotations with the mixamo-handoff `mixamo_bake.py` tool and retargeted onto the Quaternius skeleton at load (`src/world/mixamoRetarget.js`). Mixamo animations are free to use in games under Adobe's Mixamo terms; they should not be redistributed as stand-alone animation files outside the game.
+
+## Action clips (`actions/*.json`)
+
+Third-person player actions, each a Mixamo animation (https://www.mixamo.com, Adobe) baked with the same `mixamo_bake.py` tool, trimmed, reduced to 15 fps and made in-place (hip drift removed, height kept). Same Mixamo terms as above: used inside the game, not for redistribution as stand-alone animation files.
+
+| File | Mixamo animation | Used for |
+| --- | --- | --- |
+| door.json | Opening Door Inwards (0.3–2.9 s) | opening / closing doors |
+| press.json | Button Pushing | buttons, vending machines, knocking |
+| reach.json | Picking Up Object | grabbing from shelves, handing laundry back |
+| pickup.json | Picking Up (0.3–6.0 s) | picking up bags, taking laundry out |
+| load.json | Gathering Objects (0.4–5.6 s) | loading washers and dryers |
+| fold.json | Rummaging | folding laundry |
+| restock.json | Searching Files High | restocking the Market |
+| typing.json | Looking Through Files Low | desk work |
+| eat.json | Drinking (2.0–5.8 s) | eating |
+| carry.json | Carrying | holding a laundry basket (arms also layered over the walk) |

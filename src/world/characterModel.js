@@ -141,6 +141,9 @@ export async function createCharacterModel(look = {}) {
   const bodyKind = look.body === 'female' ? 'female' : 'male';
   const hairFile = look.hair ? `hair-${look.hair}.glb` : null;
   try {
+    // Optional extra Mixamo clips ({ key: 'actions/file.json' }), baked like the idle.
+    const extraEntries = Object.entries(look.mixamo || {});
+    const extraData = Promise.all(extraEntries.map(([, file]) => loadJson(file).catch(() => null)));
     const [bodyGltf, animGltf, extraGltf, idleData, hairGltf, beardGltf] = await Promise.all([
       load(bodyKind + '.glb'),
       load('anims.glb'),
@@ -174,6 +177,12 @@ export async function createCharacterModel(look = {}) {
 
     // Retarget the relaxed idle while the clone is still in its bind pose.
     const relaxedIdle = idleData ? mixamoToClip(idleData, root, 'Breathing_Idle') : null;
+    const extraClips = {};
+    (await extraData).forEach((data, i) => {
+      const [key] = extraEntries[i];
+      const clip = data ? mixamoToClip(data, root, key) : null;
+      if (clip) extraClips[key] = clip;
+    });
 
     const mixer = new THREE.AnimationMixer(root);
     const actions = {};
@@ -183,13 +192,17 @@ export async function createCharacterModel(look = {}) {
       if (clip) actions[key] = mixer.clipAction(clip);
     }
     if (relaxedIdle) actions.idle = mixer.clipAction(relaxedIdle);
+    for (const [key, clip] of Object.entries(extraClips)) actions[key] = mixer.clipAction(clip);
     let current = null;
 
-    function play(key, { fade = 0.3, timeScale = 1 } = {}) {
+    function play(key, { fade = 0.3, timeScale = 1, restart = false } = {}) {
       const next = actions[key] || actions.idle || actions.talk;
       if (!next) return;
       next.timeScale = timeScale;
-      if (next === current) return;
+      if (next === current) {
+        if (restart) next.reset().play();
+        return;
+      }
       next.reset().setEffectiveWeight(1).play();
       if (current) current.crossFadeTo(next, fade, false);
       current = next;
@@ -202,6 +215,9 @@ export async function createCharacterModel(look = {}) {
       root,
       mixer,
       play,
+      has: (key) => !!actions[key],
+      getClip: (key) => (actions[key] ? actions[key].getClip() : null),
+      addClip(key, clip) { actions[key] = mixer.clipAction(clip); },
       setTimeScale(v) { if (current) current.timeScale = v; },
       update(dt) { mixer.update(dt); },
       dispose() {
