@@ -164,8 +164,8 @@ export function createRoadTexture(quality = {}) {
     const fy = y / across;
     const lane = Math.exp(-(((fy - laneCenter) / 0.07) ** 2))
       + Math.exp(-(((fy - (1 - laneCenter)) / 0.07) ** 2));
-    const centerLine = Math.abs(fy - 0.5) <= 0.85 / across;
-    const parkingLine = Math.min(Math.abs(fy - parkingEdge), Math.abs(fy - (1 - parkingEdge))) <= 0.65 / across;
+    const centerLine = Math.abs(fy - 0.5) <= 0.014;
+    const parkingLine = Math.min(Math.abs(fy - parkingEdge), Math.abs(fy - (1 - parkingEdge))) <= 0.010;
     const kerb = smooth(0.1, 0, fy) + smooth(0.9, 1, fy);
     for (let x = 0; x < along; x++) {
       const n = tileNoise(x / 16, y / 8, along / 16, across / 8, 41) * 0.55 + hash2(x, y, 6) * 0.45;
@@ -193,7 +193,7 @@ export function createRoadTexture(quality = {}) {
     }
   }
   ctx.putImageData(img, 0, 0);
-  return finishTexture(canvas, { anisotropy: hi ? 4 : 2 });
+  return finishTexture(canvas, { anisotropy: hi ? 8 : 4 });
 }
 
 /**

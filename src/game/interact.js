@@ -15,7 +15,10 @@ export function setupInteract(g) {
   function currentTarget() {
     if (mode.driving()) return g.car.object;
     if (mode.sitting()) return g.sitter.object();
-    return nearestActionTarget(scene, player.position, INTERACT_RANGE);
+    return nearestActionTarget(scene, player.position, INTERACT_RANGE)
+      ?? (g.needs.isDevelopmentMode()
+        ? nearestActionTarget(scene, player.position, 12, { development: true })
+        : null);
   }
 
   const prompt = createInteractPrompt({

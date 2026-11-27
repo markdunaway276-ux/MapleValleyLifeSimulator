@@ -582,7 +582,17 @@ export function createDebugMenu({ actions, getState, getTeleports = () => [], ge
       if (needs && typeof needs.drain === 'function') needs.drain();
       refreshNeeds();
     });
-    row.append(refillBtn, drainBtn);
+    const developmentBtn = document.createElement('button');
+    developmentBtn.type = 'button';
+    developmentBtn.addEventListener('click', () => {
+      const needs = getNeeds();
+      needs.setDevelopmentMode(!needs.isDevelopmentMode());
+      refreshNeeds();
+    });
+    const help = document.createElement('p');
+    help.textContent = 'Keeps needs full and extends interaction reach while testing.';
+    row.append(developmentBtn, refillBtn, drainBtn);
+    body.append(help);
     body.append(label, row);
     toggle.addEventListener('click', () => {
       const open = !section.classList.contains('is-open');
@@ -590,7 +600,7 @@ export function createDebugMenu({ actions, getState, getTeleports = () => [], ge
       toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
     });
     section.append(toggle, body);
-    needsEls = { section, label, refillBtn, drainBtn };
+    needsEls = { section, label, refillBtn, drainBtn, developmentBtn };
     refreshNeeds();
     return section;
   }
@@ -599,6 +609,11 @@ export function createDebugMenu({ actions, getState, getTeleports = () => [], ge
     if (!needsEls || typeof getNeeds !== 'function') return;
     const needs = getNeeds();
     if (!needs || typeof needs.get !== 'function') return;
+    const development = !!needs.isDevelopmentMode?.();
+    needsEls.developmentBtn.hidden = typeof needs.setDevelopmentMode !== 'function';
+    needsEls.developmentBtn.textContent = 'Development mode: ' + (development ? 'On' : 'Off');
+    needsEls.developmentBtn.setAttribute('aria-pressed', String(development));
+    needsEls.refillBtn.disabled = needsEls.drainBtn.disabled = development;
     const snap = needs.get();
     const parts = (snap.items || []).map((it) => it.name + ' ' + Math.round(it.value));
     needsEls.label.textContent = parts.length ? parts.join('  ·  ') : 'Needs';
