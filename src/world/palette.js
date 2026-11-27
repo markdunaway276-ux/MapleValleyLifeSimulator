@@ -14,9 +14,9 @@
 
 // ------------------------------------------------------------- renderer ----
 
-/** Renderer + shadow tuning. Exposure 0.95 is the value set by commit 83bc107. */
+/** Renderer + shadow tuning. */
 export const LOOK = {
-  exposure: 0.95,
+  exposure: 1.08,
   /**
    * Desktop sun shadow map: 2048 over ±38 m is ~3.7 cm a texel (was 1024 over ±44 m, ~8.6 cm).
    * `type` is the soft 3x3 bilinear PCF. In three r169 that kernel is fixed (it ignores
@@ -27,29 +27,29 @@ export const LOOK = {
    */
   shadow: { type: 'PCFSoft', mapSize: 2048, extent: 38, near: 1, far: 110, bias: -0.0003, normalBias: 0.03, radius: 2.5 },
   /** Fog starts and ends this fraction of the camera far plane away for deeper atmospheric haze. */
-  fog: { near: 0.30, far: 0.92 },
+  fog: { near: 0.34, far: 0.94 },
   /**
-   * Gritty small-town film grade, applied after tone mapping (post.js). Punchier
-   * contrast, deeper cool-slate shadows, desaturated midtones, subtle unsharp-mask
-   * crispness, soft highlight bloom on lights/signs, and tactile grain.
+   * Gritty small-town film grade, applied after tone mapping (post.js). Bright,
+   * readable daylight with crisp S-curve contrast, subtle cool-slate shadows,
+   * desaturated midtones, micro-sharpening, soft highlight bloom, and tactile grain.
    * Desktop runs it as a shader pass; phones get the `mobile` CSS approximation
    * plus a vignette overlay (display.js).
    */
   grade: {
-    gain: 0.96,          // crisp exposure without muddy darkening
-    curve: 0.52,         // punchier S-curve contrast (deeper shadows, crisper midtones)
-    saturation: 0.80,    // grittier, desaturated small-town midtones
-    shadowTint: [-0.018, 0.004, 0.014],    // cool slate-teal shadows
-    highlightTint: [0.022, 0.016, -0.012], // subtle dusty warm highlights
-    fade: 0.018,         // tight charcoal blacks (less milky sepia wash)
-    fadeColor: [0.04, 0.055, 0.06],
-    vignette: 0.68,      // grounded dark edges
-    grain: 0.048,        // tactile gritty film grain (0 = off)
+    gain: 1.06,          // bright, readable daylight exposure
+    curve: 0.30,         // crisp contrast without crushing midtones/shadows
+    saturation: 0.86,    // grounded small-town color without looking gloomy
+    shadowTint: [-0.006, 0.006, 0.012],    // subtle cool slate-teal shadow lift
+    highlightTint: [0.024, 0.018, -0.008], // crisp sunlit warmth
+    fade: 0.022,         // gentle charcoal black lift so shadows stay readable
+    fadeColor: [0.07, 0.08, 0.085],
+    vignette: 0.42,      // light edge framing without darkening the screen
+    grain: 0.038,        // tactile gritty film grain (0 = off)
     sharpen: 0.22,       // micro-contrast sharpening so rough surfaces pop
-    bloom: 0.24,         // soft highlight glow on streetlights, signs & bright edges
-    bloomThreshold: 0.78,
+    bloom: 0.22,         // soft highlight glow on streetlights, signs & bright edges
+    bloomThreshold: 0.82,
     // Phone approximation at full strength (CSS filter values + vignette edge opacity).
-    mobile: { sepia: 0.08, saturate: 0.80, contrast: 1.16, brightness: 0.94, vignette: 0.52 }
+    mobile: { sepia: 0.06, saturate: 0.86, contrast: 1.10, brightness: 1.06, vignette: 0.32 }
   }
 };
 
@@ -100,21 +100,21 @@ export const SURFACE = {
 
 /** Ground, road and pavement base colours as 0-255 RGB (textures add the noise). */
 export const GROUND = {
-  grass: [44, 78, 44],
-  grassDark: [-16, -22, -10],
-  grassLight: [14, 18, 8],
+  grass: [54, 92, 52],
+  grassDark: [-15, -20, -10],
+  grassLight: [15, 20, 9],
   /** Autumn leaf litter flecks scattered on the lawn (0-255 RGB). */
-  leaf: [110, 82, 40],
+  leaf: [122, 92, 46],
   /** Bare, dry dirt/weed patches of lawn. */
-  dry: [88, 84, 54],
-  road: [34, 35, 39],
+  dry: [98, 96, 62],
+  road: [44, 45, 49],
   /** Tyre-worn lanes are darker and smoother; the kerb edges are paler grit. */
   roadWear: -9,
-  roadGrit: 11,
-  line: [194, 168, 66],
-  walk: [136, 134, 126],
+  roadGrit: 12,
+  line: [208, 182, 74],
+  walk: [152, 150, 142],
   /** Slab joint darkening (multiplier) and the pale lip beside it. */
-  walkJoint: 0.62,
+  walkJoint: 0.65,
   walkLip: 1.09
 };
 
