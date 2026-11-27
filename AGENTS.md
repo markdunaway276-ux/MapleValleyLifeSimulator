@@ -10,6 +10,10 @@ These instructions apply only to OpenAI Codex. Claude and other assistants shoul
 - Push, merge, cherry-pick, or otherwise update `main` only when the user explicitly authorizes updating `main` for those specific changes. A generic request to push does not authorize updating `main`.
 - Report the destination branch after a push.
 
+### Playtest previews
+
+- For each completed game update, publish it to the GitHub `test` branch, verify that the Vercel preview for that commit is ready, and confirm the stable test URL points to that deployment. Include https://maple-lane-playtest-git-test-mark-e095.vercel.app/ in the handoff so browser saves stay on the same address.
+
 ## Gemini only (Jules, Gemini CLI, Gemini Code Assist)
 
 These instructions apply only to Google Gemini tools. Codex and Claude follow their own rules above or from the user.

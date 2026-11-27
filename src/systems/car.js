@@ -16,7 +16,7 @@ import { createFuelTank, FUEL } from './fuel.js';
  *
  * Collision is an oriented box (SAT) against every collider in the world
  * (houses, trees, mailbox, vending machine, the NPCs' circles), plus the street
- * rectangle (plus the gas station forecourt). It is advanced in sub-steps of at most STEP_MAX metres, so a
+ * rectangle, the gas station forecourt and the park roads. It is advanced in sub-steps of at most STEP_MAX metres, so a
  * frame can never carry the car through a thin obstacle. The car's own collider
  * (id 'parked-car') moves with it, so the player and NPCs walk around it.
  */
@@ -133,11 +133,14 @@ export function streetBounds(scene) {
   const roadHalf = (s.roadWidth || STREET.roadWidth) / 2;
   const walk = s.sidewalkWidth || STREET.sidewalkWidth;
   const cz = s.roadCenterZ !== undefined ? s.roadCenterZ : STREET.roadCenterZ;
-  return { minX: -half + 0.5, maxX: half - 0.5, minZ: cz - roadHalf - walk, maxZ: cz + roadHalf + walk };
+  return {
+    minX: -half + 0.5, maxX: half - 0.5,
+    minZ: cz - roadHalf - walk, maxZ: cz + roadHalf + walk
+  };
 }
 
 /**
- * Push the car out of everything it overlaps and keep it inside the street.
+ * Push the car out of everything it overlaps and keep it on the road network.
  * `pose` is { x, z, rotY }; returns { x, z, hit }.
  */
 export function resolveCarPose(world, pose, { skipId = CAR_ID, bounds = null, size = CAR_SIZE } = {}) {
@@ -260,7 +263,8 @@ export function createCar({
   const size = (car.userData && car.userData.size) || CAR_SIZE;
   const seat = (car.userData && car.userData.seat) || CAR_SEAT;
   // The street, plus any lots you can drive onto (the gas station forecourt).
-  const bounds = [streetBounds(scene), ...((scene.userData && scene.userData.driveAreas) || [])];
+  const street = (scene && scene.userData && scene.userData.street) || STREET;
+  const bounds = [streetBounds(scene), ...((scene.userData && scene.userData.driveAreas) || []), ...(street.expansion?.drive || [])];
   const fuel = createFuelTank(FUEL.START);
   let warnedLow = false;
   let warnedEmpty = false;
