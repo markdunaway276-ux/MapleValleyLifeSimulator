@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { bevelBox } from '../world/shapes.js';
 import { getOptionColor, normalizeAppearance } from '../data/appearance.js';
 
 /**
@@ -22,7 +23,7 @@ const REST = { p: [0.3, -0.82, -0.22], r: [0.3, 0, 0] };
 // so they grip the basket instead of sinking into it.
 const CARRY = { p: [0.145, -0.29, -0.47], r: [0.05, 0, 1.2] };
 // Moving box (two hands, lower and wider than the basket).
-const BOX_CARRY = { p: [0.2, -0.43, -0.6], r: [0.05, 0, 1.25] };
+const BOX_CARRY = { p: [0.222, -0.43, -0.6], r: [0.05, 0, 1.25] };
 /** Where each forearm runs back to (camera space, right side; left is mirrored). */
 const SHOULDER = [0.32, -0.85, 0.02];
 const SLEEVE_LENGTH = 0.42;
@@ -258,16 +259,16 @@ function lerpPose(a, b, k) {
 function buildArm(sleeveMat, skinMat, side) {
   const arm = new THREE.Group();
   arm.name = 'fp-arm-' + side;
-  // Hand: palm block plus a thumb; the forearm runs back and down toward the shoulder.
-  const hand = new THREE.Mesh(new THREE.BoxGeometry(0.075, 0.03, 0.095), skinMat);
-  const thumb = new THREE.Mesh(new THREE.BoxGeometry(0.022, 0.022, 0.05), skinMat);
+  // Rounded palms, thumbs and cuffs share the existing pose rig.
+  const hand = new THREE.Mesh(bevelBox(0.075, 0.03, 0.095, { radius: 0.012, segments: 2 }), skinMat);
+  const thumb = new THREE.Mesh(bevelBox(0.022, 0.022, 0.05, { radius: 0.009, segments: 2 }), skinMat);
   thumb.position.set(side === 'R' ? -0.045 : 0.045, 0.004, -0.008);
-  const wrist = new THREE.Mesh(new THREE.BoxGeometry(0.055, 0.05, 0.06), skinMat);
+  const wrist = new THREE.Mesh(bevelBox(0.055, 0.05, 0.06, { radius: 0.01, segments: 2 }), skinMat);
   wrist.position.set(0, -0.004, 0.07);
   // The sleeve is not rigid with the hand: each frame it is laid from the wrist
   // back toward the shoulder (see layForearm), so a raised or tilted hand never
   // swings the forearm up through the camera.
-  const sleeve = new THREE.Mesh(new THREE.BoxGeometry(0.075, 0.075, SLEEVE_LENGTH), sleeveMat);
+  const sleeve = new THREE.Mesh(bevelBox(0.075, 0.075, SLEEVE_LENGTH, { radius: 0.018, segments: 2 }), sleeveMat);
   sleeve.name = 'fp-sleeve-' + side;
   for (const m of [hand, thumb, wrist, sleeve]) { m.castShadow = false; m.receiveShadow = false; m.frustumCulled = false; }
   arm.add(hand, thumb, wrist);

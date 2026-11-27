@@ -2,7 +2,8 @@ import { buildApproachRoad, replaceTownTrees } from './scenery.js';
 import * as THREE from 'three';
 import { generateHouse, getHouseColliders, getHouseBounds } from './buildings.js';
 import { scatterTrees, TREE_PLACEMENTS } from './trees.js';
-import { CAR_SPAWN, createParkedCar } from './props.js';
+import { CAR_SPAWN } from './props.js';
+import { createPlayerPickup } from './pickup.js';
 import { createMailbox, MAILBOX_SPAWN, mailboxCollider } from './pickups.js';
 import { createVendingMachine, VENDING_SPAWN, vendingCollider } from './vending.js';
 import { createColliderWorld } from '../systems/collision.js';
@@ -417,7 +418,7 @@ export function createScene(quality) {
 
   // Parked car on the north side of the road, east of spawn, clear of the
   // Kenney walking path (x=0) and of the neighbour lots / door approaches.
-  const car = createParkedCar({ shadows: quality.shadows });
+  const car = createPlayerPickup({ shadows: quality.shadows });
   car.position.set(CAR_SPAWN.x, 0, CAR_SPAWN.z);
   scene.add(car);
   colliders.addHouse({

@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { pushOutOBB, syncBoxCollider, PLAYER_RADIUS } from './collision.js';
 import { STREET, SURFACE_Y, surfaceHeightAt } from '../world/street.js';
-import { CAR_SEAT, CAR_SIZE, CAR_SPAWN } from '../world/props.js';
+import { CAR_SEAT, CAR_SIZE, CAR_SPAWN, poseCarWheels } from '../world/props.js';
 import { carBoundsClamp } from './carBounds.js';
 import { createFuelTank, FUEL } from './fuel.js';
 
@@ -28,7 +28,7 @@ export const CAR_PHYSICS = {
   REV_ACCEL: 3,
   BRAKE: 9,
   COAST: 2,           // decel with no throttle
-  WHEELBASE: 2.4,
+  WHEELBASE: 3.014,
   MAX_STEER: 0.62,    // rad at standstill; eases off with speed
   STEER_EASE: 0.55,   // fraction of MAX_STEER lost at top speed
   STEER_RATE: 4,      // rad/s the wheel angle follows the input
@@ -174,7 +174,7 @@ export function resolveCarPose(world, pose, { skipId = CAR_ID, bounds = null, si
  * One physics step. `state` is { x, z, rotY, speed, steer } and is mutated.
  * `world` is the collider world (optional). Returns { hit }.
  */
-export function stepCar(state, input, dt, { world = null, bounds = null, braking = false } = {}) {
+export function stepCar(state, input, dt, { world = null, bounds = null, size = CAR_SIZE, braking = false } = {}) {
   const P = CAR_PHYSICS;
   const t = clamp(input.throttle || 0, -1, 1);
   const s = clamp(input.steer || 0, -1, 1);
@@ -221,7 +221,7 @@ export function stepCar(state, input, dt, { world = null, bounds = null, braking
     const nx = state.x + fx * v * sub;
     const nz = state.z + fz * v * sub;
     if (world || bounds) {
-      const r = resolveCarPose(world, { x: nx, z: nz, rotY: state.rotY }, { bounds });
+      const r = resolveCarPose(world, { x: nx, z: nz, rotY: state.rotY }, { bounds, size });
       if (r.hit) {
         hit = true;
         const along = ((r.x - state.x) * fx + (r.z - state.z) * fz) / sub;
@@ -283,6 +283,7 @@ export function createCar({
   let lookPitch = 0;
   let lookIdle = 0;
   let hitFlash = 0;
+  let wheelTravel = 0;
   const lastSeat = { x: 0, z: 0 };
   const euler = new THREE.Euler(0, 0, 0, 'YXZ');
   const colliderOf = () => (world && world.colliders ? world.colliders.find((c) => c.id === CAR_ID) : null);
@@ -298,8 +299,7 @@ export function createCar({
   function syncMesh() {
     car.position.set(state.x, 0, state.z);
     car.rotation.y = state.rotY;
-    const wheels = car.userData && car.userData.frontWheels;
-    if (wheels) for (let i = 0; i < wheels.length; i++) wheels[i].rotation.y = -state.steer;
+    poseCarWheels(car, state.steer, wheelTravel);
     const shadow = car.userData && car.userData.contactShadow;
     if (shadow) shadow.position.y = Math.max(SURFACE_Y.road, surfaceHeightAt(state.x, state.z));
     syncCollider();
@@ -311,6 +311,7 @@ export function createCar({
     state.rotY = wrapAngle(p.rotY || 0);
     state.speed = 0;
     state.steer = 0;
+    wheelTravel = 0;
     syncMesh();
   }
 
@@ -454,9 +455,9 @@ export function createCar({
   }
 
   car.userData.getPrompt = (mobile) => {
-    if (driving) return mobile ? 'Exit car' : 'Press E to exit car';
+    if (driving) return mobile ? 'Exit pickup' : 'Press E to exit pickup';
     const empty = fuel.isEmpty() ? ' (out of gas)' : '';
-    return (mobile ? 'Tap to enter car' : 'Press E to enter car') + empty;
+    return (mobile ? 'Tap to enter pickup' : 'Press E to enter pickup') + empty;
   };
   car.userData.interact = () => (driving ? !!exit() : enter());
 
@@ -487,7 +488,8 @@ export function createCar({
     if (fuel.isEmpty()) input.throttle = 0;
     const fromX = state.x;
     const fromZ = state.z;
-    const r = stepCar(state, input, dt, { world, bounds, braking: blocked });
+    const r = stepCar(state, input, dt, { world, bounds, size, braking: blocked });
+    wheelTravel += state.speed * dt;
     if (input.throttle) engineOn = true;
     if (engineOn && !isFuelFree() && !fuel.isEmpty()) {
       fuel.burn(Math.hypot(state.x - fromX, state.z - fromZ), dt);

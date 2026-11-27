@@ -66,6 +66,7 @@ export function createCarInterior(car) {
   // A separate soft-touch top gives the dash a quiet grain in side light.
   const dash = new Parts(false);
   dash.bevelMax = 0.07;
+  dash.bevelSegments = 2;
   dash.box(DASH,0.32,0.16,1.59,0.70,1.18,0,0,0,-0.08);
   const grain = document.createElement('canvas');
   grain.width = grain.height = 64;
@@ -87,7 +88,9 @@ export function createCarInterior(car) {
   })));
   box(FABRIC,0.23,0.13,1.55,0.69,1.06,0);
   box(TRIM,0.018,0.017,1.5,0.525,1.13,0);
+  shape.bevelSegments = 2;
   box(BLACK,0.15,0.12,0.49,0.59,1.31,-0.42);
+  shape.bevelSegments = 1;
   box(BLACK,0.12,0.25,0.39,0.56,1.055,0.08,0,0,-0.12);
   for(const z of [-0.72,-0.06,0.21,0.72]) {
     box(BLACK,0.025,0.064,0.17,0.523,1.199,z);
@@ -106,14 +109,19 @@ export function createCarInterior(car) {
   }
   box(DASH,0.155,0.015,0.105,-0.02,0.987,0.178);
 
+  shape.bevelSegments = 2;
   for(const z of [-0.43,0.46]) {
     box(FABRIC,0.61,0.15,0.43,-0.36,0.87,z);
     box(0x656c6d,0.50,0.025,0.29,-0.34,0.954,z);
     box(FABRIC,0.16,0.49,0.44,-0.67,1.10,z,0,0,0.13);
     box(0x656c6d,0.035,0.37,0.29,-0.57,1.09,z,0,0,0.13);
     box(BLACK,0.15,0.15,0.24,-0.71,1.41,z);
-    for(const edge of [-1,1]) box(TRIM,0.42,0.005,0.006,-0.34,0.971,z+edge*0.142);
+    for(const edge of [-1,1]) {
+      box(FABRIC,0.50,0.072,0.085,-0.35,0.959,z+edge*0.172,edge*0.17);
+      box(TRIM,0.42,0.005,0.006,-0.34,0.971,z+edge*0.132);
+    }
   }
+  shape.bevelSegments = 1;
   box(FABRIC,0.48,0.19,1.39,-1.03,0.89,0);
   box(BLACK,0.035,0.58,0.04,-0.52,1.15,-0.64,0.3,0,0.34);
   for(const side of [-1,1]) {
@@ -149,6 +157,7 @@ export function createCarInterior(car) {
 
   const wheel = new THREE.Group();
   wheel.position.set(WHEEL.x,WHEEL.y,WHEEL.z);
+  wheel.rotation.order = 'YXZ';
   wheel.rotation.y = -Math.PI / 2;
   const rubber = new THREE.MeshStandardMaterial({color:BLACK,roughness:0.88});
   wheel.add(new THREE.Mesh(new THREE.TorusGeometry(0.181,0.022,10,40),rubber));
@@ -158,7 +167,7 @@ export function createCarInterior(car) {
   wheel.add(new THREE.Mesh(spokes.merge(),new THREE.MeshStandardMaterial({vertexColors:true,roughness:0.76})));
   const grips = [-1,1].map(side => {
     const grip = new THREE.Object3D();
-    grip.position.set(side*0.18,0,0.018);
+    grip.position.set(side*0.169,0.065,0.034);
     wheel.add(grip);
     return grip;
   });
@@ -201,9 +210,22 @@ export function createCarInterior(car) {
     lines.forEach((line,i)=>ctx.fillText(line,8,24+i*21,canvas.width-16));
     map.needsUpdate = true;
   }
+  // The pickup's steering wheel is baked into the imported cabin.
+  const pickupGrips = [-1, 1].map(side => {
+    const grip = new THREE.Object3D();
+    grip.position.set(0.813, 1.267, -0.337 + side * 0.137);
+    grip.rotation.y = -Math.PI / 2;
+    car.add(grip);
+    return grip;
+  });
   return {
-    grips,
+    get grips() { return car.userData.pickupGlass ? pickupGrips : grips; },
     update({ visible, speed=0, steer=0, fuel=1, opening=false, boxes=false, notice=false, clock='', shade=1 }) {
+      if (car.userData.pickupGlass) {
+        cabin.visible = false;
+        for (const material of car.userData.pickupGlass) material.opacity = visible ? 0.09 : 0.2883;
+        return;
+      }
       if (cabin.visible !== visible) {
         cabin.visible = visible;
         for(const mesh of exterior) mesh.visible = !visible;
@@ -221,7 +243,7 @@ export function createCarInterior(car) {
       const label = opening ? 'radio' : clock;
       if (lastScreen !== label) {
         lastScreen = label;
-        display(screen,opening ? ['WMPL 98.1 · Maple Lane Radio','Morning Miles'] : ['MAPLE LANE',clock,'Local route']);
+        display(screen,opening ? ['WMPL 98.1 · Maple Lane Radio','Carefree'] : ['MAPLE LANE',clock,'Local route']);
       }
       if (lastPhone !== notice) {
         lastPhone = notice;
