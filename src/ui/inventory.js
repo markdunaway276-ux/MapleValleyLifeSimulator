@@ -7,6 +7,7 @@
  * when the panel is closed and reopened.
  */
 import { createItem, formatItemCount, ITEM_DEFS } from '../data/items.js';
+import { requestPointerLock, exitPointerLock } from '../core/pointerLock.js';
 
 const STYLE_ID = 'inventory-styles';
 const HINT = 'Tap an item to see details';
@@ -17,7 +18,7 @@ const CSS = `
   position: absolute;
   top: 12px;
   right: 12px;
-  z-index: 45;
+  z-index: 36;
   padding: 8px 14px;
   font: 600 14px system-ui, sans-serif;
   color: #fff;
@@ -28,7 +29,7 @@ const CSS = `
   touch-action: manipulation;
   pointer-events: auto;
 }
-body.mobile #inventory-toggle { display: block; }
+body.mobile #inventory-toggle.is-visible { display: block; }
 #inventory-toggle:hover, #inventory-toggle:focus {
   background: rgba(0, 0, 0, 0.85);
   outline: none;
@@ -38,7 +39,7 @@ body.mobile #inventory-toggle { display: block; }
   display: none;
   position: fixed;
   inset: 0;
-  z-index: 40;
+  z-index: 45;
   align-items: center;
   justify-content: center;
   background: rgba(0, 0, 0, 0.55);
@@ -304,6 +305,7 @@ export function createInventory({
   container = document.body,
   canvas = null,
   isStarted = null,
+  isBlocked = null,
   items: initialItems = null,
   onSelect = null,
   onUse = null
@@ -375,6 +377,10 @@ export function createInventory({
 
   function started() {
     return typeof isStarted === 'function' ? !!isStarted() : true;
+  }
+
+  function blocked() {
+    return typeof isBlocked === 'function' && !!isBlocked();
   }
 
   function renderDetail() {
@@ -474,11 +480,11 @@ export function createInventory({
   }
 
   function open() {
-    if (opened) return;
+    if (opened || !started() || blocked()) return;
     opened = true;
     overlay.classList.add('is-open');
     overlay.setAttribute('aria-hidden', 'false');
-    if (typeof document.exitPointerLock === 'function') document.exitPointerLock();
+    exitPointerLock();
     window.dispatchEvent(new Event('inventory-open'));
   }
 
@@ -488,8 +494,8 @@ export function createInventory({
     overlay.classList.remove('is-open');
     overlay.setAttribute('aria-hidden', 'true');
     window.dispatchEvent(new Event('inventory-close'));
-    if (!isMobile() && started() && canvas && typeof canvas.requestPointerLock === 'function') {
-      canvas.requestPointerLock();
+    if (!isMobile() && started() && !blocked()) {
+      requestPointerLock(canvas);
     }
   }
 
@@ -635,6 +641,7 @@ export function createInventory({
     if (e.ctrlKey || e.metaKey || e.altKey) return;
     if (e.target && e.target.closest && e.target.closest('input, textarea, [contenteditable]')) return;
     if (e.code === 'KeyI') {
+      if (!opened && (!started() || blocked())) return;
       e.preventDefault();
       if (e.repeat) return;
       toggle();
@@ -644,11 +651,16 @@ export function createInventory({
     }
   });
 
+  function setHudVisible(v) {
+    toggleBtn.classList.toggle('is-visible', !!v);
+  }
+
   return {
     open,
     close,
     toggle,
     isOpen,
+    setHudVisible,
     setItem,
     getItems,
     addItem,
@@ -658,6 +670,7 @@ export function createInventory({
     loadItems,
     selectSlot,
     getSelected,
+    button: toggleBtn,
     element: overlay
   };
 }

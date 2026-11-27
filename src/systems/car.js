@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { pushOutOBB, syncBoxCollider, PLAYER_RADIUS } from './collision.js';
-import { STREET } from '../world/street.js';
+import { STREET, SURFACE_Y, surfaceHeightAt } from '../world/street.js';
 import { CAR_SEAT, CAR_SIZE, CAR_SPAWN } from '../world/props.js';
 import { carBoundsClamp } from './carBounds.js';
 import { createFuelTank, FUEL } from './fuel.js';
@@ -295,6 +295,8 @@ export function createCar({
     car.rotation.y = state.rotY;
     const wheels = car.userData && car.userData.frontWheels;
     if (wheels) for (let i = 0; i < wheels.length; i++) wheels[i].rotation.y = -state.steer;
+    const shadow = car.userData && car.userData.contactShadow;
+    if (shadow) shadow.position.y = Math.max(SURFACE_Y.road, surfaceHeightAt(state.x, state.z));
     syncCollider();
   }
 
@@ -502,8 +504,9 @@ export function createCar({
     player.mouseX = 0;
     player.mouseY = 0;
     if (!blocked && (mx || my)) {
-      lookYaw = clamp(lookYaw - mx * CAR_LOOK.SENS, -CAR_LOOK.YAW, CAR_LOOK.YAW);
-      lookPitch = clamp(lookPitch - my * CAR_LOOK.SENS, -CAR_LOOK.PITCH, CAR_LOOK.PITCH);
+      const look = CAR_LOOK.SENS * (player.lookSensitivity || 1);
+      lookYaw = clamp(lookYaw - mx * look, -CAR_LOOK.YAW, CAR_LOOK.YAW);
+      lookPitch = clamp(lookPitch - my * look * (player.invertY ? -1 : 1), -CAR_LOOK.PITCH, CAR_LOOK.PITCH);
       lookIdle = 0;
     } else {
       lookIdle += dt;

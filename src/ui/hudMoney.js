@@ -51,7 +51,7 @@ const CSS = `
 }
 #game-toast {
   position: fixed; left: 50%; top: 42%; transform: translate(-50%, -50%);
-  z-index: 70; max-width: 90vw; padding: 10px 18px; border-radius: 10px;
+  z-index: 85; max-width: 90vw; padding: 10px 18px; border-radius: 10px;
   font: 600 16px system-ui, sans-serif; color: #fff;
   background: rgba(0, 0, 0, 0.8); border: 1px solid rgba(255,255,255,0.3);
   pointer-events: none; opacity: 0; transition: opacity 0.2s ease;

@@ -70,7 +70,7 @@ export function textureHouseExterior(model, quality) {
   });
 }
 
-export function buildFrontYard(door, quality) {
+export function buildFrontYard(door, quality, lightPool = null) {
   const group = new THREE.Group();
   group.name = 'main-house-front-yard';
   const sidewalk = STREET.roadCenterZ - STREET.roadWidth / 2 - STREET.sidewalkWidth;
@@ -133,9 +133,17 @@ export function buildFrontYard(door, quality) {
   glass.position.set(lampX, lampY, lampZ + 0.08);
   group.add(glass);
 
-  const porchLight = new THREE.PointLight(0xffba78, 0, 4.3);
-  porchLight.position.set(lampX + 0.27, lampY - 0.13, lampZ + 0.48);
-  group.add(porchLight);
+  let porchLight;
+  if (lightPool) {
+    porchLight = lightPool.addPoint({
+      x: lampX + 0.27, y: lampY - 0.13, z: lampZ + 0.48,
+      color: 0xffba78, intensity: 0, distance: 4.3, decay: 2
+    });
+  } else {
+    porchLight = new THREE.PointLight(0xffba78, 0, 4.3);
+    porchLight.position.set(lampX + 0.27, lampY - 0.13, lampZ + 0.48);
+    group.add(porchLight);
+  }
 
   return {
     group,

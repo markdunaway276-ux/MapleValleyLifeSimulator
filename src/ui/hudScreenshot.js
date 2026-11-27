@@ -12,7 +12,7 @@ const STYLE_ID = 'hud-screenshot-styles';
 const CSS = `
 #hud-screenshot {
   position: absolute;
-  z-index: 45;
+  z-index: 36;
   display: none;
   box-sizing: border-box;
   top: max(12px, env(safe-area-inset-top));

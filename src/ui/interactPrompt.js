@@ -7,7 +7,9 @@
  * visibility or label actually changes.
  */
 
-export const INTERACT_RANGE = 3;
+import { INTERACT_RANGE } from '../systems/interactables.js';
+
+export { INTERACT_RANGE };
 
 const STYLE_ID = 'interact-prompt-styles';
 

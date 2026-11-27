@@ -31,7 +31,7 @@ export function setupInteract(g) {
   });
 
   window.addEventListener('interact', () => {
-    if (mode.busy()) return;
+    if (!mode.canAct() || mode.menuOpen()) return;
     const target = currentTarget();
     if (!target) return;
     const ud = target.userData || {};

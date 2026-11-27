@@ -12,7 +12,7 @@
  */
 
 import * as THREE from 'three';
-import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { loadGltf } from './gltf.js';
 import * as SkeletonUtils from 'three/addons/utils/SkeletonUtils.js';
 import { mixamoToClip } from './mixamoRetarget.js';
 
@@ -45,7 +45,6 @@ export const BODY_ZONES = Object.freeze({
 });
 
 const cache = new Map();
-let loader = null;
 
 function loadJson(file) {
   if (!cache.has(file)) {
@@ -56,10 +55,7 @@ function loadJson(file) {
 
 function load(file) {
   if (!cache.has(file)) {
-    if (!loader) loader = new GLTFLoader();
-    cache.set(file, new Promise((resolve, reject) => {
-      loader.load(CHARACTER_BASE + file, resolve, undefined, reject);
-    }));
+    cache.set(file, loadGltf(CHARACTER_BASE + file));
   }
   return cache.get(file);
 }

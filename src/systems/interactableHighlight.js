@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { doorInteractPoint } from './doors.js';
-import { INTERACT_RANGE } from '../ui/interactPrompt.js';
+import { INTERACT_RANGE } from './interactables.js';
 
 /**
  * Optional interactable highlighter. When enabled, every door (and any extra

@@ -210,14 +210,19 @@ export function buildCornerShop(scene, quality) {
     shop.add(window);
   }
   const lights = [];
+  const pool = data && data.lightPool;
   const fittings = new Parts(true);
   const fixtureMaterial = new THREE.MeshBasicMaterial({ vertexColors: true });
   for (const z of [2.5, 7.4, 11.1, 14.2]) {
     fittings.box(0xeae7d3, 11.8, 0.038, 0.18, 0, 3.86, z);
-    const lamp = new THREE.PointLight(0xffe7c4, 20, 10, 2);
-    lamp.position.set(0, 3.48, z);
-    lights.push(lamp);
-    shop.add(lamp);
+    if (pool) {
+      lights.push(pool.addPoint({ x: SHOP_X, y: 3.48, z: FRONT_Z + z, color: 0xffe7c4, intensity: 20, distance: 10, decay: 2 }));
+    } else {
+      const lamp = new THREE.PointLight(0xffe7c4, 20, 10, 2);
+      lamp.position.set(0, 3.48, z);
+      lights.push(lamp);
+      shop.add(lamp);
+    }
   }
   shop.add(new THREE.Mesh(fittings.merge(), fixtureMaterial));
   shop.add(createContactShadows([

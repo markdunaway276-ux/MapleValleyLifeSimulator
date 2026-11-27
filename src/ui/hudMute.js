@@ -11,7 +11,7 @@ const STYLE_ID = 'hud-mute-styles';
 const CSS = `
 #hud-mute {
   position: absolute;
-  z-index: 45;
+  z-index: 36;
   display: none;
   box-sizing: border-box;
   top: calc(max(12px, env(safe-area-inset-top)) + 52px);

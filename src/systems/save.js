@@ -49,7 +49,9 @@ export function readSlot(slot) {
 
 export function clearSlot(slot) {
   const ls = storage();
-  try { if (!ls) return false; ls.removeItem(keyForSlot(slot)); return true; } catch { return false; }
+  const key = keyForSlot(slot);
+  invalidateCache(key);
+  try { if (!ls) return false; ls.removeItem(key); return true; } catch { return false; }
 }
 
 // Set while the page is about to reload into another slot, so a late autosave
@@ -65,6 +67,27 @@ export function getGameSlot() {
 }
 
 function currentKey() { return keyForSlot(getGameSlot()); }
+
+// In-memory cache of the active slot's last known parsed save, validated against
+// the stored raw string so repeated saveGame() calls skip redundant JSON.parse()
+// while still noticing external localStorage changes (another tab or tests).
+let cachedKey = null;
+let cachedRaw = null;
+let cachedData = null;
+
+function invalidateCache(key = null) {
+  if (key === null || key === cachedKey) {
+    cachedKey = null;
+    cachedRaw = null;
+    cachedData = null;
+  }
+}
+
+function storeCache(key, raw, data) {
+  cachedKey = key;
+  cachedRaw = raw;
+  cachedData = data;
+}
 
 /**
  * Bump this whenever the save's shape changes, and add a matching step to
@@ -120,18 +143,15 @@ function storage() {
   }
 }
 
-function readRaw() {
-  const ls = storage();
-  if (!ls) return {};
-  const raw = ls.getItem(currentKey());
+function parseRaw(ls, key, raw) {
   if (!raw) return {};
   let data;
   try {
     data = JSON.parse(raw);
   } catch (e) {
     // Keep the unreadable save so it is not lost when the next autosave overwrites it.
-    console.warn('Save could not be read; kept a copy under ' + currentKey() + '_corrupt', e);
-    try { ls.setItem(currentKey() + '_corrupt', raw); } catch { /* storage full: nothing more to do */ }
+    console.warn('Save could not be read; kept a copy under ' + key + '_corrupt', e);
+    try { ls.setItem(key + '_corrupt', raw); } catch { /* storage full: nothing more to do */ }
     return {};
   }
   if (!data || typeof data !== 'object' || Array.isArray(data)) return {};
@@ -166,22 +186,40 @@ export function migrateSave(data) {
 
 export function loadSave() {
   const ls = storage();
+  const key = currentKey();
   try {
-    const data = readRaw();
-    if (!Object.keys(data).length) return {};
+    const raw = ls ? ls.getItem(key) : null;
+    if (!raw) {
+      storeCache(key, null, {});
+      return {};
+    }
+    if (cachedKey === key && raw === cachedRaw && cachedData) {
+      return cachedData;
+    }
+    const data = parseRaw(ls, key, raw);
+    if (!Object.keys(data).length) {
+      invalidateCache(key);
+      return {};
+    }
     const version = saveVersion(data);
     if (version > SAVE_VERSION) {
       console.warn('Save is from a newer version of the game (' + version + ' > ' + SAVE_VERSION + ')');
+      storeCache(key, raw, data);
       return data;
     }
-    if (version === SAVE_VERSION) return data;
+    if (version === SAVE_VERSION) {
+      storeCache(key, raw, data);
+      return data;
+    }
     const result = migrateSave(data);
     if (result.ok && ls) {
       // Keep the pre-upgrade save once, then store the upgraded one so this runs only once.
-      const backupKey = currentKey() + '_backup_v' + version;
+      const backupKey = key + '_backup_v' + version;
+      const upgradedRaw = JSON.stringify(result.data);
       try {
         if (!ls.getItem(backupKey)) ls.setItem(backupKey, JSON.stringify(data));
-        ls.setItem(currentKey(), JSON.stringify(result.data));
+        ls.setItem(key, upgradedRaw);
+        storeCache(key, upgradedRaw, result.data);
       } catch (e) {
         console.warn('Could not store the upgraded save', e);
       }
@@ -195,10 +233,13 @@ export function loadSave() {
 export function saveGame(data) {
   if (frozen) return null;
   try {
+    const key = currentKey();
     const prev = loadSave();
     // Never stamp a lower version over a save written by a newer build.
     const next = { ...prev, ...(data || {}), version: Math.max(SAVE_VERSION, saveVersion(prev)) };
-    localStorage.setItem(currentKey(), JSON.stringify(next));
+    const serialized = JSON.stringify(next);
+    localStorage.setItem(key, serialized);
+    storeCache(key, serialized, next);
     if (typeof window !== 'undefined' && typeof window.dispatchEvent === 'function') {
       window.dispatchEvent(new CustomEvent('maple-saved', { detail: next }));
     }
@@ -211,7 +252,9 @@ export function saveGame(data) {
 
 export function clearSave() {
   try {
-    localStorage.removeItem(currentKey());
+    const key = currentKey();
+    invalidateCache(key);
+    localStorage.removeItem(key);
     return true;
   } catch (e) {
     console.warn('Clear save failed', e);

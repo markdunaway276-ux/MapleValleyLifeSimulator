@@ -106,7 +106,7 @@ export function createPresentation({ camera, scene, mode, playerBody, actionRig 
   const style = document.createElement('style');
   style.textContent = `
 #hud-camera-view {
-  position: absolute; z-index: 45; right: max(12px, env(safe-area-inset-right));
+  position: absolute; z-index: 36; right: max(12px, env(safe-area-inset-right));
   top: calc(max(12px, env(safe-area-inset-top)) + 208px);
   width: 44px; height: 44px; border-radius: 8px; color: #fff;
   background: rgba(0, 0, 0, 0.65); border: 1px solid rgba(255, 255, 255, 0.35);
@@ -177,8 +177,11 @@ export function createPresentation({ camera, scene, mode, playerBody, actionRig 
     switchView();
   });
 
+  function setHudVisible(show) {
+    toggle.hidden = !(show && canUseThird());
+  }
+
   function update(delta, moved, minutes) {
-    toggle.hidden = !mode.started() || mode.uiBlocked() || !canUseThird();
     const open = mode.menu('phone');
     const target = open ? 1 : 0;
     const closing = !open && focus > 0;
@@ -321,5 +324,5 @@ export function createPresentation({ camera, scene, mode, playerBody, actionRig 
     }
   }
 
-  return { update, draw, capture };
+  return { update, draw, capture, setHudVisible };
 }

@@ -7,6 +7,7 @@ import { createPhotoLibrary } from './photos.js';
  * they do under the bag or Debug menu.
  */
 import { PHONE_APPS, INSTALLED_APPS, CALENDAR_APP, SKILLS_APP, getPhoneApp } from './apps.js';
+import { requestPointerLock, exitPointerLock } from '../../core/pointerLock.js';
 
 const MESSAGE_ALERT_MS = 6500;
 const PHONE_PREFS_KEY = 'mapleValleyLife_phonePrefs';
@@ -31,7 +32,7 @@ export const PHONE_KEY = 'KeyP';
 const CSS = `
 #hud-phone {
   position: absolute;
-  z-index: 45;
+  z-index: 36;
   display: none;
   box-sizing: border-box;
   top: calc(max(12px, env(safe-area-inset-top)) + 104px);
@@ -59,7 +60,7 @@ body.mobile #hud-phone {
 }
 
 #hud-phone-alert {
-  position: fixed; z-index: 46; left: 50%; transform: translateX(-50%);
+  position: fixed; z-index: 38; left: 50%; transform: translateX(-50%);
   top: calc(max(12px, env(safe-area-inset-top)) + 34px);
   width: min(58vw, 310px); min-height: 48px; padding: 7px 10px;
   border-radius: 13px; border: 1px solid #769aab; background: #202e3af5;
@@ -783,9 +784,7 @@ export function createPhone({
     updateStatus();
     overlay.classList.add('is-open');
     overlay.setAttribute('aria-hidden', 'false');
-    if (typeof document !== 'undefined' && typeof document.exitPointerLock === 'function') {
-      document.exitPointerLock();
-    }
+    exitPointerLock();
     window.dispatchEvent(new Event('phone-open'));
   }
 
@@ -797,8 +796,8 @@ export function createPhone({
     overlay.classList.remove('is-open', 'is-focused');
     overlay.setAttribute('aria-hidden', 'true');
     window.dispatchEvent(new Event('phone-close'));
-    if (!mobile() && started() && !blocked() && canvas && typeof canvas.requestPointerLock === 'function') {
-      canvas.requestPointerLock();
+    if (!mobile() && started() && !blocked()) {
+      requestPointerLock(canvas);
     }
   }
 

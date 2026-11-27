@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { loadGltf } from './gltf.js';
 import { createHingedDoor } from '../systems/doors.js';
 import { getShop } from '../data/shops.js';
 import { getJob } from '../data/jobs.js';
@@ -220,23 +220,39 @@ export function buildGasStation(scene, quality) {
   spot('gas-register', -2.92, 1.25, 20.6, shift.verb + ' ($' + shift.pay + ')', (ctx) => ctx.work?.(shift.id) ?? false, 'press', 1.7);
 
   // Night lighting: canopy downlights and a store light.
+  const lightPool = data && data.lightPool;
   const canopyLights = [];
   for (const z of [3.6, 9.6]) {
-    const light = new THREE.SpotLight(0xfff3dc, 0, 13, Math.PI / 3.2, 0.7, 1.6);
-    light.position.set(-0.8, 6.3, z);
-    light.target.position.set(-0.8, 0, z);
-    station.add(light, light.target);
-    canopyLights.push(light);
+    if (lightPool) {
+      canopyLights.push(lightPool.addSpot({
+        x: X - 0.8, y: 6.3, z: FRONT + z,
+        tx: X - 0.8, ty: 0, tz: FRONT + z,
+        color: 0xfff3dc, intensity: 0, distance: 13, angle: Math.PI / 3.2, penumbra: 0.7, decay: 1.6
+      }));
+    } else {
+      const light = new THREE.SpotLight(0xfff3dc, 0, 13, Math.PI / 3.2, 0.7, 1.6);
+      light.position.set(-0.8, 6.3, z);
+      light.target.position.set(-0.8, 0, z);
+      station.add(light, light.target);
+      canopyLights.push(light);
+    }
   }
-  const storeLight = new THREE.PointLight(0xfff1dc, 20, 14, 2);
-  storeLight.position.set(0.5, 3.5, 23);
-  station.add(storeLight);
+  let storeLight;
+  if (lightPool) {
+    storeLight = lightPool.addPoint({ x: X + 0.5, y: 3.5, z: FRONT + 23, color: 0xfff1dc, intensity: 20, distance: 14, decay: 2 });
+  } else {
+    storeLight = new THREE.PointLight(0xfff1dc, 20, 14, 2);
+    storeLight.position.set(0.5, 3.5, 23);
+    station.add(storeLight);
+  }
 
   const glowing = [];
   const panes = [];
+  let lastMinutes = 600;
   station.userData.updateLighting = (minutes) => {
-    const dusk = THREE.MathUtils.smoothstep(minutes, 1080, 1200);
-    const dawn = 1 - THREE.MathUtils.smoothstep(minutes, 330, 450);
+    if (Number.isFinite(minutes)) lastMinutes = minutes;
+    const dusk = THREE.MathUtils.smoothstep(lastMinutes, 1080, 1200);
+    const dawn = 1 - THREE.MathUtils.smoothstep(lastMinutes, 330, 450);
     const night = Math.max(dusk, dawn);
     for (const light of canopyLights) light.intensity = night * 150;
     storeLight.intensity = 20 + night * 12;
@@ -258,7 +274,7 @@ export function buildGasStation(scene, quality) {
   // Rain stays off the pumps under the canopy too.
   data.indoorZones.push({ id: 'gas-canopy', minX: X - 8.4, maxX: X + 7.2, minZ: FRONT, maxZ: FRONT + 13.4 });
 
-  new GLTFLoader().load(URL, ({ scene: model }) => {
+  loadGltf(URL, ({ scene: model }) => {
     model.rotation.y = Math.PI;
     model.traverse((mesh) => {
       if (!mesh.isMesh) return;
@@ -286,6 +302,6 @@ export function buildGasStation(scene, quality) {
       }
     });
     station.add(model);
-    station.userData.updateLighting(data.lastMinutes ?? 600);
-  }, undefined, (error) => console.warn('Gas station failed to load', error));
+    station.userData.updateLighting(lastMinutes);
+  }, (error) => console.warn('Gas station failed to load', error));
 }
