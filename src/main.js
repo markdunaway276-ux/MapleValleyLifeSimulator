@@ -447,6 +447,7 @@ document.getElementById('start').onclick = () => {
   prompt.update();
   debug.refresh();
   g.hud.sync();
+  window.dispatchEvent(new Event('game-start'));
 };
 
 // Desktop mouse look needs pointer lock. Esc, switching windows or a refused request
@@ -465,11 +466,18 @@ if (!isMobile) {
   });
   document.body.appendChild(hint);
   const canLook = () => mode.started() && !mode.uiBlocked() && !inventory.isOpen();
+  const syncHint = () => {
+    const show = canLook() && document.pointerLockElement !== canvas;
+    hint.textContent = cursorFree ? 'Mouse free — press Tab or click the game to look around' : 'Click to look around';
+    hint.style.display = show ? 'block' : 'none';
+    hint.style.top = cursorFree ? 'auto' : '58%';
+    hint.style.bottom = cursorFree ? '90px' : 'auto';
+  };
   const relock = () => {
     if (document.pointerLockElement === canvas || !canLook()) return;
     requestPointerLock(canvas);
   };
-  canvas.addEventListener('click', () => { cursorFree = false; relock(); });
+  canvas.addEventListener('click', () => { cursorFree = false; relock(); syncHint(); });
   window.addEventListener('keydown', (e) => {
     if (e.code !== 'Tab' || !canLook()) return;
     e.preventDefault();
@@ -480,19 +488,25 @@ if (!isMobile) {
       cursorFree = false;
       relock();
     }
+    syncHint();
   }, true);
-  const syncHint = () => {
-    const show = canLook() && document.pointerLockElement !== canvas;
-    hint.textContent = cursorFree ? 'Mouse free — press Tab or click the game to look around' : 'Click to look around';
-    hint.style.display = show ? 'block' : 'none';
-    hint.style.top = cursorFree ? 'auto' : '58%';
-    hint.style.bottom = cursorFree ? '90px' : 'auto';
-  };
   document.addEventListener('pointerlockchange', () => {
     if (document.pointerLockElement === canvas) cursorFree = false;
     syncHint();
   });
-  setInterval(syncHint, 300);
+  document.addEventListener('pointerlockerror', syncHint);
+  for (const ev of [
+    'game-start', 'blur', 'focus',
+    'inventory-open', 'inventory-close',
+    'debug-modal-open', 'debug-modal-close',
+    'phone-open', 'phone-close',
+    'dialogue-open', 'dialogue-close',
+    'pause-open', 'pause-close',
+    'sleep-start', 'sleep-end',
+    'work-start', 'work-end'
+  ]) {
+    window.addEventListener(ev, syncHint);
+  }
 }
 
 // Device settings (look speed, invert, field of view, volumes, graphics quality).
@@ -549,6 +563,7 @@ g.title = createTitleScreen({
 });
 
 g.presentation = createPresentation({ camera, scene, mode, playerBody, actionRig: actions.rig });
+g.hud.sync();
 startLoop(g);
 
 console.log(`Maple Valley Life Simulator started — Mobile: ${isMobile}, Shadows: ${quality.shadows}, Post: ${!!view.post}`);

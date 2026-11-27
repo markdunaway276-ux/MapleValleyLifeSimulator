@@ -194,7 +194,7 @@ export function createDialogue({
     overlay.setAttribute('aria-hidden', 'false');
     overlay.setAttribute('aria-label', name);
     exitPointerLock();
-    window.dispatchEvent(new Event('dialogue-open'));
+    window.dispatchEvent(new CustomEvent('dialogue-open', { detail: { id } }));
     return true;
   }
 

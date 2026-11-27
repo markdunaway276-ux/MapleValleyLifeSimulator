@@ -51,9 +51,13 @@ export function createHud(g) {
     hudMoney.setVisible(show);
     if (show) hudMoney.update();
     hudFuel.setVisible(show && mode.driving());
-    g.phone.setVisible(show);
-    g.minimap.setHudVisible(show);
-    g.hudSave.setVisible(show);
+    g.phone?.setVisible?.(show);
+    g.minimap?.setHudVisible?.(show);
+    g.hudSave?.setVisible?.(show);
+    g.inventory?.setHudVisible?.(show);
+    g.pause?.setHudVisible?.(show);
+    g.debug?.hudButton?.setVisible?.(show);
+    g.presentation?.setHudVisible?.(show);
   }
 
   clock.on('change', (t) => hudClock.update(t, weather.get()));
@@ -65,8 +69,10 @@ export function createHud(g) {
   needs.onChange(() => hudNeeds.update());
   money.onChange(() => hudMoney.update());
   g.car?.fuel.onChange(() => hudFuel.update());
-  window.addEventListener('car-enter', () => setTimeout(sync, 0));
-  window.addEventListener('car-exit', () => setTimeout(sync, 0));
+  window.addEventListener('car-enter', sync);
+  window.addEventListener('car-exit', sync);
+  window.addEventListener('maple-sat', sync);
+  window.addEventListener('maple-stood', sync);
 
   window.addEventListener('maple-saved', syncTask);
 

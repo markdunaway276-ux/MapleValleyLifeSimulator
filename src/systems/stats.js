@@ -21,8 +21,16 @@ export function createStats({ money = null, dialogue = null } = {}) {
   }
 
   // Talking to someone counts as meeting them.
-  if (dialogue && typeof dialogue.isOpen === 'function') {
-    setInterval(() => { if (dialogue.isOpen()) meet(dialogue.currentNpc && dialogue.currentNpc()); }, 400);
+  function onDialogueOpen(e) {
+    const id = (e && e.detail && e.detail.id)
+      || (dialogue && typeof dialogue.currentNpc === 'function' ? dialogue.currentNpc() : null);
+    meet(id);
+  }
+  if (dialogue && typeof window !== 'undefined' && typeof window.addEventListener === 'function') {
+    window.addEventListener('dialogue-open', onDialogueOpen);
+    if (typeof dialogue.isOpen === 'function' && dialogue.isOpen()) {
+      meet(typeof dialogue.currentNpc === 'function' ? dialogue.currentNpc() : null);
+    }
   }
 
   function addWalk(metres) {
@@ -44,5 +52,11 @@ export function createStats({ money = null, dialogue = null } = {}) {
     return serialize();
   }
 
-  return { addWalk, meet, serialize, apply, get: serialize };
+  function dispose() {
+    if (dialogue && typeof window !== 'undefined' && typeof window.removeEventListener === 'function') {
+      window.removeEventListener('dialogue-open', onDialogueOpen);
+    }
+  }
+
+  return { addWalk, meet, serialize, apply, get: serialize, dispose };
 }

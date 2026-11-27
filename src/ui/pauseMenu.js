@@ -16,7 +16,7 @@ import { requestPointerLock, exitPointerLock } from '../core/pointerLock.js';
 const BUTTON_CSS_ID = 'pause-button-styles';
 const BUTTON_CSS = `
 #pause-button {
-  position: fixed; z-index: 40; display: none; align-items: center; justify-content: center;
+  position: fixed; z-index: 36; display: none; align-items: center; justify-content: center;
   top: calc(max(12px, env(safe-area-inset-top)) + 156px); right: max(12px, env(safe-area-inset-right));
   width: 44px; height: 44px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.25);
   background: rgba(0,0,0,0.55); color: #fff; font: 800 15px system-ui, sans-serif; letter-spacing: 1px; cursor: pointer;
@@ -273,10 +273,10 @@ export function createPauseMenu({
     });
   }
 
-  // Show the II button only with the rest of the HUD.
-  setInterval(() => {
-    pauseBtn.classList.toggle('is-visible', !opened && mode.hudVisible());
-  }, 250);
+  // Driven by hud.js (mode.hudVisible()) so the II button only shows with the rest of the HUD.
+  function setHudVisible(v) {
+    pauseBtn.classList.toggle('is-visible', !opened && !!v);
+  }
 
-  return { open, close, isOpen: () => opened, button: pauseBtn, element: root };
+  return { open, close, isOpen: () => opened, setHudVisible, button: pauseBtn, element: root };
 }

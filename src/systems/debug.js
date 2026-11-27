@@ -192,15 +192,6 @@ export function createDebug({
     container
   });
 
-  function syncHud() {
-    hudShot.setVisible(!!isStarted() && !isInventoryOpen() && !isModalOpen());
-  }
-
-  window.addEventListener('inventory-open', syncHud);
-  window.addEventListener('inventory-close', syncHud);
-  window.addEventListener('debug-modal-open', syncHud);
-  window.addEventListener('debug-modal-close', syncHud);
-
   function active() {
     return state.overlay || state.collision || state.highlight || state.perf;
   }
@@ -470,7 +461,6 @@ export function createDebug({
       lastStarted = started;
       menu.setButtonVisible(started);
     }
-    syncHud();
     if (menu.isOpen() && clock) menu.refreshTime();
     if (menu.isOpen() && needs) menu.refreshNeeds();
     if (menu.isOpen() && money) menu.refreshMoney();
@@ -493,15 +483,10 @@ export function createDebug({
   function refresh() {
     lastStarted = !!isStarted();
     menu.setButtonVisible(lastStarted);
-    syncHud();
   }
 
   function dispose() {
     window.removeEventListener('keydown', onKeyDown);
-    window.removeEventListener('inventory-open', syncHud);
-    window.removeEventListener('inventory-close', syncHud);
-    window.removeEventListener('debug-modal-open', syncHud);
-    window.removeEventListener('debug-modal-close', syncHud);
     hudShot.dispose();
     if (viz) viz.disable();
     if (highlighter) highlighter.disable();

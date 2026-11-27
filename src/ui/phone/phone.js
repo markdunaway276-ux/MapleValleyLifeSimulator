@@ -32,7 +32,7 @@ export const PHONE_KEY = 'KeyP';
 const CSS = `
 #hud-phone {
   position: absolute;
-  z-index: 45;
+  z-index: 36;
   display: none;
   box-sizing: border-box;
   top: calc(max(12px, env(safe-area-inset-top)) + 104px);
@@ -60,7 +60,7 @@ body.mobile #hud-phone {
 }
 
 #hud-phone-alert {
-  position: fixed; z-index: 46; left: 50%; transform: translateX(-50%);
+  position: fixed; z-index: 38; left: 50%; transform: translateX(-50%);
   top: calc(max(12px, env(safe-area-inset-top)) + 34px);
   width: min(58vw, 310px); min-height: 48px; padding: 7px 10px;
   border-radius: 13px; border: 1px solid #769aab; background: #202e3af5;

@@ -51,7 +51,7 @@ const STYLE_ID = 'debug-feedback-styles';
 
 const CSS = `
 #debug-feedback {
-  position: fixed; inset: 0; z-index: 70; display: none; flex-direction: column;
+  position: fixed; inset: 0; z-index: 74; display: none; flex-direction: column;
   background: #0d0d0d; color: #fff; font: 14px system-ui, sans-serif;
   touch-action: none; -webkit-user-select: none; user-select: none;
 }
