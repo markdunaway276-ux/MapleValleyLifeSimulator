@@ -13,6 +13,7 @@ import { createHingedDoor } from '../systems/doors.js';
 import { MAIN_HOUSE, PROPS } from './palette.js';
 import { buildMainHouseDetails, findGlassPanes, tintGlassPanes } from './details.js';
 import { buildFrontYard, textureHouseExterior } from './frontYard.js';
+import { useWorldGrit } from './surfaces.js';
 
 const HOUSE_URL = './assets/models/house_type02.glb'; // relative to the page, so it works under the Pages subpath
 const HOUSE_CENTER = new THREE.Vector3(0, 0, -10);    // same spot as the old box house
@@ -53,6 +54,9 @@ export function gradeMainHouse(model) {
       if (spec) {
         m.color.setHex(spec.color);
         if (spec.emissive !== undefined && m.emissive) m.emissive.setHex(spec.emissive);
+      }
+      if (m.name !== 'window' && m.roughness >= 0.45) {
+        useWorldGrit(m, { strength: 0.95, groundGrime: 0.26, bump: 0.15 });
       }
       m.needsUpdate = true;
     }

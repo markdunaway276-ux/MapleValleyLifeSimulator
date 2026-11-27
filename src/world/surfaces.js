@@ -23,11 +23,129 @@ export function useVertexRoughness(material) {
   return material;
 }
 
-/** Standard PBR material that reads per-vertex colour and roughness. */
-export function createVertexMaterial({ metalness = 0.04, emissive = null } = {}) {
+/**
+ * Injects world-space procedural grit, weathering, vertical rain streaks,
+ * ground-level splash grime, roughness variation, and subtle screen-space
+ * micro-bump into any MeshStandardMaterial. Costs zero draw calls and zero
+ * extra textures, breaking up flat low-poly/blocky surfaces across the whole
+ * town. Scales with surface roughness so glossy glass/paint stays clean.
+ */
+export function useWorldGrit(material, {
+  strength = 1.0,
+  groundGrime = 0.24,
+  bump = 0.16,
+  useVertexRough = false
+} = {}) {
+  if (!material || material.userData?.worldGrit) return material;
+  const s = Number(strength).toFixed(3);
+  const g = Number(groundGrime).toFixed(3);
+  const b = Number(bump).toFixed(3);
+  const roughExpr = useVertexRough ? '(roughness * vRough)' : 'roughness';
+  const prev = material.onBeforeCompile;
+
+  material.onBeforeCompile = (shader, renderer) => {
+    if (prev) prev(shader, renderer);
+    shader.vertexShader = shader.vertexShader
+      .replace('#include <common>', `#include <common>
+varying vec3 vGritWorldPos;
+varying vec3 vGritWorldNormal;`)
+      .replace('#include <begin_vertex>', `#include <begin_vertex>
+vec4 gritLocalPos = vec4( transformed, 1.0 );
+#ifdef USE_INSTANCING
+  gritLocalPos = instanceMatrix * gritLocalPos;
+#endif
+vGritWorldPos = ( modelMatrix * gritLocalPos ).xyz;
+mat3 gritNormMat = mat3( modelMatrix );
+#ifdef USE_INSTANCING
+  gritNormMat = gritNormMat * mat3( instanceMatrix );
+#endif
+vGritWorldNormal = normalize( gritNormMat * objectNormal );`);
+
+    const gritHelpers = `#include <common>
+varying vec3 vGritWorldPos;
+varying vec3 vGritWorldNormal;
+float gritHash(vec3 p) {
+  p = fract(p * vec3(0.1031, 0.1030, 0.0973));
+  p += dot(p, p.yxz + 33.33);
+  return fract((p.x + p.y) * p.z);
+}
+float gritNoise(vec3 p) {
+  vec3 i = floor(p);
+  vec3 f = fract(p);
+  f = f * f * (3.0 - 2.0 * f);
+  return mix(
+    mix(mix(gritHash(i + vec3(0.0, 0.0, 0.0)), gritHash(i + vec3(1.0, 0.0, 0.0)), f.x),
+        mix(gritHash(i + vec3(0.0, 1.0, 0.0)), gritHash(i + vec3(1.0, 1.0, 0.0)), f.x), f.y),
+    mix(mix(gritHash(i + vec3(0.0, 0.0, 1.0)), gritHash(i + vec3(1.0, 0.0, 1.0)), f.x),
+        mix(gritHash(i + vec3(0.0, 1.0, 1.0)), gritHash(i + vec3(1.0, 1.0, 1.0)), f.x), f.y),
+    f.z
+  );
+}`;
+
+    const colorInject = `#include <color_fragment>
+float gritBaseRough = ${roughExpr};
+float gritMask = smoothstep(0.32, 0.72, gritBaseRough) * ${s};
+float gritBroad = gritNoise(vGritWorldPos * 0.55);
+float gritMid = gritNoise(vGritWorldPos * 2.8);
+float gritFine = gritNoise(vGritWorldPos * 11.5);
+float gritStreak = gritNoise(vec3(vGritWorldPos.x * 3.4, vGritWorldPos.y * 0.45, vGritWorldPos.z * 3.4));
+float gritVertical = 1.0 - smoothstep(0.45, 0.85, abs(vGritWorldNormal.y));
+float gritSplash = gritVertical * (1.0 - smoothstep(0.0, 0.95, max(vGritWorldPos.y, 0.0))) * (0.55 + 0.45 * gritMid);
+float gritHeight = gritMid * 0.55 + gritFine * 0.45;
+float gritTone = 1.0 + ((gritBroad - 0.5) * 0.14 + (gritMid - 0.5) * 0.11 + (gritFine - 0.5) * 0.09) * gritMask;
+gritTone *= 1.0 - gritVertical * smoothstep(0.55, 0.92, gritStreak) * 0.12 * gritMask;
+gritTone *= 1.0 - gritSplash * ${g} * gritMask;
+diffuseColor.rgb *= gritTone;
+diffuseColor.rgb = mix(diffuseColor.rgb, diffuseColor.rgb * vec3(0.85, 0.83, 0.77), gritSplash * 0.45 * gritMask);`;
+
+    const roughMod = `roughnessFactor = clamp(roughnessFactor + ((gritMid - 0.5) * 0.16 + (gritFine - 0.5) * 0.12 + gritSplash * 0.12) * gritMask, 0.08, 1.0);`;
+
+    const bumpInject = `#include <normal_fragment_maps>
+if (gritMask > 0.01) {
+  float gritDhx = dFdx(gritHeight);
+  float gritDhy = dFdy(gritHeight);
+  vec3 gritPosX = dFdx(-vViewPosition);
+  vec3 gritPosY = dFdy(-vViewPosition);
+  vec3 gritR1 = cross(gritPosY, normal);
+  vec3 gritR2 = cross(normal, gritPosX);
+  float gritDet = dot(gritPosX, gritR1);
+  if (abs(gritDet) > 1e-6) {
+    vec3 gritGrad = sign(gritDet) * (gritDhx * gritR1 + gritDhy * gritR2);
+    normal = normalize(abs(gritDet) * normal - gritGrad * (${b} * gritMask));
+  }
+}`;
+
+    shader.fragmentShader = shader.fragmentShader
+      .replace('#include <common>', gritHelpers)
+      .replace('#include <color_fragment>', colorInject)
+      .replace('#include <normal_fragment_maps>', bumpInject);
+
+    if (shader.fragmentShader.includes('#include <roughnessmap_fragment>')) {
+      shader.fragmentShader = shader.fragmentShader.replace(
+        '#include <roughnessmap_fragment>',
+        `#include <roughnessmap_fragment>\n${roughMod}`
+      );
+    } else {
+      shader.fragmentShader = shader.fragmentShader.replace(
+        'float roughnessFactor = roughness * vRough;',
+        `float roughnessFactor = roughness * vRough;\n${roughMod}`
+      );
+    }
+  };
+
+  const prevKey = material.customProgramCacheKey ? material.customProgramCacheKey() : '';
+  material.customProgramCacheKey = () => `${prevKey}|world-grit-v1:${s}:${g}:${b}:${useVertexRough ? 1 : 0}`;
+  material.userData.worldGrit = true;
+  return material;
+}
+
+/** Standard PBR material that reads per-vertex colour, roughness, and world-space grit. */
+export function createVertexMaterial({ metalness = 0.04, emissive = null, grit = true } = {}) {
   const m = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 1, metalness });
   if (emissive !== null) m.emissive = new THREE.Color(emissive);
-  return useVertexRoughness(m);
+  useVertexRoughness(m);
+  if (grit) useWorldGrit(m, { useVertexRough: true });
+  return m;
 }
 
 /**

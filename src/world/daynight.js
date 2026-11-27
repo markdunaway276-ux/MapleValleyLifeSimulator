@@ -7,42 +7,42 @@ export const LIGHT_UPDATE_INTERVAL = 1 / LIGHT_UPDATE_HZ;
 
 // three r169 uses physical light units (no legacy x PI), so daytime intensities sit
 // around 3x the old values; night keys are unchanged so nights stay dark.
-// Midday: slightly cooler sky, warmer but less blown-out sun, richer ground bounce.
+// Midday: slightly hazy, desaturated small-town sky with stronger sun-to-shadow contrast.
 const DAY = {
-  skyTop: 0x3a7ab0,
-  skyBottom: 0xb8d4e8,
-  fog: 0xb8d4e8,
-  hemiSky: 0x7eb0d8,
-  hemiGround: 0x2a4a28,
-  hemiInt: 1.1,
-  ambient: 0xe8dcc8,
-  ambientInt: 0.35,
-  sun: 0xffd8a0,
-  sunInt: 3.0,
+  skyTop: 0x3b6482,
+  skyBottom: 0xaabac4,
+  fog: 0xaabac4,
+  hemiSky: 0x7a9ab2,
+  hemiGround: 0x263424,
+  hemiInt: 0.92,
+  ambient: 0xd6cfc2,
+  ambientInt: 0.26,
+  sun: 0xffe0b2,
+  sunInt: 3.2,
   sunPos: [22, 32, 16],
-  exponent: 0.75,
+  exponent: 0.8,
   interior: 0
 };
 
 export const LIGHT_KEYS = [
-  // Deep night — cool blue-grey, low fill, soft moon-like sun
-  { m: 0, skyTop: 0x080c18, skyBottom: 0x10182a, fog: 0x10182a, hemiSky: 0x2a3a58, hemiGround: 0x121810, hemiInt: 0.12, ambient: 0x141c2c, ambientInt: 0.06, sun: 0xa8b8e0, sunInt: 0.06, sunPos: [-8, 22, -24], exponent: 1.15, interior: 1 },
-  { m: 4 * 60, skyTop: 0x080c18, skyBottom: 0x10182a, fog: 0x10182a, hemiSky: 0x2a3a58, hemiGround: 0x121810, hemiInt: 0.12, ambient: 0x141c2c, ambientInt: 0.06, sun: 0xa8b8e0, sunInt: 0.06, sunPos: [-4, 20, -24], exponent: 1.15, interior: 1 },
-  // Dawn — muted purple/orange, restrained intensity
-  { m: 5 * 60 + 30, skyTop: 0x5a3a68, skyBottom: 0xd88860, fog: 0xc87858, hemiSky: 0xc09080, hemiGround: 0x2e3a22, hemiInt: 0.55, ambient: 0xe8b898, ambientInt: 0.2, sun: 0xee8050, sunInt: 0.9, sunPos: [36, 6, 8], exponent: 0.85, interior: 0.7 },
-  // Morning
-  { m: 7 * 60, skyTop: 0x5a98c0, skyBottom: 0xd8c8a8, fog: 0xd0c0a0, hemiSky: 0xa0c8e8, hemiGround: 0x2a4a28, hemiInt: 0.95, ambient: 0xe8d8c0, ambientInt: 0.3, sun: 0xffc890, sunInt: 2.3, sunPos: [30, 18, 14], exponent: 0.75, interior: 0.2 },
+  // Deep night — gritty blue-slate, low fill, cool moonlit shadows
+  { m: 0, skyTop: 0x060a14, skyBottom: 0x0e1624, fog: 0x0e1624, hemiSky: 0x24344e, hemiGround: 0x101412, hemiInt: 0.11, ambient: 0x121a28, ambientInt: 0.05, sun: 0x9ab0d8, sunInt: 0.07, sunPos: [-8, 22, -24], exponent: 1.15, interior: 1 },
+  { m: 4 * 60, skyTop: 0x060a14, skyBottom: 0x0e1624, fog: 0x0e1624, hemiSky: 0x24344e, hemiGround: 0x101412, hemiInt: 0.11, ambient: 0x121a28, ambientInt: 0.05, sun: 0x9ab0d8, sunInt: 0.07, sunPos: [-4, 20, -24], exponent: 1.15, interior: 1 },
+  // Dawn — hazy bruised slate-purple & dusty amber
+  { m: 5 * 60 + 30, skyTop: 0x453856, skyBottom: 0xc28060, fog: 0xb2765a, hemiSky: 0xa8867a, hemiGround: 0x262e20, hemiInt: 0.48, ambient: 0xd4ae94, ambientInt: 0.17, sun: 0xe87c4a, sunInt: 1.05, sunPos: [36, 6, 8], exponent: 0.85, interior: 0.7 },
+  // Morning — crisp, slightly hazy
+  { m: 7 * 60, skyTop: 0x4e7c9c, skyBottom: 0xc4bca6, fog: 0xbcb49e, hemiSky: 0x92b2ca, hemiGround: 0x263824, hemiInt: 0.84, ambient: 0xd8cdb8, ambientInt: 0.24, sun: 0xffcc94, sunInt: 2.5, sunPos: [30, 18, 14], exponent: 0.78, interior: 0.2 },
   // Midday
   { m: 10 * 60, ...DAY },
-  // Early afternoon — softer direct sun with neutral bounce in shaded areas
-  { m: 13 * 60, skyTop: 0x4a98d0, skyBottom: 0xb8d8ec, fog: 0xb8d8ec, hemiSky: 0x90c0e8, hemiGround: 0x47503d, hemiInt: 1.2, ambient: 0xece7dc, ambientInt: 0.4, sun: 0xffe8cc, sunInt: 2.65, sunPos: [8, 40, 18], exponent: 0.7, interior: 0 },
-  // Golden hour — warmer, deeper
-  { m: 17 * 60 + 30, skyTop: 0xc07038, skyBottom: 0xd8a068, fog: 0xc89058, hemiSky: 0xd8a878, hemiGround: 0x3a4820, hemiInt: 0.8, ambient: 0xe8c090, ambientInt: 0.28, sun: 0xffaa62, sunInt: 1.85, sunPos: [-26, 14, 14], exponent: 0.75, interior: 0.25 },
-  // Dusk
-  { m: 19 * 60 + 30, skyTop: 0x1e2a52, skyBottom: 0xa05840, fog: 0x704050, hemiSky: 0xa87060, hemiGround: 0x1e2e18, hemiInt: 0.4, ambient: 0xe09870, ambientInt: 0.15, sun: 0xee6030, sunInt: 0.5, sunPos: [-30, 4, 10], exponent: 0.9, interior: 0.7 },
+  // Early afternoon — gritty hazy daylight with grounded shadows
+  { m: 13 * 60, skyTop: 0x43789e, skyBottom: 0xaec2ce, fog: 0xaec2ce, hemiSky: 0x86a8c4, hemiGround: 0x3b4234, hemiInt: 1.0, ambient: 0xdcd8ce, ambientInt: 0.30, sun: 0xffe6c6, sunInt: 2.95, sunPos: [8, 40, 18], exponent: 0.75, interior: 0 },
+  // Golden hour — dusty warm sun against cooler shadow fill
+  { m: 17 * 60 + 30, skyTop: 0x8f5b3a, skyBottom: 0xc69466, fog: 0xb6865c, hemiSky: 0xc09876, hemiGround: 0x2e3620, hemiInt: 0.70, ambient: 0xd4b28a, ambientInt: 0.22, sun: 0xffa658, sunInt: 2.15, sunPos: [-26, 14, 14], exponent: 0.78, interior: 0.25 },
+  // Dusk — moody blue-slate zenith, burnt horizon
+  { m: 19 * 60 + 30, skyTop: 0x182442, skyBottom: 0x8a503e, fog: 0x5c3c48, hemiSky: 0x8c645c, hemiGround: 0x1a2416, hemiInt: 0.35, ambient: 0xc48868, ambientInt: 0.13, sun: 0xe45a2c, sunInt: 0.58, sunPos: [-30, 4, 10], exponent: 0.9, interior: 0.7 },
   // Evening into night
-  { m: 21 * 60, skyTop: 0x0c1220, skyBottom: 0x141c30, fog: 0x141c30, hemiSky: 0x2a3a58, hemiGround: 0x121810, hemiInt: 0.12, ambient: 0x141c2c, ambientInt: 0.06, sun: 0xa8b8e0, sunInt: 0.08, sunPos: [-16, 20, -22], exponent: 1.1, interior: 1 },
-  { m: MINUTES_PER_DAY, skyTop: 0x080c18, skyBottom: 0x10182a, fog: 0x10182a, hemiSky: 0x2a3a58, hemiGround: 0x121810, hemiInt: 0.12, ambient: 0x141c2c, ambientInt: 0.06, sun: 0xa8b8e0, sunInt: 0.06, sunPos: [-8, 22, -24], exponent: 1.15, interior: 1 }
+  { m: 21 * 60, skyTop: 0x090f1c, skyBottom: 0x111a2a, fog: 0x111a2a, hemiSky: 0x24344e, hemiGround: 0x101412, hemiInt: 0.11, ambient: 0x121a28, ambientInt: 0.05, sun: 0x9ab0d8, sunInt: 0.08, sunPos: [-16, 20, -22], exponent: 1.1, interior: 1 },
+  { m: MINUTES_PER_DAY, skyTop: 0x060a14, skyBottom: 0x0e1624, fog: 0x0e1624, hemiSky: 0x24344e, hemiGround: 0x101412, hemiInt: 0.11, ambient: 0x121a28, ambientInt: 0.05, sun: 0x9ab0d8, sunInt: 0.07, sunPos: [-8, 22, -24], exponent: 1.15, interior: 1 }
 ];
 
 // Raised once the roof cast a proper shadow (sun no longer leaks onto the floor).

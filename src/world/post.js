@@ -8,13 +8,16 @@ import { LOOK } from './palette.js';
 const G = LOOK.grade;
 
 /**
- * Rustic "movie" grade on display colours: darker gain, filmic S-curve, earthier
- * saturation, olive shadows / amber highlights, lifted warm blacks, a vignette and
- * light animated grain. Tuning lives in LOOK.grade (palette.js). Desktop only.
+ * Gritty small-town grade on display colours: subtle micro-sharpening, soft
+ * highlight bloom/halation for lights and signs, punchier filmic S-curve,
+ * desaturated midtones, cool-slate shadows / dusty highlights, tight charcoal
+ * blacks, cool vignette, and tactile animated grain. Tuning lives in LOOK.grade
+ * (palette.js). Desktop only.
  */
 export const GradeShader = {
   uniforms: {
     tDiffuse: { value: null },
+    resolution: { value: new THREE.Vector2(1280, 720) },
     time: { value: 0 },
     strength: { value: 1 },
     gain: { value: G.gain },
@@ -25,7 +28,10 @@ export const GradeShader = {
     fade: { value: G.fade },
     fadeColor: { value: new THREE.Vector3(...G.fadeColor) },
     vignette: { value: G.vignette },
-    grain: { value: G.grain }
+    grain: { value: G.grain },
+    sharpen: { value: G.sharpen ?? 0.22 },
+    bloom: { value: G.bloom ?? 0.24 },
+    bloomThreshold: { value: G.bloomThreshold ?? 0.78 }
   },
   vertexShader: /* glsl */`
     varying vec2 vUv;
@@ -36,6 +42,7 @@ export const GradeShader = {
   `,
   fragmentShader: /* glsl */`
     uniform sampler2D tDiffuse;
+    uniform vec2 resolution;
     uniform float time;
     uniform float strength;
     uniform float gain;
@@ -47,6 +54,9 @@ export const GradeShader = {
     uniform vec3 fadeColor;
     uniform float vignette;
     uniform float grain;
+    uniform float sharpen;
+    uniform float bloom;
+    uniform float bloomThreshold;
     varying vec2 vUv;
 
     float hash(vec2 p) {
@@ -55,38 +65,78 @@ export const GradeShader = {
       return fract(p.x * p.y);
     }
 
+    vec3 sampleBloom(vec2 uv, vec2 px) {
+      vec3 acc = vec3(0.0);
+      // 8-tap wide cross + diagonal halo for cheap single-pass highlight glow.
+      vec2 o1 = px * 3.5;
+      vec2 o2 = px * 7.5;
+      vec3 s;
+      float b;
+      s = texture2D(tDiffuse, uv + vec2( o1.x,  0.0)).rgb; b = max(max(s.r, s.g), s.b); acc += s * smoothstep(bloomThreshold, 1.0, b);
+      s = texture2D(tDiffuse, uv + vec2(-o1.x,  0.0)).rgb; b = max(max(s.r, s.g), s.b); acc += s * smoothstep(bloomThreshold, 1.0, b);
+      s = texture2D(tDiffuse, uv + vec2( 0.0,  o1.y)).rgb; b = max(max(s.r, s.g), s.b); acc += s * smoothstep(bloomThreshold, 1.0, b);
+      s = texture2D(tDiffuse, uv + vec2( 0.0, -o1.y)).rgb; b = max(max(s.r, s.g), s.b); acc += s * smoothstep(bloomThreshold, 1.0, b);
+      s = texture2D(tDiffuse, uv + vec2( o2.x,  o2.y)).rgb; b = max(max(s.r, s.g), s.b); acc += s * smoothstep(bloomThreshold, 1.0, b) * 0.7;
+      s = texture2D(tDiffuse, uv + vec2(-o2.x,  o2.y)).rgb; b = max(max(s.r, s.g), s.b); acc += s * smoothstep(bloomThreshold, 1.0, b) * 0.7;
+      s = texture2D(tDiffuse, uv + vec2( o2.x, -o2.y)).rgb; b = max(max(s.r, s.g), s.b); acc += s * smoothstep(bloomThreshold, 1.0, b) * 0.7;
+      s = texture2D(tDiffuse, uv + vec2(-o2.x, -o2.y)).rgb; b = max(max(s.r, s.g), s.b); acc += s * smoothstep(bloomThreshold, 1.0, b) * 0.7;
+      return acc * (1.0 / 6.8);
+    }
+
     void main() {
       vec4 src = texture2D(tDiffuse, vUv);
-      vec3 c = clamp(src.rgb * gain, 0.0, 1.0);
+      vec2 px = 1.0 / max(resolution, vec2(1.0));
+      vec3 c = src.rgb;
 
-      // Filmic S-curve: deeper shadows, gently rolled highlights.
+      // Subtle unsharp-mask crispness so rough textures and edges read clearly.
+      if (sharpen > 0.0 && strength > 0.0) {
+        vec3 n = (
+          texture2D(tDiffuse, vUv + vec2(px.x, 0.0)).rgb +
+          texture2D(tDiffuse, vUv - vec2(px.x, 0.0)).rgb +
+          texture2D(tDiffuse, vUv + vec2(0.0, px.y)).rgb +
+          texture2D(tDiffuse, vUv - vec2(0.0, px.y)).rgb
+        ) * 0.25;
+        vec3 edge = clamp(c - n, -0.12, 0.12);
+        c += edge * sharpen;
+      }
+
+      // Soft highlight glow on bright lights, signs, and bright sky edges.
+      if (bloom > 0.0 && strength > 0.0) {
+        c += sampleBloom(vUv, px) * bloom;
+      }
+
+      c = clamp(c * gain, 0.0, 1.0);
+
+      // Punchier filmic S-curve: deeper shadows, grittier midtone separation.
       c = mix(c, c * c * (3.0 - 2.0 * c), curve);
 
-      // Earthier saturation.
+      // Desaturated small-town midtones while letting strong accents survive slightly more.
       float luma = dot(c, vec3(0.2126, 0.7152, 0.0722));
-      c = mix(vec3(luma), c, saturation);
+      float chroma = max(max(c.r, c.g), c.b) - min(min(c.r, c.g), c.b);
+      float sat = mix(saturation, min(1.0, saturation + 0.14), smoothstep(0.22, 0.65, chroma));
+      c = mix(vec3(luma), c, sat);
 
-      // Split tone: cool olive shadows, warm amber highlights.
-      float sh = 1.0 - smoothstep(0.0, 0.55, luma);
-      float hi = smoothstep(0.35, 1.0, luma);
+      // Split tone: cool slate-teal shadows, subtle dusty warm highlights.
+      float sh = 1.0 - smoothstep(0.0, 0.50, luma);
+      float hi = smoothstep(0.42, 1.0, luma);
       c += shadowTint * sh + highlightTint * hi;
 
-      // Lifted, warm film blacks.
+      // Tight, cool charcoal blacks.
       c = fadeColor * fade + c * (1.0 - fade);
 
-      // Vignette, slightly warm-brown at the edges.
+      // Grounded dark vignette at the frame edges.
       vec2 q = vUv * 2.0 - 1.0;
-      float v = smoothstep(1.6, 0.35, length(q * vec2(0.92, 1.0)));
-      c *= mix(1.0 - vignette * 0.55, 1.0, v);
+      float v = smoothstep(1.58, 0.36, length(q * vec2(0.92, 1.0)));
+      c *= mix(1.0 - vignette * 0.52, 1.0, v);
 
-      // Light animated grain, strongest in the midtones.
+      // Tactile animated film/sensor grain, slightly stronger in shadows & midtones.
       if (grain > 0.0) {
         float n = hash(gl_FragCoord.xy + fract(time * 7.13) * 91.7) - 0.5;
-        c += n * grain * (1.0 - abs(luma - 0.5) * 1.2);
+        c += n * grain * (1.08 - luma * 0.65);
       }
 
       // strength 0 = the plain image, 1 = the full grade (Debug -> Display -> Film look).
-      c = mix(clamp(src.rgb, 0.0, 1.0), c, strength);
+      c = mix(clamp(src.rgb, 0.0, 1.0), clamp(c, 0.0, 1.0), strength);
       gl_FragColor = vec4(clamp(c, 0.0, 1.0), src.a);
     }
   `
@@ -107,6 +157,11 @@ export function createPost({ renderer, scene, camera, enabled }) {
   // the whole frame comes out far too dark. The grade below then works on display colours.
   composer.addPass(new OutputPass());
   const grade = new ShaderPass(GradeShader);
+  const size = new THREE.Vector2();
+  if (typeof renderer.getSize === 'function') {
+    renderer.getSize(size);
+    if (size.x > 0 && size.y > 0) grade.uniforms.resolution.value.copy(size);
+  }
   composer.addPass(grade);
   const start = performance.now();
 
@@ -117,6 +172,7 @@ export function createPost({ renderer, scene, camera, enabled }) {
     },
     setSize(w, h) {
       composer.setSize(w, h);
+      grade.uniforms.resolution.value.set(Math.max(1, w), Math.max(1, h));
     },
     /** 0 = no grade, 1 = full grade. */
     setGradeStrength(v) {

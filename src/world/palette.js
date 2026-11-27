@@ -26,26 +26,30 @@ export const LOOK = {
    * a texel, -0.0003 (about 3 cm of depth) plus a 0.03 normal offset shows no acne and no peter-panning.
    */
   shadow: { type: 'PCFSoft', mapSize: 2048, extent: 38, near: 1, far: 110, bias: -0.0003, normalBias: 0.03, radius: 2.5 },
-  /** Fog starts and ends this fraction of the camera far plane away (was 0.55 / 0.98). */
-  fog: { near: 0.42, far: 0.96 },
+  /** Fog starts and ends this fraction of the camera far plane away for deeper atmospheric haze. */
+  fog: { near: 0.30, far: 0.92 },
   /**
-   * Rustic film grade, applied after tone mapping (post.js). It darkens and earths the
-   * colour tone only; light levels stay in daynight.js. Desktop runs it as a shader pass;
-   * phones (no post) get the `mobile` CSS approximation plus a vignette overlay (display.js).
-   * The Debug menu's Display section scales its strength and the brightness (display.js).
+   * Gritty small-town film grade, applied after tone mapping (post.js). Punchier
+   * contrast, deeper cool-slate shadows, desaturated midtones, subtle unsharp-mask
+   * crispness, soft highlight bloom on lights/signs, and tactile grain.
+   * Desktop runs it as a shader pass; phones get the `mobile` CSS approximation
+   * plus a vignette overlay (display.js).
    */
   grade: {
-    gain: 0.92,          // overall darkening of the image
-    curve: 0.35,         // filmic S-curve strength (0 = none)
-    saturation: 0.82,    // below 1 = earthier, less "video game" colour
-    shadowTint: [-0.012, 0.006, 0.018],   // cool olive-teal in the shadows
-    highlightTint: [0.045, 0.018, -0.035], // warm amber in the highlights
-    fade: 0.035,         // lifted, warm film blacks
-    fadeColor: [0.10, 0.075, 0.05],
-    vignette: 0.75,      // corner darkening
-    grain: 0.035,        // animated film grain (0 = off)
+    gain: 0.96,          // crisp exposure without muddy darkening
+    curve: 0.52,         // punchier S-curve contrast (deeper shadows, crisper midtones)
+    saturation: 0.80,    // grittier, desaturated small-town midtones
+    shadowTint: [-0.018, 0.004, 0.014],    // cool slate-teal shadows
+    highlightTint: [0.022, 0.016, -0.012], // subtle dusty warm highlights
+    fade: 0.018,         // tight charcoal blacks (less milky sepia wash)
+    fadeColor: [0.04, 0.055, 0.06],
+    vignette: 0.68,      // grounded dark edges
+    grain: 0.048,        // tactile gritty film grain (0 = off)
+    sharpen: 0.22,       // micro-contrast sharpening so rough surfaces pop
+    bloom: 0.24,         // soft highlight glow on streetlights, signs & bright edges
+    bloomThreshold: 0.78,
     // Phone approximation at full strength (CSS filter values + vignette edge opacity).
-    mobile: { sepia: 0.24, saturate: 0.78, contrast: 1.08, brightness: 0.9, vignette: 0.55 }
+    mobile: { sepia: 0.08, saturate: 0.80, contrast: 1.16, brightness: 0.94, vignette: 0.52 }
   }
 };
 
@@ -96,22 +100,22 @@ export const SURFACE = {
 
 /** Ground, road and pavement base colours as 0-255 RGB (textures add the noise). */
 export const GROUND = {
-  grass: [46, 92, 50],
-  grassDark: [-14, -20, -9],
-  grassLight: [14, 20, 7],
+  grass: [44, 78, 44],
+  grassDark: [-16, -22, -10],
+  grassLight: [14, 18, 8],
   /** Autumn leaf litter flecks scattered on the lawn (0-255 RGB). */
-  leaf: [122, 92, 44],
-  /** Bare, dry patches of lawn. */
-  dry: [86, 96, 52],
-  road: [40, 40, 44],
+  leaf: [110, 82, 40],
+  /** Bare, dry dirt/weed patches of lawn. */
+  dry: [88, 84, 54],
+  road: [34, 35, 39],
   /** Tyre-worn lanes are darker and smoother; the kerb edges are paler grit. */
-  roadWear: -7,
-  roadGrit: 9,
-  line: [206, 182, 74],
-  walk: [150, 146, 136],
+  roadWear: -9,
+  roadGrit: 11,
+  line: [194, 168, 66],
+  walk: [136, 134, 126],
   /** Slab joint darkening (multiplier) and the pale lip beside it. */
-  walkJoint: 0.7,
-  walkLip: 1.07
+  walkJoint: 0.62,
+  walkLip: 1.09
 };
 
 /** Canvas texture sizes (px) per tier. All of them tile seamlessly. */

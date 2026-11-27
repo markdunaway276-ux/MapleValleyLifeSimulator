@@ -54,7 +54,7 @@ export function createDisplay({
       renderer.domElement.insertAdjacentElement('afterend', vignetteEl);
     }
     const a = (LOOK.grade.mobile.vignette * settings.film).toFixed(3);
-    vignetteEl.style.background = `radial-gradient(ellipse at center, rgba(0,0,0,0) 45%, rgba(22,13,4,${a}) 100%)`;
+    vignetteEl.style.background = `radial-gradient(ellipse at center, rgba(0,0,0,0) 45%, rgba(10,14,18,${a}) 100%)`;
   }
 
   function apply() {

@@ -21,6 +21,7 @@ import { createGrassTexture, createRoadTexture, createSidewalkTexture } from './
 import { buildContactGeometry, contactMaterial, createContactBlob, createContactShadows } from './contact.js';
 import { CURB_WIDTH, DRIVEWAY, GARAGE_LOT, NORTH_FRONTAGE_OFFSET, STREET, SURFACE_Y, drivewayWalkHeight, surfaceHeightAt } from './street.js';
 import { createLightPool } from './lightPool.js';
+import { useWorldGrit } from './surfaces.js';
 
 export { STREET, gradeMainHouse };
 
@@ -83,10 +84,13 @@ export function createScene(quality) {
   for (let i = 0; i < groundUv.count; i++) {
     groundUv.setXY(i, groundUv.getX(i) * 4.5 - 2.7, groundUv.getY(i) * 1.25 - 0.25);
   }
+  const grassTex = createGrassTexture(quality);
   const groundMat = new THREE.MeshStandardMaterial({
-    map: createGrassTexture(quality),
+    map: grassTex,
+    bumpMap: grassTex.userData?.bumpMap || null,
+    bumpScale: 0.04,
     color: 0xffffff,
-    roughness: 0.95,
+    roughness: 0.96,
     metalness: 0
   });
   // Modulate the repeated tile across the entire ground plane in metre coordinates.
@@ -100,8 +104,8 @@ export function createScene(quality) {
         vec2 p = vLawnMetres;
         float broad = sin(p.x * 0.39 + p.y * 0.16) * sin(p.y * 0.32 - p.x * 0.12);
         float fine = sin(p.x * 1.54 - p.y * 1.12) * sin(p.y * 1.18 + p.x * 0.72);
-        float dry = smoothstep(0.24, 0.85, broad + fine * 0.22);
-        diffuseColor.rgb *= mix(vec3(0.88, 0.94, 0.90), vec3(1.18, 1.08, 0.86), dry) + fine * 0.055;
+        float dry = smoothstep(0.20, 0.82, broad + fine * 0.24);
+        diffuseColor.rgb *= mix(vec3(0.86, 0.92, 0.88), vec3(1.16, 1.04, 0.82), dry) + fine * 0.065;
       `);
   };
   const ground = new THREE.Mesh(groundGeo, groundMat);
@@ -114,14 +118,18 @@ export function createScene(quality) {
   const { length: streetLen, roadWidth, sidewalkWidth, roadCenterZ } = STREET;
   const roadTex = createRoadTexture(quality);
   roadTex.repeat.set(streetLen / TEXTURE.road.tileMetres, 1);
+  if (roadTex.userData?.bumpMap) roadTex.userData.bumpMap.repeat.copy(roadTex.repeat);
+  const roadMat = useWorldGrit(new THREE.MeshStandardMaterial({
+    map: roadTex,
+    bumpMap: roadTex.userData?.bumpMap || null,
+    bumpScale: 0.055,
+    color: 0xffffff,
+    roughness: 0.90,
+    metalness: 0
+  }), { strength: 0.75, groundGrime: 0, bump: 0.08 });
   const road = new THREE.Mesh(
     new THREE.PlaneGeometry(streetLen, roadWidth),
-    new THREE.MeshStandardMaterial({
-      map: roadTex,
-      color: 0xffffff,
-      roughness: 0.92,
-      metalness: 0
-    })
+    roadMat
   );
   road.name = 'road';
   road.rotation.x = -Math.PI / 2;
@@ -132,7 +140,7 @@ export function createScene(quality) {
   const stripeCount = 20;
   const stripe = new THREE.PlaneGeometry(2.2, 0.26);
   stripe.rotateX(-Math.PI / 2);
-  const paint = new THREE.MeshStandardMaterial({ color: 0xd8d6c7, roughness: 0.91 });
+  const paint = useWorldGrit(new THREE.MeshStandardMaterial({ color: 0xc9c6b6, roughness: 0.92 }), { strength: 1.15, groundGrime: 0, bump: 0.14 });
   const crossings = new THREE.InstancedMesh(stripe, paint, STREET.crossings.length * stripeCount);
   crossings.name = 'pedestrian-crossings';
   crossings.receiveShadow = quality.shadows;
@@ -149,13 +157,16 @@ export function createScene(quality) {
   const walkTex = createSidewalkTexture(quality);
   // One tile is one pavement slab, so the joints line up with the tile edge.
   walkTex.repeat.set(Math.round(streetLen / TEXTURE.walk.slabMetres), 1);
-  const walkMat = new THREE.MeshStandardMaterial({
+  if (walkTex.userData?.bumpMap) walkTex.userData.bumpMap.repeat.copy(walkTex.repeat);
+  const walkMat = useWorldGrit(new THREE.MeshStandardMaterial({
     map: walkTex,
+    bumpMap: walkTex.userData?.bumpMap || null,
+    bumpScale: 0.045,
     color: 0xffffff,
-    roughness: 0.88,
+    roughness: 0.90,
     metalness: 0
-  });
-  const curbMat = new THREE.MeshStandardMaterial({ color: 0xa6a092, roughness: 0.95 });
+  }), { strength: 0.65, groundGrime: 0, bump: 0.08 });
+  const curbMat = useWorldGrit(new THREE.MeshStandardMaterial({ color: 0x989386, roughness: 0.95 }), { strength: 1.15, groundGrime: 0.32, bump: 0.18 });
   const halfStreet = streetLen / 2;
   const southEdge = roadCenterZ - roadWidth / 2;
   const northEdge = roadCenterZ + roadWidth / 2;
