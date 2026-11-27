@@ -27,7 +27,9 @@ export const TELEPORT_PRESETS = [
   { id: 'laundromat', label: 'Laundromat door', kind: 'point', x: 29.5, z: -3.6, yaw: 0 },
   { id: 'laundromat-inside', label: 'Laundromat counter', kind: 'point', x: 31.0, z: -8.3, yaw: Math.PI / 2 },
   { id: 'laundromat-back', label: 'Laundromat back room', kind: 'point', x: 24.5, z: -11.5, yaw: Math.PI / 2 },
-  { id: 'trailer-park', label: 'Trailer park', kind: 'point', x: -24.6, z: -3.6, yaw: Math.PI / 4 }
+  { id: 'trailer-park', label: 'Trailer park', kind: 'point', x: -24.6, z: -3.6, yaw: Math.PI / 4 },
+  { id: 'clinic', label: 'Clinic door', kind: 'point', x: -34, z: 12.4, yaw: Math.PI },
+  { id: 'clinic-inside', label: 'Clinic waiting room', kind: 'point', x: -34, z: 17.0, yaw: Math.PI }
 ];
 
 export function findDoor(scene, doorId) {
