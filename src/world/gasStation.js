@@ -189,7 +189,7 @@ export function buildGasStation(scene, quality) {
     object.userData.getPrompt = (mobile) => {
       const car = carHere();
       const lead = mobile ? 'Tap to ' : 'Press E to ';
-      if (!car) return 'Park your car beside the pump to fill up ($' + FUEL.PRICE_PER_LITRE.toFixed(2) + '/L)';
+      if (!car) return 'Park your pickup beside the pump to fill up ($' + FUEL.PRICE_PER_LITRE.toFixed(2) + '/L)';
       const space = car.fuel.space();
       if (space < 0.05) return 'The tank is full';
       return lead + 'fill up (' + Math.ceil(space) + ' L, about $' + Math.ceil(space * FUEL.PRICE_PER_LITRE) + ')';
@@ -197,7 +197,7 @@ export function buildGasStation(scene, quality) {
     object.userData.interact = (ctx) => {
       const car = carHere();
       const toast = typeof ctx.toast === 'function' ? ctx.toast : () => {};
-      if (!car) { toast('Park your car beside the pump first.'); return false; }
+      if (!car) { toast('Park your pickup beside the pump first.'); return false; }
       const money = ctx.money;
       if (!money) return false;
       const { litres, cost } = quoteFill(car.fuel.space(), money.get());

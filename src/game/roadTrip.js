@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { CAR_SEAT, CAR_SPAWN } from '../world/props.js';
+import { CAR_SPAWN, poseCarWheels } from '../world/props.js';
 import { STREET } from '../world/street.js';
 import { warmOpening } from './loadingGate.js';
 
@@ -24,7 +24,6 @@ export function createRoadTrip(g, onFinish, wave) {
   const rotation = new THREE.Quaternion();
   const target = new THREE.Vector3();
   const forward = new THREE.Vector3();
-  const wheels = car.children.filter(o=>o.name==='car-wheel');
   let phase = 'idle';
   let time = 0;
   let music;
@@ -65,7 +64,7 @@ export function createRoadTrip(g, onFinish, wave) {
   function park() {
     car.position.set(CAR_SPAWN.x,0,CAR_SPAWN.z);
     car.rotation.y=CAR_SPAWN.rotY;
-    for(const wheel of wheels) wheel.rotation.y=wheel.rotation.z=0;
+    poseCarWheels(car, 0, 0);
     car.updateMatrixWorld(true);
   }
 
@@ -99,10 +98,7 @@ export function createRoadTrip(g, onFinish, wave) {
     rotation.copy(camera.quaternion);
     car.position.set(x,0,z);
     car.rotation.y=-Math.sin(turn*Math.PI)*0.28;
-    for(const wheel of wheels) {
-      wheel.rotation.z=(x-ROUTE[0][1])/0.32;
-      if(wheel.position.x>0) wheel.rotation.y=-steer;
-    }
+    poseCarWheels(car, steer, x - ROUTE[0][1]);
     car.updateMatrixWorld(true);
     g.cabin.update({visible:inside,speed,steer,opening:true,notice:at>=12&&at<17,
       shade:0.91+0.17*Math.sin(x*2.3)*Math.cos(x*0.46)});
@@ -112,7 +108,8 @@ export function createRoadTrip(g, onFinish, wave) {
         camera.fov = Math.max(camera.fov, 83);
         camera.updateProjectionMatrix();
       }
-      camera.position.copy(car.localToWorld(target.set(CAR_SEAT.x,CAR_SEAT.y,CAR_SEAT.z)));
+      const seat = car.userData.seat;
+      camera.position.copy(car.localToWorld(target.set(seat.x, seat.y, seat.z)));
       const signLook = (smooth(at,25,27)-smooth(at,28.4,31.5))*0.25;
       const arrivalLook = smooth(at,49,52)*0.55;
       forward.set(1,-0.05,signLook).applyQuaternion(car.quaternion);
@@ -161,6 +158,7 @@ export function createRoadTrip(g, onFinish, wave) {
       document.body.classList.add('intro-active');
       overlay.classList.add('loading');
       button.focus();
+      music = g.sfx.openingMusic();
       try {
         await warmOpening({renderer,scene,camera,paint,active:()=>phase==='loading',
           progress: value=>{progress.value=value;}});
@@ -171,7 +169,6 @@ export function createRoadTrip(g, onFinish, wave) {
       phase='playing';
       overlay.classList.remove('loading');
       overlay.classList.add('playing');
-      music=g.sfx.openingMusic();
       music?.start();
     },
     draw(delta,render) {
