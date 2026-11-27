@@ -9,6 +9,7 @@ const THREE = await import('three');
 const { LOOK } = await import('../src/world/palette.js');
 const { GradeShader } = await import('../src/world/post.js');
 const { createVertexMaterial, useWorldGrit, useVertexEmissive } = await import('../src/world/surfaces.js');
+const { buildValleyHorizon, buildStreetDetails, updateWetSurfaces, createAmbientParticles } = await import('../src/world/atmosphere.js');
 
 function fakeShader() {
   return {
@@ -66,4 +67,34 @@ test('GradeShader wires gritty grade uniforms including sharpen and highlight bl
   assert.ok(GradeShader.uniforms.resolution.value.isVector2);
   assert.match(GradeShader.fragmentShader, /sampleBloom\(vUv, px\)/);
   assert.match(GradeShader.fragmentShader, /edge \* sharpen/);
+});
+
+test('atmosphere builders add valley horizon, power lines, street clutter, wet roads, and fireflies', () => {
+  const scene = new THREE.Scene();
+  const road = new THREE.Mesh(new THREE.PlaneGeometry(10, 10), new THREE.MeshStandardMaterial({ roughness: 0.90 }));
+  road.name = 'road';
+  const walk = new THREE.Mesh(new THREE.PlaneGeometry(10, 10), new THREE.MeshStandardMaterial({ roughness: 0.90 }));
+  walk.name = 'sidewalk-north';
+  scene.add(road, walk);
+
+  const horizon = buildValleyHorizon(scene, { shadows: true });
+  assert.ok(horizon.getObjectByName('valley-hills'));
+
+  const details = buildStreetDetails(scene, { shadows: true });
+  assert.ok(details.getObjectByName('power-lines'));
+  assert.ok(details.getObjectByName('street-clutter'));
+
+  updateWetSurfaces(scene, 0);
+  assert.ok(Math.abs(road.material.roughness - 0.90) < 1e-6);
+  updateWetSurfaces(scene, 1);
+  assert.ok(road.material.roughness < 0.35);
+  assert.ok(walk.material.roughness < 0.45);
+
+  const particles = createAmbientParticles(scene, { shadows: true });
+  particles.update(0.05, { playerPos: { x: 0, z: 0 }, minutes: 12 * 60, rain: 0 });
+  assert.equal(particles.points.visible, false);
+  particles.update(0.05, { playerPos: { x: 0, z: 0 }, minutes: 21 * 60, rain: 0 });
+  assert.equal(particles.points.visible, true);
+  particles.update(0.05, { playerPos: { x: 0, z: 0 }, minutes: 21 * 60, rain: 0.8 });
+  assert.equal(particles.points.visible, false);
 });

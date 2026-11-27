@@ -23,36 +23,107 @@ import { buildContactGeometry, contactMaterial, createContactBlob, createContact
 import { CURB_WIDTH, DRIVEWAY, GARAGE_LOT, NORTH_FRONTAGE_OFFSET, STREET, SURFACE_Y, drivewayWalkHeight, surfaceHeightAt } from './street.js';
 import { createLightPool } from './lightPool.js';
 import { useWorldGrit } from './surfaces.js';
+import { buildValleyHorizon, buildStreetDetails, createAmbientParticles } from './atmosphere.js';
 
 export { STREET, gradeMainHouse };
 
-/** Large inverted dome, fog disabled, drawn behind the world. */
+/** Large inverted dome, fog disabled, drawn behind the world: gradient + drifting clouds + sun/moon glow + stars. */
 function createSkyDome(quality, look) {
   const radius = quality.far * 0.85;
-  const geometry = new THREE.SphereGeometry(radius, 16, 12);
+  const geometry = new THREE.SphereGeometry(radius, 24, 16);
+  const sunDir = new THREE.Vector3(...(look.sunPos || [22, 32, 16])).normalize();
   const uniforms = {
     topColor: { value: new THREE.Color(look.skyTop) },
     bottomColor: { value: new THREE.Color(look.skyBottom) },
-    exponent: { value: look.exponent }
+    exponent: { value: look.exponent },
+    sunDir: { value: sunDir },
+    sunColor: { value: new THREE.Color(look.sun || 0xffe4bc) },
+    time: { value: 0 },
+    nightFactor: { value: look.interior || 0 },
+    cloudCover: { value: 0.42 }
   };
   const material = new THREE.ShaderMaterial({
     uniforms,
-    vertexShader: `
-      varying float vSky;
+    vertexShader: /* glsl */`
+      varying vec3 vDir;
       void main() {
         vec4 w = modelMatrix * vec4(position, 1.0);
-        vSky = normalize(w.xyz).y;
+        vDir = normalize(w.xyz);
         gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
       }
     `,
-    fragmentShader: `
+    fragmentShader: /* glsl */`
       uniform vec3 topColor;
       uniform vec3 bottomColor;
       uniform float exponent;
-      varying float vSky;
+      uniform vec3 sunDir;
+      uniform vec3 sunColor;
+      uniform float time;
+      uniform float nightFactor;
+      uniform float cloudCover;
+      varying vec3 vDir;
+
+      float hash21(vec2 p) {
+        p = fract(p * vec2(127.1, 311.7));
+        p += dot(p, p + 34.53);
+        return fract(p.x * p.y);
+      }
+
+      float vnoise(vec2 p) {
+        vec2 i = floor(p);
+        vec2 f = fract(p);
+        f = f * f * (3.0 - 2.0 * f);
+        float a = hash21(i);
+        float b = hash21(i + vec2(1.0, 0.0));
+        float c = hash21(i + vec2(0.0, 1.0));
+        float d = hash21(i + vec2(1.0, 1.0));
+        return mix(mix(a, b, f.x), mix(c, d, f.x), f.y);
+      }
+
+      float fbm(vec2 p) {
+        float v = 0.0;
+        v += 0.52 * vnoise(p);
+        v += 0.28 * vnoise(p * 2.05 + vec2(4.1, 1.7));
+        v += 0.14 * vnoise(p * 4.2 + vec2(9.3, 5.2));
+        return v;
+      }
+
       void main() {
-        float t = pow(max(vSky, 0.0), exponent);
-        gl_FragColor = vec4(mix(bottomColor, topColor, t), 1.0);
+        vec3 dir = normalize(vDir);
+        float h = max(dir.y, 0.0);
+        vec3 col = mix(bottomColor, topColor, pow(h, exponent));
+
+        // Sun / moon atmospheric halo and disc.
+        float sDot = max(dot(dir, normalize(sunDir)), 0.0);
+        float dayAmt = 1.0 - smoothstep(0.55, 0.92, nightFactor);
+        float halo = pow(sDot, 10.0) * 0.28 * dayAmt + pow(sDot, 64.0) * 0.35 * dayAmt;
+        float disc = smoothstep(0.9983, 0.9994, sDot) * (0.95 * dayAmt + 0.35 * nightFactor);
+        col += sunColor * (halo + disc);
+
+        // Soft drifting clouds projected onto the sky plane above the horizon.
+        float cloudMask = 0.0;
+        if (dir.y > 0.02) {
+          vec2 uv = dir.xz / (dir.y + 0.24) * 1.15 + vec2(time * 0.008, time * 0.003);
+          float n = fbm(uv);
+          float thresh = mix(0.62, 0.34, clamp(cloudCover, 0.0, 1.0));
+          cloudMask = smoothstep(thresh, thresh + 0.24, n) * smoothstep(0.02, 0.22, dir.y);
+          vec3 cloudLit = mix(bottomColor * 1.12, sunColor * 1.08, 0.35 + 0.45 * pow(sDot, 4.0));
+          vec3 cloudCol = mix(cloudLit, topColor * 0.55 + vec3(0.05, 0.07, 0.10), nightFactor);
+          col = mix(col, cloudCol, cloudMask * (0.58 - nightFactor * 0.22));
+        }
+
+        // Crisp twinkling stars at night (masked near horizon and behind clouds).
+        if (nightFactor > 0.2 && dir.y > 0.08) {
+          vec2 starUv = floor(dir.xz / (dir.y + 0.45) * 165.0);
+          float r = hash21(starUv);
+          if (r > 0.9935) {
+            float twinkle = 0.65 + 0.35 * sin(time * 2.4 + r * 900.0);
+            float starAlpha = smoothstep(0.2, 0.78, nightFactor) * smoothstep(0.08, 0.28, dir.y) * (1.0 - cloudMask * 0.85);
+            col += vec3(0.82, 0.88, 1.0) * twinkle * starAlpha * 0.85;
+          }
+        }
+
+        gl_FragColor = vec4(col, 1.0);
       }
     `,
     side: THREE.BackSide,
@@ -538,6 +609,11 @@ export function createScene(quality) {
   carShadow.position.y = Math.max(SURFACE_Y.road, surfaceY(car.position.x, car.position.z));
   car.add(carShadow);
   car.userData.contactShadow = carShadow;
+
+  // Environmental polish: valley horizon hills, utility poles/power lines & street clutter, dust/fireflies.
+  scene.userData.valleyHorizon = buildValleyHorizon(scene, quality);
+  scene.userData.streetDetails = buildStreetDetails(scene, quality);
+  scene.userData.ambientParticles = createAmbientParticles(scene, quality);
 
   return scene;
 }

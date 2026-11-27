@@ -54,13 +54,80 @@ export function buildStreetlights(scene, quality) {
   });
   scene.add(poles, new THREE.Mesh(lenses.merge(), glass));
 
+  // Soft additive volumetric light cones + lamp halos for moody dusk/night haze.
+  const coneHeight = 3.1;
+  const coneGeo = new THREE.ConeGeometry(1.55, coneHeight, 14, 1, true);
+  coneGeo.translate(0, -coneHeight / 2, 0);
+  const coneMat = new THREE.ShaderMaterial({
+    uniforms: {
+      color: { value: new THREE.Color(0xffd296) },
+      opacity: { value: 0 }
+    },
+    vertexShader: /* glsl */`
+      varying float vY;
+      varying float vRim;
+      void main() {
+        vY = clamp(-position.y / ${coneHeight.toFixed(2)}, 0.0, 1.0);
+        vec3 n = normalize(normalMatrix * normal);
+        vec4 mv = modelViewMatrix * vec4(position, 1.0);
+        vec3 v = normalize(-mv.xyz);
+        vRim = pow(abs(dot(n, v)), 1.35);
+        gl_Position = projectionMatrix * mv;
+      }
+    `,
+    fragmentShader: /* glsl */`
+      uniform vec3 color;
+      uniform float opacity;
+      varying float vY;
+      varying float vRim;
+      void main() {
+        float fade = pow(1.0 - vY, 1.8) * smoothstep(0.0, 0.08, vY) * vRim;
+        gl_FragColor = vec4(color, fade * opacity);
+      }
+    `,
+    transparent: true,
+    depthWrite: false,
+    blending: THREE.AdditiveBlending,
+    side: THREE.DoubleSide
+  });
+
+  const haloGeo = new THREE.SphereGeometry(0.32, 10, 8);
+  const haloMat = new THREE.MeshBasicMaterial({
+    color: 0xffe0ad,
+    transparent: true,
+    opacity: 0,
+    depthWrite: false,
+    blending: THREE.AdditiveBlending
+  });
+
+  const glowGroup = new THREE.Group();
+  glowGroup.name = 'streetlight-halos';
+  for (const { x, side } of LOCATIONS) {
+    const z = STREET.roadCenterZ + side * (STREET.roadWidth / 2 + STREET.sidewalkWidth - 0.15);
+    const headZ = z - side * arm;
+    const headY = SURFACE_Y.walk + poleHeight - 0.09;
+    const cone = new THREE.Mesh(coneGeo, coneMat);
+    cone.position.set(x, headY, headZ);
+    const halo = new THREE.Mesh(haloGeo, haloMat);
+    halo.position.set(x, headY - 0.03, headZ);
+    glowGroup.add(cone, halo);
+  }
+  glowGroup.visible = false;
+  scene.add(glowGroup);
+
   return {
-    update(minutes) {
+    update(minutes, rain = 0) {
       const evening = THREE.MathUtils.smoothstep(minutes, 18 * 60 + 20, 19 * 60 + 20);
       const morning = 1 - THREE.MathUtils.smoothstep(minutes, 5 * 60 + 35, 6 * 60 + 35);
-      const strength = evening + morning;
+      const strength = Math.min(1, evening + morning);
       for (const light of lights) light.intensity = 29 * strength;
       glass.emissiveIntensity = 0.92 * strength;
+      glowGroup.visible = strength > 0.02;
+      if (glowGroup.visible) {
+        const hazeBoost = 1 + Math.min(1, Number(rain) || 0) * 0.45;
+        coneMat.uniforms.opacity.value = 0.16 * strength * hazeBoost;
+        haloMat.opacity = 0.24 * strength * hazeBoost;
+      }
     }
   };
 }

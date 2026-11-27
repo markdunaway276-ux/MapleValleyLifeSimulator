@@ -278,6 +278,25 @@ function glassMaterial() {
     return useVertexEmissive(m);
   });
 }
+
+const _winDay = new THREE.Color(0xffffff);
+const _winWarm = new THREE.Color(0xffca80);
+
+/**
+ * Transitions neighbourhood house windows from daytime sky tint to a warm
+ * inhabited amber glow at dusk and evening, dimming down late at night.
+ */
+export function updateHouseWindows(minutes) {
+  const m = sharedMaterials.get('glass-vc');
+  if (!m || !m.emissive) return;
+  const duskIn = THREE.MathUtils.smoothstep(minutes, 18 * 60 + 10, 19 * 60 + 25);
+  const lateOut = 1 - THREE.MathUtils.smoothstep(minutes, 22 * 60 + 45, 23 * 60 + 50);
+  const dawnGlow = THREE.MathUtils.smoothstep(minutes, 5 * 60 + 15, 6 * 60) * (1 - THREE.MathUtils.smoothstep(minutes, 6 * 60 + 45, 7 * 60 + 30));
+  const warm = Math.min(1, duskIn * lateOut + dawnGlow * 0.55);
+  m.emissive.copy(_winDay).lerp(_winWarm, warm);
+  m.emissiveIntensity = 0.22 + warm * 0.52;
+}
+
 /** One shared vertex-coloured material for every door slab (the colour is baked per door). */
 function doorMaterial() {
   return sharedMaterial('door-vc', () => createVertexMaterial({ metalness: 0.04 }));

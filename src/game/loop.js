@@ -1,4 +1,6 @@
 import { updateScenery } from '../world/scenery.js';
+import { updateHouseWindows } from '../world/buildings.js';
+import { updateWetSurfaces } from '../world/atmosphere.js';
 import { FUEL } from '../systems/fuel.js';
 import { updateDoors } from '../systems/doors.js';
 import { updatePickups } from '../world/pickups.js';
@@ -100,8 +102,20 @@ export function startLoop(g) {
     updatePickups(scene.userData.interactables, delta);
     const time = clock.getTime();
     g.dayNight.update(delta, time);
+    const sky = scene.getObjectByName('sky');
+    if (sky?.material?.uniforms) {
+      if (sky.material.uniforms.time) sky.material.uniforms.time.value += delta;
+      if (sky.material.uniforms.cloudCover) {
+        const w = g.weather.get?.();
+        const cover = w && w.id === 'rain' ? 0.85 : (w && w.id === 'cloudy' ? 0.68 : 0.36);
+        sky.material.uniforms.cloudCover.value += (cover - sky.material.uniforms.cloudCover.value) * Math.min(1, delta * 0.8);
+      }
+    }
+    updateWetSurfaces(scene, rain);
+    updateHouseWindows(time.minutes);
+    scene.userData.ambientParticles?.update(delta, { playerPos: player.position, minutes: time.minutes, rain });
     scene.userData.frontYard?.update(time.totalMinutes);
-    scene.userData.streetlights.update(time.minutes);
+    scene.userData.streetlights.update(time.minutes, rain);
     scene.userData.park.update(time.minutes);
     scene.userData.cornerShop?.userData.updateFrontage?.(time.minutes);
     scene.userData.clinic?.userData.updateLighting?.(time.minutes);

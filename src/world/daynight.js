@@ -98,9 +98,13 @@ function applySample(scene, sample, quality = {}) {
   if (!scene) return sample;
   const sky = scene.getObjectByName('sky');
   if (sky && sky.material && sky.material.uniforms) {
-    sky.material.uniforms.topColor.value.setHex(sample.skyTop);
-    sky.material.uniforms.bottomColor.value.setHex(sample.skyBottom);
-    if (sky.material.uniforms.exponent) sky.material.uniforms.exponent.value = sample.exponent;
+    const u = sky.material.uniforms;
+    u.topColor.value.setHex(sample.skyTop);
+    u.bottomColor.value.setHex(sample.skyBottom);
+    if (u.exponent) u.exponent.value = sample.exponent;
+    if (u.sunDir && sample.sunPos) u.sunDir.value.set(sample.sunPos[0], sample.sunPos[1], sample.sunPos[2]).normalize();
+    if (u.sunColor) u.sunColor.value.setHex(sample.sun);
+    if (u.nightFactor) u.nightFactor.value = sample.interior;
   }
   if (scene.background && scene.background.isColor) scene.background.setHex(sample.fog);
   else scene.background = new THREE.Color(sample.fog);
