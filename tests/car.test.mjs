@@ -15,6 +15,28 @@ const {
 } = await import('../src/systems/car.js');
 const { createColliderWorld } = await import('../src/systems/collision.js');
 
+const { createParkedCar, poseCarWheels } = await import('../src/world/props.js');
+
+test('wheel pivots steer independently from local axle roll', () => {
+  const car = createParkedCar();
+  const wheels = car.userData.wheels;
+  assert.equal(wheels.length, 4);
+  poseCarWheels(car, 0.25, 0.32);
+  for (const { pivot, wheel } of wheels) {
+    assert.equal(wheel.parent, pivot);
+    assert.equal(pivot.rotation.y, pivot.position.x > 0 ? -0.25 : 0);
+    assert.equal(wheel.rotation.x, 0);
+    assert.equal(wheel.rotation.y, 0);
+    assert.equal(wheel.rotation.z, -1);
+  }
+
+  poseCarWheels(car, -0.25, -0.32);
+  for (const { pivot, wheel } of wheels) {
+    assert.equal(pivot.rotation.y, pivot.position.x > 0 ? 0.25 : 0);
+    assert.equal(wheel.rotation.z, 1);
+  }
+});
+
 test('readDriveInput maps keyboard and joystick inputs and zeroes them when blocked', () => {
   const player = {
     keys: { forward: true, back: false, left: false, right: true },

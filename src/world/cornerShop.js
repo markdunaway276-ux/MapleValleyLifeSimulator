@@ -136,12 +136,22 @@ export function buildCornerShop(scene, quality) {
   const aisleXs = [-6.6, -2.9, 0.9, 4.7];
 
   for (const [aisle, x] of aisleXs.entries()) {
-    box('aisle-' + aisle, 0x74786e, x, 7.0, 0.34, 1.64, 5.8);
+    box('aisle-' + aisle, 0x74786e, x, 7.0, 0.12, 1.64, 5.8);
+    box(null, 0x50574f, x, 7.0, 1.04, 0.15, 5.8);
+    for (const z of [4.14, 5.56, 7.0, 8.44, 9.86]) {
+      box(null, 0x555e58, x, z, 0.20, 1.66, 0.055);
+    }
     // Extend collision to the edges of the shelf decks.
     solid('aisle-decks-' + aisle, x, 7.0, 1.04, 5.8);
     for (const [level,y] of [0.30, 0.72, 1.14, 1.56].entries()) {
-      box(null, 0xaaa99b, x, 7.0, 1.04, 0.064, 5.8, y);
+      shell.bevelMax = 0.008;
+      box(null, 0xc2c4ba, x, 7.0, 1.04, 0.064, 5.8, y);
+      shell.bevelMax = 0;
       for (const side of [-1, 1]) {
+        box(null, 0x54645b, x + side * 0.509, 7.0, 0.022, 0.041, 5.77, y - 0.011);
+        for (const z of [4.50, 6.37, 8.24]) {
+          box(null, 0xe8e1ca, x + side * 0.522, z, 0.004, 0.024, 0.12, y - 0.01);
+        }
         for (let j = 0; j < 21; j++) {
           if ((j + 3*level + aisle) % 19 === 0) continue;
           const sku = AISLE_STOCK[aisle][(Math.floor(j/7)+level+(side>0?1:0))%3];
