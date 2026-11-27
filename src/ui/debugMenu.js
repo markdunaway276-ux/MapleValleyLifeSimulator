@@ -314,7 +314,7 @@ export function createDebugMenu({ actions, getState, getTeleports = () => [], ge
     return bar;
   }
 
-  /** Development extras: fly and fast laundry machines. */
+  /** Development extras: fly, fast laundry machines, fill the car's tank. */
   let devEls = null;
   function buildDevSection() {
     const section = document.createElement('div');
@@ -366,6 +366,21 @@ export function createDebugMenu({ actions, getState, getTeleports = () => [], ge
       makeSwitch('dev-fast', 'Fast laundry machines', 'Washers and dryers finish in a minute · new bags every 5 min',
         () => !!dev()?.isFast(), (v) => dev()?.setFast(v))
     ];
+    // Plain button: fill the car's tank, or empty a full one to test running out.
+    const fuelRow = document.createElement('button');
+    fuelRow.type = 'button';
+    fuelRow.className = 'dm-subrow';
+    fuelRow.dataset.item = 'dev-fuel';
+    const fuelText = document.createElement('span');
+    fuelText.className = 'dm-label';
+    fuelText.textContent = 'Fill car tank';
+    const fuelKey = document.createElement('span');
+    fuelKey.className = 'dm-key';
+    fuelKey.textContent = 'Fills the gas tank · press again on a full tank to empty it';
+    fuelText.appendChild(fuelKey);
+    fuelRow.appendChild(fuelText);
+    fuelRow.addEventListener('click', () => dev()?.fillTank?.());
+    list.appendChild(fuelRow);
     section.append(toggle, list);
     devEls = { switches };
     return section;

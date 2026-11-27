@@ -2,6 +2,8 @@ import * as THREE from 'three';
 import { pushOutOBB, syncBoxCollider, PLAYER_RADIUS } from './collision.js';
 import { STREET } from '../world/street.js';
 import { CAR_SEAT, CAR_SIZE, CAR_SPAWN } from '../world/props.js';
+import { carBoundsClamp } from './carBounds.js';
+import { createFuelTank, FUEL } from './fuel.js';
 
 /**
  * A basic drivable car (arcade physics, no physics engine).
@@ -14,7 +16,7 @@ import { CAR_SEAT, CAR_SIZE, CAR_SPAWN } from '../world/props.js';
  *
  * Collision is an oriented box (SAT) against every collider in the world
  * (houses, trees, mailbox, vending machine, the NPCs' circles), plus the street
- * rectangle. It is advanced in sub-steps of at most STEP_MAX metres, so a
+ * rectangle (plus the gas station forecourt). It is advanced in sub-steps of at most STEP_MAX metres, so a
  * frame can never carry the car through a thin obstacle. The car's own collider
  * (id 'parked-car') moves with it, so the player and NPCs walk around it.
  */
@@ -157,8 +159,7 @@ export function resolveCarPose(world, pose, { skipId = CAR_ID, bounds = null, si
       if (m) { box.x += m.x; box.z += m.z; moved = true; hit = true; }
     }
     if (bounds) {
-      const nx = clamp(box.x, bounds.minX + ex, bounds.maxX - ex);
-      const nz = clamp(box.z, bounds.minZ + ez, bounds.maxZ - ez);
+      const { x: nx, z: nz } = carBoundsClamp(box.x, box.z, ex, ez, bounds);
       if (nx !== box.x || nz !== box.z) { box.x = nx; box.z = nz; moved = true; hit = true; }
     }
     if (!moved) break;
@@ -248,14 +249,21 @@ export function createCar({
   sfx = null,
   onDrivingChange = null,
   isMobile = false,
-  object = null
+  object = null,
+  toast = null,
+  isFuelFree = () => false,
+  getInventory = () => null
 } = {}) {
   const car = object || (scene.userData && scene.userData.prop) || scene.getObjectByName('parked-car');
   if (!car) return null;
   const world = scene.userData && scene.userData.colliders;
   const size = (car.userData && car.userData.size) || CAR_SIZE;
   const seat = (car.userData && car.userData.seat) || CAR_SEAT;
-  const bounds = streetBounds(scene);
+  // The street, plus any lots you can drive onto (the gas station forecourt).
+  const bounds = [streetBounds(scene), ...((scene.userData && scene.userData.driveAreas) || [])];
+  const fuel = createFuelTank(FUEL.START);
+  let warnedLow = false;
+  let warnedEmpty = false;
   const defaultPose = { x: CAR_SPAWN.x, z: CAR_SPAWN.z, rotY: CAR_SPAWN.rotY };
 
   const state = {
@@ -307,11 +315,12 @@ export function createCar({
 
   function serialize() {
     const r = (n) => Math.round(n * 1000) / 1000;
-    return { x: r(state.x), z: r(state.z), rotY: r(state.rotY) };
+    return { x: r(state.x), z: r(state.z), rotY: r(state.rotY), fuel: r(fuel.get()) };
   }
 
   function apply(data) {
     const saved = data && data.car;
+    if (saved && Number.isFinite(saved.fuel)) fuel.set(saved.fuel);
     if (!saved || !Number.isFinite(saved.x) || !Number.isFinite(saved.z)) return false;
     const pose = { x: saved.x, z: saved.z, rotY: Number.isFinite(saved.rotY) ? saved.rotY : 0 };
     // Put the car back where it was parked, unless something now sits there.
@@ -379,9 +388,23 @@ export function createCar({
     lastSeat.z = s.z;
   }
 
+  /** Getting in with an empty tank and a gas can in your bag pours it in. */
+  function pourGasCan() {
+    if (!fuel.isEmpty() && fuel.get() > FUEL.LOW) return false;
+    const inv = getInventory && getInventory();
+    if (!inv || typeof inv.getItems !== 'function') return false;
+    const index = inv.getItems().findIndex((it) => it && it.id === 'gas-can');
+    if (index < 0) return false;
+    inv.consume(index, 1);
+    fuel.add(FUEL.CAN_LITRES);
+    if (toast) toast('Poured in the gas can: +' + FUEL.CAN_LITRES + ' L. Head to Fuel & Go to fill up.');
+    return true;
+  }
+
   function enter() {
     if (driving) return false;
     if (!isStarted()) return false;
+    pourGasCan();
     driving = true;
     state.speed = 0;
     state.steer = 0;
@@ -424,7 +447,8 @@ export function createCar({
 
   car.userData.getPrompt = (mobile) => {
     if (driving) return mobile ? 'Exit car' : 'Press E to exit car';
-    return mobile ? 'Tap to enter car' : 'Press E to enter car';
+    const empty = fuel.isEmpty() ? ' (out of gas)' : '';
+    return (mobile ? 'Tap to enter car' : 'Press E to enter car') + empty;
   };
   car.userData.interact = () => (driving ? !!exit() : enter());
 
@@ -451,7 +475,24 @@ export function createCar({
     }
     const dt = Math.max(0, Math.min(delta || 0, 0.1));
     const input = readDriveInput(player, blocked);
+    // Out of gas: the engine stalls, so the car only coasts to a stop.
+    if (fuel.isEmpty()) input.throttle = 0;
+    const fromX = state.x;
+    const fromZ = state.z;
     const r = stepCar(state, input, dt, { world, bounds, braking: blocked });
+    if (!isFuelFree() && !fuel.isEmpty()) {
+      fuel.burn(Math.hypot(state.x - fromX, state.z - fromZ), dt);
+      if (fuel.isLow() && !warnedLow) {
+        warnedLow = true;
+        if (toast) toast('Running low on gas. Fuel & Go is in the middle of Maple Lane, north side.');
+      }
+      if (fuel.isEmpty() && !warnedEmpty) {
+        warnedEmpty = true;
+        if (toast) toast('Out of gas! Walk to Fuel & Go and buy a gas can.');
+      }
+    }
+    if (fuel.get() > FUEL.LOW + 1) warnedLow = false;
+    if (!fuel.isEmpty()) warnedEmpty = false;
     if (r.hit) hitFlash = 0.15; else hitFlash = Math.max(0, hitFlash - dt);
     syncMesh();
 
@@ -474,7 +515,7 @@ export function createCar({
     }
     placeCamera();
     setLook();
-    if (sfx && typeof sfx.setCar === 'function') sfx.setCar(true, Math.abs(state.speed) / CAR_PHYSICS.MAX_SPEED);
+    if (sfx && typeof sfx.setCar === 'function') sfx.setCar(!fuel.isEmpty(), Math.abs(state.speed) / CAR_PHYSICS.MAX_SPEED);
   }
 
   syncMesh();
@@ -484,6 +525,9 @@ export function createCar({
     entry,
     state,
     isDriving: () => driving,
+    fuel,
+    /** True when the car's centre is within `range` m of (x, z) and it is parked. */
+    isNear: (x, z, range) => Math.hypot(state.x - x, state.z - z) <= range && Math.abs(state.speed) < 0.1,
     enter,
     exit,
     update,

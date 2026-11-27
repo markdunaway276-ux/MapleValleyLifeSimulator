@@ -4,6 +4,7 @@ import { createHingedDoor } from '../systems/doors.js';
 import { getShop } from '../data/shops.js';
 import { getJob } from '../data/jobs.js';
 import { buyFromShop } from '../systems/shop.js';
+import { FUEL, quoteFill } from '../systems/fuel.js';
 
 /**
  * Maple Lane Fuel & Go: a canopy with two pump islands by the street and a
@@ -68,6 +69,33 @@ function asphaltMaterial() {
   map.repeat.set(17 / 3, 17 / 3);
   map.anisotropy = 8;
   return new THREE.MeshStandardMaterial({ map, color: 0xc9c9c4, roughness: 0.96 });
+}
+
+/** A couple of red jerry cans on the floor at the end of the front shelves. */
+function gasCans(quality) {
+  const group = new THREE.Group();
+  group.name = 'gas-cans';
+  const red = new THREE.MeshStandardMaterial({ color: 0xb8261c, roughness: 0.45, metalness: 0.1 });
+  const black = new THREE.MeshStandardMaterial({ color: 0x1d1d1d, roughness: 0.7 });
+  const body = new THREE.BoxGeometry(0.34, 0.4, 0.17);
+  const handle = new THREE.BoxGeometry(0.22, 0.04, 0.05);
+  const spout = new THREE.CylinderGeometry(0.022, 0.03, 0.16, 10);
+  for (const [x, z, r] of [[5.25, 17.9, 0.1], [5.62, 18.05, -0.25], [5.42, 18.45, 1.45]]) {
+    const can = new THREE.Group();
+    const b = new THREE.Mesh(body, red);
+    b.position.y = 0.2;
+    const h = new THREE.Mesh(handle, red);
+    h.position.set(-0.03, 0.43, 0);
+    const s = new THREE.Mesh(spout, black);
+    s.position.set(0.13, 0.45, 0);
+    s.rotation.z = -0.5;
+    can.add(b, h, s);
+    can.traverse((m) => { if (m.isMesh) m.castShadow = m.receiveShadow = !!quality.shadows; });
+    can.position.set(x, 0.13, z);
+    can.rotation.y = r;
+    group.add(can);
+  }
+  return group;
 }
 
 export function buildGasStation(scene, quality) {
@@ -141,6 +169,53 @@ export function buildGasStation(scene, quality) {
   buy('gas-slushie', 'slushie', -4.68, 1.6, 26.48, 'press');
   buy('gas-snack', 'snack', 2.3, 1.05, 19.75);
   buy('gas-sandwich', 'sandwich', 2.3, 1.05, 22.95);
+  buy('gas-can', 'gas-can', 5.35, 0.45, 18.1);
+  station.add(gasCans(quality));
+
+  // The pumps: park the car beside one, get out and press E to fill up.
+  const PUMP_REACH = 4.4; // car centre to pump, metres
+  const pumpSpot = (id, x, z) => {
+    const object = new THREE.Group();
+    object.name = id;
+    object.userData.action = 'press';
+    object.position.set(x, 1.2, z);
+    const wx = X + x;
+    const wz = FRONT + z;
+    const carHere = () => {
+      const car = data.car;
+      return car && !car.isDriving() && car.isNear(wx, wz, PUMP_REACH) ? car : null;
+    };
+    object.userData.getPrompt = (mobile) => {
+      const car = carHere();
+      const lead = mobile ? 'Tap to ' : 'Press E to ';
+      if (!car) return 'Park your car beside the pump to fill up ($' + FUEL.PRICE_PER_LITRE.toFixed(2) + '/L)';
+      const space = car.fuel.space();
+      if (space < 0.05) return 'The tank is full';
+      return lead + 'fill up (' + Math.ceil(space) + ' L, about $' + Math.ceil(space * FUEL.PRICE_PER_LITRE) + ')';
+    };
+    object.userData.interact = (ctx) => {
+      const car = carHere();
+      const toast = typeof ctx.toast === 'function' ? ctx.toast : () => {};
+      if (!car) { toast('Park your car beside the pump first.'); return false; }
+      const money = ctx.money;
+      if (!money) return false;
+      const { litres, cost } = quoteFill(car.fuel.space(), money.get());
+      if (car.fuel.space() < 0.05) { toast('The tank is already full.'); return false; }
+      if (!cost) { toast('Not enough cash.'); return false; }
+      if (!money.spend(cost, { category: 'Purchase', label: 'Gas · ' + shop.name })) return false;
+      car.fuel.add(litres);
+      ctx.sfx?.play?.('cash');
+      const full = car.fuel.space() < 0.05;
+      toast((full ? 'Filled up: ' : 'Put in ') + litres.toFixed(1) + ' L for $' + cost + (full ? '.' : ' (all your cash covers).'));
+      return true;
+    };
+    station.add(object);
+    data.interactables.push({ id, object, range: 1.6, getPoint: () => ({ x: wx, y: 1.2, z: wz }) });
+  };
+  pumpSpot('gas-pump-1', -5.73, 4.48);
+  pumpSpot('gas-pump-2', -5.73, 8.82);
+  pumpSpot('gas-pump-3', 4.36, 4.48);
+  pumpSpot('gas-pump-4', 4.36, 8.82);
   const shift = getJob('station-clerk');
   spot('gas-register', -2.92, 1.25, 20.6, shift.verb + ' ($' + shift.pay + ')', (ctx) => ctx.work?.(shift.id) ?? false, 'press', 1.7);
 
@@ -170,6 +245,10 @@ export function buildGasStation(scene, quality) {
       material.emissiveIntensity = THREE.MathUtils.lerp(dayGlow, nightGlow, night);
     }
   };
+
+  // The car may leave the street onto the forecourt (up to the store front).
+  // The area reaches down over the road so turning in and out is smooth.
+  (data.driveAreas ??= []).push({ id: 'gas-forecourt', minX: X - 8.45, maxX: X + 8.45, minZ: FRONT - 9, maxZ: FRONT + 16.55 });
 
   const footprint = { id: 'gas-station', minX: X - 5.9, maxX: X + 7.72, minZ: FRONT + 16.6, maxZ: FRONT + 32.2 };
   (data.mapBuildings ??= []).push(footprint);
