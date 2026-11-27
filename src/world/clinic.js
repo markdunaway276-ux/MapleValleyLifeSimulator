@@ -45,6 +45,46 @@ function plaque(text, width, height, x, y, z, facesStreet) {
   return sign;
 }
 
+function makeStucco() {
+  const canvas = document.createElement('canvas');
+  canvas.width = 128;
+  canvas.height = 128;
+  const context = canvas.getContext('2d');
+  const pixels = context.createImageData(128, 128);
+  let seed = 37;
+  for (let index = 0; index < pixels.data.length; index += 4) {
+    seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0;
+    const grain = 225 + (seed >>> 27);
+    pixels.data.set([grain, grain, grain, 255], index);
+  }
+  context.putImageData(pixels, 0, 0);
+  const map = new THREE.CanvasTexture(canvas);
+  map.colorSpace = THREE.SRGBColorSpace;
+  map.wrapS = map.wrapT = THREE.RepeatWrapping;
+  map.repeat.set(10, 1.25);
+  map.anisotropy = 8;
+  return new THREE.MeshStandardMaterial({ color: WALL, map, roughness: 0.94 });
+}
+
+function addWindowReflection(material, daylight) {
+  material.onBeforeCompile = (shader) => {
+    shader.uniforms.clinicDaylight = daylight;
+    shader.vertexShader = shader.vertexShader.replace('#include <common>',
+      '#include <common>\nvarying vec3 vClinicPaneNormal;');
+    shader.vertexShader = shader.vertexShader.replace('#include <project_vertex>',
+      '#include <project_vertex>\nvClinicPaneNormal = normalMatrix * normal;');
+    shader.fragmentShader = shader.fragmentShader.replace('#include <common>',
+      '#include <common>\nuniform float clinicDaylight;\nvarying vec3 vClinicPaneNormal;');
+    shader.fragmentShader = shader.fragmentShader.replace('#include <color_fragment>', `
+      #include <color_fragment>
+      float facing = abs(dot(normalize(vClinicPaneNormal), normalize(vViewPosition)));
+      float reflection = pow(1.0 - facing, 3.0) * clinicDaylight;
+      diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.61, 0.76, 0.86), reflection * 0.55);
+      diffuseColor.a += reflection * 0.20;
+    `);
+  };
+}
+
 export function buildClinic(scene, quality) {
   const data = scene.userData;
   const clinic = new THREE.Group();
@@ -68,6 +108,13 @@ export function buildClinic(scene, quality) {
   solid('east', BASE, 0.22, HEIGHT, DEPTH, 6.89, HEIGHT / 2, 3.6);
   solid('back', BASE, 14, HEIGHT, 0.22, 0, HEIGHT / 2, 7.09);
   box(TEAL, 14, 0.18, 7.2, 0, 3.04, 3.6);
+  parts.surface('metal');
+  box(0x6f8179, 14.12, 0.065, 0.15, 0, 3.13, 0.02);
+  box(0x485d55, 14.12, 0.033, 0.045, 0, 3.088, -0.043);
+  for (const side of [-1, 1]) {
+    box(0x6f8179, 0.15, 0.065, DEPTH, side * 6.99, 3.13, DEPTH / 2);
+  }
+  parts.surface('plaster');
   box(WHITE, 13.66, 0.09, 7, 0, 2.97, 3.6);
   box(0xd2d5cc, 13.8, 0.08, 7.1, 0, 0.044, 3.6);
   box(0xb8b8ad, 8.4, 0.105, 0.7, 0, 0.0525, -0.35);
@@ -88,11 +135,21 @@ export function buildClinic(scene, quality) {
     }
   }
 
+  // Control joints stay flush so the sidewalk approach remains unobstructed.
+  for (const x of [-3.15, -2.10, -1.05, 1.05, 2.10, 3.15]) {
+    box(0x898981, 0.012, 0.002, 0.64, x, Math.abs(x) < 1.4 ? 0.111 : 0.106, -0.35);
+  }
+  box(0x96978e, 2.77, 0.002, 0.012, 0, SURFACE_Y.walk + 0.001, -0.66);
+
+  const stucco = makeStucco();
+  const stuccoGeometry = new THREE.PlaneGeometry(6.15, 0.78);
+  const daylight = { value: 1 };
   const glassGeometry = new THREE.PlaneGeometry(4.62, 1.55);
   const glass = new THREE.MeshStandardMaterial({
     color: 0x99bcb8, transparent: true, opacity: 0.25, roughness: 0.24,
     side: THREE.DoubleSide, depthWrite: false, emissive: 0xffdca9, emissiveIntensity: 0
   });
+  addWindowReflection(glass, daylight);
   for (const side of [-1, 1]) {
     const x = side * 3.925;
     solid('front-' + side, BASE, 6.15, 0.75, 0.24, x, 0.375, 0.1);
@@ -110,6 +167,11 @@ export function buildClinic(scene, quality) {
     }
     box(0xbeb8a5, 6.15, 0.09, 0.34, x, 0.723, 0.035);
     box(WALL, 6.15, 0.78, 0.24, x, 2.69, 0.1);
+    const finish = new THREE.Mesh(stuccoGeometry, stucco);
+    finish.position.set(x, 2.69, -0.021);
+    finish.rotation.y = Math.PI;
+    finish.receiveShadow = !!quality.shadows;
+    clinic.add(finish);
     for (const post of [0.97, 1.58, 3.925, 6.27, 6.87]) {
       box(TEAL, 0.19, 1.61, 0.36, post * side, 1.525, 0.1);
     }
@@ -137,6 +199,18 @@ export function buildClinic(scene, quality) {
     width: HALF_DOOR * 2, height: 2.34, glazed: true, color: TEAL,
     shadows: quality.shadows, id: 'clinic-entrance'
   });
+  // Two panes keep the stripe between the existing horizontal rails.
+  const privacyStripe = new THREE.PlaneGeometry(0.638, 0.20);
+  const frost = new THREE.MeshStandardMaterial({
+    color: 0xbdd0c9, roughness: 0.95, side: THREE.DoubleSide
+  });
+  for (const face of [-1, 1]) {
+    for (const offset of [-0.332, 0.332]) {
+      const stripe = new THREE.Mesh(privacyStripe, frost);
+      stripe.position.set(HALF_DOOR + offset, 1.72, face * 0.056);
+      door.add(stripe);
+    }
+  }
   pivot.add(door);
   clinic.add(pivot);
   data.doors.push(door);
@@ -222,6 +296,7 @@ export function buildClinic(scene, quality) {
     const dusk = THREE.MathUtils.smoothstep(minutes, 1080, 1200);
     const dawn = 1 - THREE.MathUtils.smoothstep(minutes, 330, 450);
     const night = Math.max(dusk, dawn);
+    daylight.value = 1 - night;
     glass.emissiveIntensity = night * 0.24;
     lobbyLight.intensity = 18 + night * 7;
     canopyLight.intensity = night * 14;
