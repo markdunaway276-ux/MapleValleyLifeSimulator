@@ -405,12 +405,16 @@ export function createScene(quality) {
   const doors = [door, ...streetHouses.map((h) => h.userData.door).filter(Boolean)];
   scene.userData.door = door;
   scene.userData.doors = doors;
-  scene.userData.lightPool = createLightPool({
+  // The shared light pool (lightPool.js) is switched off: it relit only the few
+  // lamps nearest the player, so lighting jumped around while walking. Every
+  // building falls back to its own fixed lights. Set USE_LIGHT_POOL to try it again.
+  const USE_LIGHT_POOL = false;
+  scene.userData.lightPool = USE_LIGHT_POOL ? createLightPool({
     scene,
     quality,
     PointLight: THREE.PointLight,
     SpotLight: THREE.SpotLight
-  });
+  }) : null;
   scene.userData.streetlights = buildStreetlights(scene, quality);
   scene.userData.street = STREET;
   scene.userData.spawn = STREET.spawn;
