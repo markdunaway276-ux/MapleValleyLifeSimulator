@@ -295,7 +295,7 @@ export function createPlayerActions({ camera, appearance = null } = {}) {
   function emit(name, def, extra = {}) {
     if (typeof window === 'undefined') return;
     window.dispatchEvent(new CustomEvent('maple-action', {
-      detail: { name, clip: def ? def.clip : null, duration: def ? (def.duration || null) : null, loop: !!(def && def.loop), ...extra }
+      detail: { name, clip: def ? def.clip : null, duration: def ? (def.duration || null) : null, loop: !!(def && def.loop), carrying: carry, ...extra }
     }));
   }
 
