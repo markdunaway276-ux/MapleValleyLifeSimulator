@@ -57,7 +57,7 @@ test('UI z-index tiers stay strictly ordered: HUD < overlays < pause/title < fee
   const inventoryOverlay = readZIndex('src/ui/inventory.js', '\\.inventory-overlay\\s*\\{');
   const phoneOverlay = readZIndex('src/ui/phone/phone.js', '\\.phone-overlay\\s*\\{');
   const dialogueOverlay = readZIndex('src/ui/dialogue.js', '\\.dialogue-overlay\\s*\\{');
-  const debugMenu = readZIndex('src/ui/debugMenu.js', '#debug-menu\\s*\\{');
+  const debugMenu = readZIndex('src/ui/debug/style.js', '#debug-menu\\s*\\{');
   const mvOverlay = readZIndex('src/ui/menuKit.js', '\\.mv-overlay\\s*\\{');
   const feedback = readZIndex('src/ui/feedback.js', '#debug-feedback\\s*\\{');
   const workOverlay = readZIndex('src/systems/work.js', '#work-overlay\\s*\\{');

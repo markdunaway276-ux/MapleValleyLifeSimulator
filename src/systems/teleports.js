@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { doorInteractPoint, doorOutwardNormal } from './doors.js';
-import { INTERACT_RANGE } from '../ui/interactPrompt.js';
+import { INTERACT_RANGE } from './interactables.js';
 
 /**
  * Debug teleport presets. Positions are resolved against the live collision

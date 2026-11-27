@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { loadGltf } from './gltf.js';
 
 /**
  * Maple Lane Trailer Park — three mobile homes from Elbolilloduro's
@@ -141,7 +141,7 @@ export function buildTrailerPark(scene, quality) {
     return { slot, t };
   });
 
-  new GLTFLoader().load(URL, (gltf) => {
+  loadGltf(URL, (gltf) => {
     const base = gltf.scene;
     base.traverse((o) => {
       if (!o.isMesh) return;
@@ -166,7 +166,7 @@ export function buildTrailerPark(scene, quality) {
       }
       slot.add(home);
     }
-  }, undefined, (err) => console.warn('Trailer model failed to load', err));
+  }, (err) => console.warn('Trailer model failed to load', err));
 
   return park;
 }

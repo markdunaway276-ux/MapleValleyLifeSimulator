@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { doorInteractPoint, toggleDoor } from './doors.js';
-import { INTERACT_RANGE } from '../ui/interactPrompt.js';
+
+export const INTERACT_RANGE = 3;
 
 /**
  * Generic interactables sit in scene.userData.interactables alongside doors.

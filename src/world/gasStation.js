@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { loadGltf } from './gltf.js';
 import { createHingedDoor } from '../systems/doors.js';
 import { getShop } from '../data/shops.js';
 import { getJob } from '../data/jobs.js';
@@ -274,7 +274,7 @@ export function buildGasStation(scene, quality) {
   // Rain stays off the pumps under the canopy too.
   data.indoorZones.push({ id: 'gas-canopy', minX: X - 8.4, maxX: X + 7.2, minZ: FRONT, maxZ: FRONT + 13.4 });
 
-  new GLTFLoader().load(URL, ({ scene: model }) => {
+  loadGltf(URL, ({ scene: model }) => {
     model.rotation.y = Math.PI;
     model.traverse((mesh) => {
       if (!mesh.isMesh) return;
@@ -303,5 +303,5 @@ export function buildGasStation(scene, quality) {
     });
     station.add(model);
     station.userData.updateLighting(lastMinutes);
-  }, undefined, (error) => console.warn('Gas station failed to load', error));
+  }, (error) => console.warn('Gas station failed to load', error));
 }

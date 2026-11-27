@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { loadGltf } from './gltf.js';
 import { createHingedDoor } from '../systems/doors.js';
 import { Parts } from './parts.js';
 import { NORTH_FRONTAGE_OFFSET, SURFACE_Y } from './street.js';
@@ -483,7 +483,7 @@ export function buildClinic(scene, quality) {
   (data.mapBuildings ??= []).push(footprint);
   (data.indoorZones ??= []).push({ ...footprint, minX: footprint.minX + 0.22, minZ: FRONT + DOOR_RECESS, maxX: footprint.maxX - 0.22, maxZ: footprint.maxZ - 0.22 });
 
-  new GLTFLoader().load('./assets/models/clinic-roof.glb', ({ scene: exterior }) => {
+  loadGltf('./assets/models/clinic-roof.glb', ({ scene: exterior }) => {
     exterior.traverse((mesh) => {
       if (!mesh.isMesh) return;
       mesh.castShadow = mesh.receiveShadow = !!quality.shadows;
@@ -491,5 +491,5 @@ export function buildClinic(scene, quality) {
       mesh.material.roughness = 0.86;
     });
     clinic.add(exterior);
-  }, undefined, (error) => console.warn('Clinic exterior failed to load', error));
+  }, (error) => console.warn('Clinic exterior failed to load', error));
 }
