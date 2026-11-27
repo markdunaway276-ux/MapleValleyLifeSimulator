@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { AISLE_STOCK, buildMarketStock } from './marketStock.js';
+import { addDeliCase } from './marketDeli.js';
 import { Parts } from './parts.js';
 import { contactMaterial, createContactShadows } from './contact.js';
 import { getShop } from '../data/shops.js';
@@ -199,6 +200,7 @@ export function buildCornerShop(scene, quality) {
   mesh.castShadow = mesh.receiveShadow = !!quality.shadows;
   shop.add(mesh, sign());
   buildMarketStock(shop, stockDisplay, quality);
+  addDeliCase(shop, solid, quality);
   const glazing = new THREE.MeshStandardMaterial({
     color: 0x91adae, transparent: true, opacity: 0.29, depthWrite: false,
     side: THREE.DoubleSide, roughness: 0.43, emissive: 0xffcd95, emissiveIntensity: 0

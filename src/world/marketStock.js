@@ -1,113 +1,169 @@
 import * as THREE from 'three';
-import { importedCartonGeometry } from './marketCarton.js';
+import { PRODUCT_TYPES } from './market/product-list.js';
+import { createShelfPackaging } from './market/shelf-packaging.js';
+import { createDairyPackaging } from './market/dairy-visuals.js';
+import { createVegetables, VEGETABLES } from './market/produce-visuals.js';
+import { createRetailBox } from './market/retail-packaging.js';
 
-const GOODS = {
-  oats: ['OATS', '#426b70', 'box', 0.21, 0.28, 0.10],
-  cereal: ['CEREAL', '#956143', 'box', 0.22, 0.30, 0.11],
-  pasta: ['PASTA', '#7e503d', 'box', 0.13, 0.26, 0.09],
-  tomatoes: ['TOMATOES', '#a94f39', 'can', 0.13, 0.16, 0.13],
-  beans: ['BEANS', '#695044', 'can', 0.13, 0.16, 0.13],
-  soup: ['SOUP', '#bd8544', 'can', 0.13, 0.16, 0.13],
-  chips: ['CHIPS', '#ad6b37', 'pouch', 0.19, 0.24, 0.11],
-  crackers: ['CRACKERS', '#896354', 'box', 0.19, 0.21, 0.10],
-  juice: ['JUICE', '#a76829', 'bottle', 0.13, 0.26, 0.13],
-  milk: ['MILK', '#4e7399', 'carton', 0.14, 0.24, 0.14],
-  yogurt: ['YOGURT', '#90638b', 'can', 0.115, 0.10, 0.115],
-  sandwich: ['SANDWICH', '#587653', 'wedge', 0.19, 0.13, 0.15],
-  apples: ['', '#a54232', 'fruit', 0.135, 0.125, 0.13],
-  pears: ['', '#82914a', 'fruit', 0.13, 0.16, 0.13],
-  oranges: ['', '#cb8239', 'fruit', 0.132, 0.13, 0.132]
+// Night Stock products (the user's grocery game) stocked on Maple Lane Market's
+// shelves. Each placement names a shelf section; the section picks one of its
+// products for every run of three facings, so shelves read as real product blocks.
+const SECTIONS = {
+  cereal: ['Oat cereal', 'Honey cereal', 'Granola', 'Baby cereal'],
+  baking: ['Flour', 'Sugar', 'Cake mix', 'Olive oil'],
+  pasta: ['Penne pasta', 'Mac & cheese', 'Long grain rice', 'Jasmine rice'],
+  cans: ['Sweet corn', 'Green peas', 'Tomato soup', 'Black beans'],
+  sauces: ['Pasta sauce', 'Curry sauce', 'Tomato ketchup', 'Mustard'],
+  snacks: ['Potato chips', 'Tortillas', 'Pet treats'],
+  crackers: ['Crackers', 'Cookies'],
+  drinks: ['Orange juice', 'Apple juice', 'Spring water', 'Sparkling water'],
+  household: ['Dish soap', 'All purpose cleaner', 'Laundry detergent', 'Fabric softener', 'Paper towels', 'Tissues'],
+  care: ['Shampoo', 'Body wash', 'Toothpaste', 'Baby wipes'],
+  pet: ['Cat food', 'Dog food', 'Pet treats'],
+  // Cooler and produce SKUs used by cornerShop.js.
+  milk: ['Milk'],
+  yogurt: ['Yogurt', 'Butter'],
+  sandwich: ['Cheddar', 'Butter'],
+  juice: ['Orange juice', 'Apple juice'],
+  apples: ['Apples'],
+  pears: ['Tomatoes', 'Red peppers', 'Yellow peppers'],
+  oranges: ['Lettuce', 'Broccoli', 'Cucumbers', 'Carrots', 'Eggplant']
 };
 
+/** Three sections per aisle (indexed by cornerShop.js). */
 export const AISLE_STOCK = [
-  ['oats', 'cereal', 'pasta'],
-  ['tomatoes', 'beans', 'soup'],
-  ['chips', 'crackers', 'chips'],
-  ['juice', 'crackers', 'oats']
+  ['cereal', 'baking', 'pasta'],
+  ['cans', 'sauces', 'pasta'],
+  ['snacks', 'crackers', 'drinks'],
+  ['household', 'care', 'pet']
 ];
 
-function labelTexture(name, color) {
-  const canvas = document.createElement('canvas');
-  canvas.width = 128;
-  canvas.height = 128;
-  const ctx = canvas.getContext('2d');
-  ctx.fillStyle = color;
-  ctx.fillRect(0, 0, 128, 128);
-  ctx.fillStyle = '#f3ead6';
-  ctx.fillRect(5, 34, 118, 64);
-  ctx.textAlign = 'center';
-  ctx.fillStyle = '#292b25';
-  ctx.font = 'bold 13px sans-serif';
-  ctx.fillText('MAPLE PANTRY', 64, 24);
-  ctx.font = 'bold 21px sans-serif';
-  ctx.fillText(name, 64, 73, 110);
-  ctx.fillStyle = '#f3ead6';
-  ctx.fillRect(95, 107, 22, 11);
-  ctx.fillStyle = '#272721';
-  for (const x of [98, 101, 103, 108, 111, 114]) ctx.fillRect(x, 108, 1, 9);
-  const tex = new THREE.CanvasTexture(canvas);
-  tex.colorSpace = THREE.SRGBColorSpace;
-  tex.anisotropy = 2;
-  return tex;
+const CARTONS = new Set(['Penne pasta', 'Mac & cheese', 'Oat cereal', 'Honey cereal', 'Cake mix', 'Crackers', 'Cookies', 'Baby cereal']);
+const COOLER = new Set(['milk', 'yogurt', 'sandwich', 'juice']);
+const PRODUCE = new Set(['apples', 'pears', 'oranges']);
+/** Largest footprint per slot: width along the shelf, height, depth into the shelf. */
+const FIT = {
+  aisle: { w: 0.235, h: 0.33, d: 0.165 },
+  cooler: { w: 0.215, h: 0.33, d: 0.26 },
+  produce: { w: 0.175, h: 0.2, d: 0.27 }
+};
+
+/**
+ * Night Stock draws labels on 512 px canvases with fixed font sizes, so draw at
+ * that size and keep a half-size copy: the same look at a quarter of the memory.
+ */
+function labelTextures(renderer) {
+  const anisotropy = renderer?.capabilities?.getMaxAnisotropy?.() ?? 4;
+  return function texture(draw, w = 512, h = 512) {
+    const big = document.createElement('canvas');
+    big.width = w; big.height = h;
+    draw(big.getContext('2d'), w, h);
+    const small = document.createElement('canvas');
+    small.width = Math.max(1, w >> 1); small.height = Math.max(1, h >> 1);
+    const ctx = small.getContext('2d');
+    ctx.imageSmoothingQuality = 'high';
+    ctx.drawImage(big, 0, 0, small.width, small.height);
+    const t = new THREE.CanvasTexture(small);
+    t.colorSpace = THREE.SRGBColorSpace;
+    t.anisotropy = Math.min(4, anisotropy);
+    return t;
+  };
 }
 
-function shape(type, w, h, d) {
-  if (type === 'carton') return importedCartonGeometry(w, h, d);
-  if (type === 'can') return new THREE.CylinderGeometry(w / 2, w / 2, h, 10);
-  if (type === 'bottle' || type === 'fruit') {
-    const profile = type === 'fruit'
-      ? [[0,0],[.26,.02],[.47,.25],[.49,.57],[.40,.82],[.17,1],[0,1]]
-      : [[0,0],[.42,.02],[.49,.08],[.49,.67],[.36,.78],[.18,.84],[.18,.92],[.25,.92],[.25,1],[0,1]];
-    return new THREE.LatheGeometry(profile.map(([r,y]) => new THREE.Vector2(r*w,(y-.5)*h)), 10);
-  }
-  if (type === 'pouch' || type === 'wedge') {
-    const geo = new THREE.BoxGeometry(w, h, d, 1, type === 'pouch' ? 3 : 1, 1);
-    const pos = geo.attributes.position;
-    for (let i=0; i<pos.count; i++) {
-      const y = pos.getY(i) / h + .5;
-      const factor = type === 'wedge' ? 1-y*.75 : 1-Math.abs(y-.5)*.52;
-      pos.setZ(i,pos.getZ(i)*factor);
+function hash(a, b, c) {
+  let h = Math.imul(Math.round(a * 97) ^ 0x9e3779b9, 0x85ebca6b) ^ Math.imul(Math.round(b * 53) + 7, 0xc2b2ae35) ^ Math.imul(c + 11, 0x27d4eb2f);
+  h ^= h >>> 15; h = Math.imul(h, 0x2c1b3c6d); h ^= h >>> 12;
+  return (h >>> 0) / 4294967296;
+}
+
+/** Pick the product for a placement: same product for each run of three facings. */
+export function productFor(placement) {
+  const names = SECTIONS[placement.sku];
+  if (!names) return null;
+  if (names.length === 1) return names[0];
+  const along = Math.abs(Math.cos(placement.yaw ?? 0)) > 0.5 ? placement.x : placement.z;
+  const run = Math.floor((along + 50) / (PRODUCE.has(placement.sku) ? 0.37 : 0.8));
+  const across = Math.abs(Math.cos(placement.yaw ?? 0)) > 0.5 ? placement.z : placement.x;
+  return names[Math.floor(hash(across, placement.y, run) * names.length)];
+}
+
+function fitFor(sku) {
+  return PRODUCE.has(sku) ? FIT.produce : COOLER.has(sku) ? FIT.cooler : FIT.aisle;
+}
+
+function makeBuilders(renderer) {
+  const texture = labelTextures(renderer);
+  let shelf = null, dairy = null, veg = null;
+  const types = new Map(PRODUCT_TYPES.map(t => [t.name, t]));
+  return function build(name, usedNames) {
+    if (VEGETABLES.includes(name)) return (veg ??= createVegetables(texture)).build(name, 2);
+    if (['Milk', 'Yogurt', 'Butter', 'Cheddar'].includes(name)) return (dairy ??= createDairyPackaging(texture)).build(name);
+    if (CARTONS.has(name)) {
+      const group = new THREE.Group();
+      group.add(new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.31, 0.075), createRetailBox(texture, types.get(name))));
+      return group;
     }
-    geo.computeVertexNormals();
-    return geo;
-  }
-  return new THREE.BoxGeometry(w,h,d);
+    shelf ??= createShelfPackaging(texture, PRODUCT_TYPES.filter(t => usedNames.has(t.name)));
+    return shelf.has(name) ? shelf.build(name) : null;
+  };
 }
 
-export function buildMarketStock(parent, placements, quality) {
-  const batches = new Map();
+/**
+ * Flattens one product into its meshes (geometry + material + matrix relative to
+ * the product's floor-centre), scaled to fit the slot.
+ */
+function productParts(object, fit) {
+  object.updateMatrixWorld(true);
+  const box = new THREE.Box3().setFromObject(object);
+  const size = box.getSize(new THREE.Vector3());
+  const scale = Math.min(1, fit.w / size.x, fit.h / size.y, fit.d / size.z);
+  const centre = box.getCenter(new THREE.Vector3());
+  const offset = new THREE.Matrix4().makeScale(scale, scale, scale)
+    .multiply(new THREE.Matrix4().makeTranslation(-centre.x, -box.min.y, -centre.z));
+  const parts = [];
+  object.traverse(o => {
+    if (!o.isMesh || !o.visible) return;
+    parts.push({ geometry: o.geometry, material: o.material, matrix: offset.clone().multiply(o.matrixWorld) });
+  });
+  return parts;
+}
+
+export function buildMarketStock(parent, placements, quality, renderer) {
+  const byProduct = new Map();
   for (const placement of placements) {
-    if (!batches.has(placement.sku)) batches.set(placement.sku, []);
-    batches.get(placement.sku).push(placement);
+    const name = productFor(placement);
+    if (!name) continue;
+    const key = name + '|' + (PRODUCE.has(placement.sku) ? 'produce' : COOLER.has(placement.sku) ? 'cooler' : 'aisle');
+    if (!byProduct.has(key)) byProduct.set(key, { name, fit: fitFor(placement.sku), rows: [] });
+    byProduct.get(key).rows.push(placement);
   }
-  const transform = new THREE.Object3D();
-  for (const [sku, rows] of batches) {
-    const [name, color, type, w, h, d] = GOODS[sku];
-    const carton = type === 'carton';
-    const material = new THREE.MeshStandardMaterial({
-      color: carton ? 0xffffff : color, map: carton ? labelTexture(name, color) : null, roughness: 0.76
-    });
-    const items = new THREE.InstancedMesh(shape(type,w,h,d), material, rows.length);
-    items.name = 'market-stock-' + sku;
-    items.receiveShadow = !!quality.shadows;
-    const labels = name && !carton ? new THREE.InstancedMesh(
-      new THREE.PlaneGeometry(w*.77,h*(type === 'bottle' ? .49 : .63)),
-      new THREE.MeshStandardMaterial({map:labelTexture(name,color),roughness:0.88}), rows.length
-    ) : null;
-    rows.forEach(({x,y,z,yaw=0},i) => {
-      transform.position.set(x,y+h/2,z);
-      transform.rotation.set(0,yaw,0);
-      transform.updateMatrix();
-      items.setMatrixAt(i,transform.matrix);
-      if (labels) {
-        const offset = d/2+.001;
-        transform.position.x += Math.sin(yaw)*offset;
-        transform.position.z += Math.cos(yaw)*offset;
-        transform.updateMatrix();
-        labels.setMatrixAt(i,transform.matrix);
-      }
-    });
-    parent.add(items);
-    if (labels) parent.add(labels);
+  const usedNames = new Set([...byProduct.values()].map(v => v.name));
+  const build = makeBuilders(renderer);
+  const place = new THREE.Matrix4();
+  const quat = new THREE.Quaternion();
+  const up = new THREE.Vector3(0, 1, 0);
+  const one = new THREE.Vector3(1, 1, 1);
+  const at = new THREE.Vector3();
+  const stock = new THREE.Group();
+  stock.name = 'market-stock';
+  for (const { name, fit, rows } of byProduct.values()) {
+    const product = build(name, usedNames);
+    if (!product) continue;
+    for (const part of productParts(product, fit)) {
+      const items = new THREE.InstancedMesh(part.geometry, part.material, rows.length);
+      items.name = 'market-stock-' + name;
+      items.receiveShadow = !!quality.shadows;
+      rows.forEach(({ x, y, z, yaw = 0 }, i) => {
+        // Small per-item turn and nudge so facings don't look stamped.
+        const jitter = hash(x, z, i) - 0.5;
+        quat.setFromAxisAngle(up, yaw + jitter * 0.12);
+        place.compose(at.set(x, y, z + 0), quat, one).multiply(part.matrix);
+        items.setMatrixAt(i, place);
+      });
+      items.computeBoundingSphere();
+      stock.add(items);
+    }
   }
+  parent.add(stock);
+  return stock;
 }
