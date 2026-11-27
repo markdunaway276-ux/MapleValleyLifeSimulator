@@ -22,8 +22,10 @@ const BOXES = 3;
 const UNPACK_SECONDS = 2.4;
 /** Box pile in the living room: along the front wall, west of the door, clear of the sofa. */
 const PILE = { x: -2.85, z: -6.47 };
-const RITA_TEXT = 'Hope the unpacking went OK! Sam and June down the street are lovely, so say hi. ' +
-  'The Market up the road has everything for a first dinner. Welcome to Maple Lane! - Rita';
+const RITA_TEXT = 'Hope the unpacking went OK! Sam and June down the street are friendly, and Vince at the Market ' +
+  'has everything for a first dinner. Dottie at the Laundromat is looking for help too. Welcome to Maple Lane! - Rita';
+const TENANT_NOTE = "If you're reading this, you got the place cheap. Don't trust how quiet Maple Lane looks — " +
+  'talk to Walt down by the Trailer Park if you want to know why I cleared out in a hurry. — Kyle';
 
 function readSaved(saved) {
   if (saved && typeof saved === 'object') return saved;
@@ -33,14 +35,33 @@ function readSaved(saved) {
 
 function makeBoxMesh(seed = 0) {
   const g = new THREE.Group();
-  const card = new THREE.MeshStandardMaterial({ color: [0xb98d5b, 0xa8804f, 0xc29a68][seed % 3], roughness: 0.9 });
+  const cardColor = [0xb98d5b, 0xa8804f, 0xc29a68][seed % 3];
+  const card = new THREE.MeshStandardMaterial({ color: cardColor, roughness: 0.9 });
+  const flapMat = new THREE.MeshStandardMaterial({ color: cardColor, roughness: 0.92 });
   const tape = new THREE.MeshStandardMaterial({ color: 0xd9c9a3, roughness: 0.6 });
-  const body = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.38, 0.42), card);
-  body.position.y = 0.19;
+  const body = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.36, 0.42), card);
+  body.position.y = 0.18;
   body.castShadow = body.receiveShadow = true;
+
+  // Two hinged top flaps so unpacking visibly opens the box in 3D.
+  const leftFlap = new THREE.Group();
+  leftFlap.position.set(-0.25, 0.365, 0);
+  const leftLeaf = new THREE.Mesh(new THREE.BoxGeometry(0.248, 0.014, 0.416), flapMat);
+  leftLeaf.position.set(0.124, 0, 0);
+  leftLeaf.castShadow = leftLeaf.receiveShadow = true;
+  leftFlap.add(leftLeaf);
+
+  const rightFlap = new THREE.Group();
+  rightFlap.position.set(0.25, 0.365, 0);
+  const rightLeaf = new THREE.Mesh(new THREE.BoxGeometry(0.248, 0.014, 0.416), flapMat);
+  rightLeaf.position.set(-0.124, 0, 0);
+  rightLeaf.castShadow = rightLeaf.receiveShadow = true;
+  rightFlap.add(rightLeaf);
+
   const strip = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.005, 0.425), tape);
-  strip.position.y = 0.383;
-  g.add(body, strip);
+  strip.position.y = 0.376;
+  g.add(body, leftFlap, rightFlap, strip);
+  g.userData.flaps = { left: leftFlap, right: rightFlap, strip };
   return g;
 }
 
@@ -55,6 +76,8 @@ export function createDayOne(g, saveData, beginPlay) {
   // A box in your hands when the game was saved goes back in the trunk.
   let trunk = BOXES - pile - unpacked;
   const greeted = new Set(Array.isArray(saved?.greeted) ? saved.greeted : []);
+  const seenIntros = new Set(Array.isArray(saved?.seenIntros) ? saved.seenIntros : []);
+  let doorUnlocked = saved?.doorUnlocked ?? (stage !== 'realtor' && stage !== 'unload');
   let arriving = false;
   let marketWaypointSet = false;
   let unpacking = null; // performance.now() when the current box was opened
@@ -84,7 +107,7 @@ export function createDayOne(g, saveData, beginPlay) {
     return { x: _local.x, y: 1.6, z: _local.z };
   }
 
-  // --- the front door, locked until you have the keys ------------------------
+  // --- the front door: locked until Rita hands you the keys, then unlocks with a key animation ---
   function frontDoor() {
     let best = null;
     let bestD = Infinity;
@@ -97,17 +120,29 @@ export function createDayOne(g, saveData, beginPlay) {
   let lockedDoor = null;
   function syncLock() {
     const door = frontDoor();
-    const locked = stage === 'realtor';
-    if (locked && door && lockedDoor !== door) {
+    const needsCustomInteract = stage === 'realtor' || !doorUnlocked;
+    if (needsCustomInteract && door && lockedDoor !== door) {
       lockedDoor = door;
-      if (door.userData.open) toggleDoor(door, true);
+      if (stage === 'realtor' && door.userData.open) toggleDoor(door, true);
       door.userData.interact = (ctx) => {
-        if (stage !== 'realtor') return toggleDoor(door);
-        ctx?.toast?.("It's locked. Rita has your keys.");
-        g.sfx?.play?.('click');
-        return false;
+        if (stage === 'realtor') {
+          ctx?.toast?.("It's locked. Rita has your keys.");
+          g.sfx?.play?.('click');
+          return false;
+        }
+        if (!doorUnlocked) {
+          doorUnlocked = true;
+          ctx?.toast?.('Unlocked the front door.');
+          g.sfx?.play?.('pickup');
+          toggleDoor(door);
+          delete door.userData.interact;
+          lockedDoor = null;
+          g.save();
+          return 'unlockDoor';
+        }
+        return toggleDoor(door);
       };
-    } else if (!locked && lockedDoor) {
+    } else if (!needsCustomInteract && lockedDoor) {
       delete lockedDoor.userData.interact;
       lockedDoor = null;
     }
@@ -238,6 +273,8 @@ export function createDayOne(g, saveData, beginPlay) {
     if (pile === 0) {
       stage = 'phone';
       g.inbox?.add({ id: 'rita-welcome', from: 'Rita (Maple Lane Realty)', body: RITA_TEXT });
+      g.inbox?.add({ id: 'last-tenant-note', from: 'Folded Note (Under Floorboard)', body: TENANT_NOTE });
+      g.hud?.toast?.('Found a folded note tucked in the house — check your Phone!');
     }
     renderTask();
     g.prompt?.update();
@@ -246,24 +283,32 @@ export function createDayOne(g, saveData, beginPlay) {
 
   // --- conversations -----------------------------------------------------------
   const WELCOME = {
-    sam: ["Hang on, you're the one who just moved in? Welcome to the street!",
-      "I'm out walking most mornings and evenings, so you'll see plenty of me."],
-    june: ['Oh, you must be our new neighbour! I saw the boxes going in.',
-      'Come by any time. And try the coffee at Fuel & Go. It\'s better than it looks.']
+    sam: ["Hang on, you're the one who just moved in? Welcome to Maple Lane!",
+      "Heard the last guy left in a rush — hope the place treats you better. I'm out walking most days if you need a hand."],
+    june: ['Oh, you must be our new neighbour! I saw your pickup roll in off Route 9.',
+      "Stop by the Market and say hi to Vince. And try the coffee at Fuel & Go — Danny keeps it strong."],
+    vince: ["New face on Maple Lane, huh? I'm Vince — I run the Market.",
+      "Grab groceries whenever you need, and if you're looking for work later, ask around at the Laundromat or Fuel & Go."],
+    walt: ["Saw you hauling boxes into Kyle's old place. Name's Walt.",
+      "If you found his note, don't let it spook you — just keep your head on straight in this town."],
+    maya: ["You must be the newcomer down the block. I'm Dr. Maya at the Clinic.",
+      "Moving's rough on anyone — remember to eat and get some sleep before you burn out."],
+    marcus: ["Hey — saw that pickup parked across from the house. I'm Marcus.",
+      "Good truck. Keep it fueled up at Fuel & Go and you'll be set."]
   };
   function pagesFor(id) {
     if (id === 'rita') {
       if (stage === 'realtor') {
         return [
-          { lines: ["You made it! I'm Rita, from Maple Lane Realty.", 'Welcome home. How was the drive in?'] },
-          { lines: ["All the paperwork's signed, so there's just one thing left."],
+          { lines: ["You made it! I'm Rita, from Maple Lane Realty.", "Previous tenant cleared out in a hurry, so you got the place cheap."] },
+          { lines: ["Bills come due fast out here, so meet Vince at the Market and Dottie at the Laundromat if you need cash.", "All the paperwork's signed — just one thing left."],
             action: { label: 'Take the keys', run: giveKeys },
             response: ["There you go. Front door, and the little one's for the mailbox.",
               'Get those boxes out of the truck bed and make yourself at home.'] }
         ];
       }
       return [{ lines: ["I'd help with the boxes, but my back's retired even if I'm not.",
-        'The Market is up the street, and Dottie at the laundromat is always looking for help.'] }];
+        'Vince at the Market and Dottie at the Laundromat are good folks to know first.'] }];
     }
     if (WELCOME[id] && !greeted.has(id) && stage !== 'realtor') {
       greeted.add(id);
@@ -318,13 +363,13 @@ export function createDayOne(g, saveData, beginPlay) {
         show('Unpack', `Open each box in the living room (${press}) and put your things away. ${pile} to go.`, dismiss);
         break;
       case 'phone':
-        show('Check your phone', 'Rita sent you a message. Open the phone from the HUD. The map shows where things are, and Tasks keeps track of favours and work.', dismiss);
+        show('Check your phone', 'You have new messages — Rita texted you, and you found a folded note from the last tenant. Open your Phone from the HUD.', dismiss);
         break;
       case 'market':
-        show('Walk to Maple Lane Market', `Follow the minimap route and use a marked crossing. At the market, ${press} to browse or talk.`, dismiss);
+        show('Meet Maple Lane', `Follow the minimap to Maple Lane Market to meet Vince, or talk to Sam, June, and Walt down by the Trailer Park. ${press} to talk.`, dismiss);
         break;
       case 'day':
-        show('Make the day your own', 'Browse the market, ask a neighbour about a favour, or explore the park. Check your needs as you go and use the bed at home when you’re ready to end the day.',
+        show('Make the day your own', 'Meet the neighbours, ask about favours or work at the Laundromat / Fuel & Go, and use your bed at home when you’re ready to end the day.',
           isMobile ? 'Finish tutorial' : 'Finish tutorial [X]');
         break;
     }
@@ -351,6 +396,7 @@ export function createDayOne(g, saveData, beginPlay) {
 
   function finishTutorial() {
     if (stage === 'realtor') giveKeys();
+    doorUnlocked = true;
     // Leave boxes already delivered to the living room in place.
     if (cargo) for (const box of cargo.children) box.visible = false;
     stage = 'done';
@@ -391,14 +437,27 @@ export function createDayOne(g, saveData, beginPlay) {
     draw: intro.draw,
     get opening() { return intro.active; },
     update() {
-      if (unpacking && performance.now() - unpacking >= UNPACK_SECONDS * 1000) finishUnpacking();
+      if (unpacking) {
+        const progress = Math.min(1, (performance.now() - unpacking) / (UNPACK_SECONDS * 1000));
+        // Fold the top moving box's cardboard flaps open as you unpack it.
+        const topBox = pileGroup.children[pileGroup.children.length - 1];
+        if (topBox && topBox.userData.flaps) {
+          const open = Math.min(1, progress * 1.45);
+          const ease = open * open * (3 - 2 * open);
+          const angle = ease * (Math.PI * 0.68);
+          topBox.userData.flaps.left.rotation.z = angle;
+          topBox.userData.flaps.right.rotation.z = -angle;
+          topBox.userData.flaps.strip.visible = progress < 0.14;
+        }
+        if (progress >= 1) finishUnpacking();
+      }
       if (!g.mode.started() || stage === 'done') return;
       if (arriving && !g.mode.driving()) {
         arriving = false;
         renderTask();
       }
       const phoneOpen = g.phone.isOpen();
-      panel.hidden = g.mode.menuOpen() && !phoneOpen;
+      panel.hidden = (g.mode.menuOpen() && !phoneOpen) || !!g.cutscene?.isActive?.();
       const prior = stage;
       if (stage === 'phone' && phoneOpen) stage = 'market';
       if (stage === 'realtor') guide('rita');
@@ -423,10 +482,17 @@ export function createDayOne(g, saveData, beginPlay) {
     },
     /** Extra dialogue pages for Rita and the neighbours' welcome. */
     pagesFor,
+    /** Track which neighbour intro cutscenes have already played. */
+    hasSeenIntro: (id) => seenIntros.has(id),
+    markIntroSeen(id) {
+      if (!id || seenIntros.has(id)) return;
+      seenIntros.add(id);
+      g.save();
+    },
     /** Something in the task text depends on what you carry; refresh it. */
     refresh: renderTask,
     hide() { if (!intro.active) panel.hidden = true; },
     get stage() { return stage; },
-    serialize: () => ({ stage, pile, unpacked, greeted: [...greeted] })
+    serialize: () => ({ stage, pile, unpacked, doorUnlocked, greeted: [...greeted], seenIntros: [...seenIntros] })
   };
 }

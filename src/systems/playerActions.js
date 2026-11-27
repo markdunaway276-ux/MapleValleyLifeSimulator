@@ -204,11 +204,57 @@ export const ACTIONS = {
   },
   eat: {
     clip: 'Drinking', duration: 1.1,
+    prop: { name: 'snack', from: 0.12, to: 0.86 },
     keys: [
       { t: 0, R: REST },
       { t: 0.35, R: P(0.05, -0.16, -0.24, -0.6, 0.3, 0) },
       { t: 0.55, R: P(0.04, -0.13, -0.2, -0.7, 0.3, 0) },
       { t: 0.75, R: P(0.05, -0.16, -0.24, -0.6, 0.3, 0) },
+      { t: 1, R: REST }
+    ]
+  },
+  drink: {
+    clip: 'Drinking', duration: 1.15,
+    prop: { name: 'cup', from: 0.1, to: 0.88 },
+    keys: [
+      { t: 0, R: REST },
+      { t: 0.32, R: P(0.06, -0.18, -0.26, -0.35, 0.15, 0) },
+      { t: 0.58, R: P(0.04, -0.12, -0.20, -0.82, 0.15, 0) },
+      { t: 0.82, R: P(0.06, -0.19, -0.27, -0.25, 0.1, 0) },
+      { t: 1, R: REST }
+    ]
+  },
+  unlockDoor: {
+    clip: 'Opening Door Inwards', duration: 0.95,
+    prop: { name: 'keys', from: 0.08, to: 0.88 },
+    keys: [
+      { t: 0, R: REST },
+      { t: 0.25, R: P(0.12, -0.22, -0.44, 0.15, 0, 0) },
+      { t: 0.42, R: P(0.11, -0.22, -0.54, 0.15, 0, 0.05) },
+      { t: 0.58, R: P(0.11, -0.22, -0.54, 0.15, 0, -0.85) },
+      { t: 0.74, R: P(0.11, -0.22, -0.54, 0.15, 0, -0.1) },
+      { t: 1, R: REST }
+    ]
+  },
+  cook: {
+    clip: 'Gathering Objects', duration: 1.45,
+    prop: { name: 'spatula', from: 0.08, to: 0.9 },
+    keys: [
+      { t: 0, R: REST },
+      { t: 0.22, R: P(0.14, -0.3, -0.48, 0.25, -0.2, 0.1) },
+      { t: 0.44, R: P(0.05, -0.32, -0.54, 0.3, 0.25, -0.15) },
+      { t: 0.66, R: P(0.16, -0.29, -0.50, 0.22, -0.25, 0.15) },
+      { t: 0.84, R: P(0.08, -0.26, -0.46, 0.18, 0.1, -0.1) },
+      { t: 1, R: REST }
+    ]
+  },
+  wave: {
+    clip: 'Waving', duration: 0.95,
+    keys: [
+      { t: 0, R: REST },
+      { t: 0.25, R: P(0.18, -0.1, -0.38, 0.45, 0, -0.25) },
+      { t: 0.45, R: P(0.24, -0.09, -0.38, 0.45, 0, -0.55) },
+      { t: 0.65, R: P(0.16, -0.1, -0.38, 0.45, 0, -0.2) },
       { t: 1, R: REST }
     ]
   }
@@ -221,7 +267,7 @@ export function actionForTarget(target) {
   if (ud.isDoor) return ud.open ? 'closeDoor' : 'openDoor';
   if (ud.isSeat || ud.kind === 'sit' || ud.kind === 'npc' || ud.isNpc) return null;
   if (ud.isMailbox || ud.kind === 'mailbox' || ud.kind === 'pickup') return 'pickUp';
-  if (ud.kind === 'cook') return 'grab';
+  if (ud.kind === 'cook') return 'cook';
   if (ud.kind === 'vending' || ud.kind === 'light-switch' || ud.kind === 'tv' || ud.isTv || ud.isSwitch) return 'press';
   return null;
 }
@@ -366,6 +412,42 @@ function buildBasket() {
   return g;
 }
 
+function buildSnack() {
+  const g = new THREE.Group();
+  g.name = 'fp-snack';
+  const wrap = new THREE.Mesh(new THREE.BoxGeometry(0.052, 0.022, 0.095), new THREE.MeshLambertMaterial({ color: 0x9b3b2c }));
+  const stripe = new THREE.Mesh(new THREE.BoxGeometry(0.054, 0.024, 0.026), new THREE.MeshLambertMaterial({ color: 0xe2c37c }));
+  g.add(wrap, stripe);
+  g.traverse((o) => { if (o.isMesh) { o.castShadow = false; o.frustumCulled = false; } });
+  return g;
+}
+
+function buildCup() {
+  const g = new THREE.Group();
+  g.name = 'fp-cup';
+  const body = new THREE.Mesh(new THREE.CylinderGeometry(0.036, 0.028, 0.105, 10), new THREE.MeshLambertMaterial({ color: 0xd8cfc0 }));
+  const sleeve = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.032, 0.042, 10), new THREE.MeshLambertMaterial({ color: 0x8d6744 }));
+  const lid = new THREE.Mesh(new THREE.CylinderGeometry(0.038, 0.038, 0.012, 10), new THREE.MeshLambertMaterial({ color: 0x26282b }));
+  lid.position.y = 0.056;
+  g.add(body, sleeve, lid);
+  g.traverse((o) => { if (o.isMesh) { o.castShadow = false; o.frustumCulled = false; } });
+  return g;
+}
+
+function buildSpatula() {
+  const g = new THREE.Group();
+  g.name = 'fp-spatula';
+  const handle = new THREE.Mesh(new THREE.BoxGeometry(0.016, 0.014, 0.14), new THREE.MeshLambertMaterial({ color: 0x3b2a1d }));
+  const neck = new THREE.Mesh(new THREE.BoxGeometry(0.01, 0.004, 0.09), new THREE.MeshLambertMaterial({ color: 0x9ba2a8 }));
+  neck.position.z = -0.105;
+  const blade = new THREE.Mesh(new THREE.BoxGeometry(0.055, 0.004, 0.075), new THREE.MeshLambertMaterial({ color: 0x878f96 }));
+  blade.position.set(0, -0.006, -0.18);
+  blade.rotation.x = 0.14;
+  g.add(handle, neck, blade);
+  g.traverse((o) => { if (o.isMesh) { o.castShadow = false; o.frustumCulled = false; } });
+  return g;
+}
+
 export function createPlayerActions({ camera, appearance = null } = {}) {
   const sleeveMat = new THREE.MeshLambertMaterial({ color: 0x4a90d9 });
   const skinMat = new THREE.MeshLambertMaterial({ color: 0xe0b896 });
@@ -382,7 +464,17 @@ export function createPlayerActions({ camera, appearance = null } = {}) {
   keys.position.set(0, 0.02, -0.012);
   keys.scale.setScalar(1.5);
   keys.visible = false;
-  armR.add(keys);
+  const snack = buildSnack();
+  snack.position.set(0, 0.024, -0.025);
+  snack.visible = false;
+  const cup = buildCup();
+  cup.position.set(0, 0.038, -0.03);
+  cup.visible = false;
+  const spatula = buildSpatula();
+  spatula.position.set(0, 0.015, -0.04);
+  spatula.visible = false;
+  const handProps = { keys, snack, cup, spatula };
+  armR.add(keys, snack, cup, spatula);
   rig.add(armR, armL, armR.userData.sleeve, armL.userData.sleeve, basket, box);
   // Poses are authored for a ~60° view; lift them so hands sit in the lower third of the screen.
   rig.position.set(0, 0.09, 0);
@@ -502,7 +594,9 @@ export function createPlayerActions({ camera, appearance = null } = {}) {
         box.rotation.set(0.05, 0, 0);
       }
       const prop = current && current.def.prop;
-      keys.visible = !!(prop && prop.name === 'keys' && propT >= prop.from && propT <= prop.to);
+      for (const [name, mesh] of Object.entries(handProps)) {
+        mesh.visible = !!(prop && prop.name === name && propT >= prop.from && propT <= prop.to);
+      }
     }
     dip += (targetDip - dip) * Math.min(1, dt * 10);
     if (camera && Math.abs(dip) > 0.001) camera.position.y += dip;
@@ -513,6 +607,7 @@ export function createPlayerActions({ camera, appearance = null } = {}) {
   function drive(grips) {
     rig.visible = true;
     basket.visible = box.visible = false;
+    for (const mesh of Object.values(handProps)) mesh.visible = false;
     rig.updateWorldMatrix(true, false);
     camera.getWorldQuaternion(cameraInverse).invert();
     for (const [index, arm] of [armL, armR].entries()) {

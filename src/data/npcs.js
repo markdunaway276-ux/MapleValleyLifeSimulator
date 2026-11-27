@@ -45,6 +45,7 @@ export const NPC_DEFS = [
     id: 'sam',
     name: 'Sam',
     role: 'neighbour',
+    tagline: 'Next-Door Neighbor',
     jobId: null,
     dialogueId: 'sam',
     appearance: { skin: 'tan', shirt: 'forest', pants: 'denim' },
@@ -71,6 +72,7 @@ export const NPC_DEFS = [
     id: 'june',
     name: 'June',
     role: 'neighbour',
+    tagline: 'Across the Street',
     jobId: null,
     dialogueId: 'june',
     appearance: { skin: 'light', shirt: 'navy', pants: 'charcoal' },
@@ -99,6 +101,7 @@ export const NPC_DEFS = [
     id: 'dottie',
     name: 'Dottie',
     role: 'laundromat',
+    tagline: 'Maple Lane Laundromat',
     jobId: null,
     dialogueId: 'dottie',
     appearance: { skin: 'tan', shirt: 'forest', pants: 'gray' },
@@ -121,6 +124,7 @@ export const NPC_DEFS = [
     id: 'danny',
     name: 'Danny',
     role: 'gas-station',
+    tagline: 'Fuel & Go Clerk',
     jobId: null,
     dialogueId: 'danny',
     appearance: { skin: 'tan', shirt: 'denim', pants: 'denim' },
@@ -131,6 +135,117 @@ export const NPC_DEFS = [
     patrol: { z: 34.5, x0: -4.15, x1: -4.15, startX: -4.15, speed: 0 },
     stationary: { yaw: -Math.PI / 2 },
     locationHint: 'Behind the Fuel & Go counter, across from your house.'
+  },
+  {
+    // Runs Maple Lane Market. Stands between the two checkout lanes near the entrance.
+    id: 'vince',
+    name: 'Vince',
+    role: 'market',
+    tagline: 'Maple Lane Market',
+    jobId: null,
+    dialogueId: 'vince',
+    appearance: { skin: 'tan', shirt: 'charcoal', pants: 'denim' },
+    look: {
+      body: 'male',
+      hair: 'buzzed',
+      hairColor: 0x3c342e,
+      outfit: { shirt: 0x2f4438, pants: 0x2e3542, shoes: 0x221d1a }
+    },
+    radius: NPC_RADIUS,
+    noticeRange: 2.8,
+    talkRange: NPC_TALK_RANGE,
+    patrol: { z: 2.8 + NORTH_FRONTAGE_OFFSET + 2.15, x0: 39.8, x1: 39.8, startX: 39.8, speed: 0 },
+    stationary: { yaw: Math.PI / 2 },
+    locationHint: 'By the checkout lanes inside Maple Lane Market.'
+  },
+  {
+    // Resident of Trailer #2 at the west end of Maple Lane. Knows every rumor in town.
+    id: 'walt',
+    name: 'Walt',
+    role: 'neighbour',
+    tagline: 'Trailer Park Local',
+    jobId: null,
+    dialogueId: 'walt',
+    appearance: { skin: 'tan', shirt: 'gray', pants: 'charcoal' },
+    look: { body: 'surviver' },
+    radius: NPC_RADIUS,
+    noticeRange: NPC_NOTICE_RANGE,
+    talkRange: NPC_TALK_RANGE,
+    patrol: {
+      z: -3.5,
+      x0: -41.5,
+      x1: -25.5,
+      startX: -33.5,
+      speed: 0.65,
+      idle: 4.0
+    },
+    routine: {
+      walks: [[8, 12], [15, 22]],
+      outdoorHours: [7, 23],
+      restX: -34.5,
+      home: { x: -37.5, z: -6.5 },
+      sidewalk: 'trailer park sidewalk',
+      homeLabel: 'trailer park lot'
+    },
+    locationHint: 'Hanging around the Trailer Park at the west end of Maple Lane.'
+  },
+  {
+    // Doctor / nurse at Maple Lane Clinic behind the reception counter.
+    id: 'maya',
+    name: 'Dr. Maya',
+    role: 'clinic',
+    tagline: 'Maple Lane Clinic',
+    jobId: null,
+    dialogueId: 'maya',
+    appearance: { skin: 'light', shirt: 'white', pants: 'charcoal' },
+    look: {
+      body: 'female',
+      hair: 'buns',
+      hairColor: 0x1d1a18,
+      outfit: { shirt: 0xd8dfd8, pants: 0x2c4a46, shoes: 0x242628, longSleeve: true }
+    },
+    radius: NPC_RADIUS,
+    noticeRange: 2.8,
+    talkRange: NPC_TALK_RANGE,
+    patrol: { z: 3.1 + NORTH_FRONTAGE_OFFSET + 2.85, x0: -30.35, x1: -30.35, startX: -30.35, speed: 0 },
+    stationary: { yaw: 0 },
+    locationHint: 'Behind the reception desk inside Maple Lane Clinic.'
+  },
+  {
+    // Off-duty mechanic who hangs out by Maple Lane Park at the east end.
+    id: 'marcus',
+    name: 'Marcus',
+    role: 'neighbour',
+    tagline: 'Off-Duty Mechanic',
+    jobId: null,
+    dialogueId: 'marcus',
+    appearance: { skin: 'brown', shirt: 'navy', pants: 'denim' },
+    look: {
+      body: 'male',
+      hair: 'beard',
+      hairColor: 0x221b17,
+      outfit: { shirt: 0x3b4858, pants: 0x2d323b, shoes: 0x1e1916 }
+    },
+    radius: NPC_RADIUS,
+    noticeRange: NPC_NOTICE_RANGE,
+    talkRange: NPC_TALK_RANGE,
+    patrol: {
+      z: STREET.roadCenterZ + STREET.roadWidth / 2 + STREET.sidewalkWidth / 2 + 1.2,
+      x0: 67,
+      x1: 79,
+      startX: 72,
+      speed: 0.72,
+      idle: 3.2
+    },
+    routine: {
+      walks: [[10, 14], [16, 20]],
+      outdoorHours: [9, 21],
+      restX: 72,
+      home: { x: 66.5, z: 16.5 },
+      sidewalk: 'Maple Lane Park plaza',
+      homeLabel: 'park entrance'
+    },
+    locationHint: 'Strolling near the Maple Lane Park plaza at the east end.'
   }
 ];
 
@@ -144,6 +259,7 @@ export const STORY_NPCS = [
     id: 'rita',
     name: 'Rita',
     role: 'realtor',
+    tagline: 'Maple Lane Realty',
     jobId: null,
     dialogueId: 'rita',
     appearance: { skin: 'light', shirt: 'navy', pants: 'charcoal' },

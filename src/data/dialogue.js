@@ -119,6 +119,58 @@ DIALOGUE.june = {
   ]
 };
 
+DIALOGUE.vince = {
+  default: [
+    { lines: ["Name's Vince. I keep the lights on at Maple Lane Market.", 'Grab what you need off the shelves — fresh deli case just went in.'] },
+    { lines: ['If your pockets get light, ask around town. Dottie and Danny always need extra hands.', "And if you want night-stock hours later, you know where to find me."] }
+  ],
+  night: [
+    { lines: ["Quiet hours are the best time to restock.", "Nobody's breathing down your neck while you count crates."] }
+  ],
+  rain: [
+    { lines: ["Wipe your boots at the door. Just mopped aisle two.", "Hot soup's on the middle shelf if you're soaked."] }
+  ]
+};
+
+DIALOGUE.walt = {
+  default: [
+    { lines: ["You're the new face in the house down the block. I'm Walt.", 'Saw your pickup roll in off Route 9.'] },
+    { lines: ["Last guy who lived there? Name was Kyle. Left before sunrise with half his stuff still packed.", "Keep your eyes open on Maple Lane. Quiet towns hide the loudest stories."] }
+  ],
+  night: [
+    { lines: ["Out late, huh? Stick to the streetlights.", "Half the folks on this block are asleep, the other half are busy."] }
+  ],
+  rain: [
+    { lines: ["Trailer roof sounds like a drum kit in this weather.", "Still beats paying city rent."] }
+  ]
+};
+
+DIALOGUE.maya = {
+  default: [
+    { lines: ["Welcome to Maple Lane Clinic. I'm Dr. Maya.", "New in town? Make sure you're actually eating and getting sleep."] },
+    { lines: ["People move out here thinking it'll be slow, then burn out in a week.", "My door's open if you ever need to check in."] }
+  ],
+  night: [
+    { lines: ["Finishing up charts for the night.", "Don't push yourself too hard on your first few days here."] }
+  ],
+  rain: [
+    { lines: ["Rainy stretch always brings in colds and sore backs.", "Stay dry out there."] }
+  ]
+};
+
+DIALOGUE.marcus = {
+  default: [
+    { lines: ["Hey — I'm Marcus. Saw that pickup parked across from your place.", "Good bones on that truck. Keep the tank topped off at Fuel & Go."] },
+    { lines: ["I come out to the park when my shift at the garage wraps up.", "Best spot in Maple Lane to clear your head."] }
+  ],
+  dusk: [
+    { lines: ["Park lights are just kicking on.", "Not a bad view once the street slows down."] }
+  ],
+  rain: [
+    { lines: ["Should've brought a jacket, huh? Still beats sitting inside."] }
+  ]
+};
+
 export function getDialoguePack(npcId, packs = DIALOGUE) {
   return (packs && packs[npcId]) || null;
 }

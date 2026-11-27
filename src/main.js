@@ -43,6 +43,7 @@ import { createPlayerBody } from './world/playerBody.js';
 import { createWeather } from './systems/weather.js';
 import { createRain, isInsideMainHouse } from './world/rain.js';
 import { createNpcs } from './world/npc.js';
+import { createCutscene } from './systems/cutscene.js';
 import { createDialogue } from './ui/dialogue.js';
 import { createNeighbourFavour } from './systems/neighbourFavour.js';
 import { createSnackFavour } from './systems/snackFavour.js';
@@ -432,9 +433,19 @@ const dialogue = createDialogue({
   getTime: () => clock.getTime(),
   getWeather: () => weather.get()
 });
+const cutscene = createCutscene({
+  camera,
+  player,
+  npcs,
+  dialogue,
+  sfx,
+  isMobile,
+  hasSeenIntro: (id) => !!g.dayOne?.hasSeenIntro?.(id),
+  onIntroSeen: (id) => g.dayOne?.markIntroSeen?.(id)
+});
 mode.attach({ phone, dialogue });
-Object.assign(g, { phone, dialogue, neighbourFavour, snackFavour, getPinnedTask });
-setupInput(player, isMobile, { isInventoryOpen: () => mode.uiBlocked() });
+Object.assign(g, { phone, dialogue, cutscene, neighbourFavour, snackFavour, getPinnedTask });
+setupInput(player, isMobile, { isInventoryOpen: () => mode.uiBlocked() || cutscene.isActive() });
 
 // --- HUD, mail, interact, start, loop -------------------------------------
 g.hud = createHud(g);

@@ -33,7 +33,8 @@ export function startLoop(g) {
     if (started && !busy) clock.tick(delta);
     const prevX = player.position.x;
     const prevZ = player.position.z;
-    if (started) {
+    const inCutscene = !!g.cutscene?.isActive?.();
+    if (started && !inCutscene) {
       if (mode.driving()) g.car.update(delta, { blocked: mode.uiBlocked() });
       else if (mode.sitting()) g.sitter.update(delta, { blocked: mode.uiBlocked() });
       else player.update(delta);
@@ -47,7 +48,7 @@ export function startLoop(g) {
     updateScenery(delta,rain);
     g.npcs.update(delta, {
       player,
-      talkingId: g.dialogue.currentNpc(),
+      talkingId: g.dialogue.currentNpc() || g.cutscene?.currentNpc?.() || null,
       minutes: currentTime.minutes,
       raining: rain >= 0.25
     });
@@ -115,6 +116,7 @@ export function startLoop(g) {
         fuel: g.car.fuel.get() / FUEL.TANK, boxes: g.dayOne.stage === 'realtor',
         clock: `${String(Math.floor(time.minutes / 60)).padStart(2, '0')}:${String(Math.floor(time.minutes % 60)).padStart(2, '0')}` });
       if (driving && !g.phone.isOpen()) g.actions.drive(g.cabin.grips);
+      g.cutscene?.update?.(delta);
       g.presentation.draw(g.view.draw);
     }
     g.debug.update();

@@ -31,7 +31,7 @@ export function setupInteract(g) {
   });
 
   window.addEventListener('interact', () => {
-    if (!mode.canAct() || mode.menuOpen()) return;
+    if (!mode.canAct() || mode.menuOpen() || g.cutscene?.isActive?.()) return;
     const target = currentTarget();
     if (!target) return;
     const ud = target.userData || {};
@@ -55,7 +55,7 @@ export function setupInteract(g) {
       cook: () => g.skills.cook({ clock: g.clock, needs: g.needs, sfx: g.sfx, toast }),
       sit: g.sitter,
       dialogue: g.dialogue,
-      talk: (def) => g.dialogue.open(def.id)
+      talk: (def) => (g.cutscene ? g.cutscene.talkWithIntro(def.id) : g.dialogue.open(def.id))
     });
     // A target can name its own animation by returning it (laundromat steps do).
     const action = typeof result === 'string' && ACTIONS[result] ? result : ((result || ud.isDoor) ? planned : null);
