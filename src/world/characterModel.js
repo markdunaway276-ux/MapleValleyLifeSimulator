@@ -52,7 +52,12 @@ export const BODY_ZONES = Object.freeze({
  * (retargeted in world space), including their own walk.
  */
 export const CUSTOM_BODIES = Object.freeze({
-  surviver: { file: 'surviver.glb', walk: 'actions/walk.json' }
+  surviver: { file: 'surviver.glb', walk: 'actions/walk.json' },
+  // Neighbours, made with the same MakeHuman rig (tools/convert_makehuman.py, own heights).
+  sam: { file: 'npc-sam.glb', walk: 'actions/walk.json' },
+  june: { file: 'npc-june.glb', walk: 'actions/walk.json' },
+  dottie: { file: 'npc-dottie.glb', walk: 'actions/walk.json' },
+  clerk: { file: 'npc-clerk.glb', walk: 'actions/walk.json' }
 });
 
 const cache = new Map();

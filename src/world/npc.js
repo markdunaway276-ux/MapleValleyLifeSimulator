@@ -173,7 +173,7 @@ export function createNpc(def, { scene, shadows = false } = {}) {
       mode = 'commute';
       phase += seconds * speed * 10;
       applyPose(model ? 0 : Math.abs(Math.sin(phase)) * 0.04);
-      animate('walk', seconds, speed / WALK_CLIP_SPEED);
+      animate('walk', seconds, speed / (model?.walkSpeed || WALK_CLIP_SPEED));
       return;
     }
     mode = 'rest';
@@ -257,7 +257,7 @@ export function createNpc(def, { scene, shadows = false } = {}) {
     const bob = !model && mode === 'walk' ? Math.abs(Math.sin(phase)) * 0.04 : 0;
     applyPose(bob);
     const walking = mode === 'walk';
-    animate(walking ? 'walk' : restPose, seconds, walking ? (patrol.speed || 0.8) / WALK_CLIP_SPEED : 1);
+    animate(walking ? 'walk' : restPose, seconds, walking ? (patrol.speed || 0.8) / (model?.walkSpeed || WALK_CLIP_SPEED) : 1);
   }
 
   function dispose() {
