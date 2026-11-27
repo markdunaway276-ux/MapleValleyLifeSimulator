@@ -456,7 +456,13 @@ export function createScene(quality) {
   scene.add(sun);
   scene.add(sun.target);
 
-  const trees = scatterTrees(scene, TREE_PLACEMENTS, quality);
+  const parkTrees = [
+    { x: 65.5, z: 19.5, seed: 81, scale: 0.83 },
+    { x: 67.5, z: 42.5, seed: 45, scale: 1.06 },
+    { x: 77, z: 44, seed: 36, scale: 0.84 },
+    { x: 100.5, z: 43, seed: 72, scale: 0.94 }
+  ];
+  const trees = scatterTrees(scene, [...TREE_PLACEMENTS, ...parkTrees], quality);
   scene.userData.trees = trees;
   trees.forEach((tree, i) => {
     colliders.addTree({
@@ -499,7 +505,7 @@ export function createScene(quality) {
   buildCornerShop(scene, quality);
   buildLaundromat(scene, quality);
   buildClinic(scene, quality);
-  buildPark(scene, quality);
+  scene.userData.park = buildPark(scene, quality);
   buildTrailerPark(scene, quality);
   scene.userData.world = createWorldState(scene);
 
