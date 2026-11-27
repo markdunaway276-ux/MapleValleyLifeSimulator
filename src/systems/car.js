@@ -28,7 +28,7 @@ export const CAR_PHYSICS = {
   REV_ACCEL: 3,
   BRAKE: 9,
   COAST: 2,           // decel with no throttle
-  WHEELBASE: 2.4,
+  WHEELBASE: 3.014,
   MAX_STEER: 0.62,    // rad at standstill; eases off with speed
   STEER_EASE: 0.55,   // fraction of MAX_STEER lost at top speed
   STEER_RATE: 4,      // rad/s the wheel angle follows the input
@@ -174,7 +174,7 @@ export function resolveCarPose(world, pose, { skipId = CAR_ID, bounds = null, si
  * One physics step. `state` is { x, z, rotY, speed, steer } and is mutated.
  * `world` is the collider world (optional). Returns { hit }.
  */
-export function stepCar(state, input, dt, { world = null, bounds = null, braking = false } = {}) {
+export function stepCar(state, input, dt, { world = null, bounds = null, size = CAR_SIZE, braking = false } = {}) {
   const P = CAR_PHYSICS;
   const t = clamp(input.throttle || 0, -1, 1);
   const s = clamp(input.steer || 0, -1, 1);
@@ -221,7 +221,7 @@ export function stepCar(state, input, dt, { world = null, bounds = null, braking
     const nx = state.x + fx * v * sub;
     const nz = state.z + fz * v * sub;
     if (world || bounds) {
-      const r = resolveCarPose(world, { x: nx, z: nz, rotY: state.rotY }, { bounds });
+      const r = resolveCarPose(world, { x: nx, z: nz, rotY: state.rotY }, { bounds, size });
       if (r.hit) {
         hit = true;
         const along = ((r.x - state.x) * fx + (r.z - state.z) * fz) / sub;
@@ -455,9 +455,9 @@ export function createCar({
   }
 
   car.userData.getPrompt = (mobile) => {
-    if (driving) return mobile ? 'Exit car' : 'Press E to exit car';
+    if (driving) return mobile ? 'Exit pickup' : 'Press E to exit pickup';
     const empty = fuel.isEmpty() ? ' (out of gas)' : '';
-    return (mobile ? 'Tap to enter car' : 'Press E to enter car') + empty;
+    return (mobile ? 'Tap to enter pickup' : 'Press E to enter pickup') + empty;
   };
   car.userData.interact = () => (driving ? !!exit() : enter());
 
@@ -488,7 +488,7 @@ export function createCar({
     if (fuel.isEmpty()) input.throttle = 0;
     const fromX = state.x;
     const fromZ = state.z;
-    const r = stepCar(state, input, dt, { world, bounds, braking: blocked });
+    const r = stepCar(state, input, dt, { world, bounds, size, braking: blocked });
     wheelTravel += state.speed * dt;
     if (input.throttle) engineOn = true;
     if (engineOn && !isFuelFree() && !fuel.isEmpty()) {

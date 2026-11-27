@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { CAR_SEAT, CAR_SPAWN, poseCarWheels } from '../world/props.js';
+import { CAR_SPAWN, poseCarWheels } from '../world/props.js';
 import { STREET } from '../world/street.js';
 import { warmOpening } from './loadingGate.js';
 
@@ -108,7 +108,8 @@ export function createRoadTrip(g, onFinish, wave) {
         camera.fov = Math.max(camera.fov, 83);
         camera.updateProjectionMatrix();
       }
-      camera.position.copy(car.localToWorld(target.set(CAR_SEAT.x,CAR_SEAT.y,CAR_SEAT.z)));
+      const seat = car.userData.seat;
+      camera.position.copy(car.localToWorld(target.set(seat.x, seat.y, seat.z)));
       const signLook = (smooth(at,25,27)-smooth(at,28.4,31.5))*0.25;
       const arrivalLook = smooth(at,49,52)*0.55;
       forward.set(1,-0.05,signLook).applyQuaternion(car.quaternion);

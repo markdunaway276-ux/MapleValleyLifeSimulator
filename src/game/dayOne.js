@@ -64,7 +64,8 @@ export function createDayOne(g, saveData, beginPlay) {
   const marketX = scene.userData.cornerShop.position.x;
   const market = { id: 'day-one-market', name: 'Maple Lane Market', position: () => ({ x: marketX, z: north }) };
   const carObject = () => g.car?.object ?? scene.userData.prop ?? scene.getObjectByName('parked-car');
-  const trunkLocal = new THREE.Vector3(-2.3, 0.9, 0);
+  const rearEdge = carObject().userData.size.width / 2;
+  const trunkLocal = new THREE.Vector3(-rearEdge - 0.08, 0.95, 0);
   const trunkPoint = () => carObject().localToWorld(trunkLocal.clone());
   // The car's own "enter car" point is the nearest point of its box to you, so
   // behind the car the trunk point sits just in front of that (closer wins).
@@ -73,13 +74,12 @@ export function createDayOne(g, saveData, beginPlay) {
     const car = carObject();
     if (!car) return false;
     car.worldToLocal(_local.set(player.position.x, 0, player.position.z));
-    return _local.x < -1.75 && Math.abs(_local.z) < 1.3;
+    return _local.x < -rearEdge + 0.25 && Math.abs(_local.z) < 1.3;
   }
   function trunkTarget() {
     const car = carObject();
     car.worldToLocal(_local.set(player.position.x, 0, player.position.z));
-    const rearX = Math.max(-2.0, Math.min(_local.x, -2.0));
-    _local.set(rearX - 0.08, 0, THREE.MathUtils.clamp(_local.z, -0.9, 0.9) * 0.9);
+    _local.set(-rearEdge - 0.08, 0, THREE.MathUtils.clamp(_local.z, -0.9, 0.9) * 0.9);
     car.localToWorld(_local);
     return { x: _local.x, y: 1.6, z: _local.z };
   }
@@ -162,6 +162,18 @@ export function createDayOne(g, saveData, beginPlay) {
   }
   syncPile();
 
+  const cargo = carObject().userData.pickupCargo;
+  if (cargo) {
+    const slots = [[-1.42, 0.93, -0.27, 0.05], [-1.43, 0.93, 0.29, -0.08], [-1.99, 0.94, 0, 0.12]];
+    for (const [i, [x, y, z, angle]] of slots.entries()) {
+      const box = makeBoxMesh(i);
+      box.position.set(x, y, z);
+      box.rotation.y = angle;
+      box.visible = (stage === 'realtor' || stage === 'unload') && i < trunk;
+      cargo.add(box);
+    }
+  }
+
   const prompt = (verb) => (isMobile ? 'Tap to ' : 'Press E to ') + verb;
   const carrying = () => g.actions?.carrying;
 
@@ -174,6 +186,7 @@ export function createDayOne(g, saveData, beginPlay) {
     if (carrying()) { ctx?.toast?.('Your hands are full.'); return false; }
     if (trunk <= 0) return false;
     trunk -= 1;
+    if (cargo) cargo.children[trunk].visible = false;
     g.actions.setCarry('box');
     renderTask();
     return 'liftBox';
@@ -246,7 +259,7 @@ export function createDayOne(g, saveData, beginPlay) {
           { lines: ["All the paperwork's signed, so there's just one thing left."],
             action: { label: 'Take the keys', run: giveKeys },
             response: ["There you go. Front door, and the little one's for the mailbox.",
-              'Get those boxes out of your trunk and make yourself at home.'] }
+              'Get those boxes out of the truck bed and make yourself at home.'] }
         ];
       }
       return [{ lines: ["I'd help with the boxes, but my back's retired even if I'm not.",
@@ -288,7 +301,7 @@ export function createDayOne(g, saveData, beginPlay) {
     switch (stage) {
       case 'realtor':
         if (arriving) {
-          show('You made it', isMobile ? 'Tap to get out of the car.' : 'Press E to get out of the car.', dismiss);
+          show('You made it', isMobile ? 'Tap to get out of the pickup.' : 'Press E to get out of the pickup.', dismiss);
           break;
         }
         show('Meet your realtor', (isMobile
@@ -297,9 +310,9 @@ export function createDayOne(g, saveData, beginPlay) {
           `Rita is waiting in front of your house across the street. Cross at the crosswalk and ${press} to talk.`, dismiss);
         break;
       case 'unload':
-        show('Unload the car', carrying() === 'box'
-          ? `Carry the box inside and ${press} by the living-room wall to set it down. ${trunk} left in the trunk.`
-          : `Go to the back of your car and ${press} to take a box. ${trunk} left in the trunk.`, dismiss);
+        show('Unload the truck', carrying() === 'box'
+          ? `Carry the box inside and ${press} by the living-room wall to set it down. ${trunk} left in the truck bed.`
+          : `Go to the back of your truck and ${press} to take a box. ${trunk} left in the truck bed.`, dismiss);
         break;
       case 'unpack':
         show('Unpack', `Open each box in the living room (${press}) and put your things away. ${pile} to go.`, dismiss);
@@ -320,7 +333,7 @@ export function createDayOne(g, saveData, beginPlay) {
   // --- minimap guidance ------------------------------------------------------------
   const guides = {
     rita: { id: 'day-one-rita', name: 'Rita', position: () => (rita ? { x: rita.position.x, z: rita.position.z } : { x: 0.95, z: -3.25 }) },
-    trunk: { id: 'day-one-trunk', name: 'Your car', position: () => { const p = trunkPoint(); return { x: p.x, z: p.z }; } },
+    trunk: { id: 'day-one-trunk', name: 'Your pickup', position: () => { const p = trunkPoint(); return { x: p.x, z: p.z }; } },
     home: { id: 'day-one-home', name: 'Your front door', position: () => ({ x: 0, z: -5.2 }) }
   };
   let guideKey = null;
@@ -338,7 +351,8 @@ export function createDayOne(g, saveData, beginPlay) {
 
   function finishTutorial() {
     if (stage === 'realtor') giveKeys();
-    // Skipping the story: leave the boxes as they are (they can still be unpacked).
+    // Leave boxes already delivered to the living room in place.
+    if (cargo) for (const box of cargo.children) box.visible = false;
     stage = 'done';
     panel.hidden = true;
     ritaLeaves();

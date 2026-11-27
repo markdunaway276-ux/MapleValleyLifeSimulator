@@ -10,8 +10,9 @@ import { createVertexMaterial } from './surfaces.js';
  * Where the driver sits, in the car's local frame (+x is the nose, -z is the
  * left-hand side, y is up). The camera goes here while driving.
  */
-export const CAR_SEAT = { x: -0.1, y: 1.38, z: -0.42 };
-export const CAR_SIZE = { width: 4.0, depth: 1.85 };
+export const CAR_SEAT = { x: 0.19, y: 1.49, z: -0.40 };
+export const CAR_SIZE = { width: 5.35, depth: 2.19 };
+const SEDAN_SEAT = { x: -0.1, y: 1.38, z: -0.42 };
 export const CAR_SPAWN = { x: 6.8, z: STREET.roadCenterZ + (STREET.roadWidth - STREET.parkingLaneWidth) / 2, rotY: 0 };
 
 const WHEEL_RADIUS = 0.32;
@@ -164,13 +165,10 @@ export function createParkedCar(options = {}) {
   for (const [x, z] of [[wheelX, wheelZ], [wheelX, -wheelZ], [-wheelX, wheelZ], [-wheelX, -wheelZ]]) {
     const wheel = new THREE.Mesh(shared.wheelGeo, shared.wheelMat);
     wheel.name = 'car-wheel';
-    const pivot = new THREE.Group();
-    pivot.position.set(x, WHEEL_RADIUS, z);
+    wheel.position.set(x, WHEEL_RADIUS, z);
     wheel.castShadow = shadows;
     wheel.receiveShadow = shadows;
-    pivot.add(wheel);
-    group.add(pivot);
-    wheels.push({ pivot, wheel });
+    wheels.push(addWheelPivot(group, wheel, WHEEL_RADIUS));
   }
 
   const head = new THREE.Mesh(shared.headGeo, shared.headMat);
@@ -185,21 +183,31 @@ export function createParkedCar(options = {}) {
   steer.name = 'car-steering';
   steer.rotation.order = 'ZYX';
   steer.rotation.set(0, Math.PI / 2, -0.45);
-  steer.position.set(CAR_SEAT.x + 0.42, CAR_SEAT.y - 0.3, CAR_SEAT.z);
+  steer.position.set(SEDAN_SEAT.x + 0.42, SEDAN_SEAT.y - 0.3, SEDAN_SEAT.z);
   group.add(steer);
 
   // Length along X, width along Z (local).
   group.userData.size = { ...CAR_SIZE };
-  group.userData.seat = { ...CAR_SEAT };
+  group.userData.seat = { ...SEDAN_SEAT };
   group.userData.wheels = wheels;
   group.userData.steering = steer;
   return group;
 }
 
+export function addWheelPivot(parent, wheel, radius) {
+  const pivot = new THREE.Group();
+  pivot.position.copy(wheel.position);
+  wheel.position.set(0, 0, 0);
+  wheel.name = 'car-wheel';
+  pivot.add(wheel);
+  parent.add(pivot);
+  return { pivot, wheel, radius };
+}
+
 /** Apply steering and signed travel independently in the car's local frame. */
 export function poseCarWheels(car, steer, distance) {
-  for (const { pivot, wheel } of car.userData.wheels ?? []) {
+  for (const { pivot, wheel, radius } of car.userData.wheels ?? []) {
     if (pivot.position.x > 0) pivot.rotation.y = -steer;
-    wheel.rotation.z = (-distance / WHEEL_RADIUS) % (2 * Math.PI);
+    wheel.rotation.z = (-distance / radius) % (2 * Math.PI);
   }
 }

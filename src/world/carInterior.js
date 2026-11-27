@@ -210,9 +210,22 @@ export function createCarInterior(car) {
     lines.forEach((line,i)=>ctx.fillText(line,8,24+i*21,canvas.width-16));
     map.needsUpdate = true;
   }
+  // The pickup's steering wheel is baked into the imported cabin.
+  const pickupGrips = [-1, 1].map(side => {
+    const grip = new THREE.Object3D();
+    grip.position.set(0.813, 1.267, -0.337 + side * 0.137);
+    grip.rotation.y = -Math.PI / 2;
+    car.add(grip);
+    return grip;
+  });
   return {
-    grips,
+    get grips() { return car.userData.pickupGlass ? pickupGrips : grips; },
     update({ visible, speed=0, steer=0, fuel=1, opening=false, boxes=false, notice=false, clock='', shade=1 }) {
+      if (car.userData.pickupGlass) {
+        cabin.visible = false;
+        for (const material of car.userData.pickupGlass) material.opacity = visible ? 0.09 : 0.2883;
+        return;
+      }
       if (cabin.visible !== visible) {
         cabin.visible = visible;
         for(const mesh of exterior) mesh.visible = !visible;
