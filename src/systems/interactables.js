@@ -129,7 +129,7 @@ export function nearestActionTarget(scene, position, range = INTERACT_RANGE, { d
   let bestD = range;
   for (let i = 0; i < candidates.length; i++) {
     const dist = position.distanceTo(targetInteractPoint(candidates[i], p));
-    if (dist < bestD && dist <= (reach.get(candidates[i]) ?? range) && (development || hasLineOfReach(world, position, p))) {
+    if (dist < bestD && dist <= (reach.get(candidates[i]) ?? range) && hasLineOfReach(world, position, p)) {
       best = candidates[i];
       bestD = dist;
     }
