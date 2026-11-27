@@ -60,6 +60,9 @@ export const CUSTOM_BODIES = Object.freeze({
   clerk: { file: 'npc-clerk.glb', walk: 'actions/walk.json' }
 });
 
+/** Mixamo run (in place), used by the custom bodies. */
+const RUN_CLIP = 'actions/run.json';
+
 const cache = new Map();
 
 function loadJson(file) {
@@ -163,7 +166,7 @@ export async function createCharacterModel(look = {}) {
   const hairFile = look.hair ? `hair-${look.hair}.glb` : null;
   try {
     // Optional extra Mixamo clips ({ key: 'actions/file.json' }), baked like the idle.
-    const extraEntries = Object.entries({ ...(look.mixamo || {}), ...(custom ? { walk: custom.walk } : {}) });
+    const extraEntries = Object.entries({ ...(look.mixamo || {}), ...(custom ? { walk: custom.walk, run: RUN_CLIP } : {}) });
     const extraData = Promise.all(extraEntries.map(([, file]) => loadJson(file).catch(() => null)));
     const [bodyGltf, animGltf, extraGltf, idleData, hairGltf, beardGltf] = await Promise.all([
       load(custom ? custom.file : bodyKind + '.glb'),
@@ -200,12 +203,14 @@ export async function createCharacterModel(look = {}) {
     const relaxedIdle = idleData ? mixamoToClip(idleData, root, 'Breathing_Idle') : null;
     const extraClips = {};
     let walkSpeed = WALK_CLIP_SPEED;
+    let runSpeed = 0;
     (await extraData).forEach((data, i) => {
       const [key] = extraEntries[i];
       const clip = data ? mixamoToClip(data, root, key, custom ? { fingers: null } : undefined) : null;
       if (clip) extraClips[key] = clip;
       // A Mixamo walk stores its ground speed in hips-heights per second.
       if (clip && key === 'walk' && data.speedH) walkSpeed = data.speedH * hipsHeight(root);
+      if (clip && key === 'run' && data.speedH) runSpeed = data.speedH * hipsHeight(root);
     });
 
     const mixer = new THREE.AnimationMixer(root);
@@ -241,6 +246,7 @@ export async function createCharacterModel(look = {}) {
       mixer,
       play,
       walkSpeed,
+      runSpeed,
       has: (key) => !!actions[key],
       getClip: (key) => (actions[key] ? actions[key].getClip() : null),
       addClip(key, clip) { actions[key] = mixer.clipAction(clip); },

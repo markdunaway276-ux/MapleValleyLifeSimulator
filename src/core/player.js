@@ -8,9 +8,12 @@ export function createPlayer(camera, scene) {
     velocity: new THREE.Vector3(),
     rotation: new THREE.Euler(0, 0, 0, 'YXZ'),
     speed: 4.5,
+    // Hold Shift (or push the phone joystick all the way) to run.
+    runSpeed: 7.5,
+    running: false,
     jumpSpeed: 6,
     onGround: true,
-    keys: { forward: false, back: false, left: false, right: false, jump: false, down: false },
+    keys: { forward: false, back: false, left: false, right: false, jump: false, down: false, run: false },
     // Development fly mode: move where you look, Space up, C / Ctrl down, no walls or gravity.
     fly: false,
     flySpeed: 10,
@@ -75,7 +78,9 @@ export function createPlayer(camera, scene) {
         .addScaledVector(forward, this.joystickY);
     }
 
-    if (move.length() > 0) move.normalize().multiplyScalar(this.speed * delta);
+    const stick = Math.hypot(this.joystickX, this.joystickY);
+    this.running = move.lengthSq() > 0 && (this.keys.run || stick > 0.92);
+    if (move.length() > 0) move.normalize().multiplyScalar((this.running ? this.runSpeed : this.speed) * delta);
 
     // Simple gravity + jump
     this.velocity.y -= 20 * delta;

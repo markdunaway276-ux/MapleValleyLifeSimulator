@@ -175,6 +175,9 @@ export function attachPlayerRig(body, { shadows, appearance }) {
       acting.fresh = false;
     } else if (carrying && lift < 0.05 && model.has('carry')) {
       model.play(moving && model.has('carryWalk') ? 'carryWalk' : 'carry', { fade: 0.2, timeScale: moving ? walkScale : 1 });
+    } else if (moving && model.has('run') && model.runSpeed && speed > 5.8) {
+      // Running (Shift): the run clip, matched to ground speed.
+      model.play('run', { fade: 0.2, timeScale: THREE.MathUtils.clamp(speed / model.runSpeed, 0.6, 2.2) });
     } else {
       model.play(moving ? 'walk' : 'idle', { fade: 0.18, timeScale: moving ? walkScale : 1 });
     }
