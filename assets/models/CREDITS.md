@@ -70,3 +70,10 @@
 - **Author:** [Nieve5677](https://sketchfab.com/niev)
 - **License:** [Creative Commons Attribution 4.0 International (CC BY 4.0)](https://creativecommons.org/licenses/by/4.0/)
 - **Changes:** Removed the manufacturer badges (grille emblem and tailgate lettering), converted inches to metres, turned it to face +x, split the four wheels into their own nodes, welded and simplified the mesh (1.7M → about 111k triangles). In game it is an unbranded pickup.
+
+## market/deli-case.glb
+
+- **Source:** [Food pack 2](https://sketchfab.com/3d-models/food-pack-2-530a04e08deb42d1864188ab78c1cc77)
+- **Author:** [Pasha](https://sketchfab.com/Pasha-)
+- **License:** [Creative Commons Attribution 4.0 International (CC BY 4.0)](https://creativecommons.org/licenses/by/4.0/)
+- **Changes:** Cut out the grab-and-go deli case with its stock, removed hidden helper geometry, scaled it up 1.8x, and re-encoded textures as WebP (max 512 px). Repainted the packaging that showed real brands (meat and cheese packs, chicken bags, soup cups, deli stickers) with original Maple Lane labels.
