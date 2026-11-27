@@ -21,6 +21,9 @@ const ACTION_CLIPS = {
 const ACTION_FILES = Object.fromEntries(
   ['door', 'press', 'reach', 'pickup', 'load', 'eat', 'fold', 'restock', 'typing', 'carry'].map((k) => [k, 'actions/' + k + '.json'])
 );
+/** The player's own character, made in Blender (see CUSTOM_BODIES in characterModel.js). */
+const PLAYER_BODY = 'surviver';
+
 /** Bones the Carrying pose owns when it is layered over the walk. */
 const CARRY_BONES = new Set(['spine_02', 'spine_03', 'clavicle_l', 'clavicle_r', 'upperarm_l', 'upperarm_r', 'lowerarm_l', 'lowerarm_r', 'hand_l', 'hand_r']);
 
@@ -115,7 +118,7 @@ export function attachPlayerRig(body, { shadows, appearance }) {
     });
   }
 
-  createCharacterModel({ body: 'male', hair: 'simpleparted', hairColor: 0x3b3027, shadows, mixamo: ACTION_FILES, outfit: {
+  createCharacterModel({ body: PLAYER_BODY, hair: 'simpleparted', hairColor: 0x3b3027, shadows, mixamo: ACTION_FILES, outfit: {
     shirt: getOptionColor('shirt', look.shirt),
     pants: getOptionColor('pants', look.pants),
     skin: getOptionColor('skin', look.skin),
@@ -166,7 +169,7 @@ export function attachPlayerRig(body, { shadows, appearance }) {
     if (acting) acting.left -= seconds;
     const busy = acting && acting.left > 0 && lift < 0.05 && !(moving && !acting.loop);
     if (!busy) acting = null;
-    const walkScale = THREE.MathUtils.clamp(speed / WALK_CLIP_SPEED, 0.38, 2.8);
+    const walkScale = THREE.MathUtils.clamp(speed / (model.walkSpeed || WALK_CLIP_SPEED), 0.38, 2.8);
     if (busy) {
       model.play(acting.key, { fade: 0.2, timeScale: acting.rate, restart: acting.fresh });
       acting.fresh = false;

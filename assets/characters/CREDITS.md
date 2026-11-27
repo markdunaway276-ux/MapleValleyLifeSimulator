@@ -33,3 +33,6 @@ Third-person player actions, each a Mixamo animation (https://www.mixamo.com, Ad
 | typing.json | Looking Through Files Low | desk work |
 | eat.json | Drinking (2.0–5.8 s) | eating |
 | carry.json | Carrying | holding a laundry basket (arms also layered over the walk) |
+| walk.json | Walking (in place) | walking, for the player's own character (surviver.glb) |
+
+
