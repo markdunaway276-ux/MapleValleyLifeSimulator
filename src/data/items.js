@@ -83,6 +83,14 @@ export const ITEM_DEFS = {
     stackable: true,
     use: { action: 'eat', label: 'Drink', need: 'hunger', amount: 10, sfx: 'eat' }
   },
+  'gas-can': {
+    id: 'gas-can',
+    name: 'Gas can',
+    icon: '⛽',
+    description: 'Eight litres of gas. Get in the car with an empty tank and it pours in by itself.',
+    color: '#c0392b',
+    stackable: true
+  },
   letter: {
     id: 'letter',
     name: 'Letter',

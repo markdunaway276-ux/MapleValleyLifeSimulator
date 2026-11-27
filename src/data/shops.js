@@ -30,7 +30,8 @@ export const SHOP_DEFS = [
       { item: 'coffee', name: 'Coffee', price: 3, sfx: 'cash' },
       { item: 'slushie', name: 'Slushie', price: 2, sfx: 'cash' },
       { item: 'snack', name: 'Snack', price: 4, sfx: 'cash' },
-      { item: 'sandwich', name: 'Sandwich', price: 7, sfx: 'cash' }
+      { item: 'sandwich', name: 'Sandwich', price: 7, sfx: 'cash' },
+      { item: 'gas-can', name: 'Gas can (8 L)', price: 12, sfx: 'cash' }
     ]
   },
   {

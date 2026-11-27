@@ -184,7 +184,10 @@ const car = createCar({
   isMobile,
   isStarted: () => mode.canAct(),
   sfx,
-  onDrivingChange: syncPlayerBody
+  onDrivingChange: syncPlayerBody,
+  toast: (msg) => g.hud?.toast(msg),
+  isFuelFree: () => needs.isDevelopmentMode(),
+  getInventory: () => g.inventory
 });
 if (car && saveData.car) car.apply(saveData);
 const sitter = createSit({
@@ -317,6 +320,12 @@ g.devTools = {
     player.fly = !!on;
     document.body.classList.toggle('flying', player.fly);
     g.hud?.toast(on ? 'Fly on: Space up, C down, move where you look.' : 'Fly off.');
+  },
+  fillTank() {
+    if (!car) return;
+    if (car.fuel.space() > 0.05) car.fuel.add(car.fuel.space()); else car.fuel.set(0);
+    g.hud?.toast(car.fuel.isEmpty() ? 'Car tank emptied (to test running out).' : 'Car tank filled.');
+    save();
   },
   isFast: () => laundry.fast,
   setFast(on) {
