@@ -112,6 +112,26 @@ body.mobile #debug-menu .dm-key { display: none; }
   min-height: 44px; min-width: 72px; padding: 8px 10px; font-weight: 600;
   background: #2a2a30; border: 1px solid #44444c; border-radius: 10px;
 }
+#debug-menu .dm-quick { margin: 0 0 8px; padding: 8px; background: #222228; border: 1px solid #44444c; border-radius: 10px; }
+#debug-menu .dm-quick-row { display: flex; gap: 6px; flex-wrap: wrap; }
+#debug-menu .dm-quick-row + .dm-quick-row { margin-top: 6px; }
+#debug-menu .dm-chip {
+  min-height: 44px; padding: 8px 12px; font-weight: 600; flex: 1 1 auto;
+  background: #2a2a30; border: 1px solid #44444c; border-radius: 10px;
+}
+#debug-menu .dm-chip-small { flex: 1 1 0; padding: 8px 6px; }
+#debug-menu .dm-chip-dev[aria-pressed="true"] { background: #1f6f3a; border-color: #3fbf6a; }
+#debug-menu .dm-select {
+  flex: 3 1 auto; min-height: 44px; padding: 8px 10px; font: inherit; color: #fff;
+  background: #2a2a30; border: 1px solid #44444c; border-radius: 10px;
+}
+#debug-menu .dm-tabs { display: flex; gap: 4px; margin: 4px 0 2px; position: sticky; top: -10px; z-index: 1; background: #1b1b1f; padding: 4px 0; }
+#debug-menu .dm-tab {
+  flex: 1 1 0; min-height: 40px; font-weight: 600; color: #c8c8d0;
+  background: #222228; border: 1px solid #44444c; border-radius: 10px;
+}
+#debug-menu .dm-tab[aria-selected="true"] { color: #fff; background: #3a3a44; border-color: #8a8a96; }
+#debug-menu .dm-help { font-size: 13px; color: #a8a8b2; margin: 8px 4px 2px; }
 #debug-menu .dm-money { padding: 10px 14px 12px; }
 #debug-menu .dm-money-label { font-weight: 600; margin: 0 0 8px; }
 #debug-menu .dm-money-row { display: flex; gap: 6px; flex-wrap: wrap; }
@@ -138,7 +158,7 @@ export const MENU_ITEMS = [
   { id: 'clearSave', type: 'action', label: 'Clear saved game', key: 'Shift+F8 twice', danger: true }
 ];
 
-export function createDebugMenu({ actions, getState, getTeleports = () => [], getClock = null, getSfx = null, getNeeds = null, getMoney = null, getMinimap = null, getWeather = null, getSaveHud = null, getSkills = null, getDisplay = null, onOpen = () => {}, onClose = () => {}, container = document.body }) {
+export function createDebugMenu({ actions, getState, getTeleports = () => [], getClock = null, getSfx = null, getNeeds = null, getMoney = null, getMinimap = null, getWeather = null, getSaveHud = null, getSkills = null, getDisplay = null, getDev = null, onOpen = () => {}, onClose = () => {}, container = document.body }) {
   ensureStyles();
 
   const button = document.createElement('button');
@@ -163,6 +183,206 @@ export function createDebugMenu({ actions, getState, getTeleports = () => [], ge
   let toastEl = null;
   let toastTimer = null;
 
+  // Which tab and which sections were open last time (sections start closed).
+  const LAYOUT_KEY = 'mapleValleyDebugLayout';
+  function loadLayout() {
+    try {
+      const saved = JSON.parse(localStorage.getItem(LAYOUT_KEY) || '{}');
+      return { tab: typeof saved.tab === 'string' ? saved.tab : 'world', open: Array.isArray(saved.open) ? saved.open : [] };
+    } catch {
+      return { tab: 'world', open: [] };
+    }
+  }
+  function saveLayout(layout) {
+    try { localStorage.setItem(LAYOUT_KEY, JSON.stringify(layout)); } catch { /* storage unavailable */ }
+  }
+  const TABS = [
+    { id: 'world', label: 'World' },
+    { id: 'player', label: 'Player' },
+    { id: 'view', label: 'View' },
+    { id: 'tools', label: 'Tools' }
+  ];
+  let quickEls = null;
+
+  function makeMenuRow(item) {
+    const row = document.createElement('button');
+    row.type = 'button';
+    row.className = 'dm-row' + (item.danger ? ' dm-danger' : '');
+    row.dataset.item = item.id;
+    const label = document.createElement('span');
+    label.className = 'dm-label';
+    label.textContent = item.label;
+    const key = document.createElement('span');
+    key.className = 'dm-key';
+    key.textContent = item.key;
+    label.appendChild(key);
+    row.appendChild(label);
+    if (item.type === 'toggle') {
+      row.setAttribute('role', 'switch');
+      row.setAttribute('aria-checked', 'false');
+      const sw = document.createElement('span');
+      sw.className = 'dm-switch';
+      row.appendChild(sw);
+      row.addEventListener('click', () => {
+        actions[item.id]();
+        refresh();
+      });
+    } else if (item.id === 'clearSave') {
+      row.addEventListener('click', () => onClearSaveTap(row, label));
+    } else {
+      row.addEventListener('click', () => {
+        close();
+        actions[item.id]();
+      });
+    }
+    rows[item.id] = { row, label, item };
+    return row;
+  }
+
+  function toggleDevelopment() {
+    const dev = getDev && getDev();
+    if (dev) { dev.setOn(!dev.isOn()); return; }
+    const needs = getNeeds && getNeeds();
+    if (needs && typeof needs.setDevelopmentMode === 'function') needs.setDevelopmentMode(!needs.isDevelopmentMode());
+  }
+
+  /** Development mode, screenshot, teleport and time skips: always at the top. */
+  function buildQuickBar() {
+    const bar = document.createElement('div');
+    bar.className = 'dm-quick';
+
+    const devBtn = document.createElement('button');
+    devBtn.type = 'button';
+    devBtn.className = 'dm-chip dm-chip-dev';
+    devBtn.dataset.item = 'development-quick';
+    devBtn.addEventListener('click', () => { toggleDevelopment(); refresh(); });
+    const shotBtn = document.createElement('button');
+    shotBtn.type = 'button';
+    shotBtn.className = 'dm-chip';
+    shotBtn.textContent = 'Screenshot';
+    shotBtn.addEventListener('click', () => { close(); actions.screenshot(); });
+    const top = document.createElement('div');
+    top.className = 'dm-quick-row';
+    top.append(devBtn, shotBtn);
+
+    // Teleport: one dropdown instead of a column of buttons.
+    const tpRow = document.createElement('div');
+    tpRow.className = 'dm-quick-row';
+    const select = document.createElement('select');
+    select.className = 'dm-select';
+    select.setAttribute('aria-label', 'Teleport to');
+    for (const p of getTeleports() || []) {
+      const opt = document.createElement('option');
+      opt.value = p.id;
+      opt.textContent = p.label;
+      select.appendChild(opt);
+      rows[p.id] = { row: opt, label: opt, item: p };
+    }
+    select.addEventListener('pointerdown', (e) => e.stopPropagation());
+    const goBtn = document.createElement('button');
+    goBtn.type = 'button';
+    goBtn.className = 'dm-chip';
+    goBtn.textContent = 'Teleport';
+    goBtn.dataset.item = 'teleport-go';
+    goBtn.addEventListener('click', () => {
+      close();
+      if (typeof actions.teleportTo === 'function') actions.teleportTo(select.value);
+      else if (select.value === 'street-start' && actions.teleport) actions.teleport();
+    });
+    tpRow.append(select, goBtn);
+    bar.append(top, tpRow);
+
+    // Skip to a time of day.
+    if (typeof getClock === 'function') {
+      const timeRow = document.createElement('div');
+      timeRow.className = 'dm-quick-row';
+      for (const [label, minutes] of [['6 AM', 360], ['Noon', 720], ['6 PM', 1080], ['Midnight', 0]]) {
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'dm-chip dm-chip-small';
+        b.textContent = label;
+        b.addEventListener('click', () => {
+          const clock = getClock();
+          if (clock) clock.setTime(minutes);
+          refreshTime();
+        });
+        timeRow.appendChild(b);
+      }
+      bar.appendChild(timeRow);
+    }
+    quickEls = { devBtn, select };
+    return bar;
+  }
+
+  /** Development extras: fly and fast laundry machines. */
+  let devEls = null;
+  function buildDevSection() {
+    const section = document.createElement('div');
+    section.className = 'dm-section';
+    section.dataset.item = 'development';
+    const toggle = document.createElement('button');
+    toggle.type = 'button';
+    toggle.className = 'dm-section-toggle';
+    const title = document.createElement('span');
+    title.className = 'dm-label';
+    title.textContent = 'Development';
+    const chev = document.createElement('span');
+    chev.className = 'dm-chevron';
+    chev.textContent = '▾';
+    toggle.append(title, chev);
+    toggle.addEventListener('click', () => section.classList.toggle('is-open'));
+    const list = document.createElement('div');
+    list.className = 'dm-sublist';
+    const help = document.createElement('div');
+    help.className = 'dm-help';
+    help.textContent = 'Fly and fast machines also turn on development mode; turning development mode off turns them off.';
+    list.appendChild(help);
+    const dev = () => (getDev && getDev()) || null;
+    const makeSwitch = (id, label, sub, get, set) => {
+      const row = document.createElement('button');
+      row.type = 'button';
+      row.className = 'dm-subrow';
+      row.dataset.item = id;
+      row.setAttribute('role', 'switch');
+      const text = document.createElement('span');
+      text.className = 'dm-label';
+      text.textContent = label;
+      const key = document.createElement('span');
+      key.className = 'dm-key';
+      key.textContent = sub;
+      text.appendChild(key);
+      const sw = document.createElement('span');
+      sw.className = 'dm-switch';
+      row.append(text, sw);
+      row.addEventListener('click', () => { set(!get()); refresh(); });
+      list.appendChild(row);
+      return { row, get };
+    };
+    const switches = [
+      makeSwitch('dev-mode', 'Development mode', 'Needs stay full · reach up to 12 m (not through walls)',
+        () => (dev() ? dev().isOn() : !!getNeeds?.()?.isDevelopmentMode?.()), () => toggleDevelopment()),
+      makeSwitch('dev-fly', 'Fly', 'Move where you look · Space up · C down · passes through walls',
+        () => !!dev()?.isFly(), (v) => dev()?.setFly(v)),
+      makeSwitch('dev-fast', 'Fast laundry machines', 'Washers and dryers finish in a minute · new bags every 5 min',
+        () => !!dev()?.isFast(), (v) => dev()?.setFast(v))
+    ];
+    section.append(toggle, list);
+    devEls = { switches };
+    return section;
+  }
+
+  function refreshDev() {
+    if (!root) return;
+    const dev = getDev && getDev();
+    const needs = getNeeds && getNeeds();
+    const on = dev ? dev.isOn() : !!(needs && needs.isDevelopmentMode && needs.isDevelopmentMode());
+    if (quickEls) {
+      quickEls.devBtn.textContent = 'Development mode: ' + (on ? 'On' : 'Off');
+      quickEls.devBtn.setAttribute('aria-pressed', String(on));
+    }
+    if (devEls) for (const s of devEls.switches) s.row.setAttribute('aria-checked', s.get() ? 'true' : 'false');
+  }
+
   function build() {
     if (root) return;
     root = document.createElement('div');
@@ -185,116 +405,88 @@ export function createDebugMenu({ actions, getState, getTeleports = () => [], ge
     closeBtn.setAttribute('aria-label', 'Close debug menu');
     closeBtn.addEventListener('click', close);
     head.append(title, closeBtn);
-    panel.appendChild(head);
-    // Display (brightness / film look) first, so it is easy to find on a phone.
-    if (typeof getDisplay === 'function') panel.appendChild(buildDisplaySection());
+    panel.append(head, buildQuickBar());
 
-    for (const item of MENU_ITEMS) {
-      const row = document.createElement('button');
-      row.type = 'button';
-      row.className = 'dm-row' + (item.danger ? ' dm-danger' : '');
-      row.dataset.item = item.id;
-      const label = document.createElement('span');
-      label.className = 'dm-label';
-      label.textContent = item.label;
-      const key = document.createElement('span');
-      key.className = 'dm-key';
-      key.textContent = item.key;
-      label.appendChild(key);
-      row.appendChild(label);
-      if (item.type === 'toggle') {
-        row.setAttribute('role', 'switch');
-        row.setAttribute('aria-checked', 'false');
-        const sw = document.createElement('span');
-        sw.className = 'dm-switch';
-        row.appendChild(sw);
-        row.addEventListener('click', () => {
-          actions[item.id]();
-          refresh();
-        });
-      } else if (item.id === 'clearSave') {
-        row.addEventListener('click', () => onClearSaveTap(row, label));
-      } else {
-        row.addEventListener('click', () => {
-          close();
-          actions[item.id]();
-        });
-      }
-      rows[item.id] = { row, label, item };
-      panel.appendChild(row);
-      if (item.id === 'screenshot') panel.appendChild(buildTeleportSection());
+    const layout = loadLayout();
+    const tabBar = document.createElement('div');
+    tabBar.className = 'dm-tabs';
+    tabBar.setAttribute('role', 'tablist');
+    const panes = {};
+    const tabBtns = {};
+    for (const t of TABS) {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'dm-tab';
+      b.setAttribute('role', 'tab');
+      b.dataset.tab = t.id;
+      b.textContent = t.label;
+      tabBar.appendChild(b);
+      tabBtns[t.id] = b;
+      const pane = document.createElement('div');
+      pane.className = 'dm-pane';
+      pane.dataset.tab = t.id;
+      pane.setAttribute('role', 'tabpanel');
+      panes[t.id] = pane;
     }
+    function showTab(id) {
+      if (!panes[id]) id = 'world';
+      for (const t of TABS) {
+        panes[t.id].hidden = t.id !== id;
+        tabBtns[t.id].setAttribute('aria-selected', String(t.id === id));
+      }
+      layout.tab = id;
+      saveLayout(layout);
+    }
+    for (const t of TABS) tabBtns[t.id].addEventListener('click', () => showTab(t.id));
 
-    if (typeof getClock === 'function') panel.appendChild(buildTimeSection());
-    if (typeof getSfx === 'function') panel.appendChild(buildSoundSection());
-    if (typeof getNeeds === 'function') panel.appendChild(buildNeedsSection());
-    if (typeof getMoney === 'function') panel.appendChild(buildMoneySection());
-    if (typeof getMinimap === 'function') panel.appendChild(buildMinimapSection());
-    if (typeof getWeather === 'function') panel.appendChild(buildWeatherSection());
-    if (typeof getSaveHud === 'function') panel.appendChild(buildSaveHudSection());
-    if (typeof getSkills === 'function') panel.appendChild(buildSkillsSection());
-
+    // World: time and weather.
+    if (typeof getClock === 'function') panes.world.appendChild(buildTimeSection());
+    if (typeof getWeather === 'function') panes.world.appendChild(buildWeatherSection());
+    // Player: development, needs, money, skills.
+    panes.player.appendChild(buildDevSection());
+    if (typeof getNeeds === 'function') panes.player.appendChild(buildNeedsSection());
+    if (typeof getMoney === 'function') panes.player.appendChild(buildMoneySection());
+    if (typeof getSkills === 'function') panes.player.appendChild(buildSkillsSection());
+    // View: display, overlays, map, HUD, sound.
+    if (typeof getDisplay === 'function') panes.view.appendChild(buildDisplaySection());
+    for (const item of MENU_ITEMS) if (item.type === 'toggle') panes.view.appendChild(makeMenuRow(item));
+    if (typeof getMinimap === 'function') panes.view.appendChild(buildMinimapSection());
+    if (typeof getSaveHud === 'function') panes.view.appendChild(buildSaveHudSection());
+    if (typeof getSfx === 'function') panes.view.appendChild(buildSoundSection());
+    // Tools: screenshot and clear save, plus the key list.
+    for (const item of MENU_ITEMS) if (item.type !== 'toggle') panes.tools.appendChild(makeMenuRow(item));
     const foot = document.createElement('div');
     foot.className = 'dm-foot';
     foot.textContent = 'Keys: F2 or ` menu • F3 overlay • Shift+F3 perf • F4 collision • Shift+F4 highlight • F8 street start • Shift+F8 clear save • F9 screenshot';
-    panel.appendChild(foot);
+    panes.tools.appendChild(foot);
+
+    // Sections start closed; remember the ones you open.
+    for (const pane of Object.values(panes)) {
+      for (const section of pane.querySelectorAll('.dm-section')) {
+        const id = section.dataset.item || '';
+        const isOpen = layout.open.includes(id);
+        section.classList.toggle('is-open', isOpen);
+        const t = section.querySelector('.dm-section-toggle');
+        if (!t) continue;
+        t.setAttribute('aria-expanded', String(isOpen));
+        t.addEventListener('click', () => {
+          const nowOpen = section.classList.contains('is-open');
+          t.setAttribute('aria-expanded', String(nowOpen));
+          layout.open = layout.open.filter((x) => x !== id);
+          if (nowOpen) layout.open.push(id);
+          saveLayout(layout);
+        });
+      }
+    }
+
+    panel.appendChild(tabBar);
+    for (const t of TABS) panel.appendChild(panes[t.id]);
+    showTab(layout.tab);
 
     root.appendChild(panel);
     root.addEventListener('click', (e) => { if (e.target === root) close(); });
     root.addEventListener('touchstart', (e) => e.stopPropagation(), { passive: true });
     container.appendChild(root);
-  }
-
-
-  function buildTeleportSection() {
-    const section = document.createElement('div');
-    section.className = 'dm-section is-open';
-    section.dataset.item = 'teleports';
-    const toggle = document.createElement('button');
-    toggle.type = 'button';
-    toggle.className = 'dm-section-toggle';
-    toggle.setAttribute('aria-expanded', 'true');
-    const title = document.createElement('span');
-    title.className = 'dm-label';
-    title.textContent = 'Teleport';
-    const chev = document.createElement('span');
-    chev.className = 'dm-chevron';
-    chev.textContent = '▾';
-    toggle.append(title, chev);
-    toggle.addEventListener('click', () => {
-      const open = !section.classList.contains('is-open');
-      section.classList.toggle('is-open', open);
-      toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
-    });
-    const list = document.createElement('div');
-    list.className = 'dm-sublist';
-    const presets = getTeleports() || [];
-    for (const p of presets) {
-      const row = document.createElement('button');
-      row.type = 'button';
-      row.className = 'dm-subrow';
-      row.dataset.item = p.id;
-      row.dataset.teleport = p.id;
-      const label = document.createElement('span');
-      label.className = 'dm-label';
-      label.textContent = p.label;
-      if (p.key) {
-        const key = document.createElement('span');
-        key.className = 'dm-key';
-        key.textContent = p.key;
-        label.appendChild(key);
-      }
-      row.appendChild(label);
-      row.addEventListener('click', () => {
-        close();
-        if (typeof actions.teleportTo === 'function') actions.teleportTo(p.id);
-        else if (p.id === 'street-start' && actions.teleport) actions.teleport();
-      });
-      rows[p.id] = { row, label, item: p };
-      list.appendChild(row);
-    }
-    section.append(toggle, list);
-    return section;
   }
 
   function resetConfirm() {
@@ -590,7 +782,7 @@ export function createDebugMenu({ actions, getState, getTeleports = () => [], ge
       refreshNeeds();
     });
     const help = document.createElement('p');
-    help.textContent = 'Keeps needs full and lets you use things up to 12 m away (not through walls) while testing.';
+    help.hidden = true;
     row.append(developmentBtn, refillBtn, drainBtn);
     body.append(help);
     body.append(label, row);
@@ -610,7 +802,7 @@ export function createDebugMenu({ actions, getState, getTeleports = () => [], ge
     const needs = getNeeds();
     if (!needs || typeof needs.get !== 'function') return;
     const development = !!needs.isDevelopmentMode?.();
-    needsEls.developmentBtn.hidden = typeof needs.setDevelopmentMode !== 'function';
+    needsEls.developmentBtn.hidden = true; // now in the quick bar and Player → Development
     needsEls.developmentBtn.textContent = 'Development mode: ' + (development ? 'On' : 'Off');
     needsEls.developmentBtn.setAttribute('aria-pressed', String(development));
     needsEls.refillBtn.disabled = needsEls.drainBtn.disabled = development;
@@ -951,6 +1143,7 @@ export function createDebugMenu({ actions, getState, getTeleports = () => [], ge
     refreshWeather();
     refreshSaveHud();
     refreshSkills();
+    refreshDev();
   }
 
   function open() {

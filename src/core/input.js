@@ -5,7 +5,7 @@ export function setupInput(player, isMobile, { isInventoryOpen } = {}) {
   const blocked = () => isInventoryOpen && isInventoryOpen();
 
   function clearMotion() {
-    keys.forward = keys.back = keys.left = keys.right = keys.jump = false;
+    keys.forward = keys.back = keys.left = keys.right = keys.jump = keys.down = false;
     player.mouseX = 0;
     player.mouseY = 0;
     player.joystickX = 0;
@@ -29,6 +29,7 @@ export function setupInput(player, isMobile, { isInventoryOpen } = {}) {
       case 'KeyA': case 'ArrowLeft': keys.left = true; break;
       case 'KeyD': case 'ArrowRight': keys.right = true; break;
       case 'Space': keys.jump = true; break;
+      case 'KeyC': case 'ControlLeft': keys.down = true; break;
       // Ignore auto-repeat: holding E must not toggle doors / lights / TV over and over.
       case 'KeyE': if (!e.repeat) window.dispatchEvent(new Event('interact')); break;
     }
@@ -41,6 +42,7 @@ export function setupInput(player, isMobile, { isInventoryOpen } = {}) {
       case 'KeyA': case 'ArrowLeft': keys.left = false; break;
       case 'KeyD': case 'ArrowRight': keys.right = false; break;
       case 'Space': keys.jump = false; break;
+      case 'KeyC': case 'ControlLeft': keys.down = false; break;
     }
   });
 

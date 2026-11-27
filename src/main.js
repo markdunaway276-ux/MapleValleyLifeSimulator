@@ -249,6 +249,7 @@ const debug = createDebug({
   getSaveHud: () => hudSave,
   getSkills: () => skills,
   getDisplay: () => display,
+  getDev: () => g.devTools || null,
   getActivity: (opts) => mode.describe(opts)
 });
 mode.attach({ inventory, debug });
@@ -303,6 +304,25 @@ laundry.onChange(() => {
 window.addEventListener('maple-worked', (e) => {
   if (e.detail && e.detail.job && e.detail.job.id === FOLD_JOB.id) laundry.finishFold();
 });
+// Development tools (Debug menu → Player → Development, and the quick bar).
+g.devTools = {
+  isOn: () => needs.isDevelopmentMode(),
+  setOn(on) {
+    needs.setDevelopmentMode(!!on);
+    if (!on) { player.fly = false; laundry.setFast(false); }
+  },
+  isFly: () => !!player.fly,
+  setFly(on) {
+    if (on && !needs.isDevelopmentMode()) needs.setDevelopmentMode(true);
+    player.fly = !!on;
+    g.hud?.toast(on ? 'Fly on: Space up, C down, move where you look.' : 'Fly off.');
+  },
+  isFast: () => laundry.fast,
+  setFast(on) {
+    if (on && !needs.isDevelopmentMode()) needs.setDevelopmentMode(true);
+    laundry.setFast(!!on);
+  }
+};
 let warnedDirty = false;
 needs.onChange((snap) => {
   const clean = snap.values.clean;
