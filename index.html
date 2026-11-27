@@ -14,12 +14,20 @@
     #joystick { position: absolute; z-index: 5; bottom: 40px; left: 40px; width: 120px; height: 120px; background: rgba(255,255,255,0.2); border: 2px solid rgba(255,255,255,0.5); border-radius: 50%; display: none; touch-action: none; }
     #joystick-knob { position: absolute; width: 50px; height: 50px; background: rgba(255,255,255,0.7); border-radius: 50%; top: 35px; left: 35px; }
     .mobile #joystick { display: block; }
+    #fly-pad { position: absolute; z-index: 5; right: 24px; bottom: 120px; display: none; flex-direction: column; gap: 14px; touch-action: none; }
+    .mobile.flying #fly-pad { display: flex; }
+    #fly-pad button { width: 72px; height: 72px; border-radius: 50%; font-size: 28px; color: #fff; background: rgba(255,255,255,0.2); border: 2px solid rgba(255,255,255,0.5); touch-action: none; user-select: none; -webkit-user-select: none; }
+    #fly-pad button.is-held { background: rgba(255,255,255,0.45); }
   </style>
 </head>
 <body>
   <div id="info">Maple Valley Life Simulator<br>WASD to move • Space to jump<br>E to interact • Mouse to look<br>Tab frees the mouse • Esc pauses</div>
   <div id="crosshair"></div>
   <div id="joystick"><div id="joystick-knob"></div></div>
+  <div id="fly-pad" aria-label="Fly up and down">
+    <button type="button" id="fly-up" aria-label="Fly up">▲</button>
+    <button type="button" id="fly-down" aria-label="Fly down">▼</button>
+  </div>
   <div id="instructions">
     <h2>Maple Valley Life Simulator</h2>
     <p>Click / tap to start</p>
