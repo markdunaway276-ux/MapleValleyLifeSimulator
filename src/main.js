@@ -309,12 +309,13 @@ g.devTools = {
   isOn: () => needs.isDevelopmentMode(),
   setOn(on) {
     needs.setDevelopmentMode(!!on);
-    if (!on) { player.fly = false; laundry.setFast(false); }
+    if (!on) { player.fly = false; document.body.classList.remove('flying'); laundry.setFast(false); }
   },
   isFly: () => !!player.fly,
   setFly(on) {
     if (on && !needs.isDevelopmentMode()) needs.setDevelopmentMode(true);
     player.fly = !!on;
+    document.body.classList.toggle('flying', player.fly);
     g.hud?.toast(on ? 'Fly on: Space up, C down, move where you look.' : 'Fly off.');
   },
   isFast: () => laundry.fast,

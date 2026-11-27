@@ -62,7 +62,27 @@ export function setupInput(player, isMobile, { isInventoryOpen } = {}) {
     let lookTouch = null;
     let lastLookX = 0, lastLookY = 0;
 
+    // Development fly: hold ▲ / ▼ to rise and sink (shown only while flying on a phone).
+    const flyButtons = [['fly-up', 'jump'], ['fly-down', 'down']];
+    const releaseFly = () => {
+      for (const [id, key] of flyButtons) {
+        keys[key] = false;
+        document.getElementById(id)?.classList.remove('is-held');
+      }
+    };
+    for (const [id, key] of flyButtons) {
+      const btn = document.getElementById(id);
+      if (!btn) continue;
+      const press = (e) => { e.preventDefault(); e.stopPropagation(); keys[key] = true; btn.classList.add('is-held'); };
+      const release = (e) => { e.preventDefault(); keys[key] = false; btn.classList.remove('is-held'); };
+      btn.addEventListener('touchstart', press, { passive: false });
+      btn.addEventListener('touchend', release);
+      btn.addEventListener('touchcancel', release);
+      btn.addEventListener('contextmenu', (e) => e.preventDefault());
+    }
+
     const resetTouch = () => {
+      releaseFly();
       joystickTouch = null;
       lookTouch = null;
       if (knob) {
@@ -124,7 +144,7 @@ export function setupInput(player, isMobile, { isInventoryOpen } = {}) {
 
     document.addEventListener('touchstart', (e) => {
       if (blocked()) return;
-      if (e.target.closest && e.target.closest('#inventory, #inventory-toggle, #interact-prompt, #hud-screenshot, #phone, .debug-ui, .hud-ui')) return;
+      if (e.target.closest && e.target.closest('#inventory, #inventory-toggle, #interact-prompt, #hud-screenshot, #fly-pad, #phone, .debug-ui, .hud-ui')) return;
       if (e.target === joystick || joystick.contains(e.target)) return;
       if (lookTouch !== null) return;
       const touch = e.changedTouches[0];
