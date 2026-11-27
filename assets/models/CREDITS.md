@@ -63,3 +63,10 @@
 - **Author:** Kenney (https://www.kenney.nl)
 - **License:** Creative Commons Zero (CC0 1.0)
 - **Notes:** Used unmodified.
+
+## vehicles/pickup.glb
+
+- **Source:** [Mitsubishi L200 Double Cab](https://sketchfab.com/3d-models/mitsubishi-l200-double-cab-91514abc6abe4621abd7928af4e44e9b)
+- **Author:** [Nieve5677](https://sketchfab.com/niev)
+- **License:** [Creative Commons Attribution 4.0 International (CC BY 4.0)](https://creativecommons.org/licenses/by/4.0/)
+- **Changes:** Removed the manufacturer badges (grille emblem and tailgate lettering), converted inches to metres, turned it to face +x, split the four wheels into their own nodes, welded and simplified the mesh (1.7M → about 111k triangles). In game it is an unbranded pickup.
