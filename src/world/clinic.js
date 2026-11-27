@@ -124,6 +124,58 @@ function addWindowReflection(material, daylight) {
   };
 }
 
+function clinicTileMaterial() {
+  const size = 128;
+  const canvas = document.createElement('canvas');
+  canvas.width = canvas.height = size;
+  const context = canvas.getContext('2d');
+  const pixels = context.createImageData(size, size);
+  let seed = 82;
+  for (let y = 0; y < size; y++) {
+    for (let x = 0; x < size; x++) {
+      seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0;
+      const grout = x < 2 || y < 2;
+      const tone = grout ? 154 : 185 + (seed >>> 29);
+      pixels.data.set([tone + 8, tone + 5, tone, 255], (y * size + x) * 4);
+    }
+  }
+  context.putImageData(pixels, 0, 0);
+  const map = new THREE.CanvasTexture(canvas);
+  map.colorSpace = THREE.SRGBColorSpace;
+  map.wrapS = map.wrapT = THREE.RepeatWrapping;
+  map.anisotropy = 8;
+  return new THREE.MeshStandardMaterial({ map, roughness: 0.78 });
+}
+
+function setClinicFloor(clinic, material, x, z, width, depth, shadows) {
+  const geometry = new THREE.PlaneGeometry(width, depth);
+  geometry.rotateX(-Math.PI / 2);
+  const position = geometry.attributes.position;
+  const uv = geometry.attributes.uv;
+  for (let i = 0; i < uv.count; i++) {
+    uv.setXY(i, (position.getX(i) + x) / 0.65, (position.getZ(i) + z) / 0.65);
+  }
+  const floor = new THREE.Mesh(geometry, material);
+  floor.position.set(x, 0.085, z);
+  floor.receiveShadow = !!shadows;
+  clinic.add(floor);
+}
+
+function fixtureHaloMaterial(color) {
+  const canvas = document.createElement('canvas');
+  canvas.width = canvas.height = 64;
+  const context = canvas.getContext('2d');
+  const glow = context.createRadialGradient(32, 32, 7, 32, 32, 32);
+  glow.addColorStop(0, 'rgba(255,255,255,0.34)');
+  glow.addColorStop(0.55, 'rgba(255,255,255,0.12)');
+  glow.addColorStop(1, 'rgba(255,255,255,0)');
+  context.fillStyle = glow;
+  context.fillRect(0, 0, 64, 64);
+  return new THREE.MeshBasicMaterial({
+    color, map: new THREE.CanvasTexture(canvas), transparent: true, depthWrite: false
+  });
+}
+
 export function buildClinic(scene, quality) {
   const data = scene.userData;
   const clinic = new THREE.Group();
@@ -155,7 +207,22 @@ export function buildClinic(scene, quality) {
   }
   parts.surface('plaster');
   box(WHITE, 13.66, 0.09, 7, 0, 2.97, 3.6);
-  box(0xd2d5cc, 13.8, 0.08, 7.1, 0, 0.044, 3.6);
+  box(0xaeb2a9, 13.8, 0.08, 7.1, 0, 0.044, 3.6);
+  const tile = clinicTileMaterial();
+  const examFloor = new THREE.MeshStandardMaterial({ color: 0xaab9b1, roughness: 0.96 });
+  setClinicFloor(clinic, tile, 0, 1.79, 13.57, 3.18, quality.shadows);
+  setClinicFloor(clinic, tile, 0, 5.16, 1.76, 3.56, quality.shadows);
+  const baseboard = 0x7b8b7f;
+  for (const side of [-1, 1]) {
+    setClinicFloor(clinic, examFloor, 3.84 * side, 5.19, 5.92, 3.56, quality.shadows);
+    box(baseboard, 0.035, 0.095, 6.76, 6.765 * side, 0.135, 3.55);
+    box(baseboard, 5.82, 0.095, 0.034, 3.86 * side, 0.135, 3.34);
+    box(baseboard, 5.82, 0.095, 0.034, 3.86 * side, 0.135, 3.50);
+    box(baseboard, 0.034, 0.095, 1.80, 0.858 * side, 0.135, 6.08);
+    box(baseboard, 0.034, 0.095, 1.80, 1.022 * side, 0.135, 6.08);
+    box(baseboard, 5.9, 0.095, 0.034, 3.84 * side, 0.135, 6.96);
+    box(baseboard, 5.9, 0.095, 0.034, 3.84 * side, 0.135, 0.24);
+  }
   box(0xb8b8ad, 8.4, 0.105, 0.7, 0, 0.0525, -0.35);
   box(0xb8b8ad, 2.8, SURFACE_Y.walk, 0.7, 0, SURFACE_Y.walk / 2, -0.65);
   box(0xb8b8ad, 1.72, 0.10, DOOR_RECESS, 0, 0.05, DOOR_RECESS / 2);
@@ -351,9 +418,27 @@ export function buildClinic(scene, quality) {
 
   const fixtureParts = new Parts(false);
   fixtureParts.box(0, 1.05, 0.045, 0.21, 0, 2.397, -0.42);
+  const warmGlow = fixtureHaloMaterial(0xffedd1);
+  const coolGlow = fixtureHaloMaterial(0xe0efff);
+  const haloGeometry = new THREE.PlaneGeometry(2.9, 1.24);
+  haloGeometry.rotateX(Math.PI / 2);
   for (const [x, z] of [[-3.8, 1.9], [3.8, 1.9], [0, 5], [-4.2, 5.5], [4.2, 5.5]]) {
+    const exam = z > 5;
+    const halo = new THREE.Mesh(haloGeometry, exam ? coolGlow : warmGlow);
+    halo.position.set(x, 2.921, z);
+    clinic.add(halo);
+    if (exam) {
+      const examLight = new THREE.SpotLight(0xe6f2ff, 13, 4.1, Math.PI / 3.5, 0.84, 2);
+      examLight.position.set(x, 2.78, z);
+      examLight.target.position.set(x, 0.1, z);
+      clinic.add(examLight, examLight.target);
+      continue;
+    }
     fixtureParts.box(0, 1.45, 0.045, 0.33, x, 2.9, z);
   }
+  const examFixtures = new Parts(false);
+  for (const side of [-1, 1]) examFixtures.box(0, 1.45, 0.045, 0.33, side * 4.2, 2.9, 5.5);
+  clinic.add(new THREE.Mesh(examFixtures.merge(), new THREE.MeshBasicMaterial({ color: 0xe7f2ff })));
   const fixtures = new THREE.Mesh(fixtureParts.merge(), new THREE.MeshBasicMaterial({ color: 0xfff0d3 }));
   const model = new THREE.Mesh(parts.merge(), createVertexMaterial());
   model.castShadow = model.receiveShadow = !!quality.shadows;
