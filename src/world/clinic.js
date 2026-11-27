@@ -11,6 +11,7 @@ const HALF_WIDTH = 7;
 const DEPTH = 7.2;
 const HEIGHT = 3.08;
 const HALF_DOOR = 0.85;
+const DOOR_RECESS = 0.66;
 const TEAL = 0x316961;
 const WALL = 0xe5ded0;
 const BASE = 0xbcb19c;
@@ -27,10 +28,14 @@ function plaque(text, width, height, x, y, z, facesStreet) {
   ctx.lineWidth = 4;
   ctx.strokeRect(8, 8, canvas.width - 16, canvas.height - 16);
   ctx.fillStyle = '#f5f6ed';
-  ctx.font = `bold ${Math.round(canvas.height * 0.52)}px sans-serif`;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  ctx.fillText(text, 512, canvas.height / 2, 916);
+  const lines = Array.isArray(text) ? text : [text];
+  const rowHeight = canvas.height / (lines.length + 0.55);
+  ctx.font = `bold ${Math.round(rowHeight * 0.8)}px sans-serif`;
+  lines.forEach((line, index) => {
+    ctx.fillText(line, 512, canvas.height / 2 + (index - (lines.length - 1) / 2) * rowHeight, 916);
+  });
   const map = new THREE.CanvasTexture(canvas);
   map.colorSpace = THREE.SRGBColorSpace;
   map.anisotropy = 8;
@@ -67,6 +72,21 @@ export function buildClinic(scene, quality) {
   box(0xd2d5cc, 13.8, 0.08, 7.1, 0, 0.044, 3.6);
   box(0xb8b8ad, 8.4, 0.105, 0.7, 0, 0.0525, -0.35);
   box(0xb8b8ad, 2.8, SURFACE_Y.walk, 0.7, 0, SURFACE_Y.walk / 2, -0.65);
+  box(0xb8b8ad, 1.72, 0.10, DOOR_RECESS, 0, 0.05, DOOR_RECESS / 2);
+  for (const x of [-6.05, -4.2, 6.05]) {
+    box(0xa7aaa4, x === -4.2 ? 2.15 : 1.54, 0.095, 0.72, x, 0.0475, -0.36);
+  }
+  for (const x of [-6.05, 6.05]) {
+    solid('planter-' + x, 0x646d62, 1.30, 0.36, 0.50, x, 0.27, -0.37);
+    box(0xa3a892, 1.35, 0.045, 0.55, x, 0.45, -0.37);
+    box(0x4e4033, 1.21, 0.037, 0.41, x, 0.48, -0.37);
+    for (let i = 0; i < 7; i++) {
+      const stemX = x + (i - 3) * 0.16;
+      const plantZ = -0.37 + (i % 2 ? 0.075 : -0.075);
+      const height = 0.16 + (i % 3) * 0.055;
+      parts.cylinder(i % 2 ? 0x6c8260 : 0x4c6c50, 0.035, 0.125, height, stemX, 0.48 + height / 2, plantZ, 0, 0, (i - 3) * 0.08, 6);
+    }
+  }
 
   const glassGeometry = new THREE.PlaneGeometry(4.62, 1.55);
   const glass = new THREE.MeshStandardMaterial({
@@ -76,25 +96,42 @@ export function buildClinic(scene, quality) {
   for (const side of [-1, 1]) {
     const x = side * 3.925;
     solid('front-' + side, BASE, 6.15, 0.75, 0.24, x, 0.375, 0.1);
+    // Narrow recessed mortar joints and staggered brick faces at eye level.
+    box(0xa59a87, 6.15, 0.59, 0.035, x, 0.395, -0.032);
+    const brick = [0x976f5e, 0xa37d67, 0x896553, 0xad8872];
+    for (let row = 0; row < 5; row++) {
+      for (let col = 0; col < 21; col++) {
+        const left = Math.max(0, col * 0.30 - (row % 2) * 0.15);
+        const right = Math.min(6.15, (col + 1) * 0.30 - (row % 2) * 0.15);
+        if (right - left < 0.03) continue;
+        box(brick[(col * 3 + row) % brick.length], right - left - 0.012, 0.101, 0.029,
+          x - 3.075 + (left + right) / 2, 0.168 + row * 0.116, -0.057);
+      }
+    }
+    box(0xbeb8a5, 6.15, 0.09, 0.34, x, 0.723, 0.035);
     box(WALL, 6.15, 0.78, 0.24, x, 2.69, 0.1);
     for (const post of [0.97, 1.58, 3.925, 6.27, 6.87]) {
-      box(TEAL, 0.16, 1.61, 0.25, post * side, 1.525, 0.1);
+      box(TEAL, 0.19, 1.61, 0.36, post * side, 1.525, 0.1);
     }
     for (const end of [1.27, 6.57]) box(BASE, 0.58, 1.57, 0.24, end * side, 1.525, 0.1);
     box(TEAL, 4.8, 0.08, 0.29, x, 0.75, 0.1);
-    box(TEAL, 4.8, 0.08, 0.29, x, 2.3, 0.1);
+    box(TEAL, 4.8, 0.10, 0.36, x, 2.3, 0.1);
+    box(TEAL, 4.8, 0.065, 0.34, x, 1.96, 0.1);
+    solid('door-return-' + side, TEAL, 0.17, 2.44, DOOR_RECESS, side * 0.935, 1.22, DOOR_RECESS / 2);
     const window = new THREE.Mesh(glassGeometry, glass);
     window.position.set(x, 1.525, 0.1);
     clinic.add(window);
   }
-  box(TEAL, 1.7, 0.59, 0.23, 0, 2.73, 0.1);
+  box(TEAL, 1.7, 0.59, DOOR_RECESS + 0.12, 0, 2.73, DOOR_RECESS / 2);
+  box(0x535e53, 0.70, 0.38, 0.055, 1.29, 1.59, -0.052);
+  clinic.add(plaque(['CLINIC HOURS', '8 AM – 6 PM'], 0.65, 0.33, 1.29, 1.59, -0.082, true));
   box(0x254944, 8.6, 0.14, 0.84, 0, 2.49, -0.36);
   box(0x87a89a, 8.58, 0.033, 0.038, 0, 2.47, -0.784);
   const name = plaque('✚  MAPLE LANE COMMUNITY CLINIC', 7.9, 0.62, 0, 2.79, -0.04, true);
   clinic.add(name);
 
   const pivot = new THREE.Group();
-  pivot.position.set(HALF_DOOR, 0.085, 0.1);
+  pivot.position.set(HALF_DOOR, 0.085, DOOR_RECESS);
   pivot.rotation.y = Math.PI;
   const door = createHingedDoor({
     width: HALF_DOOR * 2, height: 2.34, glazed: true, color: TEAL,
@@ -104,7 +141,7 @@ export function buildClinic(scene, quality) {
   clinic.add(pivot);
   data.doors.push(door);
   const gate = data.colliders.addHouse({
-    id: 'clinic-doorway', x: X, z: FRONT + 0.1, width: HALF_DOOR * 2, depth: 0.22
+    id: 'clinic-doorway', x: X, z: FRONT + DOOR_RECESS, width: HALF_DOOR * 2, depth: 0.22
   });
   Object.defineProperty(gate, 'disabled', {
     get: () => door.userData.open || Math.abs(door.rotation.y) > 0.05
@@ -116,9 +153,34 @@ export function buildClinic(scene, quality) {
   box(0x303b3d, 0.44, 0.29, 0.07, 3.65, 1.28, 2.17);
   box(0x707c7a, 0.19, 0.04, 0.15, 3.65, 1.16, 2.17);
   clinic.add(plaque('RECEPTION', 1.35, 0.25, 3.65, 0.81, 1.666, true));
+  // The rear wall of the lobby is visible through the street windows.
+  box(0x785744, 4.00, 2.18, 0.04, 3.8, 1.30, 3.34);
+  for (let i = 0; i < 20; i++) {
+    box(i % 3 === 0 ? 0xb88e66 : 0xa77b55, 0.158, 2.16, 0.042, 1.90 + i * 0.20, 1.30, 3.305);
+  }
+  for (const [x, y, sky, hill] of [[-5.25, 1.83, 0xd8e1d8, 0x627d71], [-3.96, 1.83, 0xe4ddc8, 0x8f9a79]]) {
+    box(0x906745, 0.80, 0.58, 0.045, x, y, 3.33);
+    box(WHITE, 0.72, 0.50, 0.015, x, y, 3.30);
+    box(sky, 0.59, 0.37, 0.008, x, y, 3.286);
+    const landscape = new THREE.Shape();
+    landscape.moveTo(-0.285, -0.17);
+    landscape.lineTo(0.285, -0.17);
+    landscape.lineTo(0.285, 0.02);
+    landscape.lineTo(0.175, 0.10);
+    landscape.lineTo(0.02, -0.025);
+    landscape.lineTo(-0.10, 0.04);
+    landscape.lineTo(-0.285, -0.07);
+    landscape.closePath();
+    const print = new THREE.ShapeGeometry(landscape);
+    print.rotateY(Math.PI);
+    parts.geometry(print, hill, x, y, 3.279);
+    print.dispose();
+  }
   for (const x of [-5.5, -4.5, -3.5]) {
-    solid('seat-' + x, 0x3c7771, 0.74, 0.11, 0.64, x, 0.48, 1.08);
-    box(0x3c7771, 0.74, 0.53, 0.12, x, 0.75, 0.79);
+    parts.bevelMax = 0.045;
+    solid('seat-' + x, 0x638078, 0.74, 0.11, 0.64, x, 0.48, 1.08);
+    box(0x708980, 0.74, 0.53, 0.12, x, 0.75, 0.79);
+    parts.bevelMax = 0.025;
     for (const dx of [-0.28, 0.28]) box(0x5c6767, 0.055, 0.37, 0.56, x + dx, 0.27, 1.08);
   }
   box(0x444849, 1.68, 0.012, 0.77, 0, 0.091, 0.95);
@@ -150,22 +212,24 @@ export function buildClinic(scene, quality) {
   model.castShadow = model.receiveShadow = !!quality.shadows;
   clinic.add(model, fixtures);
 
-  const lobbyLight = new THREE.PointLight(0xffefdb, 19, 8, 2);
-  lobbyLight.position.set(0, 2.72, 2.65);
-  const canopyLight = new THREE.PointLight(0xffe4be, 0, 5, 2);
-  canopyLight.position.set(0, 2.29, -0.53);
-  clinic.add(lobbyLight, canopyLight);
+  const lobbyLight = new THREE.PointLight(0xffdfb3, 18, 8, 2);
+  lobbyLight.position.set(-1.8, 2.66, 2.2);
+  const canopyLight = new THREE.SpotLight(0xffe4be, 0, 4, Math.PI / 4, 0.78, 2);
+  canopyLight.position.set(0, 2.30, -0.48);
+  canopyLight.target.position.set(0, 0.08, -0.83);
+  clinic.add(lobbyLight, canopyLight, canopyLight.target);
   clinic.userData.updateLighting = (minutes) => {
     const dusk = THREE.MathUtils.smoothstep(minutes, 1080, 1200);
     const dawn = 1 - THREE.MathUtils.smoothstep(minutes, 330, 450);
     const night = Math.max(dusk, dawn);
-    glass.emissiveIntensity = night * 0.36;
-    canopyLight.intensity = night * 7;
+    glass.emissiveIntensity = night * 0.24;
+    lobbyLight.intensity = 18 + night * 7;
+    canopyLight.intensity = night * 14;
   };
 
   const footprint = { id: 'community-clinic', minX: X - HALF_WIDTH, maxX: X + HALF_WIDTH, minZ: FRONT, maxZ: FRONT + DEPTH };
   (data.mapBuildings ??= []).push(footprint);
-  (data.indoorZones ??= []).push({ ...footprint, minX: footprint.minX + 0.22, maxX: footprint.maxX - 0.22, maxZ: footprint.maxZ - 0.22 });
+  (data.indoorZones ??= []).push({ ...footprint, minX: footprint.minX + 0.22, minZ: FRONT + DOOR_RECESS, maxX: footprint.maxX - 0.22, maxZ: footprint.maxZ - 0.22 });
 
   new GLTFLoader().load('./assets/models/clinic-roof.glb', ({ scene: exterior }) => {
     exterior.traverse((mesh) => {
