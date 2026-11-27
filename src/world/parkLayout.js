@@ -17,7 +17,10 @@ export function parkLayout(street) {
   const paths = [
     area(streetEnd, west, north, walkEdge),
     area(innerWest, 73, north, walkEdge),
-    area(70, 73, walkEdge, 32)
+    area(70, 73, walkEdge, 43),
+    area(73, 95, 31, 33.6),
+    area(73, 96, 41.5, 43),
+    area(95, 96, 40, 41.5)
   ];
 
   return {
@@ -41,6 +44,9 @@ export function parkLayout(street) {
     courtWalk: area(83, 102, walkEdge, 14.5),
     court: area(85, 102, 14.5, 25.5),
     picnicWalk: area(95, 101, 25.5, 40),
+    southSidewalk: area(streetEnd, east, south - street.sidewalkWidth, south),
+    gravel: [area(66, 70, 31, 32.6), area(66, 67.6, 32.6, 40),
+      area(66, 70, 40, 41.6)],
     paths,
     crossing: area(west, innerWest, north, walkEdge)
   };
@@ -49,7 +55,7 @@ export function parkLayout(street) {
 export function expansionSurface(x, z, expansion) {
   if (expansion?.roads.some(rect => parkContains(rect, x, z))) return 'road';
   if (expansion?.paths.some(rect => parkContains(rect, x, z))) return 'sidewalk';
-  if (expansion && [expansion.plaza, expansion.playground, expansion.court, expansion.courtWalk, expansion.picnicWalk]
+  if (expansion && [expansion.southSidewalk, expansion.plaza, expansion.playground, expansion.court, expansion.courtWalk, expansion.picnicWalk]
     .some(rect => parkContains(rect, x, z))) return 'sidewalk';
   return null;
 }

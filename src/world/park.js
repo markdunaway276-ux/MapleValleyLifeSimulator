@@ -1,18 +1,25 @@
 import * as THREE from 'three';
 import { Parts } from './parts.js';
-import { STREET, SURFACE_Y } from './street.js';
+import { CURB_WIDTH, STREET, SURFACE_Y } from './street.js';
 
-export function buildPark(scene, quality) {
+export function buildPark(scene, quality, streetMaterials) {
   const layout = STREET.expansion;
   const park = new THREE.Group();
   park.name = 'maple-lane-park';
   scene.add(park);
 
-  function surface(name, rect, y, color) {
-    const mesh = new THREE.Mesh(
-      new THREE.PlaneGeometry(rect.maxX - rect.minX, rect.maxZ - rect.minZ),
-      new THREE.MeshStandardMaterial({ color, roughness: 0.94 })
-    );
+  function surface(name, rect, y, finish, { turn = false, span = 1, phase = 0 } = {}) {
+    const width = rect.maxX - rect.minX;
+    const depth = rect.maxZ - rect.minZ;
+    const geometry = new THREE.PlaneGeometry(width, depth);
+    const uv = geometry.attributes.uv;
+    for (let i = 0; i < uv.count; i++) {
+      const u = uv.getX(i);
+      const v = uv.getY(i);
+      uv.setXY(i, phase + (turn ? v : u) * span, turn ? u : v);
+    }
+    const material = finish.isMaterial ? finish : new THREE.MeshStandardMaterial({ color: finish, roughness: 0.94 });
+    const mesh = new THREE.Mesh(geometry, material);
     mesh.name = name;
     mesh.rotation.x = -Math.PI / 2;
     mesh.position.set((rect.minX + rect.maxX) / 2, y, (rect.minZ + rect.maxZ) / 2);
@@ -20,9 +27,51 @@ export function buildPark(scene, quality) {
     park.add(mesh);
   }
 
-  surface('future-pond-footprint', layout.pond, 0.009, 0x829588);
-  for (const road of layout.roads) surface('service-road', road, SURFACE_Y.road, 0x464745);
-  for (const path of layout.paths) surface('park-path', path, SURFACE_Y.walk, 0xc0ad8e);
+  for (const [index, road] of layout.roads.entries()) {
+    const turn = index === 1 || index === 2;
+    const length = turn ? road.maxZ - road.minZ : road.maxX - road.minX;
+    surface('service-road', road, SURFACE_Y.road, streetMaterials.road, {
+      turn, span: length / STREET.length, phase: index === 0 ? 1 : 0
+    });
+  }
+  for (const [index, path] of layout.paths.entries()) {
+    if (index === 3) continue; // Deck spans the water.
+    const turn = index === 2 || index === 5;
+    const length = turn ? path.maxZ - path.minZ : path.maxX - path.minX;
+    surface('park-path', path, SURFACE_Y.walk, index < 2 ? streetMaterials.walk : 0xb9a48a, {
+      turn, span: length / STREET.length, phase: index === 0 ? 1 : 0
+    });
+  }
+
+  const southWalk = layout.southSidewalk;
+  surface('park-south-sidewalk', southWalk, SURFACE_Y.walk, streetMaterials.walk, {
+    span: (southWalk.maxX - southWalk.minX) / STREET.length, phase: 1
+  });
+
+  const firstRoad = layout.roads[0];
+  const westRoad = layout.roads[1];
+  const eastRoad = layout.roads[2];
+  const backRoad = layout.roads[3];
+  function curb(x, z, width, depth) {
+    const height = SURFACE_Y.walk - 0.003;
+    const mesh = new THREE.Mesh(new THREE.BoxGeometry(width, height, depth), streetMaterials.curb);
+    mesh.position.set(x, height / 2, z);
+    mesh.receiveShadow = quality.shadows;
+    park.add(mesh);
+  }
+  const halfCurb = CURB_WIDTH / 2;
+  curb((firstRoad.minX + firstRoad.maxX) / 2, firstRoad.minZ - halfCurb,
+    firstRoad.maxX - firstRoad.minX, CURB_WIDTH);
+  for (const [start, end] of [[firstRoad.minX, westRoad.minX], [westRoad.maxX, eastRoad.minX]]) {
+    curb((start + end) / 2, firstRoad.maxZ + halfCurb, end - start, CURB_WIDTH);
+  }
+  curb((backRoad.minX + backRoad.maxX) / 2, backRoad.maxZ + halfCurb,
+    backRoad.maxX - backRoad.minX, CURB_WIDTH);
+  for (const x of [westRoad.minX - halfCurb, eastRoad.maxX + halfCurb]) {
+    curb(x, (westRoad.minZ + backRoad.maxZ) / 2, CURB_WIDTH, backRoad.maxZ - westRoad.minZ);
+  }
+  for (const trail of layout.gravel) surface('wooded-gravel-trail', trail, 0.004, 0x9e947e);
+  buildPond(park, scene.userData.colliders, quality);
   surface('entrance-plaza', layout.plaza, SURFACE_Y.walk + 0.002, 0xbcb6a6);
   surface('playground-mulch', layout.playground, SURFACE_Y.walk, 0x896044);
   surface('basketball-asphalt', layout.court, SURFACE_Y.walk, 0x505651);
@@ -33,6 +82,80 @@ export function buildPark(scene, quality) {
     surface('service-road-crossing', { minX: x, maxX: x + 0.3, minZ, maxZ }, SURFACE_Y.road + 0.002, 0xd8d6c7);
   }
   return buildActivityArea(park, scene.userData.colliders, quality);
+}
+
+function buildPond(park, colliders, quality) {
+  const { pond, paths } = STREET.expansion;
+  const bridge = paths[3];
+  const centerX = (pond.minX + pond.maxX) / 2;
+  const centerZ = (pond.minZ + pond.maxZ) / 2;
+  const radiusX = (pond.maxX - pond.minX) / 2;
+  const radiusZ = (pond.maxZ - pond.minZ) / 2;
+  const shore = new THREE.Mesh(new THREE.CircleGeometry(1, 64),
+    new THREE.MeshStandardMaterial({ color: 0x777460, roughness: 0.99 }));
+  shore.rotation.x = -Math.PI / 2;
+  shore.scale.set(radiusX, radiusZ, 1);
+  shore.position.set(centerX, 0.005, centerZ);
+  shore.receiveShadow = quality.shadows;
+  park.add(shore);
+
+  const waterMaterial = new THREE.MeshStandardMaterial({ color: 0x406d69, roughness: 0.34, metalness: 0.15 });
+  waterMaterial.onBeforeCompile = shader => {
+    shader.vertexShader = shader.vertexShader
+      .replace('#include <common>', '#include <common>\nvarying vec2 vPondPosition;')
+      .replace('#include <begin_vertex>', '#include <begin_vertex>\nvPondPosition = position.xy;');
+    shader.fragmentShader = shader.fragmentShader
+      .replace('#include <common>', '#include <common>\nvarying vec2 vPondPosition;')
+      .replace('#include <color_fragment>', `#include <color_fragment>
+        vec2 pondPoint = vPondPosition;
+        float ripples = sin(pondPoint.y * 74.0 + sin(pondPoint.x * 23.0) * 2.0);
+        float rim = smoothstep(0.62, 1.0, length(pondPoint));
+        diffuseColor.rgb *= 0.88 + rim * 0.34 + ripples * 0.07;`);
+  };
+  const water = new THREE.Mesh(new THREE.CircleGeometry(1, 64), waterMaterial);
+  water.name = 'park-pond-water';
+  water.rotation.x = -Math.PI / 2;
+  water.scale.set(radiusX - 0.43, radiusZ - 0.47, 1);
+  water.position.set(centerX, 0.012, centerZ);
+  park.add(water);
+
+  const parts = new Parts(true);
+  const deck = SURFACE_Y.walk;
+  const bridgeWidth = bridge.maxZ - bridge.minZ;
+  for (let x = bridge.minX + 0.14; x < bridge.maxX; x += 0.28) {
+    parts.box(Math.floor(x * 10) % 3 === 0 ? 0x927052 : 0xa17d5c, 0.27, 0.087, bridgeWidth,
+      x, deck - 0.044, (bridge.minZ + bridge.maxZ) / 2);
+  }
+  for (const z of [bridge.minZ + 0.06, bridge.maxZ - 0.06]) {
+    for (let x = bridge.minX + 0.4; x < bridge.maxX; x += 2.6) {
+      parts.box(0x66503d, 0.13, 1.12, 0.13, x, deck + 0.51, z);
+    }
+    for (const y of [0.43, 0.98]) {
+      parts.box(0x705743, bridge.maxX - bridge.minX, 0.095, 0.115, centerX, deck + y, z);
+    }
+    colliders.addHouse({ id: 'park-bridge-rail-' + z, x: centerX, z, width: bridge.maxX - bridge.minX,
+      depth: 0.13, rotY: 0 });
+  }
+
+  // Shore obstacles follow the waterline, with openings at each end of the bridge.
+  for (let i = 0; i < 48; i++) {
+    const angle = i * Math.PI / 24;
+    const x = centerX + Math.cos(angle) * (radiusX - 0.48);
+    const z = centerZ + Math.sin(angle) * (radiusZ - 0.48);
+    if (z >= bridge.minZ - 0.48 && z <= bridge.maxZ + 0.48) continue;
+    colliders.addTree({ id: 'park-pond-bank-' + i, x, z, radius: 0.68 });
+    parts.cylinder(i % 2 ? 0x78776d : 0x8c826f, 0.31, 0.62, 0.15 + (i % 3) * 0.08,
+      x, 0.08, z, 0, angle, 0, 6);
+    if (i % 3 === 0) {
+      for (let reed = -1; reed <= 1; reed++) {
+        parts.cylinder(0x747b40, 0.012, 0.027, 0.56, x + reed * 0.16, 0.29, z, 0, 0, reed * 0.16, 5);
+      }
+    }
+  }
+  const details = new THREE.Mesh(parts.merge(), new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.91 }));
+  details.name = 'park-footbridge-and-bank';
+  details.castShadow = details.receiveShadow = !!quality.shadows;
+  park.add(details);
 }
 
 function buildActivityArea(park, colliders, quality) {
@@ -172,7 +295,7 @@ function buildActivityArea(park, colliders, quality) {
   // Low, warm light around the entrance and first path junction.
   const lights = [];
   const lenses = new THREE.MeshStandardMaterial({ color: 0xe5d9b7, emissive: 0xffd397, emissiveIntensity: 0 });
-  for (const [x, z] of [[69.25, 14.25], [73.5, 17.5]]) {
+  for (const [x, z] of [[69.25, 14.25], [73.5, 17.5], [72.8, 29.6]]) {
     post(x, z, 2.9, metal, 0.11);
     box(metal, 0.38, 0.075, 0.38, x, 2.89, z);
     const lens = new THREE.Mesh(new THREE.BoxGeometry(0.28, 0.075, 0.28), lenses);
@@ -190,7 +313,7 @@ function buildActivityArea(park, colliders, quality) {
     update(minutes) {
       const dusk = THREE.MathUtils.smoothstep(minutes, 1100, 1160);
       const dawn = 1 - THREE.MathUtils.smoothstep(minutes, 335, 395);
-      for (const light of lights) light.intensity = 20 * (dusk + dawn);
+      for (const [index, light] of lights.entries()) light.intensity = (index === 2 ? 12 : 20) * (dusk + dawn);
       lenses.emissiveIntensity = dusk + dawn;
     }
   };

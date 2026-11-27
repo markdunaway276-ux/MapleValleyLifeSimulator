@@ -459,6 +459,9 @@ export function createScene(quality) {
   const parkTrees = [
     { x: 65.5, z: 19.5, seed: 81, scale: 0.83 },
     { x: 67.5, z: 42.5, seed: 45, scale: 1.06 },
+    { x: 65, z: 34, seed: 68, scale: 0.78 },
+    { x: 65.1, z: 38.6, seed: 23, scale: 0.88 },
+    { x: 68.8, z: 36.5, seed: 84, scale: 0.73 },
     { x: 77, z: 44, seed: 36, scale: 0.84 },
     { x: 100.5, z: 43, seed: 72, scale: 0.94 }
   ];
@@ -505,7 +508,7 @@ export function createScene(quality) {
   buildCornerShop(scene, quality);
   buildLaundromat(scene, quality);
   buildClinic(scene, quality);
-  scene.userData.park = buildPark(scene, quality);
+  scene.userData.park = buildPark(scene, quality, { road: road.material, walk: walkMat, curb: curbMat });
   buildTrailerPark(scene, quality);
   scene.userData.world = createWorldState(scene);
 
