@@ -1,3 +1,5 @@
+import { updateScenery } from '../world/scenery.js';
+import { FUEL } from '../systems/fuel.js';
 import { updateDoors } from '../systems/doors.js';
 import { updatePickups } from '../world/pickups.js';
 import { isIndoors, isInsideMainHouse } from '../world/rain.js';
@@ -42,6 +44,7 @@ export function startLoop(g) {
     g.presentation.update(delta, Math.hypot(player.position.x - prevX, player.position.z - prevZ), currentTime.minutes);
     g.weather.update(delta, currentTime);
     const rain = g.weather.rainAmount();
+    updateScenery(delta,rain);
     g.npcs.update(delta, {
       player,
       talkingId: g.dialogue.currentNpc(),
@@ -106,7 +109,14 @@ export function startLoop(g) {
     g.prompt.update();
     g.minimap.update(delta);
     g.dayOne.update();
-    if (!g.dayOne.draw(delta, g.view.draw)) g.presentation.draw(g.view.draw);
+    if (!g.dayOne.draw(delta, g.view.draw)) {
+      const driving = mode.driving();
+      g.cabin.update({ visible: driving, speed: g.car.getSpeed(), steer: g.car.getSteer(),
+        fuel: g.car.fuel.get() / FUEL.TANK, boxes: g.dayOne.stage === 'realtor',
+        clock: `${String(Math.floor(time.minutes / 60)).padStart(2, '0')}:${String(Math.floor(time.minutes % 60)).padStart(2, '0')}` });
+      if (driving && !g.phone.isOpen()) g.actions.drive(g.cabin.grips);
+      g.presentation.draw(g.view.draw);
+    }
     g.debug.update();
   }
   frame();

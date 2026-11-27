@@ -1,3 +1,4 @@
+import * as THREE from 'three';
 /**
  * Neighbourhood NPCs. Each one walks a sidewalk patrol, idles at the ends,
  * and stops to face you when you get close. A moving circle collider keeps
@@ -274,6 +275,16 @@ export function createNpc(def, { scene, shadows = false } = {}) {
 
   applyPose(0);
 
+  const waveAxis = new THREE.Vector3(0, 0, 1);
+  const waveOffset = new THREE.Quaternion();
+  let waveBones;
+  function wave(weight, time) {
+    if (!model || !weight) return;
+    waveBones ??= ['upperarm_r', 'lowerarm_r'].map(name => model.root.getObjectByName(name));
+    waveBones[0]?.quaternion.multiply(waveOffset.setFromAxisAngle(waveAxis, -0.82 * weight));
+    waveBones[1]?.quaternion.multiply(waveOffset.setFromAxisAngle(waveAxis, (-0.9 + Math.sin(time * 11) * 0.35) * weight));
+  }
+
   return {
     def,
     body,
@@ -282,6 +293,7 @@ export function createNpc(def, { scene, shadows = false } = {}) {
     collider,
     update,
     locationHint,
+    wave,
     dispose,
     get id() { return def.id; },
     get name() { return name; },

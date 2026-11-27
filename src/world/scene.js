@@ -1,3 +1,4 @@
+import { buildApproachRoad, replaceTownTrees } from './scenery.js';
 import * as THREE from 'three';
 import { generateHouse, getHouseColliders, getHouseBounds } from './buildings.js';
 import { scatterTrees, TREE_PLACEMENTS } from './trees.js';
@@ -76,11 +77,11 @@ export function createScene(quality) {
   scene.add(createSkyDome(quality, look));
 
   // Ground with a repeating grass canvas texture
-  const groundGeo = new THREE.PlaneGeometry(180, 125);
-  groundGeo.translate(40, -12.5, 0);
+  const groundGeo = new THREE.PlaneGeometry(450, 125);
+  groundGeo.translate(-95, -12.5, 0);
   const groundUv = groundGeo.getAttribute('uv');
   for (let i = 0; i < groundUv.count; i++) {
-    groundUv.setXY(i, groundUv.getX(i) * 1.8, groundUv.getY(i) * 1.25 - 0.25);
+    groundUv.setXY(i, groundUv.getX(i) * 4.5 - 2.7, groundUv.getY(i) * 1.25 - 0.25);
   }
   const groundMat = new THREE.MeshStandardMaterial({
     map: createGrassTexture(quality),
@@ -392,6 +393,7 @@ export function createScene(quality) {
     { x: 100.5, z: 43, seed: 72, scale: 0.94 }
   ];
   const trees = scatterTrees(scene, [...TREE_PLACEMENTS, ...parkTrees], quality);
+  replaceTownTrees(trees, [...TREE_PLACEMENTS, ...parkTrees]);
   scene.userData.trees = trees;
   trees.forEach((tree, i) => {
     colliders.addTree({
@@ -445,6 +447,7 @@ export function createScene(quality) {
   buildLaundromat(scene, quality);
   buildClinic(scene, quality);
   buildGasStation(scene, quality);
+  buildApproachRoad(scene, quality);
   scene.userData.park = buildPark(scene, quality, { road: road.material, walk: walkMat, curb: curbMat });
   buildTrailerPark(scene, quality);
   scene.userData.world = createWorldState(scene);

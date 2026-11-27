@@ -1,3 +1,5 @@
+import { onRoute9 } from '../world/route9.js';
+import { createOpeningMusic } from './music.js';
 import { expansionSurface } from '../world/parkLayout.js';
 
 /**
@@ -86,6 +88,7 @@ export function surfaceAt(x, z, scene) {
   const roadHalf = (street.roadWidth || DEFAULT_STREET.roadWidth) / 2;
   const walkW = street.sidewalkWidth || DEFAULT_STREET.sidewalkWidth;
   const cz = street.roadCenterZ !== undefined ? street.roadCenterZ : DEFAULT_STREET.roadCenterZ;
+  if (onRoute9(x,z,cz)) return 'road';
   if (Math.abs(x) <= halfLen + 1e-6) {
     if (Math.abs(z - cz) <= roadHalf + 1e-6) return 'road';
     const southZ = cz - roadHalf - walkW / 2;
@@ -191,6 +194,9 @@ export function createSfx({
   let carSub = null;
   let carFilter = null;
   let carGain = null;
+  let tyreNoise = null;
+  let tyreGain = null;
+  let tyreFilter = null;
   let carLevel = 0;
   let carOn = false;
 
@@ -546,6 +552,13 @@ export function createSfx({
       try { n.disconnect(); } catch { /* ignore */ }
     }
     carOsc = carSub = null;
+    if (tyreNoise) {
+      try { tyreNoise.stop(); } catch { /* already stopped */ }
+      tyreNoise.disconnect();
+      tyreFilter.disconnect();
+      tyreGain.disconnect();
+      tyreNoise = tyreFilter = tyreGain = null;
+    }
     if (carFilter) { try { carFilter.disconnect(); } catch { /* ignore */ } carFilter = null; }
     if (carGain) { try { carGain.disconnect(); } catch { /* ignore */ } carGain = null; }
   }
@@ -569,6 +582,18 @@ export function createSfx({
     carSub.connect(carFilter);
     carFilter.connect(carGain);
     carGain.connect(sfxGain);
+    if (noiseBuf) {
+      tyreNoise = ctx.createBufferSource();
+      tyreNoise.buffer = noiseBuf;
+      tyreNoise.loop = true;
+      tyreFilter = ctx.createBiquadFilter();
+      tyreFilter.type = 'lowpass';
+      tyreFilter.frequency.value = 480;
+      tyreGain = ctx.createGain();
+      tyreGain.gain.value = 0;
+      tyreNoise.connect(tyreFilter).connect(tyreGain).connect(sfxGain);
+      tyreNoise.start(t);
+    }
     try { carOsc.start(t); carSub.start(t); } catch { /* ignore */ }
   }
 
@@ -587,6 +612,7 @@ export function createSfx({
     carFilter.frequency.setTargetAtTime(150 + 260 * lv, t, 0.15);
     // Very quiet: a low idle that rises a little with speed.
     carGain.gain.setTargetAtTime(0.012 + 0.016 * lv, t, 0.2);
+    tyreGain?.gain.setTargetAtTime(0.05 * lv, t, 0.18);
   }
 
   /**
@@ -750,6 +776,7 @@ export function createSfx({
       case 'cash': playCash(); break;
       case 'vending': playVending(); break;
       case 'car': playCar(); break;
+      case 'bird-chirp': chirpBird(); break;
       case 'knock': playKnock(); break;
       case 'washer-start': playWasherStart(); break;
       case 'washer-done': playWasherDone(); break;
@@ -884,6 +911,7 @@ export function createSfx({
   return {
     play,
     setVolumes,
+    openingMusic: () => ensureGraph() ? createOpeningMusic(ctx, master) : null,
     getVolumes: () => ({ ...volume }),
     unlock,
     update,

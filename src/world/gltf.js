@@ -1,3 +1,4 @@
+import { worldAssets } from './assetLoading.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 
 /**
@@ -7,7 +8,7 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 let sharedLoader = null;
 
 export function getGltfLoader() {
-  if (!sharedLoader) sharedLoader = new GLTFLoader();
+  if (!sharedLoader) sharedLoader = new GLTFLoader(worldAssets);
   return sharedLoader;
 }
 

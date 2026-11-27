@@ -1,3 +1,4 @@
+import { worldAssets } from './assetLoading.js';
 import * as THREE from 'three';
 import { loadGltf } from './gltf.js';
 import { createHingedDoor } from '../systems/doors.js';
@@ -63,7 +64,7 @@ const GLOW = {
 };
 
 function asphaltMaterial() {
-  const map = new THREE.TextureLoader().load('./assets/models/gas-asphalt.webp');
+  const map = new THREE.TextureLoader(worldAssets).load('./assets/models/gas-asphalt.webp');
   map.colorSpace = THREE.SRGBColorSpace;
   map.wrapS = map.wrapT = THREE.RepeatWrapping;
   map.repeat.set(17 / 3, 17 / 3);

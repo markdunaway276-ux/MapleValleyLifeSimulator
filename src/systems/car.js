@@ -278,6 +278,7 @@ export function createCar({
     steer: 0
   };
   let driving = false;
+  let engineOn = false;
   let lookYaw = 0;
   let lookPitch = 0;
   let lookIdle = 0;
@@ -407,11 +408,12 @@ export function createCar({
     return true;
   }
 
-  function enter() {
+  function enter({ engine = true } = {}) {
     if (driving) return false;
     if (!isStarted()) return false;
     pourGasCan();
     driving = true;
+    engineOn = engine;
     state.speed = 0;
     state.steer = 0;
     lookYaw = 0;
@@ -422,7 +424,7 @@ export function createCar({
     placeCamera();
     setLook();
     if (onDrivingChange) onDrivingChange(true);
-    if (sfx && typeof sfx.play === 'function') sfx.play('car');
+    if (engine && sfx && typeof sfx.play === 'function') sfx.play('car');
     window.dispatchEvent(new CustomEvent('car-enter'));
     return true;
   }
@@ -486,7 +488,8 @@ export function createCar({
     const fromX = state.x;
     const fromZ = state.z;
     const r = stepCar(state, input, dt, { world, bounds, braking: blocked });
-    if (!isFuelFree() && !fuel.isEmpty()) {
+    if (input.throttle) engineOn = true;
+    if (engineOn && !isFuelFree() && !fuel.isEmpty()) {
       fuel.burn(Math.hypot(state.x - fromX, state.z - fromZ), dt);
       if (fuel.isLow() && !warnedLow) {
         warnedLow = true;
@@ -522,7 +525,7 @@ export function createCar({
     }
     placeCamera();
     setLook();
-    if (sfx && typeof sfx.setCar === 'function') sfx.setCar(!fuel.isEmpty(), Math.abs(state.speed) / CAR_PHYSICS.MAX_SPEED);
+    if (sfx && typeof sfx.setCar === 'function') sfx.setCar(engineOn && !fuel.isEmpty(), Math.abs(state.speed) / CAR_PHYSICS.MAX_SPEED);
   }
 
   syncMesh();
@@ -544,6 +547,7 @@ export function createCar({
     resetToSpawn: () => applyPose(defaultPose),
     exitSpot,
     getSpeed: () => state.speed,
+    getSteer: () => state.steer,
     getLook: () => ({ yaw: lookYaw, pitch: lookPitch }),
     didHit: () => hitFlash > 0,
     poseIsFree,

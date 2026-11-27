@@ -1,3 +1,4 @@
+import { createRoadTrip } from './roadTrip.js';
 import * as THREE from 'three';
 import { STREET } from '../world/street.js';
 import { createNpc } from '../world/npc.js';
@@ -7,9 +8,7 @@ import { toggleDoor } from '../systems/doors.js';
 /**
  * Day One: the move-in story for a new game, then a short tutorial.
  *
- * Intro (skippable camera shots): your car drives into town and parks across
- * from your new house, Rita the realtor waits on the porch, then a look at the
- * Market and the park.
+ * The Route 9 cinematic ends in the driver seat, across from Rita and your new house.
  *
  * Stages (saved): realtor (front door locked until Rita hands you the keys)
  * -> unload (carry BOXES boxes from the trunk into the living room)
@@ -23,10 +22,6 @@ const BOXES = 3;
 const UNPACK_SECONDS = 2.4;
 /** Box pile in the living room: along the front wall, west of the door, clear of the sofa. */
 const PILE = { x: -2.85, z: -6.47 };
-/** Where you stand when the tutorial starts: the north sidewalk, behind your car. */
-const START = { x: 4.0, z: 12.4, yaw: 0.21 };
-const DRIVE = { fromX: -40, laneZ: 7.2, turnX: -4, seconds: 6.5 };
-
 const RITA_TEXT = 'Hope the unpacking went OK! Sam and June down the street are lovely, so say hi. ' +
   'The Market up the road has everything for a first dinner. Welcome to Maple Lane! - Rita';
 
@@ -60,8 +55,7 @@ export function createDayOne(g, saveData, beginPlay) {
   // A box in your hands when the game was saved goes back in the trunk.
   let trunk = BOXES - pile - unpacked;
   const greeted = new Set(Array.isArray(saved?.greeted) ? saved.greeted : []);
-  let elapsed = 0;
-  let playing = false;
+  let arriving = false;
   let marketWaypointSet = false;
   let unpacking = null; // performance.now() when the current box was opened
   let rita = null;
@@ -265,47 +259,6 @@ export function createDayOne(g, saveData, beginPlay) {
     return [];
   }
 
-  // --- intro -------------------------------------------------------------------
-  const shots = [
-    { title: 'Moving Day', text: 'After a long drive with everything you own in the trunk, you finally turn onto Maple Lane.',
-      seconds: DRIVE.seconds, drive: true },
-    { title: 'Your new home', text: 'Rita, your realtor, is waiting out front with the keys.',
-      seconds: 4.2, from: [5.5, 3.0, 4.2], to: [3.2, 2.1, 1.2], aim: [0.6, 1.4, -4.2] },
-    { title: 'Maple Lane Market', text: 'The market is a short walk away. Pick up what you need and get to know the people behind the counter.',
-      seconds: 4.2, from: [marketX - 9, 4.2, 5], to: [marketX - 2, 2.9, 7.5], aim: [marketX, 1.9, 15] },
-    { title: 'Maple Lane Park', text: 'There’s a park just past the market, for when the boxes are done.',
-      seconds: 4.2, from: [66, 7, 9], to: [72, 6.4, 15], aim: [83, 1.2, 27] }
-  ];
-  const introSeconds = shots.reduce((sum, s) => sum + s.seconds, 0);
-  const motion = !window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-  const eye = new THREE.Vector3();
-  const orientation = new THREE.Quaternion();
-  const end = new THREE.Vector3();
-  let carHome = null; // the parked pose, restored after the drive-in shot
-
-  function driveCar(k) {
-    const car = carObject();
-    if (!car) return;
-    if (!carHome) carHome = { x: car.position.x, z: car.position.z, rotY: car.rotation.y };
-    const e = THREE.MathUtils.smootherstep(k, 0, 1);
-    const x = DRIVE.fromX + (carHome.x - DRIVE.fromX) * e;
-    const turn = THREE.MathUtils.smoothstep(x, DRIVE.turnX, carHome.x);
-    const z = DRIVE.laneZ + (carHome.z - DRIVE.laneZ) * turn;
-    // Heading follows the path's slope (local +x is the car's front).
-    const slope = (carHome.z - DRIVE.laneZ) * (6 * turn * (1 - turn)) / (carHome.x - DRIVE.turnX);
-    car.position.set(x, 0, z);
-    car.rotation.y = -Math.atan(slope) * 0.8;
-    camera.position.set(x - 8.5, 3.3, z - 3.2);
-    camera.lookAt(x + 3, 1.1, z);
-  }
-  function parkCar() {
-    const car = carObject();
-    if (car && carHome) {
-      car.position.set(carHome.x, 0, carHome.z);
-      car.rotation.y = carHome.rotY;
-    }
-  }
-
   // --- task panel ----------------------------------------------------------------
   const panel = document.createElement('section');
   panel.className = 'day-one hud-ui';
@@ -334,6 +287,10 @@ export function createDayOne(g, saveData, beginPlay) {
     const dismiss = isMobile ? 'Skip tutorial' : 'Skip tutorial [X]';
     switch (stage) {
       case 'realtor':
+        if (arriving) {
+          show('You made it', isMobile ? 'Tap to get out of the car.' : 'Press E to get out of the car.', dismiss);
+          break;
+        }
         show('Meet your realtor', (isMobile
           ? 'Use the left stick to walk and drag the right side of the screen to look. '
           : 'Walk with WASD and look with the mouse. ') +
@@ -390,29 +347,23 @@ export function createDayOne(g, saveData, beginPlay) {
     g.save();
   }
 
-  function beginTutorial() {
-    if (playing) {
-      playing = false;
-      parkCar();
-    }
-    panel.classList.remove('day-one-cinematic');
-    if (fresh) {
-      player.position.set(START.x, 1.6, START.z);
-      player.rotation.set(0, START.yaw, 0);
-    }
+  function beginTutorial(seated = false) {
     syncLock();
+    arriving = seated;
     panel.hidden = stage === 'done';
     renderTask();
     beginPlay();
+    if (seated) g.car.enter({ engine: false });
     if (fresh) g.save();
   }
 
+  const intro = createRoadTrip(g, () => beginTutorial(true), (weight, time) => rita?.wave(weight, time));
+
   action.addEventListener('click', () => {
-    if (playing) beginTutorial();
-    else finishTutorial();
+    finishTutorial();
   });
   window.addEventListener('keydown', event => {
-    if (event.code === 'KeyX' && !panel.hidden && !event.repeat && !event.ctrlKey && !event.metaKey && !event.altKey &&
+    if (event.code === 'KeyX' && !intro.active && !panel.hidden && !event.repeat && !event.ctrlKey && !event.metaKey && !event.altKey &&
         !event.target?.closest?.('input, textarea, [contenteditable]')) {
       action.click();
     }
@@ -420,46 +371,18 @@ export function createDayOne(g, saveData, beginPlay) {
 
   return {
     start() {
-      if (!fresh) {
-        beginTutorial();
-        return;
-      }
-      playing = true;
-      panel.classList.add('day-one-cinematic');
-      panel.hidden = false;
-      show(shots[0].title, shots[0].text, isMobile ? 'Skip intro' : 'Skip intro [X]');
-      action.focus();
+      if (fresh) intro.start();
+      else beginTutorial();
     },
-    draw(delta, render) {
-      if (!playing) return false;
-      elapsed += delta;
-      let at = Math.min(elapsed, introSeconds - 0.001);
-      let index = 0;
-      while (index < shots.length - 1 && at >= shots[index].seconds) { at -= shots[index].seconds; index++; }
-      const shot = shots[index];
-      show(shot.title, shot.text, elapsed >= introSeconds
-        ? 'Start moving in' : (isMobile ? 'Skip intro' : 'Skip intro [X]'));
-      const progress = motion ? THREE.MathUtils.smoothstep(at, 0, shot.seconds) : 1;
-      eye.copy(camera.position);
-      orientation.copy(camera.quaternion);
-      if (shot.drive) {
-        driveCar(motion ? at / shot.seconds : 1);
-      } else {
-        parkCar();
-        camera.position.fromArray(shot.from).lerp(end.fromArray(shot.to), progress);
-        camera.lookAt(...shot.aim);
-      }
-      try {
-        render();
-      } finally {
-        camera.position.copy(eye);
-        camera.quaternion.copy(orientation);
-      }
-      return true;
-    },
+    draw: intro.draw,
+    get opening() { return intro.active; },
     update() {
       if (unpacking && performance.now() - unpacking >= UNPACK_SECONDS * 1000) finishUnpacking();
       if (!g.mode.started() || stage === 'done') return;
+      if (arriving && !g.mode.driving()) {
+        arriving = false;
+        renderTask();
+      }
       const phoneOpen = g.phone.isOpen();
       panel.hidden = g.mode.menuOpen() && !phoneOpen;
       const prior = stage;
@@ -488,7 +411,7 @@ export function createDayOne(g, saveData, beginPlay) {
     pagesFor,
     /** Something in the task text depends on what you carry; refresh it. */
     refresh: renderTask,
-    hide() { if (!playing) panel.hidden = true; },
+    hide() { if (!intro.active) panel.hidden = true; },
     get stage() { return stage; },
     serialize: () => ({ stage, pile, unpacked, greeted: [...greeted] })
   };
