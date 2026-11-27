@@ -20,6 +20,7 @@ export function startLoop(g) {
 
     // Paused: draw the frozen frame behind the menu and nothing else moves.
     if (mode.menu('pause')) {
+      g.dayOne.hide();
       g.presentation.draw(g.view.draw);
       return;
     }
@@ -100,7 +101,8 @@ export function startLoop(g) {
     scene.userData.clinic.userData.updateLighting(time.minutes);
     g.prompt.update();
     g.minimap.update(delta);
-    g.presentation.draw(g.view.draw);
+    g.dayOne.update();
+    if (!g.dayOne.draw(delta, g.view.draw)) g.presentation.draw(g.view.draw);
     g.debug.update();
   }
   frame();
