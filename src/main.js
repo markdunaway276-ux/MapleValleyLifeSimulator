@@ -411,7 +411,9 @@ g.prompt = prompt;
 
 function beginPlay() {
   instructions.classList.add('hidden');
-  if (!isMobile && !inventory.isOpen()) renderer.domElement.requestPointerLock();
+  if (!isMobile && !inventory.isOpen() && navigator.userActivation?.isActive) {
+    renderer.domElement.requestPointerLock()?.catch(() => {});
+  }
   prompt.update();
   debug.refresh();
   g.hud.sync();

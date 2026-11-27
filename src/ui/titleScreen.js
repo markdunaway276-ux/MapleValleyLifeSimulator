@@ -8,8 +8,7 @@
  *
  * The game has already loaded the active slot when this shows, so Continue
  * just starts. Choosing another slot (or a new game) remembers the slot,
- * stops autosaves and reloads the page; the title then comes back with that
- * slot ready and Continue starts it.
+ * stops autosaves and reloads the page directly into the chosen slot.
  */
 
 import { ensureMenuStyles, el, button, heading, renderSettings } from './menuKit.js';
@@ -63,21 +62,24 @@ export function createTitleScreen({
   let page = 'main';
   let pendingOverwrite = null;
   const settingsState = { tab: 'display' };
-  let readyNote = '';
+  let pendingStart = null;
   try {
     const flag = sessionStorage.getItem(READY_FLAG);
-    if (flag) { readyNote = flag; sessionStorage.removeItem(READY_FLAG); }
+    if (flag) {
+      sessionStorage.removeItem(READY_FLAG);
+      pendingStart = JSON.parse(flag);
+    }
   } catch { /* no session storage */ }
 
   const go = (p) => { page = p; pendingOverwrite = null; render(); };
 
-  function switchTo(slot, note) {
+  function switchTo(slot, kind) {
     if (setActiveSlot(slot) === null) {
       showStorageError();
       return;
     }
     freezeSaves();
-    try { sessionStorage.setItem(READY_FLAG, note); } catch { /* fine */ }
+    try { sessionStorage.setItem(READY_FLAG, JSON.stringify({ slot, kind })); } catch { /* fine */ }
     location.reload();
   }
 
@@ -96,7 +98,6 @@ export function createTitleScreen({
     panel.append(heading('Maple Valley', 'A small-town life simulator'));
     const active = getGameSlot();
     const data = readSlot(active);
-    if (readyNote) panel.append(el('p', { class: 'mv-note', text: readyNote }));
     if (data) panel.append(button('Continue', start, { primary: true, sub: `Slot ${active} · ${slotSummary(data)}` }));
     else panel.append(button('Start new game', start, { primary: true, sub: `Slot ${active}` }));
     panel.append(button('New game', () => go('new')));
@@ -114,7 +115,7 @@ export function createTitleScreen({
         const b = button(label, () => {
           if (!data) return;
           if (n === active) start();
-          else switchTo(n, `Slot ${n} loaded. Press Continue to play.`);
+          else switchTo(n, 'load');
         }, { sub: slotSummary(data) });
         if (!data) b.disabled = true, b.style.opacity = '0.5';
         panel.append(b);
@@ -126,7 +127,7 @@ export function createTitleScreen({
             showStorageError();
             return;
           }
-          switchTo(n, `New game ready in slot ${n}. Press Start new game to begin.`);
+          switchTo(n, 'new');
         }, { danger: confirm, sub: data ? slotSummary(data) + ' — will be erased' : 'Empty' }));
       }
     }
@@ -151,6 +152,13 @@ export function createTitleScreen({
   }
 
   render();
+  if (pendingStart?.slot === getGameSlot()) {
+    const hasSave = !!readSlot(pendingStart.slot);
+    if ((pendingStart.kind === 'load' && hasSave) || (pendingStart.kind === 'new' && !hasSave)) {
+      // Wait for main.js to finish wiring the renderer and frame loop.
+      queueMicrotask(start);
+    }
+  }
 
   return {
     element: root,

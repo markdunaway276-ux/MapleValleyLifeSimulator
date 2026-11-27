@@ -12,4 +12,4 @@ These instructions apply only to OpenAI Codex. Claude and other assistants shoul
 
 ### Playtest previews
 
-- For each completed game update, publish it to the GitHub `test` branch, verify that the Vercel preview for that commit is ready, and include its playable browser link in the handoff.
+- For each completed game update, publish it to the GitHub `test` branch, verify that the Vercel preview for that commit is ready, and confirm the stable test URL points to that deployment. Include https://maple-lane-playtest-git-test-mark-e095.vercel.app/ in the handoff so browser saves stay on the same address.
