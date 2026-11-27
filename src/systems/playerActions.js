@@ -324,7 +324,7 @@ export function createPlayerActions({ camera, appearance = null } = {}) {
     carry = kind || null;
     basket.visible = !!carry;
     if (carry) basket.userData.setLoad(carry);
-    emit(carry ? 'carry' : 'idle', carry ? { clip: 'Carrying', loop: true } : null);
+    emit('carry', carry ? { clip: 'Carrying', loop: true } : null);
   }
 
   const tmp = new THREE.Euler();
@@ -355,7 +355,8 @@ export function createPlayerActions({ camera, appearance = null } = {}) {
         const b = sample(def.keys, t, 'L', def.both);
         R = a; L = b; targetDip = a.dip;
         active = true;
-        if (!current.loop && t >= 1) stop();
+        // A one-off ending on its own is not a cancel: the third-person clip may run longer.
+        if (!current.loop && t >= 1) current = null;
       }
     }
     shown += ((active ? 1 : 0) - shown) * Math.min(1, dt * 12);

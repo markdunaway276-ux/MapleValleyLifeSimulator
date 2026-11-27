@@ -2,6 +2,41 @@ import * as THREE from 'three';
 import { getOptionColor } from '../data/appearance.js';
 import { createCharacterModel, WALK_CLIP_SPEED } from './characterModel.js';
 
+/** First-person action name -> baked Mixamo clip (assets/characters/actions/<key>.json). */
+const ACTION_CLIPS = {
+  openDoor: { key: 'door', rate: 1.35 },
+  closeDoor: { key: 'door', rate: 1.6 },
+  press: { key: 'press', rate: 1.8 },
+  knock: { key: 'press', rate: 1.6 },
+  grab: { key: 'reach', rate: 1.8 },
+  handOver: { key: 'reach', rate: 1.8 },
+  pickUp: { key: 'pickup', rate: 2.4 },
+  unload: { key: 'pickup', rate: 2.4 },
+  load: { key: 'load', rate: 2.2 },
+  eat: { key: 'eat', rate: 1.3 },
+  fold: { key: 'fold', loop: true },
+  restock: { key: 'restock', loop: true },
+  typing: { key: 'typing', loop: true }
+};
+const ACTION_FILES = Object.fromEntries(
+  ['door', 'press', 'reach', 'pickup', 'load', 'eat', 'fold', 'restock', 'typing', 'carry'].map((k) => [k, 'actions/' + k + '.json'])
+);
+/** Bones the Carrying pose owns when it is layered over the walk. */
+const CARRY_BONES = new Set(['spine_02', 'spine_03', 'clavicle_l', 'clavicle_r', 'upperarm_l', 'upperarm_r', 'lowerarm_l', 'lowerarm_r', 'hand_l', 'hand_r']);
+
+/** Walk legs + a still Carrying pose on the arms, as one looping clip. */
+function carryWalkClip(walk, carry) {
+  if (!walk || !carry) return null;
+  const tracks = walk.tracks.filter((t) => !CARRY_BONES.has(t.name.split('.')[0])).map((t) => t.clone());
+  for (const t of carry.tracks) {
+    const [bone, prop] = t.name.split('.');
+    if (!CARRY_BONES.has(bone) || prop !== 'quaternion') continue;
+    const v = Array.from(t.createInterpolant().evaluate(Math.min(1, carry.duration / 2)));
+    tracks.push(new THREE.QuaternionKeyframeTrack(t.name, [0, walk.duration], [...v, ...v]));
+  }
+  return new THREE.AnimationClip('carry_walk', walk.duration, tracks);
+}
+
 // Bone directions are solved from the same shoulder and elbow pose as the
 // first-person raise. The handset follows the skinned wrist's real position.
 export function attachPlayerRig(body, { shadows, appearance }) {
@@ -9,6 +44,8 @@ export function attachPlayerRig(body, { shadows, appearance }) {
   body.group.add(socket);
   let model = null;
   let right = null;
+  let leftHand = null;
+  const midHands = new THREE.Vector3();
   let look = body.apply(appearance);
   let disposed = false;
   let moving = false;
@@ -29,22 +66,23 @@ export function attachPlayerRig(body, { shadows, appearance }) {
   const oldDispose = body.dispose;
   const placeholder = [body.shirt, body.pants, body.skin, body.head, ...body.arm.segments, ...body.legs];
 
-  // Third-person view of first-person actions (systems/playerActions.js): until full-body
-  // Mixamo clips are added, any hand action plays the rig's Interact clip, and a laundry
-  // basket is held in front of the chest while carrying.
-  let acting = null; // { until, loop }
+  // Third-person view of first-person actions (systems/playerActions.js listens nowhere else):
+  // each hand action plays a baked Mixamo clip from assets/characters/actions (Interact if a
+  // clip is missing), and while carrying laundry the arms hold the Carrying pose, also when
+  // walking (walk legs + carry arms), with a basket between the hands.
+  let acting = null; // { key, rate, loop, left (seconds of game time), fresh }
   let carrying = null;
   let rigShown = false;
   const basket = new THREE.Group();
   basket.name = 'player-basket';
   const plastic = new THREE.MeshStandardMaterial({ color: 0xe8e4d8, roughness: 0.7 });
   const clothes = new THREE.MeshStandardMaterial({ color: 0x8a6d52, roughness: 0.95 });
-  const tub = new THREE.Mesh(new THREE.BoxGeometry(0.64, 0.22, 0.34), plastic);
+  const tub = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.2, 0.32), plastic);
   const pile = new THREE.Mesh(new THREE.SphereGeometry(0.17, 10, 8), clothes);
-  pile.scale.set(1.7, 0.55, 0.95);
+  pile.scale.set(1.35, 0.55, 0.85);
   pile.position.y = 0.1;
   basket.add(tub, pile);
-  basket.position.set(0, 1.04, -0.36);
+  basket.position.set(0, 1.0, -0.36);
   basket.visible = false;
   for (const m of [tub, pile]) m.castShadow = !!shadows;
   body.group.add(basket);
@@ -55,9 +93,15 @@ export function attachPlayerRig(body, { shadows, appearance }) {
       carrying = d.carrying || null;
       if (carrying) clothes.color.setHex(loadColors[carrying] || loadColors.dirty);
       basket.visible = rigShown && !!carrying;
-      if (d.name === 'idle' || d.name === 'carry') { if (d.name === 'idle') acting = null; return; }
-      if (['sit', 'stand', 'eat'].includes(d.name)) return;
-      acting = { loop: !!d.loop && !d.duration, until: performance.now() + (d.duration || 1) * 1000 };
+      if (d.name === 'idle') { acting = null; return; }
+      if (d.name === 'carry' || ['sit', 'stand'].includes(d.name)) return;
+      const spec = ACTION_CLIPS[d.name];
+      const key = spec && model?.has(spec.key) ? spec.key : 'interact';
+      const rate = spec ? spec.rate || 1 : 1;
+      const loop = !!(spec && spec.loop);
+      const clip = model?.getClip(key);
+      const seconds = loop ? (d.duration || Infinity) : (clip ? clip.duration / rate : (d.duration || 1));
+      acting = { key, rate, loop, left: seconds, fresh: true };
     });
   }
 
@@ -71,7 +115,7 @@ export function attachPlayerRig(body, { shadows, appearance }) {
     });
   }
 
-  createCharacterModel({ body: 'male', hair: 'simpleparted', hairColor: 0x3b3027, shadows, outfit: {
+  createCharacterModel({ body: 'male', hair: 'simpleparted', hairColor: 0x3b3027, shadows, mixamo: ACTION_FILES, outfit: {
     shirt: getOptionColor('shirt', look.shirt),
     pants: getOptionColor('pants', look.pants),
     skin: getOptionColor('skin', look.skin),
@@ -90,6 +134,9 @@ export function attachPlayerRig(body, { shadows, appearance }) {
     const animatedPose = [upper, lower, hand, ...fingers.map(entry => entry.bone)]
       .map(bone => ({ bone, rotation: bone.quaternion.clone() }));
     right = { upper, lower, hand, fingers, animatedPose };
+    leftHand = loaded.root.getObjectByName('hand_l') || null;
+    const carryWalk = carryWalkClip(loaded.getClip('walk'), loaded.getClip('carry'));
+    if (carryWalk) loaded.addClip('carryWalk', carryWalk);
     model = loaded;
     model.object.visible = false;
     body.group.add(model.object);
@@ -109,16 +156,25 @@ export function attachPlayerRig(body, { shadows, appearance }) {
     bone.updateWorldMatrix(false, true);
   }
 
+  const busyHands = () => !!acting;
+
   function updateRig(seconds, moved, lift, wrist, thumbPress) {
     if (!model) return;
     const speed = moved / Math.max(seconds, 0.001);
     moving = lift < 0.05 && speed > (moving ? 0.12 : 0.22);
-    const busy = acting && (acting.loop || performance.now() < acting.until) && lift < 0.05;
+    // Walking away ends a one-off action; jobs keep you in place anyway.
+    if (acting) acting.left -= seconds;
+    const busy = acting && acting.left > 0 && lift < 0.05 && !(moving && !acting.loop);
     if (!busy) acting = null;
-    model.play(busy ? 'interact' : moving ? 'walk' : 'idle', {
-      fade: 0.18,
-      timeScale: !busy && moving ? THREE.MathUtils.clamp(speed / WALK_CLIP_SPEED, 0.38, 2.8) : 1
-    });
+    const walkScale = THREE.MathUtils.clamp(speed / WALK_CLIP_SPEED, 0.38, 2.8);
+    if (busy) {
+      model.play(acting.key, { fade: 0.2, timeScale: acting.rate, restart: acting.fresh });
+      acting.fresh = false;
+    } else if (carrying && lift < 0.05 && model.has('carry')) {
+      model.play(moving && model.has('carryWalk') ? 'carryWalk' : 'carry', { fade: 0.2, timeScale: moving ? walkScale : 1 });
+    } else {
+      model.play(moving ? 'walk' : 'idle', { fade: 0.18, timeScale: moving ? walkScale : 1 });
+    }
     for (const { bone, rotation } of right.animatedPose) bone.quaternion.copy(rotation);
     model.update(seconds);
     for (const { bone, rotation } of right.animatedPose) rotation.copy(bone.quaternion);
@@ -138,6 +194,13 @@ export function attachPlayerRig(body, { shadows, appearance }) {
         delta.setFromAxisAngle(curlAxis, lift * angle);
         bone.quaternion.multiply(delta);
       }
+    }
+    if (carrying && leftHand && !busyHands()) {
+      right.hand.getWorldPosition(origin);
+      leftHand.getWorldPosition(midHands);
+      midHands.add(origin).multiplyScalar(0.5);
+      body.group.worldToLocal(midHands);
+      basket.position.set(midHands.x, midHands.y - 0.06, midHands.z);
     }
     right.hand.getWorldPosition(origin);
     body.group.worldToLocal(origin);
