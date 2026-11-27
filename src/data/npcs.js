@@ -134,11 +134,40 @@ export const NPC_DEFS = [
   }
 ];
 
+/**
+ * Story characters: not spawned with the neighbours. A story beat (dayOne.js)
+ * creates them with createNpc while it needs them and removes them after.
+ */
+export const STORY_NPCS = [
+  {
+    // Your realtor on moving day. Waits beside your front door with the keys.
+    id: 'rita',
+    name: 'Rita',
+    role: 'realtor',
+    jobId: null,
+    dialogueId: 'rita',
+    appearance: { skin: 'light', shirt: 'navy', pants: 'charcoal' },
+    look: {
+      body: 'female',
+      hair: 'long',
+      hairColor: 0x2b1d16,
+      outfit: { shirt: 0x7a2e3a, pants: 0x2e3038, shoes: 0x1e1a18, longSleeve: true }
+    },
+    radius: NPC_RADIUS,
+    noticeRange: 3.6,
+    talkRange: NPC_TALK_RANGE,
+    patrol: { z: -3.25, x0: 0.95, x1: 0.95, startX: 0.95, speed: 0 },
+    stationary: { yaw: Math.PI },
+    locationHint: 'Waiting by your front path.'
+  }
+];
+
 export function getNpc(id, list = NPC_DEFS) {
   if (!id || !list) return null;
   for (let i = 0; i < list.length; i++) {
     if (list[i] && list[i].id === id) return list[i];
   }
+  if (list === NPC_DEFS) return getNpc(id, STORY_NPCS);
   return null;
 }
 
