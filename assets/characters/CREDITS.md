@@ -40,3 +40,7 @@ Third-person player actions, each a Mixamo animation (https://www.mixamo.com, Ad
 ## surviver.glb (the player)
 
 The user's own character, made in Blender with MakeHuman / MPFB. The MakeHuman system assets it uses (base mesh, middle-aged skin, braid01 hair, eyebrow006, eyelashes03, brown eyes, female_casualsuit02, shoes02) are CC0. Converted with `tools/convert_makehuman.py`.
+
+## npc-sam.glb, npc-june.glb, npc-dottie.glb, npc-clerk.glb (neighbours)
+
+Made with the same MakeHuman / MPFB rig as the player (MPFB add-on run headless, then `tools/convert_makehuman.py ... keep`). Assets used, all CC0 MakeHuman system assets: skins middleage_caucasian_male, young_african_female, old_caucasian_female, young_asian_male; hair short02, ponytail01, bob02, short04; clothes male_casualsuit05, female_sportsuit01, female_elegantsuit01, male_worksuit01, shoes01, shoes04, shoes05; eyebrow001/004/006/010, eyelashes01/03, low-poly eyes.

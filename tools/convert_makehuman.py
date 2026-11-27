@@ -1,13 +1,16 @@
 # Converts a MakeHuman (MPFB) character .blend into a Maple Lane player body.
-# Usage: python convert_makehuman.py -- Surviver.blend "<path to mpfb/data/>"
+# Usage: python convert_makehuman.py -- <character.blend> "<path to mpfb/data/>" <out.glb>
 # (needs: pip install bpy). Output: surviver.glb -> assets/characters/.
 # Steps: relink textures, drop teeth/tongue, bake masks/shape keys, T-pose the arms,
-# scale to 1.68 m, rename the main bones to the game names, simple materials, WebP.
+# scale to 1.68 m (or keep the MakeHuman height), rename the main bones to the game names, simple materials, WebP.
 import bpy, os, math, mathutils
 from mathutils import Vector, Matrix
 import sys
-SRC=sys.argv[sys.argv.index("--")+1] if "--" in sys.argv else "Surviver.blend"
-U=sys.argv[sys.argv.index("--")+2] if "--" in sys.argv and len(sys.argv)>sys.argv.index("--")+2 else "mpfb-data/"
+ARGS=sys.argv[sys.argv.index("--")+1:] if "--" in sys.argv else []
+SRC=ARGS[0] if len(ARGS)>0 else "Surviver.blend"
+U=ARGS[1] if len(ARGS)>1 else "mpfb-data/"
+OUT=ARGS[2] if len(ARGS)>2 else "surviver.glb"
+KEY=os.path.splitext(os.path.basename(OUT))[0]
 bpy.ops.wm.open_mainfile(filepath=SRC)
 # --- relink textures to staged copies, downscale
 for im in bpy.data.images:
@@ -15,10 +18,10 @@ for im in bpy.data.images:
     if '/mpfb/data/' in fp:
         p=U+fp.split('/mpfb/data/')[1]
         if os.path.exists(p): im.filepath=p; im.reload()
-rig=bpy.data.objects['Human.rig']
+rig=[o for o in bpy.data.objects if o.type=='ARMATURE'][0]
 # drop mouth parts (never seen)
-for n in ['Human.teeth_shape04','Human.tongue01']:
-    bpy.data.objects.remove(bpy.data.objects[n])
+for o in [o for o in bpy.data.objects if o.type=='MESH' and ('teeth' in o.name or 'tongue' in o.name)]:
+    bpy.data.objects.remove(o)
 meshes=[o for o in bpy.data.objects if o.type=='MESH']
 # reset any pose, then clean meshes: shape keys -> basis, remove subsurf, apply masks
 for pb in rig.pose.bones: pb.matrix_basis=Matrix()
@@ -66,7 +69,9 @@ dg=bpy.context.evaluated_depsgraph_get()
 zs=[]
 for o in meshes:
     e=o.evaluated_get(dg); zs+= [(e.matrix_world@v.co).z for v in e.data.vertices]
-lo,hi=min(zs),max(zs); s=1.68/(hi-lo); print('height',hi-lo,'scale',s)
+lo,hi=min(zs),max(zs)
+HEIGHT=ARGS[3] if len(ARGS)>3 else '1.68'  # 'keep' = MakeHuman's own height
+s=1.0 if HEIGHT=='keep' else float(HEIGHT)/(hi-lo); print('height',hi-lo,'scale',s)
 rig.location.z-=lo; bpy.context.view_layer.update()
 rig.scale=(s,s,s); rig.location.z*=s
 for s_ in bpy.context.selected_objects: s_.select_set(False)
@@ -91,7 +96,7 @@ def simplify(o):
         if n.type=='TEX_IMAGE' and n.image:
             nm=n.image.name.lower()
             imgs['normal' if 'normal' in nm else ('ao' if '_ao' in nm else 'base')]=n.image
-    nm=bpy.data.materials.new(m.name.replace('Human.','surviver-')); nm.use_nodes=True
+    nm=bpy.data.materials.new(KEY+'-'+m.name.split('.',1)[-1]); nm.use_nodes=True
     t=nm.node_tree; bsdf=t.nodes['Principled BSDF']
     bsdf.inputs['Roughness'].default_value=0.75 if 'eye' not in m.name else 0.2
     if 'base' in imgs:
@@ -108,12 +113,12 @@ for o in meshes: simplify(o)
 # downscale textures
 for im in bpy.data.images:
     if im.size[0]>0:
-        lim=1024 if any(k in im.name for k in ('skin','female_diffuse','casualsuit02_diffuse','braid')) else 512
+        lim=1024 if any(k in im.name for k in ('skinned','suit','braid')) else 512
         if im.size[0]>lim: im.scale(lim, int(im.size[1]*lim/im.size[0]))
-bpy.ops.wm.save_as_mainfile(filepath="surviver-game.blend")
+bpy.ops.wm.save_as_mainfile(filepath=KEY+"-game.blend")
 for s_ in bpy.context.selected_objects: s_.select_set(False)
 for o in [rig]+meshes: o.select_set(True)
-bpy.ops.export_scene.gltf(filepath="surviver.glb", use_selection=True, export_format='GLB',
+bpy.ops.export_scene.gltf(filepath=OUT, use_selection=True, export_format='GLB',
     export_animations=False, export_skins=True, export_image_format='WEBP', export_image_quality=82,
     export_apply=False, export_morph=False, export_yup=True, export_texcoords=True, export_normals=True,
     export_def_bones=True)
