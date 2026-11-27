@@ -119,7 +119,7 @@ export function choices(label, options, current, onPick) {
 const pct = (v) => Math.round(v * 100) + '%';
 
 export const DESKTOP_KEYS = [
-  ['W A S D', 'Walk'], ['Mouse', 'Look around'], ['Space', 'Jump'], ['E', 'Use / talk / sit / drive'],
+  ['W A S D', 'Walk'], ['Shift', 'Run (hold)'], ['Mouse', 'Look around'], ['Space', 'Jump'], ['E', 'Use / talk / sit / drive'],
   ['I', 'Inventory / Bag'], ['P', 'Phone'], ['V', 'Third-person view'],
   ['Esc', 'Pause'], ['Tab', 'Free the mouse to click buttons (Tab again to look)'], ['M', 'Minimap on / off'], ['F2', 'Debug menu'], ['F9', 'Screenshot + note']
 ];

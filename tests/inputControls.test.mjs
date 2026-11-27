@@ -28,7 +28,7 @@ function createFakeDom() {
 
 function makePlayer() {
   return {
-    keys: { forward: false, back: false, left: false, right: false, jump: false, down: false },
+    keys: { forward: false, back: false, left: false, right: false, jump: false, down: false, run: false },
     mouseX: 0,
     mouseY: 0,
     joystickX: 0,
@@ -117,7 +117,7 @@ test('clearMotion resets held keys, mouse deltas, and joystick on dialogue-open,
 
       dom.win.dispatchEvent(new Event(evName));
 
-      assert.deepEqual(player.keys, { forward: false, back: false, left: false, right: false, jump: false, down: false }, evName + ' keys');
+      assert.deepEqual(player.keys, { forward: false, back: false, left: false, right: false, jump: false, down: false, run: false }, evName + ' keys');
       assert.equal(player.mouseX, 0, evName + ' mouseX');
       assert.equal(player.mouseY, 0, evName + ' mouseY');
       assert.equal(player.joystickX, 0, evName + ' joystickX');
