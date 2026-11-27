@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { importedCartonGeometry } from './marketCarton.js';
 
 const GOODS = {
   oats: ['OATS', '#426b70', 'box', 0.21, 0.28, 0.10],
@@ -51,6 +52,7 @@ function labelTexture(name, color) {
 }
 
 function shape(type, w, h, d) {
+  if (type === 'carton') return importedCartonGeometry(w, h, d);
   if (type === 'can') return new THREE.CylinderGeometry(w / 2, w / 2, h, 10);
   if (type === 'bottle' || type === 'fruit') {
     const profile = type === 'fruit'
@@ -58,12 +60,12 @@ function shape(type, w, h, d) {
       : [[0,0],[.42,.02],[.49,.08],[.49,.67],[.36,.78],[.18,.84],[.18,.92],[.25,.92],[.25,1],[0,1]];
     return new THREE.LatheGeometry(profile.map(([r,y]) => new THREE.Vector2(r*w,(y-.5)*h)), 10);
   }
-  if (type === 'pouch' || type === 'wedge' || type === 'carton') {
+  if (type === 'pouch' || type === 'wedge') {
     const geo = new THREE.BoxGeometry(w, h, d, 1, type === 'pouch' ? 3 : 1, 1);
     const pos = geo.attributes.position;
     for (let i=0; i<pos.count; i++) {
       const y = pos.getY(i) / h + .5;
-      const factor = type === 'wedge' ? 1-y*.75 : type === 'carton' ? 1-y*.27 : 1-Math.abs(y-.5)*.52;
+      const factor = type === 'wedge' ? 1-y*.75 : 1-Math.abs(y-.5)*.52;
       pos.setZ(i,pos.getZ(i)*factor);
     }
     geo.computeVertexNormals();
@@ -81,11 +83,14 @@ export function buildMarketStock(parent, placements, quality) {
   const transform = new THREE.Object3D();
   for (const [sku, rows] of batches) {
     const [name, color, type, w, h, d] = GOODS[sku];
-    const material = new THREE.MeshStandardMaterial({color, roughness:0.76});
+    const carton = type === 'carton';
+    const material = new THREE.MeshStandardMaterial({
+      color: carton ? 0xffffff : color, map: carton ? labelTexture(name, color) : null, roughness: 0.76
+    });
     const items = new THREE.InstancedMesh(shape(type,w,h,d), material, rows.length);
     items.name = 'market-stock-' + sku;
     items.receiveShadow = !!quality.shadows;
-    const labels = name ? new THREE.InstancedMesh(
+    const labels = name && !carton ? new THREE.InstancedMesh(
       new THREE.PlaneGeometry(w*.77,h*(type === 'bottle' ? .49 : .63)),
       new THREE.MeshStandardMaterial({map:labelTexture(name,color),roughness:0.88}), rows.length
     ) : null;
