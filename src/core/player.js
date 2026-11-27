@@ -10,7 +10,10 @@ export function createPlayer(camera, scene) {
     speed: 4.5,
     jumpSpeed: 6,
     onGround: true,
-    keys: { forward: false, back: false, left: false, right: false, jump: false },
+    keys: { forward: false, back: false, left: false, right: false, jump: false, down: false },
+    // Development fly mode: move where you look, Space up, C / Ctrl down, no walls or gravity.
+    fly: false,
+    flySpeed: 10,
     mouseX: 0,
     mouseY: 0,
     joystickX: 0,
@@ -34,6 +37,25 @@ export function createPlayer(camera, scene) {
     // Movement
     const forward = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion);
     const right = new THREE.Vector3(1, 0, 0).applyQuaternion(camera.quaternion);
+    if (this.fly) {
+      const move = new THREE.Vector3();
+      if (this.keys.forward) move.add(forward);
+      if (this.keys.back) move.sub(forward);
+      if (this.keys.left) move.sub(right);
+      if (this.keys.right) move.add(right);
+      if (Math.abs(this.joystickX) > 0.1 || Math.abs(this.joystickY) > 0.1) {
+        move.set(0, 0, 0).addScaledVector(right, this.joystickX).addScaledVector(forward, this.joystickY);
+      }
+      if (this.keys.jump) move.y += 1;
+      if (this.keys.down) move.y -= 1;
+      if (move.lengthSq() > 0) move.normalize().multiplyScalar(this.flySpeed * delta);
+      this.position.add(move);
+      this.position.y = Math.max(0.4, this.position.y);
+      this.velocity.y = 0;
+      this.onGround = false;
+      camera.position.copy(this.position);
+      return;
+    }
     forward.y = 0; right.y = 0;
     forward.normalize(); right.normalize();
 
