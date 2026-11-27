@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { AISLE_STOCK, buildMarketStock } from './marketStock.js';
 import { Parts } from './parts.js';
 import { contactMaterial, createContactShadows } from './contact.js';
 import { getShop } from '../data/shops.js';
@@ -67,6 +68,7 @@ export function buildCornerShop(scene, quality) {
   const wallColor = 0xb8ab96;
   const trim = 0x34433d;
   const shell = new Parts(true);
+  const stockDisplay = [];
   function solid(id, x, z, w, d) {
     data.colliders.addHouse({ id: 'market-' + id, x: SHOP_X + x, z: FRONT_Z + z, width: w, depth: d });
   }
@@ -123,24 +125,29 @@ export function buildCornerShop(scene, quality) {
   for (const [i, x] of [-7.25, -4.75].entries()) {
     box('produce-' + i, 0x654b33, x, 2.3, 1.65, 0.77, 1.1);
     for (let row = 0; row < 3; row++) {
-      for (let col = 0; col < 6; col++) box(null, [0x9f4836, 0xab8237, 0x718a43][(i + row) % 3],
-        x - 0.61 + col * 0.24, 1.98 + 0.30 * row, 0.16, 0.13, 0.16, 0.82);
+      for (let col = 0; col < 8; col++) {
+        stockDisplay.push({sku: ['apples','pears','oranges'][(i + row) % 3],
+          x: x - 0.66 + col*0.184, y: 0.78, z: 1.99 + 0.29*row});
+      }
     }
   }
 
   // Four double-sided shelf rows with cross-aisles at both ends.
   const aisleXs = [-6.6, -2.9, 0.9, 4.7];
-  const shelfColors = [0xa84d48, 0xc59738, 0x628092, 0x778b56];
+
   for (const [aisle, x] of aisleXs.entries()) {
     box('aisle-' + aisle, 0x74786e, x, 7.0, 0.34, 1.64, 5.8);
     // Extend collision to the edges of the shelf decks.
     solid('aisle-decks-' + aisle, x, 7.0, 1.04, 5.8);
-    for (const y of [0.30, 0.72, 1.14, 1.56]) {
+    for (const [level,y] of [0.30, 0.72, 1.14, 1.56].entries()) {
       box(null, 0xaaa99b, x, 7.0, 1.04, 0.064, 5.8, y);
       for (const side of [-1, 1]) {
-        for (let j = 0; j < 8; j++) {
-          box(null, shelfColors[(j + aisle + Math.round(y * 10)) % 4], x + side * 0.37,
-            4.53 + j * 0.70, 0.25, 0.20 + (j % 3) * 0.025, 0.37, y + 0.15);
+        for (let j = 0; j < 21; j++) {
+          if ((j + 3*level + aisle) % 19 === 0) continue;
+          const sku = AISLE_STOCK[aisle][(Math.floor(j/7)+level+(side>0?1:0))%3];
+          for (const depth of [0.30,0.47]) stockDisplay.push({
+            sku, x:x+side*depth, y:y+0.033, z:4.31+j*0.267, yaw:side*Math.PI/2
+          });
         }
       }
     }
@@ -148,8 +155,18 @@ export function buildCornerShop(scene, quality) {
 
   for (let i = 0; i < 5; i++) {
     const z = 4.9 + i * 1.48;
-    box('cooler-' + i, 0x687b79, 9.42, z, 0.92, 2.17, 1.4);
-    box(null, 0x68878b, 8.945, z, 0.06, 1.64, 1.23, 1.19);
+    solid('cooler-' + i, 9.42, z, 0.92, 1.4);
+    box(null, 0x637271, 9.85, z, 0.10, 2.17, 1.4);
+    box(null, 0x50605f, 9.40, z, 0.91, 0.26, 1.40);
+    box(null, 0x81918d, 9.39, z, 0.91, 0.12, 1.40, 2.12);
+    for (const side of [-1,1]) box(null, 0x70807a, 9.42, z+side*0.67, 0.92, 1.95, 0.067, 1.16);
+    for (const [tier,y] of [0.31,0.70,1.10,1.50].entries()) {
+      box(null, 0xd6d7cc, 9.38, z, 0.83, 0.038, 1.29,y);
+      for(let j=0;j<5;j++) stockDisplay.push({
+        sku:['milk','yogurt','sandwich','juice'][(i+tier)%4],
+        x:9.10,y:y+0.021,z:z-0.47+j*0.234,yaw:-Math.PI/2
+      });
+    }
     box(null, 0xc1cbc7, 8.895, z - 0.4, 0.09, 0.35, 0.04, 1.18);
   }
 
@@ -181,6 +198,7 @@ export function buildCornerShop(scene, quality) {
   const mesh = new THREE.Mesh(shell.merge(), new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.89 }));
   mesh.castShadow = mesh.receiveShadow = !!quality.shadows;
   shop.add(mesh, sign());
+  buildMarketStock(shop, stockDisplay, quality);
   const glazing = new THREE.MeshStandardMaterial({
     color: 0x91adae, transparent: true, opacity: 0.29, depthWrite: false,
     side: THREE.DoubleSide, roughness: 0.43, emissive: 0xffcd95, emissiveIntensity: 0
