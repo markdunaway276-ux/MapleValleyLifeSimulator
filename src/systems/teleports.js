@@ -30,9 +30,6 @@ export const TELEPORT_PRESETS = [
   { id: 'trailer-park', label: 'Trailer park', kind: 'point', x: -24.6, z: -3.6, yaw: Math.PI / 4 },
   { id: 'clinic', label: 'Clinic door', kind: 'point', x: -34, z: 12.4, yaw: Math.PI },
   { id: 'clinic-inside', label: 'Clinic waiting room', kind: 'point', x: -34, z: 17.0, yaw: Math.PI }
-  { id: 't2', label: 't', kind: 'point', x: 26.5, z: 17.5, yaw: Math.PI }
-  { id: 't4', label: 't', kind: 'point', x: -13, z: 1.5, yaw: 0 }
-  { id: 't6', label: 't', kind: 'point', x: -34, z: 7.5, yaw: Math.PI }
 ];
 
 export function findDoor(scene, doorId) {
