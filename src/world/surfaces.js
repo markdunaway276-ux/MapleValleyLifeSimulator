@@ -24,22 +24,20 @@ export function useVertexRoughness(material) {
 }
 
 /**
- * Injects world-space procedural grit, weathering, vertical rain streaks,
- * ground-level splash grime, roughness variation, and subtle screen-space
- * micro-bump into any MeshStandardMaterial. Costs zero draw calls and zero
- * extra textures, breaking up flat low-poly/blocky surfaces across the whole
- * town. Scales with surface roughness so glossy glass/paint stays clean.
+ * Injects world-space procedural grit, subtle weathering, ground-level splash
+ * grime, and roughness variation into any MeshStandardMaterial. Costs zero
+ * draw calls and zero extra textures, breaking up flat surfaces without
+ * warping wall normals. Scales with surface roughness so glossy glass/paint
+ * stays clean.
  */
 export function useWorldGrit(material, {
   strength = 1.0,
   groundGrime = 0.24,
-  bump = 0.16,
   useVertexRough = false
 } = {}) {
   if (!material || material.userData?.worldGrit) return material;
   const s = Number(strength).toFixed(3);
   const g = Number(groundGrime).toFixed(3);
-  const b = Number(bump).toFixed(3);
   const roughExpr = useVertexRough ? '(roughness * vRough)' : 'roughness';
   const prev = material.onBeforeCompile;
 
@@ -85,40 +83,22 @@ float gritNoise(vec3 p) {
     const colorInject = `#include <color_fragment>
 float gritBaseRough = ${roughExpr};
 float gritMask = smoothstep(0.32, 0.72, gritBaseRough) * ${s};
-float gritBroad = gritNoise(vGritWorldPos * 0.55);
-float gritMid = gritNoise(vGritWorldPos * 2.8);
-float gritFine = gritNoise(vGritWorldPos * 11.5);
-float gritStreak = gritNoise(vec3(vGritWorldPos.x * 3.4, vGritWorldPos.y * 0.45, vGritWorldPos.z * 3.4));
+// Crisp high-frequency surface grain (no blobby mid-frequency waves on walls).
+float gritFine = gritNoise(vGritWorldPos * 18.0);
+float gritMicro = gritHash(floor(vGritWorldPos * 42.0));
+float gritAge = gritNoise(vGritWorldPos * 0.35);
 float gritVertical = 1.0 - smoothstep(0.45, 0.85, abs(vGritWorldNormal.y));
-float gritSplash = gritVertical * (1.0 - smoothstep(0.0, 0.95, max(vGritWorldPos.y, 0.0))) * (0.55 + 0.45 * gritMid);
-float gritHeight = gritMid * 0.55 + gritFine * 0.45;
-float gritTone = 1.0 + ((gritBroad - 0.5) * 0.14 + (gritMid - 0.5) * 0.11 + (gritFine - 0.5) * 0.09) * gritMask;
-gritTone *= 1.0 - gritVertical * smoothstep(0.55, 0.92, gritStreak) * 0.12 * gritMask;
+float gritSplash = gritVertical * (1.0 - smoothstep(0.0, 0.85, max(vGritWorldPos.y, 0.0))) * (0.65 + 0.35 * gritFine);
+float gritTone = 1.0 + ((gritAge - 0.5) * 0.07 + (gritFine - 0.5) * 0.08 + (gritMicro - 0.5) * 0.06) * gritMask;
 gritTone *= 1.0 - gritSplash * ${g} * gritMask;
 diffuseColor.rgb *= gritTone;
-diffuseColor.rgb = mix(diffuseColor.rgb, diffuseColor.rgb * vec3(0.85, 0.83, 0.77), gritSplash * 0.45 * gritMask);`;
+diffuseColor.rgb = mix(diffuseColor.rgb, diffuseColor.rgb * vec3(0.86, 0.84, 0.78), gritSplash * 0.40 * gritMask);`;
 
-    const roughMod = `roughnessFactor = clamp(roughnessFactor + ((gritMid - 0.5) * 0.16 + (gritFine - 0.5) * 0.12 + gritSplash * 0.12) * gritMask, 0.08, 1.0);`;
-
-    const bumpInject = `#include <normal_fragment_maps>
-if (gritMask > 0.01) {
-  float gritDhx = dFdx(gritHeight);
-  float gritDhy = dFdy(gritHeight);
-  vec3 gritPosX = dFdx(-vViewPosition);
-  vec3 gritPosY = dFdy(-vViewPosition);
-  vec3 gritR1 = cross(gritPosY, normal);
-  vec3 gritR2 = cross(normal, gritPosX);
-  float gritDet = dot(gritPosX, gritR1);
-  if (abs(gritDet) > 1e-6) {
-    vec3 gritGrad = sign(gritDet) * (gritDhx * gritR1 + gritDhy * gritR2);
-    normal = normalize(abs(gritDet) * normal - gritGrad * (${b} * gritMask));
-  }
-}`;
+    const roughMod = `roughnessFactor = clamp(roughnessFactor + ((gritFine - 0.5) * 0.10 + (gritMicro - 0.5) * 0.08 + gritSplash * 0.10) * gritMask, 0.08, 1.0);`;
 
     shader.fragmentShader = shader.fragmentShader
       .replace('#include <common>', gritHelpers)
-      .replace('#include <color_fragment>', colorInject)
-      .replace('#include <normal_fragment_maps>', bumpInject);
+      .replace('#include <color_fragment>', colorInject);
 
     if (shader.fragmentShader.includes('#include <roughnessmap_fragment>')) {
       shader.fragmentShader = shader.fragmentShader.replace(
@@ -134,7 +114,7 @@ if (gritMask > 0.01) {
   };
 
   const prevKey = material.customProgramCacheKey ? material.customProgramCacheKey() : '';
-  material.customProgramCacheKey = () => `${prevKey}|world-grit-v1:${s}:${g}:${b}:${useVertexRough ? 1 : 0}`;
+  material.customProgramCacheKey = () => `${prevKey}|world-grit-v2:${s}:${g}:${useVertexRough ? 1 : 0}`;
   material.userData.worldGrit = true;
   return material;
 }

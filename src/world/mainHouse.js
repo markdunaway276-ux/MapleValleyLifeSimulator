@@ -56,7 +56,7 @@ export function gradeMainHouse(model) {
         if (spec.emissive !== undefined && m.emissive) m.emissive.setHex(spec.emissive);
       }
       if (m.name !== 'window' && m.roughness >= 0.45) {
-        useWorldGrit(m, { strength: 0.95, groundGrime: 0.26, bump: 0.15 });
+        useWorldGrit(m, { strength: 0.85, groundGrime: 0.24 });
       }
       m.needsUpdate = true;
     }

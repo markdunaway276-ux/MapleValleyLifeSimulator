@@ -39,14 +39,15 @@ test('createVertexMaterial composes vertex roughness, world grit, and vertex emi
   assert.match(shader.vertexShader, /vGritWorldNormal =/);
   assert.match(shader.fragmentShader, /float roughnessFactor = roughness \* vRough;/);
   assert.match(shader.fragmentShader, /gritSplash/);
-  assert.match(shader.fragmentShader, /dFdx\(gritHeight\)/);
+  assert.match(shader.fragmentShader, /gritMicro/);
+  assert.doesNotMatch(shader.fragmentShader, /dFdx\(/);
   assert.match(shader.fragmentShader, /totalEmissiveRadiance \*= vColor\.rgb;/);
-  assert.match(m.customProgramCacheKey(), /vertex-roughness-v1\|world-grit-v1:.*\|vertex-emissive-v1/);
+  assert.match(m.customProgramCacheKey(), /vertex-roughness-v1\|world-grit-v2:.*\|vertex-emissive-v1/);
 });
 
 test('useWorldGrit patches plain MeshStandardMaterial and is idempotent', () => {
   const m = new THREE.MeshStandardMaterial({ color: 0x989386, roughness: 0.95 });
-  useWorldGrit(m, { strength: 1.1, groundGrime: 0.3, bump: 0.15 });
+  useWorldGrit(m, { strength: 1.1, groundGrime: 0.3 });
   const keyOnce = m.customProgramCacheKey();
   useWorldGrit(m, { strength: 0.5 });
   assert.equal(m.customProgramCacheKey(), keyOnce);

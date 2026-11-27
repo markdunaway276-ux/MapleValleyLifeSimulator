@@ -126,7 +126,7 @@ export function createScene(quality) {
     color: 0xffffff,
     roughness: 0.90,
     metalness: 0
-  }), { strength: 0.75, groundGrime: 0, bump: 0.08 });
+  }), { strength: 0.75, groundGrime: 0 });
   const road = new THREE.Mesh(
     new THREE.PlaneGeometry(streetLen, roadWidth),
     roadMat
@@ -140,7 +140,7 @@ export function createScene(quality) {
   const stripeCount = 20;
   const stripe = new THREE.PlaneGeometry(2.2, 0.26);
   stripe.rotateX(-Math.PI / 2);
-  const paint = useWorldGrit(new THREE.MeshStandardMaterial({ color: 0xc9c6b6, roughness: 0.92 }), { strength: 1.15, groundGrime: 0, bump: 0.14 });
+  const paint = useWorldGrit(new THREE.MeshStandardMaterial({ color: 0xc9c6b6, roughness: 0.92 }), { strength: 1.15, groundGrime: 0 });
   const crossings = new THREE.InstancedMesh(stripe, paint, STREET.crossings.length * stripeCount);
   crossings.name = 'pedestrian-crossings';
   crossings.receiveShadow = quality.shadows;
@@ -165,8 +165,8 @@ export function createScene(quality) {
     color: 0xffffff,
     roughness: 0.90,
     metalness: 0
-  }), { strength: 0.65, groundGrime: 0, bump: 0.08 });
-  const curbMat = useWorldGrit(new THREE.MeshStandardMaterial({ color: 0x989386, roughness: 0.95 }), { strength: 1.15, groundGrime: 0.32, bump: 0.18 });
+  }), { strength: 0.65, groundGrime: 0 });
+  const curbMat = useWorldGrit(new THREE.MeshStandardMaterial({ color: 0x989386, roughness: 0.95 }), { strength: 1.15, groundGrime: 0.32 });
   const halfStreet = streetLen / 2;
   const southEdge = roadCenterZ - roadWidth / 2;
   const northEdge = roadCenterZ + roadWidth / 2;
