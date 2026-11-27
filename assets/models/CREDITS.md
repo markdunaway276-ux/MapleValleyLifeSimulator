@@ -28,3 +28,38 @@
 - **Author:** [Neberkenezer](https://sketchfab.com/neberkenezer)
 - **License:** [Creative Commons Attribution 4.0 International (CC BY 4.0)](https://creativecommons.org/licenses/by/4.0/)
 - **Changes:** Extracted the clinic, cropped the exterior above the ground floor, resized and repositioned it, and re-encoded the original 1024 px texture. Maple Lane supplies the ground floor, signage, and interior.
+
+## gas-station.glb, gas-asphalt.webp
+
+- **Source:** [Gas station](https://elbolilloduro.itch.io/gas-station)
+- **Author:** Elbolilloduro
+- **License:** Creative Commons Zero (CC0 1.0)
+- **Changes:** Kept the store, canopy, pumps and price sign; removed the surrounding scenery and restroom block. Narrowed the canopy to fit the lot, moved the store closer, scaled the sign down. Replaced the "6twelve" branding with an original "Fuel & Go" logo, new canopy stripe colours and new fuel prices. Textures re-encoded as WebP (max 512 px).
+
+## scenery/trees.glb
+
+- **Source:** Trees (https://elbolilloduro.itch.io), from the user's asset library (`Nature and Animals/Trees.rar`)
+- **Author:** Elbolilloduro
+- **License:** Creative Commons Zero (CC0 1.0)
+- **Changes:** Converted from Collada to glTF, one node per tree with its trunk base at the origin (shade-tree-large, pine-tall, pine-slender, pine-young, spruce-a, spruce-b, leafy-small, sapling), leaf cards alpha-tested and double-sided, textures re-encoded as WebP (max 512 px).
+
+## scenery/road-signs.glb
+
+- **Source:** [Road Signs Pack [Revamped]](https://sketchfab.com/3d-models/road-signs-pack-revamped-8cf2ce06fc484b0bb73d5549330fd4a1)
+- **Author:** [Paul Cheeseburger](https://sketchfab.com/vasyapupkincr)
+- **License:** [Creative Commons Attribution 4.0 International (CC BY 4.0)](https://creativecommons.org/licenses/by/4.0/)
+- **Changes:** Kept eight signs (speed-limit, slow-down, pedestrian-ahead, stop, two-way, merge-ahead, railroad-ahead, narrow-road), each with its post base at the origin; texture atlas re-encoded as WebP (1024 px).
+
+## scenery/deer.glb
+
+- **Source:** [Male Deer Animal 3d model free](https://sketchfab.com/3d-models/male-deer-animal-3d-model-free-0793c1cf39464dd19fbda9a07c27902e)
+- **Author:** [iRahulRajput](https://sketchfab.com/rt699448)
+- **License:** [Creative Commons Attribution 4.0 International (CC BY 4.0)](https://creativecommons.org/licenses/by/4.0/)
+- **Changes:** Mesh simplified, textures resized to 512 px WebP.
+
+## scenery/kenney-fence-large.glb, scenery/kenney-fence-wide.glb
+
+- **Source pack:** City Kit (Suburban) 1.0
+- **Author:** Kenney (https://www.kenney.nl)
+- **License:** Creative Commons Zero (CC0 1.0)
+- **Notes:** Used unmodified.

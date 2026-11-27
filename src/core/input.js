@@ -5,7 +5,7 @@ export function setupInput(player, isMobile, { isInventoryOpen } = {}) {
   const blocked = () => isInventoryOpen && isInventoryOpen();
 
   function clearMotion() {
-    keys.forward = keys.back = keys.left = keys.right = keys.jump = false;
+    keys.forward = keys.back = keys.left = keys.right = keys.jump = keys.down = keys.run = false;
     player.mouseX = 0;
     player.mouseY = 0;
     player.joystickX = 0;
@@ -16,6 +16,9 @@ export function setupInput(player, isMobile, { isInventoryOpen } = {}) {
   window.addEventListener('sleep-start', clearMotion);
   window.addEventListener('phone-open', clearMotion);
   window.addEventListener('pause-open', clearMotion);
+  window.addEventListener('dialogue-open', clearMotion);
+  window.addEventListener('work-start', clearMotion);
+  window.addEventListener('blur', clearMotion);
 
 
   if (isMobile) document.body.classList.add('mobile');
@@ -29,6 +32,8 @@ export function setupInput(player, isMobile, { isInventoryOpen } = {}) {
       case 'KeyA': case 'ArrowLeft': keys.left = true; break;
       case 'KeyD': case 'ArrowRight': keys.right = true; break;
       case 'Space': keys.jump = true; break;
+      case 'KeyC': case 'ControlLeft': keys.down = true; break;
+      case 'ShiftLeft': case 'ShiftRight': keys.run = true; break;
       // Ignore auto-repeat: holding E must not toggle doors / lights / TV over and over.
       case 'KeyE': if (!e.repeat) window.dispatchEvent(new Event('interact')); break;
     }
@@ -41,14 +46,16 @@ export function setupInput(player, isMobile, { isInventoryOpen } = {}) {
       case 'KeyA': case 'ArrowLeft': keys.left = false; break;
       case 'KeyD': case 'ArrowRight': keys.right = false; break;
       case 'Space': keys.jump = false; break;
+      case 'KeyC': case 'ControlLeft': keys.down = false; break;
+      case 'ShiftLeft': case 'ShiftRight': keys.run = false; break;
     }
   });
 
   document.addEventListener('mousemove', (e) => {
     if (blocked()) return;
     if (document.pointerLockElement) {
-      player.mouseX = e.movementX;
-      player.mouseY = e.movementY;
+      player.mouseX += e.movementX;
+      player.mouseY += e.movementY;
     }
   });
 
@@ -60,7 +67,27 @@ export function setupInput(player, isMobile, { isInventoryOpen } = {}) {
     let lookTouch = null;
     let lastLookX = 0, lastLookY = 0;
 
+    // Development fly: hold ▲ / ▼ to rise and sink (shown only while flying on a phone).
+    const flyButtons = [['fly-up', 'jump'], ['fly-down', 'down']];
+    const releaseFly = () => {
+      for (const [id, key] of flyButtons) {
+        keys[key] = false;
+        document.getElementById(id)?.classList.remove('is-held');
+      }
+    };
+    for (const [id, key] of flyButtons) {
+      const btn = document.getElementById(id);
+      if (!btn) continue;
+      const press = (e) => { e.preventDefault(); e.stopPropagation(); keys[key] = true; btn.classList.add('is-held'); };
+      const release = (e) => { e.preventDefault(); keys[key] = false; btn.classList.remove('is-held'); };
+      btn.addEventListener('touchstart', press, { passive: false });
+      btn.addEventListener('touchend', release);
+      btn.addEventListener('touchcancel', release);
+      btn.addEventListener('contextmenu', (e) => e.preventDefault());
+    }
+
     const resetTouch = () => {
+      releaseFly();
       joystickTouch = null;
       lookTouch = null;
       if (knob) {
@@ -73,6 +100,9 @@ export function setupInput(player, isMobile, { isInventoryOpen } = {}) {
     window.addEventListener('sleep-start', resetTouch);
     window.addEventListener('phone-open', resetTouch);
     window.addEventListener('pause-open', resetTouch);
+    window.addEventListener('dialogue-open', resetTouch);
+    window.addEventListener('work-start', resetTouch);
+    window.addEventListener('blur', resetTouch);
 
     joystick.addEventListener('touchstart', (e) => {
       if (blocked()) return;
@@ -122,7 +152,7 @@ export function setupInput(player, isMobile, { isInventoryOpen } = {}) {
 
     document.addEventListener('touchstart', (e) => {
       if (blocked()) return;
-      if (e.target.closest && e.target.closest('#inventory, #inventory-toggle, #interact-prompt, #hud-screenshot, #phone, .debug-ui, .hud-ui')) return;
+      if (e.target.closest && e.target.closest('#inventory, #inventory-toggle, #interact-prompt, #hud-screenshot, #fly-pad, #phone, .debug-ui, .hud-ui')) return;
       if (e.target === joystick || joystick.contains(e.target)) return;
       if (lookTouch !== null) return;
       const touch = e.changedTouches[0];

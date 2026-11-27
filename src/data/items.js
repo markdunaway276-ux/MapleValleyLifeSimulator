@@ -65,6 +65,32 @@ export const ITEM_DEFS = {
     stackable: true,
     use: { action: 'eat', label: 'Eat', need: 'hunger', amount: 55, sfx: 'eat' }
   },
+  coffee: {
+    id: 'coffee',
+    name: 'Coffee',
+    icon: '☕',
+    description: 'A hot cup of coffee from the gas station. Gives you a little energy.',
+    color: '#6b4a32',
+    stackable: true,
+    use: { action: 'eat', label: 'Drink', need: 'energy', amount: 20, sfx: 'eat' }
+  },
+  slushie: {
+    id: 'slushie',
+    name: 'Slushie',
+    icon: '🥤',
+    description: 'An icy cherry slushie from the gas station.',
+    color: '#b23a48',
+    stackable: true,
+    use: { action: 'eat', label: 'Drink', need: 'hunger', amount: 10, sfx: 'eat' }
+  },
+  'gas-can': {
+    id: 'gas-can',
+    name: 'Gas can',
+    icon: '⛽',
+    description: 'Eight litres of gas. Get in the car with an empty tank and it pours in by itself.',
+    color: '#c0392b',
+    stackable: true
+  },
   letter: {
     id: 'letter',
     name: 'Letter',

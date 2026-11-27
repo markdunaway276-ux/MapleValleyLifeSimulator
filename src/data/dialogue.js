@@ -7,6 +7,18 @@
 import { getNpc } from './npcs.js';
 
 export const DIALOGUE = {
+  danny: {
+    default: [
+      { lines: ["Hey, welcome to Fuel & Go. I'm Danny.", 'Pumps are pay-at-the-pump, coffee is fresh-ish.'] },
+      { lines: ['Boss is always looking for help on the register.', 'Clock in at the till if you want a shift.'] }
+    ],
+    night: [
+      { lines: ['Night shift is mostly me, the slushie machine and the moths.'] }
+    ],
+    rain: [
+      { lines: ['Rain brings everybody in for coffee. Not complaining.'] }
+    ]
+  },
   dottie: {
     default: [
       { lines: ["Welcome to Maple Lane Laundromat, hon. I'm Dottie.", 'Washers up front, dryers along the back.'] },

@@ -21,7 +21,7 @@ const STYLE_ID = 'work-overlay-styles';
 
 const CSS = `
 #work-overlay {
-  position: fixed; inset: 0; z-index: 70;
+  position: fixed; inset: 0; z-index: 78;
   display: none; align-items: flex-end; justify-content: center;
   padding-bottom: 16vh; box-sizing: border-box;
   background: transparent;

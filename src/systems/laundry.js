@@ -69,6 +69,10 @@ export function createLaundry({
   let shift = { on: false, done: 0, earned: 0, nextOrderAt: 0 };
   let nextId = 1;
   let folding = null; // order id while the fold job runs
+  let fast = false;   // development: machines take 1 game minute, bags every 5
+  const washMinutes = () => (fast ? 1 : WASH_MINUTES);
+  const dryMinutes = () => (fast ? 1 : DRY_MINUTES);
+  const orderEvery = () => (fast ? 5 : ORDER_EVERY_MINUTES);
   const listeners = [];
 
   if (saved && typeof saved === 'object') {
@@ -160,7 +164,7 @@ export function createLaundry({
         run: () => {
           if (price && !spend(price, 'Laundromat ' + noun)) return false;
           m.load = { owner: carry.owner };
-          m.doneAt = now() + (isWasher ? WASH_MINUTES : DRY_MINUTES);
+          m.doneAt = now() + (isWasher ? washMinutes() : dryMinutes());
           carry = null;
           if (sfx && typeof sfx.play === 'function') sfx.play('washer-start');
           changed();
@@ -177,9 +181,9 @@ export function createLaundry({
           if (!spend(WASH_PRICE, 'Laundromat washer')) return false;
           inventory.consume(idx, 1);
           m.load = { owner: 'you' };
-          m.doneAt = now() + WASH_MINUTES;
+          m.doneAt = now() + washMinutes();
           if (sfx && typeof sfx.play === 'function') sfx.play('washer-start');
-          toast(`Washing your clothes — ${WASH_MINUTES} min.`);
+          toast(`Washing your clothes — ${washMinutes()} min.`);
           changed();
           return 'load';
         }
@@ -214,7 +218,7 @@ export function createLaundry({
       run: () => {
         const energy = needs && typeof needs.get === 'function' ? Number(needs.get('energy')) : 100;
         if (energy < SHIFT_MIN_ENERGY) { toast('Too tired for a shift.'); return false; }
-        shift = { on: true, done: 0, earned: 0, nextOrderAt: now() + ORDER_EVERY_MINUTES };
+        shift = { on: true, done: 0, earned: 0, nextOrderAt: now() + orderEvery() };
         spawnOrder();
         spawnOrder();
         toast('Clocked in. Customer bags are on the counter.');
@@ -314,7 +318,7 @@ export function createLaundry({
       if (f) lastFinished.add(m.id); else lastFinished.delete(m.id);
     }
     if (shift.on && now() >= shift.nextOrderAt) {
-      shift.nextOrderAt = now() + ORDER_EVERY_MINUTES;
+      shift.nextOrderAt = now() + orderEvery();
       if (orders.length < MAX_OPEN_ORDERS) {
         const o = spawnOrder();
         toast(`New bag on the counter from ${o.name}.`);
@@ -395,6 +399,17 @@ export function createLaundry({
     get carry() { return carry; },
     get onShift() { return shift.on; },
     get orders() { return orders.slice(); },
-    get folding() { return folding; }
+    get folding() { return folding; },
+    get fast() { return fast; },
+    /** Development: finish machines in a minute and bring bags every few minutes. */
+    setFast(on) {
+      fast = !!on;
+      if (fast) {
+        const soon = now() + 1;
+        for (const m of machines) if (m.load && m.doneAt > soon) m.doneAt = soon;
+        if (shift.on && shift.nextOrderAt > now() + orderEvery()) shift.nextOrderAt = now() + orderEvery();
+      }
+      changed();
+    }
   };
 }

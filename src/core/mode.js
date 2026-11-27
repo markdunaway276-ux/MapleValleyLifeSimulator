@@ -82,7 +82,7 @@ export function createPlayerMode({ isStarted = () => true } = {}) {
   }
 
   /** Movement, look and the interact prompt are paused. */
-  const uiBlocked = () => busy() || menuOpen();
+  const uiBlocked = () => !started() || busy() || menuOpen();
 
   /** Started and not sleeping or working: free to drive, sit, open the phone, talk. */
   const canAct = () => started() && !busy();

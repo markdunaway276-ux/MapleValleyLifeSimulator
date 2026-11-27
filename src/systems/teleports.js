@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { doorInteractPoint, doorOutwardNormal } from './doors.js';
-import { INTERACT_RANGE } from '../ui/interactPrompt.js';
+import { INTERACT_RANGE } from './interactables.js';
 
 /**
  * Debug teleport presets. Positions are resolved against the live collision
@@ -27,7 +27,11 @@ export const TELEPORT_PRESETS = [
   { id: 'laundromat', label: 'Laundromat door', kind: 'point', x: 29.5, z: -3.6, yaw: 0 },
   { id: 'laundromat-inside', label: 'Laundromat counter', kind: 'point', x: 31.0, z: -8.3, yaw: Math.PI / 2 },
   { id: 'laundromat-back', label: 'Laundromat back room', kind: 'point', x: 24.5, z: -11.5, yaw: Math.PI / 2 },
-  { id: 'trailer-park', label: 'Trailer park', kind: 'point', x: -24.6, z: -3.6, yaw: Math.PI / 4 }
+  { id: 'trailer-park', label: 'Trailer park', kind: 'point', x: -24.6, z: -3.6, yaw: Math.PI / 4 },
+  { id: 'clinic', label: 'Clinic door', kind: 'point', x: -34, z: 12.4, yaw: Math.PI },
+  { id: 'clinic-inside', label: 'Clinic waiting room', kind: 'point', x: -34, z: 17.0, yaw: Math.PI },
+  { id: 'gas-station', label: 'Gas station pumps', kind: 'point', x: -0.8, z: 12.2, yaw: Math.PI },
+  { id: 'gas-station-inside', label: 'Gas station register', kind: 'point', x: -1.6, z: 34.5, yaw: Math.PI / 2 }
 ];
 
 export function findDoor(scene, doorId) {

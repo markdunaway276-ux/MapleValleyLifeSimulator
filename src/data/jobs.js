@@ -38,6 +38,20 @@ export const JOB_DEFS = [
     minEnergy: 10,
     tiredMessage: WORK_TIRED,
     sfx: 'cash'
+  },
+  {
+    id: 'station-clerk',
+    name: 'Gas station clerk',
+    verb: 'work the register',
+    label: 'Ringing up customers…',
+    action: 'press',
+    duration: 6,
+    gameMinutes: 90,
+    pay: 18,
+    energy: 12,
+    minEnergy: 12,
+    tiredMessage: WORK_TIRED,
+    sfx: 'cash'
   }
 ];
 

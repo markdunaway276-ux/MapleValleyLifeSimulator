@@ -89,3 +89,16 @@ test('state survives a save and reload', () => {
   assert.equal(again.machineState('washer-2').running, true);
   assert.equal(again.machineState('washer-2').owner, 'you');
 });
+
+test('fast machines (development) finish in a minute, including loads already running', () => {
+  const { state, laundry } = rig();
+  laundry.machineOption('washer-1').run();
+  assert.equal(laundry.machineState('washer-1').running, true);
+  laundry.setFast(true);
+  state.minutes += 1;
+  assert.deepEqual(laundry.update(), ['washer-1']);
+  laundry.machineOption('washer-1').run();
+  laundry.machineOption('dryer-1').run();
+  state.minutes += 1;
+  assert.deepEqual(laundry.update(), ['dryer-1']);
+});

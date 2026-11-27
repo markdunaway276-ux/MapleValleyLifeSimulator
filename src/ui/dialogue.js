@@ -6,6 +6,7 @@
  */
 
 import { getDialogue } from '../data/dialogue.js';
+import { requestPointerLock, exitPointerLock } from '../core/pointerLock.js';
 
 const STYLE_ID = 'maple-dialogue-css';
 
@@ -183,8 +184,10 @@ export function createDialogue({
     const weather = ctx.weather || (typeof getWeather === 'function' ? getWeather() : null);
     const tree = getDialogue(id, { time, period: time && time.period, weather });
     name = tree.name;
-    pages = tree.pages && tree.pages.length ? tree.pages : [{ lines: ['…'] }];
-    pages.push(...(getExtraPages?.(id) ?? []));
+    const extra = getExtraPages?.(id) ?? [];
+    // Story characters may speak only through extra pages; no placeholder page then.
+    pages = tree.pages && tree.pages.length ? tree.pages.slice() : (extra.length ? [] : [{ lines: ['…'] }]);
+    pages.push(...extra);
     index = 0;
     npcId = id;
     opened = true;
@@ -192,10 +195,8 @@ export function createDialogue({
     overlay.classList.add('is-open');
     overlay.setAttribute('aria-hidden', 'false');
     overlay.setAttribute('aria-label', name);
-    if (typeof document !== 'undefined' && typeof document.exitPointerLock === 'function') {
-      document.exitPointerLock();
-    }
-    window.dispatchEvent(new Event('dialogue-open'));
+    exitPointerLock();
+    window.dispatchEvent(new CustomEvent('dialogue-open', { detail: { id } }));
     return true;
   }
 
@@ -208,8 +209,8 @@ export function createDialogue({
     overlay.classList.remove('is-open');
     overlay.setAttribute('aria-hidden', 'true');
     window.dispatchEvent(new Event('dialogue-close'));
-    if (!mobile() && started() && !blocked() && canvas && typeof canvas.requestPointerLock === 'function') {
-      canvas.requestPointerLock();
+    if (!mobile() && started() && !blocked()) {
+      requestPointerLock(canvas);
     }
   }
 

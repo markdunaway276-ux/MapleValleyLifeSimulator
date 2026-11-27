@@ -1,5 +1,5 @@
 /**
- * Pause menu. Esc or P on a desktop (the browser turns the first Esc into
+ * Pause menu. Esc on a desktop (the browser turns the first Esc into
  * "release the mouse", so losing mouse look while playing opens it too), or
  * the II HUD button on any device. While it is open the frame loop skips the
  * world (loop.js), so the clock, needs, neighbours and weather stand still.
@@ -11,11 +11,12 @@
 
 import { ensureMenuStyles, el, button, heading, renderSettings } from './menuKit.js';
 import { createMinimapSurface, gatherMinimapWorld, toMap, MINIMAP_COLORS } from './minimap.js';
+import { requestPointerLock, exitPointerLock } from '../core/pointerLock.js';
 
 const BUTTON_CSS_ID = 'pause-button-styles';
 const BUTTON_CSS = `
 #pause-button {
-  position: fixed; z-index: 40; display: none; align-items: center; justify-content: center;
+  position: fixed; z-index: 36; display: none; align-items: center; justify-content: center;
   top: calc(max(12px, env(safe-area-inset-top)) + 156px); right: max(12px, env(safe-area-inset-right));
   width: 44px; height: 44px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.25);
   background: rgba(0,0,0,0.55); color: #fff; font: 800 15px system-ui, sans-serif; letter-spacing: 1px; cursor: pointer;
@@ -231,7 +232,7 @@ export function createPauseMenu({
     render();
     root.classList.add('is-open');
     window.dispatchEvent(new Event('pause-open'));
-    if (!isMobile && document.pointerLockElement) document.exitPointerLock();
+    if (!isMobile) exitPointerLock();
     const first = panel.querySelector('button');
     if (first) first.focus();
     return true;
@@ -243,21 +244,14 @@ export function createPauseMenu({
     clearInterval(mapTimer);
     root.classList.remove('is-open');
     window.dispatchEvent(new Event('pause-close'));
-    if (!isMobile && canvas && typeof canvas.requestPointerLock === 'function') {
-      try {
-        const p = canvas.requestPointerLock();
-        if (p && typeof p.catch === 'function') p.catch(() => {});
-      } catch { /* refused (Chrome waits ~1 s after Esc); a click on the game locks again */ }
-    }
+    if (!isMobile) requestPointerLock(canvas);
     return true;
   }
 
-  // Esc / P: capture phase, so a menu that closes itself on this same Esc
+  // Esc: capture phase, so a menu that closes itself on this same Esc
   // (bag, phone, Debug) is still seen as open and the pause does not stack on top.
   window.addEventListener('keydown', (e) => {
-    if (e.code !== 'Escape' && e.code !== 'KeyP') return;
-    // Typing in a text box (Settings > Feedback token) is not a shortcut.
-    if (e.code === 'KeyP' && e.target && /^(INPUT|TEXTAREA)$/.test(e.target.tagName)) return;
+    if (e.code !== 'Escape') return;
     if (opened) {
       if (page !== 'main') go('main'); else close();
       e.preventDefault();
@@ -279,10 +273,10 @@ export function createPauseMenu({
     });
   }
 
-  // Show the II button only with the rest of the HUD.
-  setInterval(() => {
-    pauseBtn.classList.toggle('is-visible', !opened && mode.hudVisible());
-  }, 250);
+  // Driven by hud.js (mode.hudVisible()) so the II button only shows with the rest of the HUD.
+  function setHudVisible(v) {
+    pauseBtn.classList.toggle('is-visible', !opened && !!v);
+  }
 
-  return { open, close, isOpen: () => opened, button: pauseBtn, element: root };
+  return { open, close, isOpen: () => opened, setHudVisible, button: pauseBtn, element: root };
 }

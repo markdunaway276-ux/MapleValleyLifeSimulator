@@ -18,7 +18,14 @@ import { getOptionColor, normalizeAppearance } from '../data/appearance.js';
 // Hand poses in camera space: x right, y up, z forward is negative.
 // r = wrist rotation (x pitch, y yaw, z roll).
 const REST = { p: [0.3, -0.82, -0.22], r: [0.3, 0, 0] };
-const CARRY = { p: [0.13, -0.29, -0.47], r: [-0.15, 0, 0.12] };
+// Laundry basket: hands on the outside of the side walls, palms turned in (roll),
+// so they grip the basket instead of sinking into it.
+const CARRY = { p: [0.145, -0.29, -0.47], r: [0.05, 0, 1.2] };
+// Moving box (two hands, lower and wider than the basket).
+const BOX_CARRY = { p: [0.2, -0.43, -0.6], r: [0.05, 0, 1.25] };
+/** Where each forearm runs back to (camera space, right side; left is mirrored). */
+const SHOULDER = [0.32, -0.85, 0.02];
+const SLEEVE_LENGTH = 0.42;
 const mirror = (pose) => ({ p: [-pose.p[0], pose.p[1], pose.p[2]], r: [pose.r[0], -pose.r[1], -pose.r[2]] });
 const P = (x, y, z, rx = 0, ry = 0, rz = 0) => ({ p: [x, y, z], r: [rx, ry, rz] });
 
@@ -154,6 +161,46 @@ export const ACTIONS = {
       { t: 1, R: REST }
     ]
   },
+  takeKeys: {
+    // Reach out palm up, the keys are dropped in, then bring them in to look at them.
+    clip: 'Picking Up Object', duration: 1.8, prop: { name: 'keys', from: 0.36, to: 0.92 },
+    keys: [
+      { t: 0, R: REST },
+      // Palm tilted toward you (fingers up) so the keys landing in it can be seen.
+      { t: 0.3, R: P(0.07, -0.16, -0.56, 0.55, 0, 0) },
+      { t: 0.45, R: P(0.07, -0.17, -0.56, 0.55, 0, 0) },
+      { t: 0.62, R: P(0.07, -0.16, -0.44, 0.95, 0.15, 0) },
+      { t: 0.82, R: P(0.08, -0.17, -0.43, 0.95, 0.15, 0) },
+      { t: 1, R: REST }
+    ]
+  },
+  liftBox: {
+    clip: 'Picking Up', duration: 1.0, both: true,
+    keys: [
+      { t: 0, R: REST },
+      { t: 0.45, R: P(0.21, -0.5, -0.55, 0.3, 0, 1.25), dip: -0.4 },
+      { t: 1, R: BOX_CARRY }
+    ]
+  },
+  setBoxDown: {
+    clip: 'Gathering Objects', duration: 1.0, both: true,
+    keys: [
+      { t: 0, R: BOX_CARRY },
+      { t: 0.5, R: P(0.21, -0.5, -0.55, 0.3, 0, 1.25), dip: -0.4 },
+      { t: 0.7, R: P(0.21, -0.5, -0.55, 0.3, 0, 1.25), dip: -0.4 },
+      { t: 1, R: REST }
+    ]
+  },
+  unpack: {
+    // Lift things out of a box on the floor and set them aside.
+    clip: 'Picking Up Object', loop: 1.4, both: true,
+    keys: [
+      { t: 0, R: P(0.12, -0.45, -0.5, 0.5, 0, 0.2), dip: -0.3 },
+      { t: 0.35, R: P(0.16, -0.25, -0.5, 0.1, 0, 0.1), L: P(-0.12, -0.45, -0.5, 0.5, 0, -0.2), dip: -0.2 },
+      { t: 0.65, R: P(0.32, -0.3, -0.5, 0.2, -0.3, 0.1), L: P(-0.14, -0.43, -0.5, 0.5, 0, -0.2), dip: -0.2 },
+      { t: 1, R: P(0.12, -0.45, -0.5, 0.5, 0, 0.2), dip: -0.3 }
+    ]
+  },
   eat: {
     clip: 'Drinking', duration: 1.1,
     keys: [
@@ -217,12 +264,69 @@ function buildArm(sleeveMat, skinMat, side) {
   thumb.position.set(side === 'R' ? -0.045 : 0.045, 0.004, -0.008);
   const wrist = new THREE.Mesh(new THREE.BoxGeometry(0.055, 0.05, 0.06), skinMat);
   wrist.position.set(0, -0.004, 0.07);
-  const sleeve = new THREE.Mesh(new THREE.BoxGeometry(0.085, 0.085, 0.42), sleeveMat);
-  sleeve.position.set(0, -0.02, 0.3);
-  sleeve.rotation.x = 0.12;
+  // The sleeve is not rigid with the hand: each frame it is laid from the wrist
+  // back toward the shoulder (see layForearm), so a raised or tilted hand never
+  // swings the forearm up through the camera.
+  const sleeve = new THREE.Mesh(new THREE.BoxGeometry(0.075, 0.075, SLEEVE_LENGTH), sleeveMat);
+  sleeve.name = 'fp-sleeve-' + side;
   for (const m of [hand, thumb, wrist, sleeve]) { m.castShadow = false; m.receiveShadow = false; m.frustumCulled = false; }
-  arm.add(hand, thumb, wrist, sleeve);
+  arm.add(hand, thumb, wrist);
+  arm.userData.sleeve = sleeve;
+  arm.userData.shoulder = new THREE.Vector3(side === 'R' ? SHOULDER[0] : -SHOULDER[0], SHOULDER[1], SHOULDER[2]);
   return arm;
+}
+
+const WRIST_LOCAL = new THREE.Vector3(0, -0.006, 0.095);
+const _wrist = new THREE.Vector3();
+const _dir = new THREE.Vector3();
+const _back = new THREE.Vector3(0, 0, 1);
+function layForearm(arm) {
+  const sleeve = arm.userData.sleeve;
+  arm.updateMatrix();
+  _wrist.copy(WRIST_LOCAL).applyMatrix4(arm.matrix);
+  _dir.copy(arm.userData.shoulder).sub(_wrist).normalize();
+  sleeve.position.copy(_wrist).addScaledVector(_dir, SLEEVE_LENGTH / 2);
+  sleeve.quaternion.setFromUnitVectors(_back, _dir);
+}
+
+function buildKeys() {
+  const g = new THREE.Group();
+  g.name = 'fp-keys';
+  const metal = new THREE.MeshLambertMaterial({ color: 0xc9c2a8 });
+  const brass = new THREE.MeshLambertMaterial({ color: 0xc8a24a });
+  const ring = new THREE.Mesh(new THREE.TorusGeometry(0.016, 0.003, 6, 14), metal);
+  ring.rotation.x = Math.PI / 2;
+  g.add(ring);
+  [[brass, 0.4], [metal, -0.5]].forEach(([mat, angle]) => {
+    const key = new THREE.Group();
+    const head = new THREE.Mesh(new THREE.BoxGeometry(0.02, 0.004, 0.018), mat);
+    const blade = new THREE.Mesh(new THREE.BoxGeometry(0.007, 0.003, 0.04), mat);
+    head.position.z = -0.024;
+    blade.position.z = -0.05;
+    key.add(head, blade);
+    key.rotation.y = angle;
+    g.add(key);
+  });
+  const tag = new THREE.Mesh(new THREE.BoxGeometry(0.02, 0.003, 0.03), new THREE.MeshLambertMaterial({ color: 0xb8433a }));
+  tag.position.set(0.02, 0, 0.022);
+  g.add(tag);
+  g.traverse((o) => { if (o.isMesh) { o.castShadow = false; o.frustumCulled = false; } });
+  return g;
+}
+
+function buildBox() {
+  const g = new THREE.Group();
+  g.name = 'fp-box';
+  const card = new THREE.MeshLambertMaterial({ color: 0xb98d5b });
+  const tape = new THREE.MeshLambertMaterial({ color: 0xd9c9a3 });
+  const body = new THREE.Mesh(new THREE.BoxGeometry(0.36, 0.26, 0.3), card);
+  const strip = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.004, 0.302), tape);
+  strip.position.y = 0.131;
+  const seam = new THREE.Mesh(new THREE.BoxGeometry(0.362, 0.003, 0.004), new THREE.MeshLambertMaterial({ color: 0x8a6640 }));
+  seam.position.y = 0.131;
+  g.add(body, strip, seam);
+  g.traverse((o) => { if (o.isMesh) { o.castShadow = false; o.frustumCulled = false; } });
+  return g;
 }
 
 function buildBasket() {
@@ -271,14 +375,21 @@ export function createPlayerActions({ camera, appearance = null } = {}) {
   const basket = buildBasket();
   basket.scale.setScalar(0.62);
   basket.visible = false;
-  rig.add(armR, armL, basket);
+  const box = buildBox();
+  box.visible = false;
+  const keys = buildKeys();
+  keys.position.set(0, 0.02, -0.012);
+  keys.scale.setScalar(1.5);
+  keys.visible = false;
+  armR.add(keys);
+  rig.add(armR, armL, armR.userData.sleeve, armL.userData.sleeve, basket, box);
   // Poses are authored for a ~60° view; lift them so hands sit in the lower third of the screen.
   rig.position.set(0, 0.09, 0);
   rig.visible = false;
   if (camera) camera.add(rig);
 
   let current = null; // { name, def, t, elapsed, loop, duration }
-  let carry = null;   // null or load kind ('dirty' | 'wet' | 'dry' | 'folded')
+  let carry = null;   // null, a laundry load kind ('dirty' | 'wet' | 'dry' | 'folded') or 'box'
   let shown = 0;      // 0..1 fade of the arms rig
   let dip = 0;
 
@@ -307,7 +418,8 @@ export function createPlayerActions({ camera, appearance = null } = {}) {
       name, def,
       elapsed: 0,
       loop: !!def.loop,
-      duration: opts.duration != null ? opts.duration : (def.loop ? Infinity : def.duration)
+      duration: opts.duration != null ? opts.duration : (def.loop ? Infinity : def.duration),
+      hold: opts.hold != null ? opts.hold : null // development: freeze at this 0..1 point
     };
     emit(name, def, { duration: Number.isFinite(current.duration) ? current.duration : null });
     return true;
@@ -319,11 +431,12 @@ export function createPlayerActions({ camera, appearance = null } = {}) {
     emit('idle', null);
   }
 
-  /** Show (or with null, hide) the laundry basket in your hands. */
+  /** Show (or with null, hide) the laundry basket, or with 'box' a moving box, in your hands. */
   function setCarry(kind) {
     carry = kind || null;
-    basket.visible = !!carry;
-    if (carry) basket.userData.setLoad(carry);
+    basket.visible = !!carry && carry !== 'box';
+    box.visible = carry === 'box';
+    if (carry && carry !== 'box') basket.userData.setLoad(carry);
     emit('carry', carry ? { clip: 'Carrying', loop: true } : null);
   }
 
@@ -336,15 +449,19 @@ export function createPlayerActions({ camera, appearance = null } = {}) {
 
   function update(delta) {
     const dt = Math.max(0, Math.min(0.1, Number(delta) || 0));
-    let R = carry ? CARRY : REST;
-    let L = carry ? mirror(CARRY) : REST_L;
+    const hold = carry === 'box' ? BOX_CARRY : CARRY;
+    let R = carry ? hold : REST;
+    let L = carry ? mirror(hold) : REST_L;
+    let propT = -1;
     let targetDip = 0;
     let active = !!carry;
     if (current) {
       current.elapsed += dt;
       const { def } = current;
       let t;
-      if (current.loop) {
+      if (current.hold != null) {
+        t = current.hold;
+      } else if (current.loop) {
         t = (current.elapsed % def.loop) / def.loop;
         if (current.elapsed >= current.duration) { stop(); }
       } else {
@@ -354,6 +471,7 @@ export function createPlayerActions({ camera, appearance = null } = {}) {
         const a = sample(def.keys, t, 'R', def.both);
         const b = sample(def.keys, t, 'L', def.both);
         R = a; L = b; targetDip = a.dip;
+        propT = t;
         active = true;
         // A one-off ending on its own is not a cancel: the third-person clip may run longer.
         if (!current.loop && t >= 1) current = null;
@@ -365,12 +483,25 @@ export function createPlayerActions({ camera, appearance = null } = {}) {
       // Fade in/out by sliding from the rest pose, so arms rise into view.
       pose(armR, lerpPose(REST, R, shown));
       pose(armL, lerpPose(REST_L, L, shown));
+      layForearm(armR);
+      layForearm(armL);
+      const midX = (armR.position.x + armL.position.x) / 2;
+      const midY = (armR.position.y + armL.position.y) / 2;
+      const midZ = (armR.position.z + armL.position.z) / 2;
       // Folding needs both hands on the table, so the basket is set down meanwhile.
-      basket.visible = !!carry && !(current && current.name === 'fold');
+      basket.visible = !!carry && carry !== 'box' && !(current && current.name === 'fold');
       if (basket.visible) {
-        basket.position.set((armR.position.x + armL.position.x) / 2, (armR.position.y + armL.position.y) / 2 - 0.03, (armR.position.z + armL.position.z) / 2 - 0.04);
+        basket.position.set(midX, midY + 0.005, midZ);
         basket.rotation.set(0.1, 0, 0);
       }
+      // The box sits between the palms (it shows only while it is being held).
+      box.visible = carry === 'box' || !!(current && current.name === 'setBoxDown' && propT < 0.7);
+      if (box.visible) {
+        box.position.set(midX, midY + 0.02, midZ);
+        box.rotation.set(0.05, 0, 0);
+      }
+      const prop = current && current.def.prop;
+      keys.visible = !!(prop && prop.name === 'keys' && propT >= prop.from && propT <= prop.to);
     }
     dip += (targetDip - dip) * Math.min(1, dt * 10);
     if (camera && Math.abs(dip) > 0.001) camera.position.y += dip;

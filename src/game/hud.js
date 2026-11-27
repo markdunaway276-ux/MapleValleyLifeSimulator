@@ -2,6 +2,7 @@ import { createHudClock } from '../ui/hudClock.js';
 import { createHudMute } from '../ui/hudMute.js';
 import { createHudNeeds } from '../ui/hudNeeds.js';
 import { createHudMoney } from '../ui/hudMoney.js';
+import { createHudFuel } from '../ui/hudFuel.js';
 
 /**
  * The always-on HUD (clock, mute, Hunger / Energy, cash) and when the HUD
@@ -18,6 +19,7 @@ export function createHud(g) {
   });
   const hudNeeds = createHudNeeds({ getNeeds: () => needs.get() });
   const hudMoney = createHudMoney({ getMoney: () => money.get() });
+  const hudFuel = createHudFuel({ getFuel: () => g.car?.fuel ?? null });
 
   const task = document.createElement('div');
   task.setAttribute('role', 'status');
@@ -48,9 +50,14 @@ export function createHud(g) {
     if (show) hudNeeds.update();
     hudMoney.setVisible(show);
     if (show) hudMoney.update();
-    g.phone.setVisible(show);
-    g.minimap.setHudVisible(show);
-    g.hudSave.setVisible(show);
+    hudFuel.setVisible(show && mode.driving());
+    g.phone?.setVisible?.(show);
+    g.minimap?.setHudVisible?.(show);
+    g.hudSave?.setVisible?.(show);
+    g.inventory?.setHudVisible?.(show);
+    g.pause?.setHudVisible?.(show);
+    g.debug?.hudButton?.setVisible?.(show);
+    g.presentation?.setHudVisible?.(show);
   }
 
   clock.on('change', (t) => hudClock.update(t, weather.get()));
@@ -61,6 +68,11 @@ export function createHud(g) {
   sfx.on('mute', () => hudMute.refresh());
   needs.onChange(() => hudNeeds.update());
   money.onChange(() => hudMoney.update());
+  g.car?.fuel.onChange(() => hudFuel.update());
+  window.addEventListener('car-enter', sync);
+  window.addEventListener('car-exit', sync);
+  window.addEventListener('maple-sat', sync);
+  window.addEventListener('maple-stood', sync);
 
   window.addEventListener('maple-saved', syncTask);
 

@@ -8,6 +8,7 @@ import { createHudScreenshotButton } from '../ui/hudScreenshot.js';
 import { createFeedbackUploader } from './feedbackUpload.js';
 import { createGithubFeedback } from './githubFeedback.js';
 import { isInsideMainHouse } from '../world/rain.js';
+import { requestPointerLock, exitPointerLock } from '../core/pointerLock.js';
 
 /**
  * Optional debug utilities. Everything is OFF by default and built lazily:
@@ -82,6 +83,7 @@ export function createDebug({
   getSaveHud = null,
   getSkills = null,
   getDisplay = null,
+  getDev = null,
   container = document.body,
   now = () => performance.now()
 }) {
@@ -119,6 +121,7 @@ export function createDebug({
     getSaveHud: typeof getSaveHud === 'function' ? getSaveHud : null,
     getSkills: typeof getSkills === 'function' ? getSkills : null,
     getDisplay: typeof getDisplay === 'function' ? getDisplay : null,
+    getDev: typeof getDev === 'function' ? getDev : null,
     onOpen: modalOpened,
     onClose: modalClosed,
     container
@@ -189,15 +192,6 @@ export function createDebug({
     container
   });
 
-  function syncHud() {
-    hudShot.setVisible(!!isStarted() && !isInventoryOpen() && !isModalOpen());
-  }
-
-  window.addEventListener('inventory-open', syncHud);
-  window.addEventListener('inventory-close', syncHud);
-  window.addEventListener('debug-modal-open', syncHud);
-  window.addEventListener('debug-modal-close', syncHud);
-
   function active() {
     return state.overlay || state.collision || state.highlight || state.perf;
   }
@@ -207,7 +201,7 @@ export function createDebug({
   }
 
   function modalOpened() {
-    if (typeof document.exitPointerLock === 'function') document.exitPointerLock();
+    exitPointerLock();
     window.dispatchEvent(new Event('debug-modal-open'));
   }
 
@@ -215,11 +209,8 @@ export function createDebug({
     if (isModalOpen()) return;
     window.dispatchEvent(new Event('debug-modal-close'));
     const canvas = renderer && renderer.domElement;
-    if (!isMobile && isStarted() && !isInventoryOpen() && canvas && typeof canvas.requestPointerLock === 'function') {
-      try {
-        const p = canvas.requestPointerLock();
-        if (p && typeof p.catch === 'function') p.catch(() => {});
-      } catch { /* ignore */ }
+    if (!isMobile && isStarted() && !isInventoryOpen()) {
+      requestPointerLock(canvas);
     }
   }
 
@@ -470,7 +461,6 @@ export function createDebug({
       lastStarted = started;
       menu.setButtonVisible(started);
     }
-    syncHud();
     if (menu.isOpen() && clock) menu.refreshTime();
     if (menu.isOpen() && needs) menu.refreshNeeds();
     if (menu.isOpen() && money) menu.refreshMoney();
@@ -493,15 +483,10 @@ export function createDebug({
   function refresh() {
     lastStarted = !!isStarted();
     menu.setButtonVisible(lastStarted);
-    syncHud();
   }
 
   function dispose() {
     window.removeEventListener('keydown', onKeyDown);
-    window.removeEventListener('inventory-open', syncHud);
-    window.removeEventListener('inventory-close', syncHud);
-    window.removeEventListener('debug-modal-open', syncHud);
-    window.removeEventListener('debug-modal-close', syncHud);
     hudShot.dispose();
     if (viz) viz.disable();
     if (highlighter) highlighter.disable();

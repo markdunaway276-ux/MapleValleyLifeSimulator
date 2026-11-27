@@ -49,7 +49,7 @@ export const NPC_DEFS = [
     dialogueId: 'sam',
     appearance: { skin: 'tan', shirt: 'forest', pants: 'denim' },
     look: {
-      body: 'male',
+      body: 'sam',
       hair: 'simpleparted',
       hairColor: 0x4a2f1c,
       outfit: { shirt: 0x3f5a44, pants: 0x3c4c68, shoes: 0x2a211a }
@@ -75,7 +75,7 @@ export const NPC_DEFS = [
     dialogueId: 'june',
     appearance: { skin: 'light', shirt: 'navy', pants: 'charcoal' },
     look: {
-      body: 'female',
+      body: 'june',
       hair: 'long',
       hairColor: 0x6e4a2a,
       outfit: { shirt: 0x46627a, pants: 0x3a3a40, shoes: 0x2b2420, longSleeve: true }
@@ -103,7 +103,7 @@ export const NPC_DEFS = [
     dialogueId: 'dottie',
     appearance: { skin: 'tan', shirt: 'forest', pants: 'gray' },
     look: {
-      body: 'female',
+      body: 'dottie',
       hair: 'buns',
       hairColor: 0xa29d96,
       outfit: { shirt: 0x2f7d78, pants: 0x3a3f4a, shoes: 0x2b2420 }
@@ -114,6 +114,51 @@ export const NPC_DEFS = [
     patrol: { z: -8.3, x0: 27.35, x1: 27.35, startX: 27.35, speed: 0 },
     stationary: { yaw: -Math.PI / 2 },
     locationHint: 'Behind the laundromat counter, east end of Maple Lane.'
+  },
+  {
+    // Works the Fuel & Go register. Stands behind the counter, facing the
+    // customer side (store front wall at z 31.2; see world/gasStation.js).
+    id: 'danny',
+    name: 'Danny',
+    role: 'gas-station',
+    jobId: null,
+    dialogueId: 'danny',
+    appearance: { skin: 'tan', shirt: 'denim', pants: 'denim' },
+    look: { body: 'clerk' },
+    radius: NPC_RADIUS,
+    noticeRange: 2.6,
+    talkRange: NPC_TALK_RANGE,
+    patrol: { z: 34.5, x0: -4.15, x1: -4.15, startX: -4.15, speed: 0 },
+    stationary: { yaw: -Math.PI / 2 },
+    locationHint: 'Behind the Fuel & Go counter, across from your house.'
+  }
+];
+
+/**
+ * Story characters: not spawned with the neighbours. A story beat (dayOne.js)
+ * creates them with createNpc while it needs them and removes them after.
+ */
+export const STORY_NPCS = [
+  {
+    // Your realtor on moving day. Waits beside your front door with the keys.
+    id: 'rita',
+    name: 'Rita',
+    role: 'realtor',
+    jobId: null,
+    dialogueId: 'rita',
+    appearance: { skin: 'light', shirt: 'navy', pants: 'charcoal' },
+    look: {
+      body: 'female',
+      hair: 'long',
+      hairColor: 0x2b1d16,
+      outfit: { shirt: 0x7a2e3a, pants: 0x2e3038, shoes: 0x1e1a18, longSleeve: true }
+    },
+    radius: NPC_RADIUS,
+    noticeRange: 3.6,
+    talkRange: NPC_TALK_RANGE,
+    patrol: { z: -3.25, x0: 0.95, x1: 0.95, startX: 0.95, speed: 0 },
+    stationary: { yaw: Math.PI },
+    locationHint: 'Waiting by your front path.'
   }
 ];
 
@@ -122,6 +167,7 @@ export function getNpc(id, list = NPC_DEFS) {
   for (let i = 0; i < list.length; i++) {
     if (list[i] && list[i].id === id) return list[i];
   }
+  if (list === NPC_DEFS) return getNpc(id, STORY_NPCS);
   return null;
 }
 

@@ -222,8 +222,9 @@ export function createSit({
 
   function applyLook() {
     if (!player || !camera) return;
-    player.rotation.y -= (player.mouseX || 0) * 0.002;
-    player.rotation.x -= (player.mouseY || 0) * 0.002;
+    const look = 0.002 * (player.lookSensitivity || 1);
+    player.rotation.y -= (player.mouseX || 0) * look;
+    player.rotation.x -= (player.mouseY || 0) * look * (player.invertY ? -1 : 1);
     player.rotation.x = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, player.rotation.x));
     camera.quaternion.setFromEuler(player.rotation);
     player.mouseX = 0;

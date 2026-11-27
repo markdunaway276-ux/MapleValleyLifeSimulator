@@ -13,3 +13,21 @@ These instructions apply only to OpenAI Codex. Claude and other assistants shoul
 ### Playtest previews
 
 - For each completed game update, publish it to the GitHub `test` branch, verify that the Vercel preview for that commit is ready, and confirm the stable test URL points to that deployment. Include https://maple-lane-playtest-git-test-mark-e095.vercel.app/ in the handoff so browser saves stay on the same address.
+
+## Gemini only (Jules, Gemini CLI, Gemini Code Assist)
+
+These instructions apply only to Google Gemini tools. Codex and Claude follow their own rules above or from the user.
+
+### Branches
+
+- Push all Maple Lane work to the GitHub `gemini` branch. Never push to `main` or `test`.
+- Before starting new work, update `gemini` from `main` so you build on the latest game.
+- Never merge, cherry-pick, or open pull requests into `main`. Claude reviews `gemini` and moves it into `main`.
+- Report the destination branch after a push.
+
+### Working on the game
+
+- Plain ES modules and Three.js from `vendor/three/`; no build step, no new npm packages.
+- Run the unit tests with `node --test` before pushing.
+- Only CC0 or CC-BY assets may be committed (credit CC-BY ones in CREDITS.md). No real brand logos.
+- The very wide Maple Lane road is deliberate; don't change it.

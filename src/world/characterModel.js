@@ -12,7 +12,7 @@
  */
 
 import * as THREE from 'three';
-import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { loadGltf } from './gltf.js';
 import * as SkeletonUtils from 'three/addons/utils/SkeletonUtils.js';
 import { mixamoToClip } from './mixamoRetarget.js';
 
@@ -44,8 +44,26 @@ export const BODY_ZONES = Object.freeze({
   female: { neck: 1.50, waist: 0.98, ankle: 0.085, sleeve: 0.40 }
 });
 
+/**
+ * Bodies made in Blender (MakeHuman via the MPFB add-on), converted by
+ * tools/convert_makehuman.py: T-posed, facing +Z, with the main bones renamed
+ * to the names above. Their rest pose differs from the Quaternius bodies, so
+ * they skip the Universal Animation Library clips and use Mixamo clips only
+ * (retargeted in world space), including their own walk.
+ */
+export const CUSTOM_BODIES = Object.freeze({
+  surviver: { file: 'surviver.glb', walk: 'actions/walk.json' },
+  // Neighbours, made with the same MakeHuman rig (tools/convert_makehuman.py, own heights).
+  sam: { file: 'npc-sam.glb', walk: 'actions/walk.json' },
+  june: { file: 'npc-june.glb', walk: 'actions/walk.json' },
+  dottie: { file: 'npc-dottie.glb', walk: 'actions/walk.json' },
+  clerk: { file: 'npc-clerk.glb', walk: 'actions/walk.json' }
+});
+
+/** Mixamo run (in place), used by the custom bodies. */
+const RUN_CLIP = 'actions/run.json';
+
 const cache = new Map();
-let loader = null;
 
 function loadJson(file) {
   if (!cache.has(file)) {
@@ -56,12 +74,17 @@ function loadJson(file) {
 
 function load(file) {
   if (!cache.has(file)) {
-    if (!loader) loader = new GLTFLoader();
-    cache.set(file, new Promise((resolve, reject) => {
-      loader.load(CHARACTER_BASE + file, resolve, undefined, reject);
-    }));
+    cache.set(file, loadGltf(CHARACTER_BASE + file));
   }
   return cache.get(file);
+}
+
+function hipsHeight(root) {
+  const pelvis = root.getObjectByName('pelvis');
+  if (!pelvis) return 0.9;
+  root.updateMatrixWorld(true);
+  const p = new THREE.Vector3().setFromMatrixPosition(pelvis.matrixWorld);
+  return root.worldToLocal(p).y;
 }
 
 /** Shader patch that paints clothes onto the bind-pose body. */
@@ -138,19 +161,20 @@ function attachToHead(root, hairScene, color, shadows) {
  *   outfit?: { shirt: number, pants: number, shoes: number, longSleeve?: boolean }, shadows?: boolean }} look
  */
 export async function createCharacterModel(look = {}) {
-  const bodyKind = look.body === 'female' ? 'female' : 'male';
+  const custom = CUSTOM_BODIES[look.body] || null;
+  const bodyKind = custom ? look.body : (look.body === 'female' ? 'female' : 'male');
   const hairFile = look.hair ? `hair-${look.hair}.glb` : null;
   try {
     // Optional extra Mixamo clips ({ key: 'actions/file.json' }), baked like the idle.
-    const extraEntries = Object.entries(look.mixamo || {});
+    const extraEntries = Object.entries({ ...(look.mixamo || {}), ...(custom ? { walk: custom.walk, run: RUN_CLIP } : {}) });
     const extraData = Promise.all(extraEntries.map(([, file]) => loadJson(file).catch(() => null)));
     const [bodyGltf, animGltf, extraGltf, idleData, hairGltf, beardGltf] = await Promise.all([
-      load(bodyKind + '.glb'),
+      load(custom ? custom.file : bodyKind + '.glb'),
       load('anims.glb'),
       load('anims-extra.glb').catch(() => ({ animations: [] })),
       loadJson(MIXAMO_IDLE),
-      hairFile ? load(hairFile) : null,
-      look.beard ? load('hair-beard.glb') : null
+      hairFile && !custom ? load(hairFile) : null,
+      look.beard && !custom ? load('hair-beard.glb') : null
     ]);
     const root = SkeletonUtils.clone(bodyGltf.scene);
     const outfit = look.outfit || { shirt: 0x6f7f5a, pants: 0x3c4658, shoes: 0x2a211a };
@@ -178,21 +202,27 @@ export async function createCharacterModel(look = {}) {
     // Retarget the relaxed idle while the clone is still in its bind pose.
     const relaxedIdle = idleData ? mixamoToClip(idleData, root, 'Breathing_Idle') : null;
     const extraClips = {};
+    let walkSpeed = WALK_CLIP_SPEED;
+    let runSpeed = 0;
     (await extraData).forEach((data, i) => {
       const [key] = extraEntries[i];
-      const clip = data ? mixamoToClip(data, root, key) : null;
+      const clip = data ? mixamoToClip(data, root, key, custom ? { fingers: null } : undefined) : null;
       if (clip) extraClips[key] = clip;
+      // A Mixamo walk stores its ground speed in hips-heights per second.
+      if (clip && key === 'walk' && data.speedH) walkSpeed = data.speedH * hipsHeight(root);
+      if (clip && key === 'run' && data.speedH) runSpeed = data.speedH * hipsHeight(root);
     });
 
     const mixer = new THREE.AnimationMixer(root);
     const actions = {};
-    for (const [key, name] of Object.entries(CLIPS)) {
+    for (const [key, name] of Object.entries(custom ? {} : CLIPS)) {
       const clip = animGltf.animations.find((a) => a.name === name)
         || extraGltf.animations.find((a) => a.name === name);
       if (clip) actions[key] = mixer.clipAction(clip);
     }
     if (relaxedIdle) actions.idle = mixer.clipAction(relaxedIdle);
     for (const [key, clip] of Object.entries(extraClips)) actions[key] = mixer.clipAction(clip);
+    if (custom && !actions.interact && actions.reach) actions.interact = actions.reach;
     let current = null;
 
     function play(key, { fade = 0.3, timeScale = 1, restart = false } = {}) {
@@ -215,6 +245,8 @@ export async function createCharacterModel(look = {}) {
       root,
       mixer,
       play,
+      walkSpeed,
+      runSpeed,
       has: (key) => !!actions[key],
       getClip: (key) => (actions[key] ? actions[key].getClip() : null),
       addClip(key, clip) { actions[key] = mixer.clipAction(clip); },

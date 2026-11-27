@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { loadGltf } from './gltf.js';
 import { createHingedDoor } from '../systems/doors.js';
 import { createSeat, SIT_EYE_HEIGHT, SIT_RANGE } from '../systems/sit.js';
 import { getShop } from '../data/shops.js';
@@ -293,7 +293,7 @@ export function buildLaundromat(scene, quality) {
 
   const signMats = [];
   const windowMats = new Set();
-  new GLTFLoader().load(URL, (gltf) => {
+  loadGltf(URL, (gltf) => {
     const model = gltf.scene;
     model.traverse((o) => {
       if (!o.isMesh) return;
@@ -317,7 +317,7 @@ export function buildLaundromat(scene, quality) {
       }
     });
     group.add(model);
-  }, undefined, (err) => console.warn('Laundromat model failed to load', err));
+  }, (err) => console.warn('Laundromat model failed to load', err));
 
   let spin = 0;
   group.userData.update = (delta, time) => {

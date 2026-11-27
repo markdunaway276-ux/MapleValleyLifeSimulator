@@ -20,6 +20,7 @@ import { createPlayer } from './core/player.js';
 import { setupInput } from './core/input.js';
 import { isMobileDevice } from './core/device.js';
 import { createPlayerMode } from './core/mode.js';
+import { requestPointerLock, exitPointerLock } from './core/pointerLock.js';
 import { createInventory } from './ui/inventory.js';
 import { STARTER_ITEMS } from './data/items.js';
 import { loadSave, saveGame, clearSave } from './systems/save.js';
@@ -185,7 +186,10 @@ const car = createCar({
   isMobile,
   isStarted: () => mode.canAct(),
   sfx,
-  onDrivingChange: syncPlayerBody
+  onDrivingChange: syncPlayerBody,
+  toast: (msg) => g.hud?.toast(msg),
+  isFuelFree: () => needs.isDevelopmentMode(),
+  getInventory: () => g.inventory
 });
 if (car && saveData.car) car.apply(saveData);
 const sitter = createSit({
@@ -206,6 +210,7 @@ Object.assign(g, { car, sitter });
 const inventory = createInventory({
   canvas: renderer.domElement,
   isStarted: () => mode.started(),
+  isBlocked: () => mode.busy() || mode.menuOpen({ except: 'inventory' }),
   items: fromSaveBag ? bagCash.items : STARTER_ITEMS,
   onUse: ({ use }) => {
     if (use && use.action === 'open') {
@@ -250,6 +255,7 @@ const debug = createDebug({
   getSaveHud: () => hudSave,
   getSkills: () => skills,
   getDisplay: () => display,
+  getDev: () => g.devTools || null,
   getActivity: (opts) => mode.describe(opts)
 });
 mode.attach({ inventory, debug });
@@ -304,6 +310,32 @@ laundry.onChange(() => {
 window.addEventListener('maple-worked', (e) => {
   if (e.detail && e.detail.job && e.detail.job.id === FOLD_JOB.id) laundry.finishFold();
 });
+// Development tools (Debug menu → Player → Development, and the quick bar).
+g.devTools = {
+  isOn: () => needs.isDevelopmentMode(),
+  setOn(on) {
+    needs.setDevelopmentMode(!!on);
+    if (!on) { player.fly = false; document.body.classList.remove('flying'); laundry.setFast(false); }
+  },
+  isFly: () => !!player.fly,
+  setFly(on) {
+    if (on && !needs.isDevelopmentMode()) needs.setDevelopmentMode(true);
+    player.fly = !!on;
+    document.body.classList.toggle('flying', player.fly);
+    g.hud?.toast(on ? 'Fly on: Space up, C down, move where you look.' : 'Fly off.');
+  },
+  fillTank() {
+    if (!car) return;
+    if (car.fuel.space() > 0.05) car.fuel.add(car.fuel.space()); else car.fuel.set(0);
+    g.hud?.toast(car.fuel.isEmpty() ? 'Car tank emptied (to test running out).' : 'Car tank filled.');
+    save();
+  },
+  isFast: () => laundry.fast,
+  setFast(on) {
+    if (on && !needs.isDevelopmentMode()) needs.setDevelopmentMode(true);
+    laundry.setFast(!!on);
+  }
+};
 let warnedDirty = false;
 needs.onChange((snap) => {
   const clean = snap.values.clean;
@@ -351,7 +383,7 @@ const phone = createPhone({
   isMobile,
   isStarted: () => mode.started(),
   isBlocked: () => mode.busy() || mode.menuOpen({ except: 'phone' }),
-  canOpen: () => mode.canAct() && !mode.menu('dialogue'),
+  canOpen: () => mode.canAct() && !mode.menu('dialogue') && !mode.menu('pause') && !mode.menu('debug'),
   getTime: () => clock.getTime(),
   getMoney: () => money.get(),
   getFinances: money.statement,
@@ -386,7 +418,7 @@ const phone = createPhone({
   playNotification: () => sfx.play('phone-notification')
 });
 const dialogue = createDialogue({
-  getExtraPages: (id) => [neighbourFavour.pageFor(id), snackFavour.pageFor(id), dottiePage(id), dirtyPage(id)].filter(Boolean),
+  getExtraPages: (id) => [...(g.dayOne?.pagesFor(id) ?? []), neighbourFavour.pageFor(id), snackFavour.pageFor(id), dottiePage(id), dirtyPage(id)].filter(Boolean),
   canvas: renderer.domElement,
   isMobile,
   isStarted: () => mode.started(),
@@ -411,12 +443,13 @@ g.prompt = prompt;
 
 function beginPlay() {
   instructions.classList.add('hidden');
-  if (!isMobile && !inventory.isOpen() && navigator.userActivation?.isActive) {
-    renderer.domElement.requestPointerLock()?.catch(() => {});
+  if (!isMobile && !inventory.isOpen() && navigator.userActivation?.isActive !== false) {
+    requestPointerLock(renderer.domElement);
   }
   prompt.update();
   debug.refresh();
   g.hud.sync();
+  window.dispatchEvent(new Event('game-start'));
 }
 g.dayOne = createDayOne(g, saveData, beginPlay);
 document.getElementById('start').onclick = () => {
@@ -440,25 +473,6 @@ if (!isMobile) {
   });
   document.body.appendChild(hint);
   const canLook = () => mode.started() && !mode.uiBlocked() && !inventory.isOpen();
-  const relock = () => {
-    if (document.pointerLockElement === canvas || !canLook()) return;
-    try {
-      const p = canvas.requestPointerLock();
-      if (p && typeof p.catch === 'function') p.catch(() => {});
-    } catch { /* browser refused; the hint stays up and the next click tries again */ }
-  };
-  canvas.addEventListener('click', () => { cursorFree = false; relock(); });
-  window.addEventListener('keydown', (e) => {
-    if (e.code !== 'Tab' || !canLook()) return;
-    e.preventDefault();
-    if (document.pointerLockElement === canvas) {
-      cursorFree = true;
-      document.exitPointerLock();
-    } else {
-      cursorFree = false;
-      relock();
-    }
-  }, true);
   const syncHint = () => {
     const show = canLook() && document.pointerLockElement !== canvas;
     hint.textContent = cursorFree ? 'Mouse free — press Tab or click the game to look around' : 'Click to look around';
@@ -466,11 +480,40 @@ if (!isMobile) {
     hint.style.top = cursorFree ? 'auto' : '58%';
     hint.style.bottom = cursorFree ? '90px' : 'auto';
   };
+  const relock = () => {
+    if (document.pointerLockElement === canvas || !canLook()) return;
+    requestPointerLock(canvas);
+  };
+  canvas.addEventListener('click', () => { cursorFree = false; relock(); syncHint(); });
+  window.addEventListener('keydown', (e) => {
+    if (e.code !== 'Tab' || !canLook()) return;
+    e.preventDefault();
+    if (document.pointerLockElement === canvas) {
+      cursorFree = true;
+      exitPointerLock();
+    } else {
+      cursorFree = false;
+      relock();
+    }
+    syncHint();
+  }, true);
   document.addEventListener('pointerlockchange', () => {
     if (document.pointerLockElement === canvas) cursorFree = false;
     syncHint();
   });
-  setInterval(syncHint, 300);
+  document.addEventListener('pointerlockerror', syncHint);
+  for (const ev of [
+    'game-start', 'blur', 'focus',
+    'inventory-open', 'inventory-close',
+    'debug-modal-open', 'debug-modal-close',
+    'phone-open', 'phone-close',
+    'dialogue-open', 'dialogue-close',
+    'pause-open', 'pause-close',
+    'sleep-start', 'sleep-end',
+    'work-start', 'work-end'
+  ]) {
+    window.addEventListener(ev, syncHint);
+  }
 }
 
 // Device settings (look speed, invert, field of view, volumes, graphics quality).
@@ -493,7 +536,7 @@ if (saveData.stats) stats.apply(saveData);
 g.stats = stats;
 g.settings = settings;
 
-// Pause menu: Esc / P on a desktop (or losing mouse look while playing), the II button anywhere.
+// Pause menu: Esc on a desktop (or losing mouse look while playing), the II button anywhere.
 const pause = createPauseMenu({
   mode,
   isMobile,
@@ -527,6 +570,7 @@ g.title = createTitleScreen({
 });
 
 g.presentation = createPresentation({ camera, scene, mode, playerBody, actionRig: actions.rig });
+g.hud.sync();
 startLoop(g);
 
 console.log(`Maple Valley Life Simulator started — Mobile: ${isMobile}, Shadows: ${quality.shadows}, Post: ${!!view.post}`);
