@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { Parts } from './parts.js';
+import { contactMaterial, createContactShadows } from './contact.js';
 import { getShop } from '../data/shops.js';
 import { getJob } from '../data/jobs.js';
 import { buyFromShop } from '../systems/shop.js';
@@ -79,10 +80,29 @@ export function buildCornerShop(scene, quality) {
   // Two solid front piers leave an opening a metre and a half wide.
   for (const side of [-1, 1]) {
     wall('front-' + side, walls, side * 1.68, HEIGHT / 2, 0, 1.86, HEIGHT, 0.18);
-    shell.box(trim, 1.28, 1.21, 0.06, side * 1.7, 1.48, -0.11);
-    shell.box(0x606b64, 1.13, 1.05, 0.02, side * 1.7, 1.48, -0.15);
-    shell.box(trim, 1.35, 0.08, 0.17, side * 1.7, 0.90, -0.14);
+    const x = side * 1.68;
+    for (const edge of [-1, 1]) {
+      shell.box(trim, 0.075, 1.10, 0.14, x + edge * 0.58, 1.48, -0.16);
+      shell.box(trim, 1.23, 0.073, 0.14, x, 1.48 + edge * 0.56, -0.16);
+    }
+    shell.box(trim, 0.034, 1.07, 0.085, x, 1.48, -0.17);
+    shell.box(0x737468, 1.35, 0.08, 0.22, x, 0.88, -0.16);
+    shell.box(0x58544d, 1.86, 0.56, 0.035, x, 0.28, -0.107);
+    for (let row = 0; row < 5; row++) {
+      const left = x - 0.91;
+      const right = x + 0.91;
+      for (let offset = left - (row % 2) * 0.155; offset < right; offset += 0.31) {
+        const start = Math.max(left, offset);
+        const end = Math.min(right, offset + 0.30);
+        if (end <= start) continue;
+        const shades = [0x815249, 0x956459, 0x8c5b50, 0x9c7165];
+        const color = shades[(row + Math.floor((offset - left + 0.16) / 0.31) * 3) % shades.length];
+        shell.box(color, end - start, 0.096, 0.036, (start + end) / 2, 0.056 + row * 0.108, -0.135);
+      }
+    }
   }
+  for (const side of [-1, 1]) shell.box(trim, 0.075, 2.20, 0.13, side * 0.77, 1.10, -0.14);
+  shell.box(0x817d71, 1.49, 0.027, 0.22, 0, 0.038, -0.12);
   shell.box(trim, 1.5, 0.61, 0.16, 0, 2.595, 0);
   shell.box(trim, WIDTH + 0.3, 0.18, DEPTH + 0.35, 0, 2.98, DEPTH / 2);
   shell.box(0x51765d, WIDTH + 0.03, 0.15, 0.46, 0, 2.33, -0.24);
@@ -124,4 +144,37 @@ export function buildCornerShop(scene, quality) {
   const light = new THREE.PointLight(0xffddae, 11, 7);
   light.position.set(0, 2.25, DEPTH / 2);
   shop.add(light);
+
+  const windowMaterial = new THREE.MeshStandardMaterial({
+    color: 0x536e71, roughness: 0.43, emissive: 0xffce8b, emissiveIntensity: 0
+  });
+  const pane = new THREE.PlaneGeometry(1.15, 1.06);
+  for (const side of [-1, 1]) {
+    const window = new THREE.Mesh(pane, windowMaterial);
+    window.position.set(side * 1.68, 1.48, -0.106);
+    window.rotation.y = Math.PI;
+    shop.add(window);
+  }
+  shop.add(createContactShadows([
+    { kind: 'rect', x: -1.68, z: -0.12, w: 1.83, d: 0.17, margin: 0.20, strength: 0.58 },
+    { kind: 'rect', x: 1.68, z: -0.12, w: 1.83, d: 0.17, margin: 0.20, strength: 0.58 }
+  ], quality));
+  const poolMaterial = new THREE.MeshBasicMaterial({
+    color: 0xe9a971, alphaMap: contactMaterial().alphaMap, transparent: true,
+    blending: THREE.AdditiveBlending, depthWrite: false, opacity: 0
+  });
+  const pool = new THREE.Mesh(new THREE.PlaneGeometry(2.55, 1.8), poolMaterial);
+  pool.position.set(0, 0.118, -0.78);
+  pool.rotation.x = -Math.PI / 2;
+  pool.visible = false;
+  shop.add(pool);
+  shop.userData.updateFrontage = minutes => {
+    const evening = THREE.MathUtils.smoothstep(minutes, 18 * 60, 19.5 * 60);
+    const dawn = 1 - THREE.MathUtils.smoothstep(minutes, 5.5 * 60, 7 * 60);
+    const night = Math.min(1, evening + dawn);
+    windowMaterial.emissiveIntensity = 0.37 * night;
+    light.intensity = 11 + 2 * night;
+    poolMaterial.opacity = 0.23 * night;
+    pool.visible = night > 0;
+  };
 }
