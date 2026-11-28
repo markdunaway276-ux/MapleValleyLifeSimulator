@@ -8,6 +8,15 @@
 
 export const CHANGELOG = [
   {
+    version: '0.15.2',
+    date: '2026-11-28',
+    title: 'Sleek Phone Style & Wardrobe Layout',
+    notes: [
+      'Removed the old 2D ghost character from appearing behind the live 3D character in the Phone Style app.',
+      'Redesigned the Style & Wardrobe layout into a compact, sleek 3D stage with Wardrobe / Colors tabs and inline color rows so you can customize without bulky scrolling.'
+    ]
+  },
+  {
     version: '0.15.1',
     date: '2026-11-28',
     title: 'Phone Hand Alignment & Mesh Fix',
