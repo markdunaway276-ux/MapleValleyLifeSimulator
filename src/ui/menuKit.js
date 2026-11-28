@@ -197,6 +197,17 @@ export function renderSettings(panel, {
     state.tab = 'display';
     if (display) {
       const d = display.get();
+      if (typeof display.setPreset === 'function') {
+        panel.append(choices('Look preset', [
+          ['classic', 'Classic'],
+          ['autumn', 'Cozy Autumn'],
+          ['pnw', 'Sunlit PNW'],
+          ['dusk', 'Moody Dusk']
+        ], d.preset || 'classic', (v) => {
+          display.setPreset(v);
+          rerender();
+        }));
+      }
       panel.append(slider('Brightness', { min: 0.5, max: 2, step: 0.05, value: d.brightness, format: pct, onInput: (v) => display.setBrightness(v) }));
       panel.append(slider('Film look', { min: 0, max: 1, step: 0.05, value: d.film, format: pct, onInput: (v) => display.setFilm(v) }));
       if (display.hasGrain()) panel.append(button(d.grain ? 'Film grain: On' : 'Film grain: Off', () => { display.setGrain(!display.get().grain); rerender(); }));

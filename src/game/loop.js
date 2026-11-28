@@ -122,12 +122,23 @@ export function startLoop(g) {
         }
       }
     }
+    scene.userData.skyEnvMap?.update(g.dayNight.lastSample, performance.now() * 0.001);
     updateWetSurfaces(scene, rain, g.weather.snowCover ? g.weather.snowCover() : 0);
     updateHouseWindows(lightingMinutes);
     scene.userData.ambientParticles?.update(delta, { playerPos: player.position, minutes: lightingMinutes, rain });
+    scene.userData.groundFoliage?.update(delta, { playerPos: player.position, rain });
+    scene.userData.livingWorld?.update(delta, {
+      minutes: lightingMinutes,
+      rain,
+      car: g.car?.object || null,
+      driving: mode.driving(),
+      tvOn: !!g.tvSet?.isOn?.()
+    });
+    scene.userData.valleyGraphics?.update(delta, { playerPos: player.position, minutes: lightingMinutes, rain });
+    g.car?.object?.userData?.updateHeadlights?.(lightingMinutes, rain, mode.driving());
     scene.userData.frontYard?.update(time.totalMinutes);
     scene.userData.streetlights.update(lightingMinutes, rain);
-    scene.userData.park.update(lightingMinutes);
+    scene.userData.park.update(lightingMinutes, delta, g.dayNight.lastSample);
     scene.userData.cornerShop?.userData.updateFrontage?.(lightingMinutes);
     scene.userData.clinic?.userData.updateLighting?.(lightingMinutes);
     scene.userData.gasStation?.userData.updateLighting?.(lightingMinutes);

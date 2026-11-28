@@ -612,6 +612,7 @@ export function renderMessagesApp(screen, ctx = {}) {
       time: stamp,
       read: true
     });
+    ctx?.onTextSent?.(thread.id, thread.name);
 
     if (thread.contact) {
       typingThreadId = thread.id;
@@ -684,7 +685,10 @@ export function renderMessagesApp(screen, ctx = {}) {
       nameEl.textContent = thread.name;
       const subEl = document.createElement('div');
       subEl.className = 'msg-chat-sub';
-      subEl.textContent = thread.role;
+      const friend = thread.contact && typeof ctx.getFriendship === 'function' ? ctx.getFriendship(thread.id) : null;
+      subEl.textContent = friend
+        ? `${thread.role} · ${'♥'.repeat(friend.hearts)} ${friend.label}`
+        : thread.role;
       titleWrap.append(nameEl, subEl);
       top.append(back, av, titleWrap);
       root.appendChild(top);

@@ -43,7 +43,10 @@ test('createVertexMaterial composes vertex roughness, world grit, and vertex emi
   assert.match(shader.fragmentShader, /gritMicro/);
   assert.doesNotMatch(shader.fragmentShader, /dFdx\(/);
   assert.match(shader.fragmentShader, /totalEmissiveRadiance \*= vColor\.rgb;/);
-  assert.match(m.customProgramCacheKey(), /vertex-roughness-v1\|world-grit-v2:.*\|vertex-emissive-v1/);
+  assert.match(shader.fragmentShader, /roofMatMask/);
+  assert.match(shader.fragmentShader, /brickMask/);
+  assert.match(shader.fragmentShader, /sidingMask/);
+  assert.match(m.customProgramCacheKey(), /vertex-roughness-v1\|world-grit-v3:.*\|vertex-emissive-v2/);
 });
 
 test('useWorldGrit patches plain MeshStandardMaterial and is idempotent', () => {
@@ -89,6 +92,7 @@ test('atmosphere builders add valley horizon, power lines, street clutter, wet r
   assert.ok(Math.abs(road.material.roughness - 0.90) < 1e-6);
   updateWetSurfaces(scene, 1);
   assert.ok(road.material.roughness < 0.35);
+  assert.ok(road.material.envMapIntensity > 1.5);
   assert.ok(walk.material.roughness < 0.45);
 
   const particles = createAmbientParticles(scene, { shadows: true });
@@ -98,4 +102,122 @@ test('atmosphere builders add valley horizon, power lines, street clutter, wet r
   assert.equal(particles.points.visible, true);
   particles.update(0.05, { playerPos: { x: 0, z: 0 }, minutes: 21 * 60, rain: 0.8 });
   assert.equal(particles.points.visible, false);
+});
+
+test('graphics overhaul: 3D instanced foliage, headless sky envMap guard, and pickup headlight beams work cleanly', async () => {
+  const { buildGroundFoliage } = await import('../src/world/foliage.js');
+  const { createSkyEnvMap } = await import('../src/world/envMap.js');
+  const { createPlayerPickup } = await import('../src/world/pickup.js');
+
+  const scene = new THREE.Scene();
+  const foliage = buildGroundFoliage(scene, { shadows: true });
+  assert.ok(foliage.group.getObjectByName('foliage-grass-tufts'));
+  assert.ok(foliage.group.getObjectByName('foliage-fallen-leaves'));
+  assert.ok(foliage.group.getObjectByName('foliage-wildflowers'));
+  assert.ok(foliage.group.getObjectByName('foliage-drifting-leaves'));
+  foliage.update(0.05, { playerPos: { x: 0, z: 0 }, rain: 0 });
+  assert.equal(foliage.group.getObjectByName('foliage-drifting-leaves').visible, true);
+  foliage.update(0.05, { playerPos: { x: 0, z: 0 }, rain: 0.9 });
+  assert.equal(foliage.group.getObjectByName('foliage-drifting-leaves').visible, false);
+
+  // Headless renderer without WebGL context safely no-ops.
+  const env = createSkyEnvMap(null, scene, { shadows: true });
+  assert.doesNotThrow(() => env.update({ skyTop: 0x4a7ea4, skyBottom: 0xc2d2dc }, 1));
+  assert.doesNotThrow(() => env.dispose());
+
+  // Pickup volumetric headlights toggle on at night and off at midday.
+  const car = createPlayerPickup({ shadows: true });
+  const headlights = car.getObjectByName('pickup-headlights');
+  assert.ok(headlights);
+  car.userData.updateHeadlights(12 * 60, 0, false);
+  assert.equal(headlights.visible, false);
+  car.userData.updateHeadlights(21 * 60, 0, true);
+  assert.equal(headlights.visible, true);
+});
+
+test('living world bundle and live Look Presets work cleanly across time, rain, driving, and TV state', async () => {
+  const { buildLivingWorld } = await import('../src/world/livingWorld.js');
+  const { createDisplay, LOOK_PRESETS } = await import('../src/systems/display.js');
+
+  const applied = { preset: null, strength: null, grain: null };
+  const renderer = { toneMappingExposure: 1 };
+  const post = {
+    setPreset(p) { applied.preset = p; },
+    setGradeStrength(v) { applied.strength = v; },
+    setGrain(on) { applied.grain = on; }
+  };
+  const display = createDisplay({ renderer, post, storage: null });
+  assert.equal(display.get().preset, 'classic');
+  display.setPreset('autumn');
+  assert.equal(display.get().preset, 'autumn');
+  assert.equal(applied.preset, LOOK_PRESETS.autumn);
+  assert.ok(renderer.toneMappingExposure > 1.08);
+  display.setPreset('unknown-id');
+  assert.equal(display.get().preset, 'classic');
+
+  const scene = new THREE.Scene();
+  const lw = buildLivingWorld(scene, { shadows: true });
+  assert.ok(lw.group.getObjectByName('chimney-smoke'));
+  assert.ok(lw.group.getObjectByName('pickup-exhaust'));
+  assert.ok(lw.group.getObjectByName('rain-puddles'));
+  assert.ok(lw.group.getObjectByName('sky-birds'));
+  assert.ok(lw.group.getObjectByName('powerline-crows'));
+  assert.ok(lw.group.getObjectByName('interior-sunbeams'));
+  assert.ok(lw.group.getObjectByName('tv-wall-glow'));
+
+  // Clear morning: chimney smoke, birds, and sunbeams visible; puddles hidden; TV off.
+  lw.update(0.05, { minutes: 8 * 60 + 30, rain: 0, driving: false, tvOn: false });
+  assert.equal(lw.group.getObjectByName('chimney-smoke').visible, true);
+  assert.equal(lw.group.getObjectByName('sky-birds').visible, true);
+  assert.equal(lw.group.getObjectByName('interior-sunbeams').visible, true);
+  assert.equal(lw.group.getObjectByName('rain-puddles').visible, false);
+  assert.equal(lw.group.getObjectByName('tv-wall-glow').intensity, 0);
+
+  // Rainy night with TV on: puddles visible, birds hidden, TV bounce light active.
+  lw.update(0.05, { minutes: 21 * 60, rain: 0.85, driving: false, tvOn: true });
+  assert.equal(lw.group.getObjectByName('rain-puddles').visible, true);
+  assert.equal(lw.group.getObjectByName('sky-birds').visible, false);
+  assert.ok(lw.group.getObjectByName('tv-wall-glow').intensity > 2);
+
+  // Driving with either a Three.js Object3D or car API wrapper never throws and activates exhaust.
+  const carMesh = new THREE.Group();
+  lw.update(0.05, { minutes: 12 * 60, rain: 0, car: carMesh, driving: true, tvOn: false });
+  assert.equal(lw.group.getObjectByName('pickup-exhaust').visible, true);
+  lw.update(0.05, { minutes: 12 * 60, rain: 0, car: { object: carMesh }, driving: true, tvOn: false });
+  assert.equal(lw.group.getObjectByName('pickup-exhaust').visible, true);
+});
+
+test('valley graphics upgrades: normal relief, 3D mountains, night porch spills, waving flags, tree sway, and storm effects', async () => {
+  const { buildValleyGraphics } = await import('../src/world/valleyGraphics.js');
+
+  // Verify analytical normal relief in surfaces.js (with zero dFdx calls).
+  const mat = createVertexMaterial();
+  const sh = fakeShader();
+  mat.onBeforeCompile(sh);
+  assert.match(sh.fragmentShader, /reliefDist/);
+  assert.doesNotMatch(sh.fragmentShader, /dFdx\(/);
+
+  const scene = new THREE.Scene();
+  const tree = new THREE.Group();
+  tree.name = 'tree';
+  scene.add(tree);
+
+  const vg = buildValleyGraphics(scene, { shadows: true });
+  assert.ok(vg.group.getObjectByName('valley-mountains-3d'));
+  assert.ok(vg.group.getObjectByName('valley-pine-ridge'));
+  assert.ok(vg.group.getObjectByName('night-porch-spills'));
+  assert.ok(vg.group.getObjectByName('valley-flags'));
+  assert.ok(vg.group.getObjectByName('rain-splashes'));
+  assert.ok(vg.group.getObjectByName('storm-lightning'));
+
+  // Midday dry: porch spills & rain splashes hidden, tree gently sways.
+  vg.update(0.1, { playerPos: { x: 0, z: 0 }, minutes: 12 * 60, rain: 0 });
+  assert.equal(vg.group.getObjectByName('night-porch-spills').visible, false);
+  assert.equal(vg.group.getObjectByName('rain-splashes').visible, false);
+  assert.notEqual(tree.rotation.z, 0);
+
+  // Night storm: porch spills & rain splashes visible.
+  vg.update(0.1, { playerPos: { x: 0, z: 0 }, minutes: 21 * 60, rain: 0.85 });
+  assert.equal(vg.group.getObjectByName('night-porch-spills').visible, true);
+  assert.equal(vg.group.getObjectByName('rain-splashes').visible, true);
 });
