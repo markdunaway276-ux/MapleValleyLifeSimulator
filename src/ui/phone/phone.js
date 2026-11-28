@@ -564,6 +564,8 @@ export function createPhone({
   getPhotoContext = null,
   hangPhoto = null,
   getTownEvents = null,
+  getHomeTheme = null,
+  setHomeTheme = null,
   radio = null
 } = {}) {
   ensureStyles();
@@ -695,6 +697,8 @@ export function createPhone({
     getHomeDecor: typeof getHomeDecor === 'function' ? getHomeDecor : null,
     buyHomeDecor: typeof buyHomeDecor === 'function' ? buyHomeDecor : null,
     onHomeDecorChange: typeof onHomeDecorChange === 'function' ? onHomeDecorChange : null,
+    getHomeTheme: typeof getHomeTheme === 'function' ? getHomeTheme : null,
+    setHomeTheme: typeof setHomeTheme === 'function' ? setHomeTheme : null,
     getFriendship: typeof getFriendship === 'function' ? getFriendship : null,
     onTextSent: typeof onTextSent === 'function' ? onTextSent : null,
     wallpapers: WALLPAPERS,

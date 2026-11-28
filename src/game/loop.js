@@ -57,6 +57,7 @@ export function startLoop(g) {
       g.townEvents.syncWithClock();
       g.townEventsProps?.sync?.();
     }
+    g.petActor?.update?.(delta, { playerPos: player.position, driving: mode.driving() });
     g.npcs.update(delta, {
       player,
       talkingId: g.dialogue.currentNpc() || g.cutscene?.currentNpc?.() || null,

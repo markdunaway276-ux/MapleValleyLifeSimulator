@@ -8,6 +8,16 @@
 
 export const CHANGELOG = [
   {
+    version: '0.18',
+    date: '2026-11-28',
+    title: 'Adoptable Pet (Maple) & Cozy Home Upgrade',
+    notes: [
+      'Meet Maple, a friendly ginger tabby cat wandering Maple Lane! Pet her daily or offer fresh fish/snacks to build Bond (3/3) and adopt her — once adopted, press E anytime to have her follow you on walks or curl up for a nap inside your house.',
+      'Cozy Home Upgrade: added 3 new 3D items in the Phone Home app — Cozy Pet Bed (where Maple naps!), Warm String Lights, and Kitchen Espresso Corner.',
+      'Added 4 switchable Home Themes in the Phone Home app (Classic, Valley Sage, Autumn Cabin, and Misty Morning) that tint your house interior live.'
+    ]
+  },
+  {
     version: '0.17',
     date: '2026-11-28',
     title: 'Weekly Town Events (Live Calendar)',

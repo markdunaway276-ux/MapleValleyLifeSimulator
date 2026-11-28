@@ -33,8 +33,8 @@ All committed assets must be **CC0** or **CC-BY** (credited in `assets/models/CR
 - [x] **3. Weekly Town Events (Live Calendar)**
   - Saturday Park Farmers' Market (8 AM–6 PM) with 3 striped pop-up stalls, rotating weekly seeds & treats, and +20% produce/fish sale bonus.
   - Sunday Pond Fishing Derby (7 AM–7 PM) with a live leaderboard stand, $45 grand prize, and a permanent 3D Golden Trout Trophy displayed inside your house, plus live event markers in the Phone Calendar app.
-- [ ] **4. Adoptable Pet & Cozy Home Upgrade**
-  - Befriend a wandering town cat or dog with treats or fish so it moves into your yard/house, follows you on walks, and naps indoors.
-  - Deeper home customization (wall/floor themes, new cozy decor, framed photos).
+- [x] **4. Adoptable Pet & Cozy Home Upgrade**
+  - Befriend Maple the ginger tabby cat with treats/fish or daily pets so she moves into your house, follows you on walks, and naps indoors on her Cozy Pet Bed.
+  - Added 4 switchable interior Home Themes (Classic, Valley Sage, Autumn Cabin, Misty Morning) and 3 new cozy 3D decor items (Cozy Pet Bed, Warm String Lights, Kitchen Espresso Corner).
 - [ ] **5. Mystery Chapter 3 (Next Story Arc)**
   - Continue from `src/systems/mysteryChapter2.js` and rare pond clues: night-time investigation with a flashlight, friendship-aware dialogue branches, and a new town discovery.

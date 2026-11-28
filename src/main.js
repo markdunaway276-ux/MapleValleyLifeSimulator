@@ -28,6 +28,8 @@ import { createFramedPhotos } from './world/framedPhotos.js';
 import { createOddJobs } from './systems/oddJobs.js';
 import { createTownEvents } from './systems/townEvents.js';
 import { buildTownEventsProps } from './world/townEventsProps.js';
+import { createPet } from './systems/pet.js';
+import { buildPetActor } from './world/petActor.js';
 import { createQuestBoard } from './systems/questBoard.js';
 import { createHomeDecor } from './world/homeDecor.js';
 import { createParcelDelivery } from './systems/parcelDelivery.js';
@@ -162,7 +164,7 @@ const lights = createInteriorLights({ scene, dayNight, getTime: () => clock.getT
 if (saveData.interiorLights != null) lights.apply(saveData);
 const tvSet = createTvSet({ scene, sfx, save, getPosition: () => player.position });
 if (saveData.tv != null) tvSet.apply(saveData);
-const homeDecor = createHomeDecor({ scene, shadows: quality.shadows, saved: saveData.homeDecor });
+const homeDecor = createHomeDecor({ scene, shadows: quality.shadows, saved: saveData.homeDecor, savedTheme: saveData.homeTheme });
 Object.assign(g, { needs, skills, lights, tvSet, homeDecor });
 
 // The interior is built when the house model has loaded; this may run again then.
@@ -173,6 +175,7 @@ function installInteriorInteractables(s) {
   registerTvInteractable(s);
   lights.refresh();
   tvSet.refresh({ position: player.position, indoor: isInsideMainHouse(s, player.position) });
+  homeDecor.applyThemeToInterior();
 }
 scene.userData.onInteriorReady = installInteriorInteractables;
 installInteriorInteractables(scene);
@@ -558,7 +561,19 @@ townEvents.apply(saveData);
 scene.userData.townEvents = townEvents;
 const townEventsProps = buildTownEventsProps(scene, quality, townEvents);
 
-Object.assign(g, { fishing, cooking, cookingMenu, gardening, framedPhotos, oddJobs, townEvents, townEventsProps, questBoard });
+const pet = createPet({
+  clock,
+  inventory,
+  needs,
+  sfx,
+  toast: (msg) => g.hud?.toast?.(msg),
+  save
+});
+pet.apply(saveData);
+scene.userData.pet = pet;
+const petActor = buildPetActor(scene, quality, pet);
+
+Object.assign(g, { fishing, cooking, cookingMenu, gardening, framedPhotos, oddJobs, townEvents, townEventsProps, pet, petActor, questBoard });
 
 const getTasks = () => {
   if (storyQuest.stage === 'done' && mysteryChapter2.stage === 'locked') mysteryChapter2.unlock();
@@ -646,6 +661,8 @@ const phone = createPhone({
   getHomeDecor: () => homeDecor.getOwned(),
   buyHomeDecor: (id) => homeDecor.buy(id, { money, sfx, toast: (msg) => g.hud?.toast?.(msg), save }),
   onHomeDecorChange: (fn) => homeDecor.onChange(fn),
+  getHomeTheme: () => homeDecor.getTheme(),
+  setHomeTheme: (id) => homeDecor.setTheme(id, { save, toast: (msg) => g.hud?.toast?.(msg) }),
   getFriendship: (id) => friendship.get(id),
   onTextSent: (id, name) => friendship.add(id, 5, name),
   radio,
