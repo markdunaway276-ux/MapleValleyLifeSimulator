@@ -64,10 +64,16 @@ export function createQuestBoard({
   toast = () => {},
   save = () => {},
   friendship = null,
-  getPhotoCount = () => 0
+  getPhotoIds = () => []
 } = {}) {
   const active = new Set();
   const completed = new Set();
+  // Photo ids already in the Gallery when the postcard quest was taken: only a new photo counts.
+  let postcardBaseline = [];
+  const photoIds = () => {
+    try { const ids = getPhotoIds(); return Array.isArray(ids) ? ids : []; } catch { return []; }
+  };
+  const hasNewPhoto = () => photoIds().some((id) => !postcardBaseline.includes(id));
 
   const byId = (id) => QUEST_CATALOG.find(q => q.id === id) || null;
 
@@ -75,6 +81,7 @@ export function createQuestBoard({
     const def = byId(id);
     if (!def || active.has(id) || completed.has(id)) return false;
     active.add(id);
+    if (id === 'board-park-photo') postcardBaseline = photoIds();
     if (!silent) {
       toast(`New quest (${QUEST_SOURCES[def.source] || 'Lead'}): ${def.title}`);
       sfx?.play?.('phone-notification');
@@ -89,7 +96,7 @@ export function createQuestBoard({
     active.delete(id);
     completed.add(id);
     if (def.rewardCash) money?.add?.(def.rewardCash);
-    if (def.rewardMood) needs?.change?.('mood', def.rewardMood);
+    if (def.rewardMood) needs?.add?.('mood', def.rewardMood);
     if (def.rewardFriendship && def.npcId) friendship?.add?.(def.npcId, def.rewardFriendship);
     sfx?.play?.('pickup');
     toast(message || `Quest complete: ${def.title}${def.rewardCash ? ` (+$${def.rewardCash})` : ''}`);
@@ -142,7 +149,7 @@ export function createQuestBoard({
     }
 
     // 2) Hank: "Maple Lane Postcard"
-    if (npcId === 'hank' && active.has('board-park-photo') && getPhotoCount() > 0) {
+    if (npcId === 'hank' && active.has('board-park-photo') && hasNewPhoto()) {
       return {
         lines: [
           "Hey, nice shot on your phone! That'll make a great Maple Lane postcard for the lobby rack."
@@ -255,12 +262,14 @@ export function createQuestBoard({
     getTasks,
     isActive: (id) => active.has(id),
     isCompleted: (id) => completed.has(id),
-    serialize: () => ({ active: [...active], completed: [...completed] }),
+    serialize: () => ({ active: [...active], completed: [...completed], postcardBaseline: [...postcardBaseline] }),
     apply(data) {
       active.clear();
       completed.clear();
       const qb = data?.questBoard;
+      postcardBaseline = [];
       if (!qb || typeof qb !== 'object') return;
+      if (Array.isArray(qb.postcardBaseline)) postcardBaseline = qb.postcardBaseline.filter((id) => typeof id === 'string');
       for (const id of qb.completed || []) if (byId(id)) completed.add(id);
       for (const id of qb.active || []) if (byId(id) && !completed.has(id)) active.add(id);
     }

@@ -444,36 +444,53 @@ test('Part 3: Pond Fishing catches fish/locket, sells to Vince, and open-ended m
   const { createQuestBoard } = await import('../src/systems/questBoard.js');
   const { buildPark } = await import('../src/world/park.js');
 
+  const { ITEM_DEFS } = await import('../src/data/items.js');
   const items = [];
+  // Same API as the real inventory (src/ui/inventory.js): addItem(id, count), consume(index, count).
   const inventory = {
     getItems: () => items,
-    has: (id) => items.some(it => it.id === id),
-    add(def, qty = 1) {
-      const existing = def.stackable ? items.find(it => it.id === def.id) : null;
-      if (existing) existing.count += qty;
-      else items.push({ ...def, count: qty });
-      return true;
+    addItem(id, qty = 1) {
+      const def = ITEM_DEFS[id];
+      if (!def) return null;
+      const existing = def.stackable ? items.find(it => it.id === id) : null;
+      if (existing) { existing.count += qty; return existing; }
+      const item = { ...def, count: qty };
+      items.push(item);
+      return item;
     },
     consume(idx, qty = 1) {
-      if (!items[idx]) return false;
+      if (!items[idx]) return null;
       items[idx].count -= qty;
       if (items[idx].count <= 0) items.splice(idx, 1);
-      return true;
+      return { id: 'x' };
     }
   };
   let cash = 0;
   const money = { add: (n) => { cash += n; }, get: () => cash };
   let energy = 80;
   let mood = 60;
+  // Same API as the real needs (src/systems/needs.js): get() snapshot, add(id, delta).
   const needs = {
     get: () => ({ energy, mood }),
-    change: (k, d) => { if (k === 'energy') energy += d; if (k === 'mood') mood += d; }
+    add: (k, d) => { if (k === 'energy') energy += d; if (k === 'mood') mood += d; }
   };
 
-  const qb = createQuestBoard({ inventory, money, needs, getPhotoCount: () => 1 });
+  let photoIds = ['old-photo'];
+  const qb = createQuestBoard({ inventory, money, needs, getPhotoIds: () => photoIds });
   const posted = qb.interactBoard();
   assert.equal(posted.id, 'board-fresh-trout');
   assert.equal(qb.getTasks()[0].sourceLabel, 'Notice Board');
+
+  // Postcard quest: a photo taken before accepting does not count; a new one does.
+  assert.equal(qb.interactBoard().id, 'board-park-photo');
+  assert.equal(qb.pageFor('hank'), null);
+  photoIds = ['new-photo', 'old-photo'];
+  const hankPage = qb.pageFor('hank');
+  assert.ok(hankPage && hankPage.action);
+  hankPage.action.run();
+  assert.equal(qb.isCompleted('board-park-photo'), true);
+  assert.equal(mood, 75);
+  cash = 0;
 
   let rollIdx = 0;
   const rolls = [0.60, 0.99];
@@ -486,9 +503,13 @@ test('Part 3: Pond Fishing catches fish/locket, sells to Vince, and open-ended m
   });
   const c1 = fishing.cast();
   assert.equal(c1.id, 'trout');
+  assert.ok(items.some(it => it.id === 'trout'), 'caught fish goes in the bag');
+  assert.equal(energy, 76);
+  assert.equal(mood, 85);
   const c2 = fishing.cast();
   assert.equal(c2.id, 'old-locket');
   assert.equal(qb.isActive('pond-locket-lead'), true);
+  assert.ok(items.some(it => it.id === 'old-locket'), 'locket goes in the bag');
 
   const vinceQuestPage = qb.pageFor('vince');
   assert.ok(vinceQuestPage && vinceQuestPage.action);

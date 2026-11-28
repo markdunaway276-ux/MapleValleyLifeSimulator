@@ -31,13 +31,18 @@ export function createFishing({
   let caughtCount = 0;
   let foundLocket = false;
 
+  function hasItem(id) {
+    const items = inventory?.getItems?.() ?? [];
+    return items.some((it) => it && it.id === id);
+  }
+
   function pickCatch() {
     const r = rng();
     let acc = 0;
     for (const entry of FISH_TABLE) {
       acc += entry.weight;
       if (r <= acc) {
-        if (entry.unique && (foundLocket || inventory?.has?.(entry.id))) {
+        if (entry.unique && (foundLocket || hasItem(entry.id))) {
           return FISH_TABLE[1]; // Maple Trout if locket already found
         }
         return entry;
@@ -56,8 +61,8 @@ export function createFishing({
     const itemDef = ITEM_DEFS[catchDef.id];
     if (!itemDef) return null;
 
-    if (inventory && typeof inventory.add === 'function') {
-      const added = inventory.add({ ...itemDef }, 1);
+    if (inventory && typeof inventory.addItem === 'function') {
+      const added = inventory.addItem(catchDef.id, 1);
       if (!added) {
         toast('Your bag is full! Sell or store something first.');
         sfx?.play?.('click');
@@ -66,8 +71,8 @@ export function createFishing({
     }
 
     clock?.advance?.(10);
-    needs?.change?.('energy', -4);
-    needs?.change?.('mood', 10);
+    needs?.add?.('energy', -4);
+    needs?.add?.('mood', 10);
     caughtCount += 1;
     if (catchDef.id === 'old-locket') {
       foundLocket = true;

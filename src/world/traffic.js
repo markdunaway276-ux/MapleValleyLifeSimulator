@@ -130,8 +130,13 @@ export function buildTownTraffic(scene, quality = {}) {
 
   const laneEastZ = STREET.roadCenterZ - 2.2;
   const laneWestZ = STREET.roadCenterZ + 2.2;
-  const minX = -118;
-  const maxX = 56;
+  // Full length of the through road: far west on Route 9 to where the park road
+  // turns north (x 115). Cars only vanish / reappear at an end while you are far
+  // from it, so you never see one pop in or out.
+  const minX = -280;
+  const maxX = (STREET.expansion?.roads?.[0]?.maxX ?? 115) - 5;
+  const HIDE_DIST = 38;
+  const world = scene.userData && scene.userData.colliders;
 
   const cars = TRAFFIC_DEFS.map((def) => {
     const built = createTrafficCar(def, shadows);
@@ -139,15 +144,30 @@ export function buildTownTraffic(scene, quality = {}) {
     built.group.position.set(def.startX, SURFACE_Y.road, z);
     built.group.rotation.y = def.dir > 0 ? 0 : Math.PI;
     root.add(built.group);
+    // Moving box collider so the player (on foot or in the pickup) can't pass through.
+    let collider = null;
+    if (world && typeof world.addHouse === 'function') {
+      collider = world.addHouse({ id: def.id, ...carBox(def.startX, z, def.length) });
+    }
     return {
       ...def,
       ...built,
       x: def.startX,
       z,
       curSpeed: def.speed,
-      braking: false
+      braking: false,
+      collider,
+      waiting: false
     };
   });
+
+  function carBox(x, z, length) {
+    return { minX: x - length / 2 - 0.1, maxX: x + length / 2 + 0.1, minZ: z - 0.92, maxZ: z + 0.92 };
+  }
+
+  function farFrom(playerPos, x, z) {
+    return !playerPos || Math.hypot(playerPos.x - x, playerPos.z - z) > HIDE_DIST;
+  }
 
   function obstacleAhead(car, obstacles) {
     for (const ob of obstacles) {
@@ -166,6 +186,7 @@ export function buildTownTraffic(scene, quality = {}) {
     cars,
     update(delta, { minutes = 600, rain = 0, playerPos = null, playerCar = null, opening = false } = {}) {
       root.visible = !opening;
+      for (const c of cars) if (c.collider) c.collider.disabled = opening || c.waiting;
       if (opening) return;
 
       const dt = Math.max(0, Math.min(0.1, Number(delta) || 0));
@@ -192,11 +213,39 @@ export function buildTownTraffic(scene, quality = {}) {
         c.curSpeed += Math.sign(targetSpeed - c.curSpeed) * Math.min(Math.abs(targetSpeed - c.curSpeed), accel * dt);
         c.braking = blocked || c.curSpeed < 0.25;
 
+        const startX = c.dir > 0 ? minX : maxX;
+        if (c.waiting) {
+          // Off the end of the road: come back only while nobody is watching the start.
+          if (farFrom(playerPos, startX, c.z)) {
+            c.waiting = false;
+            c.x = startX;
+            c.group.visible = true;
+            c.curSpeed = c.speed;
+          } else {
+            continue;
+          }
+        }
+
         c.x += c.dir * c.curSpeed * dt;
-        if (c.dir > 0 && c.x > maxX) c.x = minX;
-        else if (c.dir < 0 && c.x < minX) c.x = maxX;
+        const pastEnd = (c.dir > 0 && c.x > maxX) || (c.dir < 0 && c.x < minX);
+        if (pastEnd) {
+          const endX = c.dir > 0 ? maxX : minX;
+          if (farFrom(playerPos, endX, c.z)) {
+            c.waiting = true;
+            c.group.visible = false;
+            if (c.collider) c.collider.disabled = true;
+            continue;
+          }
+          // You're watching the end of the road: hold there until you look away / leave.
+          c.x = endX;
+          c.curSpeed = 0;
+        }
 
         c.group.position.set(c.x, SURFACE_Y.road, c.z);
+        if (c.collider) {
+          Object.assign(c.collider, carBox(c.x, c.z, c.length));
+          c.collider.disabled = false;
+        }
 
         const spin = (c.curSpeed * dt) / 0.32;
         for (const w of c.wheels) w.rotation.z -= spin;

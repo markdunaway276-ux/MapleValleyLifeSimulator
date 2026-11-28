@@ -35,8 +35,35 @@ const AMBIENT_CHORDS = [
 ];
 
 export function createRadio({ isMuted = () => false } = {}) {
+  const PREFS_KEY = 'mapleValleyRadio';
   let stationId = 'off';
   let volume = 0.55;
+  // Last station you chose; it comes back on by itself once you're playing (not on the title or in the opening).
+  let resumeStation = 'off';
+  try {
+    const saved = JSON.parse(globalThis.localStorage?.getItem(PREFS_KEY) || 'null');
+    if (saved && typeof saved === 'object') {
+      if (RADIO_STATIONS.some((s) => s.id === saved.stationId)) resumeStation = saved.stationId;
+      if (Number.isFinite(saved.volume)) volume = Math.max(0, Math.min(1, saved.volume));
+    }
+  } catch { /* storage unavailable */ }
+
+  function savePrefs() {
+    try { globalThis.localStorage?.setItem(PREFS_KEY, JSON.stringify({ stationId, volume })); } catch { /* ignore */ }
+  }
+
+  // Browsers only allow sound after a click / key / tap, so the pond & breeze
+  // ambience starts on your first one instead of waiting for the radio.
+  let activated = false;
+  if (typeof window !== 'undefined' && typeof window.addEventListener === 'function') {
+    const unlock = () => {
+      activated = true;
+      window.removeEventListener('pointerdown', unlock, true);
+      window.removeEventListener('keydown', unlock, true);
+    };
+    window.addEventListener('pointerdown', unlock, true);
+    window.addEventListener('keydown', unlock, true);
+  }
   let audioCtx = null;
   let radioGain = null;
   let ambientGain = null;
@@ -182,7 +209,9 @@ export function createRadio({ isMuted = () => false } = {}) {
   function setStation(id) {
     const valid = RADIO_STATIONS.some(s => s.id === id) ? id : 'off';
     stationId = valid;
+    resumeStation = 'off';
     stepIndex = 0;
+    savePrefs();
     restartLoop();
     if (radioGain && audioCtx) {
       radioGain.gain.setTargetAtTime(stationId === 'off' || isMuted() ? 0 : volume, audioCtx.currentTime, 0.08);
@@ -199,6 +228,7 @@ export function createRadio({ isMuted = () => false } = {}) {
 
   function setVolume(v) {
     volume = Math.max(0, Math.min(1, Number(v) || 0));
+    savePrefs();
     if (radioGain && audioCtx) {
       radioGain.gain.setTargetAtTime(stationId === 'off' || isMuted() ? 0 : volume, audioCtx.currentTime, 0.05);
     }
@@ -210,7 +240,11 @@ export function createRadio({ isMuted = () => false } = {}) {
   const pondCx = pond ? (pond.minX + pond.maxX) / 2 : 74;
   const pondCz = pond ? (pond.minZ + pond.maxZ) / 2 : 12;
 
-  function update(delta, { playerPos = null, rain = 0, indoor = false } = {}) {
+  function update(delta, { playerPos = null, rain = 0, indoor = false, opening = false } = {}) {
+    if (!opening && activated) {
+      if (resumeStation !== 'off') setStation(resumeStation);
+      else if (!audioCtx) ensureAudio();
+    }
     if (!audioCtx) return;
     const muted = !!isMuted();
     const t = audioCtx.currentTime;
