@@ -35,6 +35,18 @@ export const CHANGELOG = [
     ]
   },
   {
+    version: '0.8.1',
+    date: '2026-11-28',
+    title: 'Fishing & Town Fixes',
+    notes: [
+      'Fish you catch now actually go in your bag (and fishing costs energy and lifts your mood), so you can sell them to Vince and finish the chowder and locket quests.',
+      'Quest mood rewards now apply, and the postcard quest needs a new photo taken after you accept it.',
+      'Passing cars are solid, drive the whole road from Route 9 to the park, and never pop in or out where you can see.',
+      'House furniture swaps to the new models piece by piece, so pieces never double up.',
+      'The radio remembers your station and volume, and the pond & breeze sounds play from the start.'
+    ]
+  },
+  {
     version: '0.8',
     date: '2026-11-28',
     title: 'Realism Pass 2: Cozy Home Furniture',

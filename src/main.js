@@ -433,11 +433,11 @@ const questBoard = createQuestBoard({
   toast: (msg) => g.hud?.toast?.(msg),
   save,
   friendship,
-  getPhotoCount: () => {
+  getPhotoIds: () => {
     try {
       const raw = JSON.parse(localStorage.getItem('mapleValleyLife_phonePhotos') || '[]');
-      return Array.isArray(raw) ? raw.length : 0;
-    } catch { return 0; }
+      return Array.isArray(raw) ? raw.map((p) => p && p.id).filter(Boolean) : [];
+    } catch { return []; }
   }
 });
 questBoard.apply(saveData);
