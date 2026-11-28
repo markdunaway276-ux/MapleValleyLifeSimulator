@@ -8,6 +8,16 @@
 
 export const CHANGELOG = [
   {
+    version: '0.19',
+    date: '2026-11-28',
+    title: 'Mystery Chapter 3: The East Creek Signal (Phase B Complete)',
+    notes: [
+      'New Story Chapter: after completing Chapter 2 (PO Box #14), Walt texts you about a strange amber glint by Maple Lane Park Pond after dark and lends you his Field Flashlight (press F or toggle from Bag).',
+      'Night-Time Investigation: explore the north-east bank of Maple Lane Pond after 7 PM with your Flashlight ON to uncover the East Creek Time Capsule.',
+      'Friendship-Aware Dialogue Branches: close friendships with Walt and Vince unlock extra hints, heartfelt backstory, and a $100 Town Steward bonus ($75 standard) plus an epilogue from Dr. Maya.'
+    ]
+  },
+  {
     version: '0.18',
     date: '2026-11-28',
     title: 'Adoptable Pet (Maple) & Cozy Home Upgrade',

@@ -34,6 +34,9 @@ import { createQuestBoard } from './systems/questBoard.js';
 import { createHomeDecor } from './world/homeDecor.js';
 import { createParcelDelivery } from './systems/parcelDelivery.js';
 import { createMysteryChapter2 } from './systems/mysteryChapter2.js';
+import { createMysteryChapter3 } from './systems/mysteryChapter3.js';
+import { createFlashlight } from './systems/flashlight.js';
+import { buildMysteryClue } from './world/mysteryClue.js';
 import { createFriendship } from './systems/friendship.js';
 import { createPlayer } from './core/player.js';
 import { setupInput } from './core/input.js';
@@ -267,6 +270,11 @@ const inventory = createInventory({
     if (use && use.action === 'open') {
       inventory.close();
       if (g.phone) g.phone.open();
+      return;
+    }
+    if (use && use.action === 'flashlight') {
+      inventory.close();
+      g.flashlight?.toggle?.();
       return;
     }
     if (use && use.effects && typeof use.effects === 'object') {
@@ -573,12 +581,40 @@ pet.apply(saveData);
 scene.userData.pet = pet;
 const petActor = buildPetActor(scene, quality, pet);
 
-Object.assign(g, { fishing, cooking, cookingMenu, gardening, framedPhotos, oddJobs, townEvents, townEventsProps, pet, petActor, questBoard });
+const flashlight = createFlashlight({
+  camera,
+  inventory,
+  sfx,
+  toast: (msg) => g.hud?.toast?.(msg),
+  isAllowed: () => mode.started() && !mode.uiBlocked()
+});
+
+const mysteryChapter3 = createMysteryChapter3({
+  savedStage: saveData.mysteryChapter3,
+  clock,
+  money,
+  needs,
+  inventory,
+  inbox,
+  friendship,
+  flashlight,
+  sfx,
+  save,
+  toast: (msg) => g.hud?.toast?.(msg)
+});
+const mysteryClue = buildMysteryClue(scene, quality, mysteryChapter3);
+
+Object.assign(g, {
+  fishing, cooking, cookingMenu, gardening, framedPhotos, oddJobs,
+  townEvents, townEventsProps, pet, petActor, flashlight, mysteryChapter3, mysteryClue, questBoard
+});
 
 const getTasks = () => {
   if (storyQuest.stage === 'done' && mysteryChapter2.stage === 'locked') mysteryChapter2.unlock();
+  if (mysteryChapter2.stage === 'done' && mysteryChapter3.stage === 'locked') mysteryChapter3.unlock();
   return [
     parcelDelivery.task(),
+    mysteryChapter3.task(),
     mysteryChapter2.task(),
     storyQuest.task(),
     ...questBoard.getTasks(),
@@ -672,8 +708,10 @@ const dialogue = createDialogue({
   getExtraPages: (id) => {
     friendship.add(id, 8, getNpc(id)?.name);
     if (storyQuest.stage === 'done' && mysteryChapter2.stage === 'locked') mysteryChapter2.unlock();
+    if (mysteryChapter2.stage === 'done' && mysteryChapter3.stage === 'locked') mysteryChapter3.unlock();
     return [
       ...(g.dayOne?.pagesFor(id) ?? []),
+      mysteryChapter3.pageFor(id),
       mysteryChapter2.pageFor(id),
       parcelDelivery.pageFor(id),
       questBoard.pageFor(id),

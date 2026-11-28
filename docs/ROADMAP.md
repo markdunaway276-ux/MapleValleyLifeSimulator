@@ -21,7 +21,7 @@ All committed assets must be **CC0** or **CC-BY** (credited in `assets/models/CR
 
 ---
 
-## Phase B — Planned Gameplay Builds
+## Phase B — Gameplay Builds (Complete)
 
 - [x] **1. Home Cooking & Backyard Gardening**
   - Cook real meals at your kitchen stove using Market groceries, backyard produce, and pond-caught fish (Home Meal, Morning Pancakes, Garden Salad, Fresh Tomato Soup, Pan-Seared Trout, Hearty Harvest Stew, Warm Cocoa) for stronger hunger/energy buffs and neighbour gifts.
@@ -36,5 +36,5 @@ All committed assets must be **CC0** or **CC-BY** (credited in `assets/models/CR
 - [x] **4. Adoptable Pet & Cozy Home Upgrade**
   - Befriend Maple the ginger tabby cat with treats/fish or daily pets so she moves into your house, follows you on walks, and naps indoors on her Cozy Pet Bed.
   - Added 4 switchable interior Home Themes (Classic, Valley Sage, Autumn Cabin, Misty Morning) and 3 new cozy 3D decor items (Cozy Pet Bed, Warm String Lights, Kitchen Espresso Corner).
-- [ ] **5. Mystery Chapter 3 (Next Story Arc)**
-  - Continue from `src/systems/mysteryChapter2.js` and rare pond clues: night-time investigation with a flashlight, friendship-aware dialogue branches, and a new town discovery.
+- [x] **5. Mystery Chapter 3 (The East Creek Signal)**
+  - Continues from `src/systems/mysteryChapter2.js`: borrow Walt's Field Flashlight (`[F]`), investigate the glowing East Creek stone cairn at Maple Lane Park Pond after dark, and unlock friendship-aware dialogue branches with Walt and Vince to protect Maple Lane Pond.

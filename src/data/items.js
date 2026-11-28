@@ -259,6 +259,23 @@ export const ITEM_DEFS = {
     description: 'Engraved "K.M. — Route 9" on the back. Walt at the Trailer Park might know who it belongs to.',
     color: '#b89448',
     stackable: false
+  },
+  flashlight: {
+    id: 'flashlight',
+    name: 'Field Flashlight',
+    icon: '🔦',
+    description: 'Walt’s heavy-duty flashlight. Press F or click Toggle Light to illuminate Maple Lane at night.',
+    color: '#d9a441',
+    stackable: false,
+    use: { action: 'flashlight', label: 'Toggle Light', consume: false }
+  },
+  'creek-capsule': {
+    id: 'creek-capsule',
+    name: 'East Creek Capsule',
+    icon: '🧭',
+    description: 'Brass-capped cylinder found by Maple Lane Pond at night, containing a spring-headwaters map and a note for Vince.',
+    color: '#8f6f3e',
+    stackable: false
   }
 };
 

@@ -33,6 +33,7 @@ export function gameState(g) {
     snackFavour: g.snackFavour.serialize(),
     storyQuest: g.storyQuest ? g.storyQuest.serialize() : undefined,
     mysteryChapter2: g.mysteryChapter2 ? g.mysteryChapter2.serialize() : undefined,
+    mysteryChapter3: g.mysteryChapter3 ? g.mysteryChapter3.serialize() : undefined,
     homeDecor: g.homeDecor ? g.homeDecor.serialize() : undefined,
     homeTheme: g.homeDecor ? g.homeDecor.getTheme() : undefined,
     parcelDelivery: g.parcelDelivery ? g.parcelDelivery.serialize() : undefined,
