@@ -115,6 +115,14 @@ export const ITEM_DEFS = {
     color: '#c97b36',
     stackable: true,
     use: { action: 'eat', label: 'Eat', need: 'hunger', amount: 75, sfx: 'eat' }
+  },
+  'kyle-parcel': {
+    id: 'kyle-parcel',
+    name: 'Kyle’s Parcel',
+    icon: '📦',
+    description: 'Unclaimed registered parcel from PO Box #14 containing a Maple Lane Clinic stamp and cedar key tag.',
+    color: '#9c7853',
+    stackable: false
   }
 };
 

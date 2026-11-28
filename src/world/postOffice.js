@@ -444,6 +444,17 @@ export function buildPostOffice(scene, quality) {
       ctx?.sfx?.play?.('cash');
       return 'pickUp';
     }
+    const ch2 = data.mysteryChapter2;
+    if (ch2 && ch2.stage === 'locked') {
+      ch2.unlock();
+      ctx?.sfx?.play?.('pickup');
+      return 'press';
+    }
+    if (ch2 && ch2.stage === 'hank') {
+      ctx?.toast?.('PO Box #14 has a pink parcel pickup slip — talk to Hank at the counter!');
+      ctx?.sfx?.play?.('click');
+      return 'press';
+    }
     ctx?.toast?.('PO Box #14 is empty. Check back after new mail arrives.');
     ctx?.sfx?.play?.('click');
     return 'press';

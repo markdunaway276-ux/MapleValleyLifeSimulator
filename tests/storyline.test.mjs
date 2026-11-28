@@ -368,5 +368,46 @@ test('Phase 2: Hank Post Office Parcel Delivery shift runs 3 stops, pays tips + 
   assert.equal(delivery.completedRoutes, 1);
 });
 
+test('Phase 4: Chapter 2 (PO Box #14) progresses locked -> hank -> maya -> walt -> done, texts inbox, and pays $50 reward', async () => {
+  const { createMysteryChapter2, CHAPTER2_REWARD } = await import('../src/systems/mysteryChapter2.js');
+  let cash = 0;
+  let mood = 50;
+  const msgs = [];
+  const bag = [];
+  const ch2 = createMysteryChapter2({
+    money: { add: (n) => { cash += n; } },
+    needs: { add: (k, d) => { if (k === 'mood') mood += d; } },
+    inventory: { add: (item) => bag.push(item) },
+    inbox: { add: (m) => msgs.push(m) }
+  });
+  assert.equal(ch2.stage, 'locked');
+  assert.equal(ch2.task(), null);
+
+  assert.equal(ch2.unlock(), true);
+  assert.equal(ch2.stage, 'hank');
+  assert.equal(msgs.length, 1);
+
+  const hankPage = ch2.pageFor('hank');
+  assert.ok(hankPage && hankPage.action);
+  assert.equal(hankPage.action.run(), true);
+  assert.equal(ch2.stage, 'maya');
+  assert.equal(bag[0].id, 'kyle-parcel');
+
+  const mayaPage = ch2.pageFor('maya');
+  assert.ok(mayaPage && mayaPage.action);
+  assert.equal(mayaPage.action.run(), true);
+  assert.equal(ch2.stage, 'walt');
+
+  const waltPage = ch2.pageFor('walt');
+  assert.ok(waltPage && waltPage.action);
+  assert.equal(waltPage.action.run(), true);
+  assert.equal(ch2.stage, 'done');
+  assert.equal(ch2.task().complete, true);
+  assert.equal(cash, CHAPTER2_REWARD);
+  assert.equal(mood, 80);
+  assert.equal(msgs.length, 3);
+});
+
+
 
 

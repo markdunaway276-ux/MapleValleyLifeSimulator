@@ -19,6 +19,7 @@ import { createCarInterior } from './world/carInterior.js';
 import { createScene } from './world/scene.js';
 import { createHomeDecor } from './world/homeDecor.js';
 import { createParcelDelivery } from './systems/parcelDelivery.js';
+import { createMysteryChapter2 } from './systems/mysteryChapter2.js';
 import { createPlayer } from './core/player.js';
 import { setupInput } from './core/input.js';
 import { isMobileDevice } from './core/device.js';
@@ -371,6 +372,17 @@ needs.onChange((snap) => {
 const neighbourFavour = createNeighbourFavour({ savedStage: saveData.neighbourFavour, money, save });
 const snackFavour = createSnackFavour({ savedStage: saveData.snackFavour, inventory, money, save });
 const storyQuest = createStoryQuest({ savedStage: saveData.storyQuest, money, save, toast: (msg) => g.hud?.toast?.(msg) });
+const mysteryChapter2 = createMysteryChapter2({
+  savedStage: saveData.mysteryChapter2,
+  money,
+  needs,
+  inventory,
+  inbox,
+  sfx,
+  save,
+  toast: (msg) => g.hud?.toast?.(msg)
+});
+scene.userData.mysteryChapter2 = mysteryChapter2;
 const parcelDelivery = createParcelDelivery({
   scene,
   player,
@@ -387,7 +399,10 @@ const parcelDelivery = createParcelDelivery({
   save,
   saved: saveData.parcelDelivery
 });
-const getTasks = () => [parcelDelivery.task(), storyQuest.task(), neighbourFavour.task(), snackFavour.task(), ...laundry.tasks()].filter(Boolean);
+const getTasks = () => {
+  if (storyQuest.stage === 'done' && mysteryChapter2.stage === 'locked') mysteryChapter2.unlock();
+  return [parcelDelivery.task(), mysteryChapter2.task(), storyQuest.task(), neighbourFavour.task(), snackFavour.task(), ...laundry.tasks()].filter(Boolean);
+};
 let pinnedTaskId = saveData.pinnedTaskId ?? null;
 const getPinnedTask = () => pinnedTaskId
   ? getTasks().find((task) => task.id === pinnedTaskId && !task.complete)
@@ -462,7 +477,10 @@ const phone = createPhone({
   playNotification: () => sfx.play('phone-notification')
 });
 const dialogue = createDialogue({
-  getExtraPages: (id) => [...(g.dayOne?.pagesFor(id) ?? []), parcelDelivery.pageFor(id), storyQuest.pageFor(id), neighbourFavour.pageFor(id), snackFavour.pageFor(id), dottiePage(id), dirtyPage(id)].filter(Boolean),
+  getExtraPages: (id) => {
+    if (storyQuest.stage === 'done' && mysteryChapter2.stage === 'locked') mysteryChapter2.unlock();
+    return [...(g.dayOne?.pagesFor(id) ?? []), mysteryChapter2.pageFor(id), parcelDelivery.pageFor(id), storyQuest.pageFor(id), neighbourFavour.pageFor(id), snackFavour.pageFor(id), dottiePage(id), dirtyPage(id)].filter(Boolean);
+  },
   canvas: renderer.domElement,
   isMobile,
   isStarted: () => mode.started(),
@@ -486,7 +504,7 @@ const cutscene = createCutscene({
   onIntroSeen: (id) => g.dayOne?.markIntroSeen?.(id)
 });
 mode.attach({ phone, dialogue });
-Object.assign(g, { phone, dialogue, cutscene, parcelDelivery, storyQuest, neighbourFavour, snackFavour, getPinnedTask });
+Object.assign(g, { phone, dialogue, cutscene, parcelDelivery, storyQuest, mysteryChapter2, neighbourFavour, snackFavour, getPinnedTask });
 setupInput(player, isMobile, { isInventoryOpen: () => mode.uiBlocked() || cutscene.isActive() });
 
 // --- HUD, mail, interact, start, loop -------------------------------------
