@@ -171,6 +171,19 @@ DIALOGUE.marcus = {
   ]
 };
 
+DIALOGUE.hank = {
+  default: [
+    { lines: ["Welcome to Maple Lane Post Office! Name's Hank — I've sorted every letter on this block for twenty years.", "New tenant over at Kyle's old place, right?"] },
+    { lines: ["He left in such a rush he never closed out PO Box #14 along the west wall.", "Go ahead and check it if you haven't — pretty sure there's an unclaimed money order still sitting in there."] }
+  ],
+  dusk: [
+    { lines: ["Just bagging up the last outgoing parcels for the Route 9 truck.", "Drop box out front gets swept every afternoon at 4:30 sharp."] }
+  ],
+  rain: [
+    { lines: ["Neither rain nor sleet, right? Though my boots sure wish it'd let up.", "Step on in and dry off."] }
+  ]
+};
+
 export function getDialoguePack(npcId, packs = DIALOGUE) {
   return (packs && packs[npcId]) || null;
 }

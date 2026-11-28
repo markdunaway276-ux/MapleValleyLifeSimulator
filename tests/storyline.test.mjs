@@ -233,3 +233,20 @@ test('nearestActionTarget prefers the looked-at target over closer side/behind t
   const yawToMailbox = Math.atan2(-1.2, -0.4);
   assert.equal(nearestActionTarget(scene, eye, 3, { yaw: yawToMailbox, pitch: 0 }), mailboxObj);
 });
+
+test('Maple Lane Post Office builds with walkable door, PO Box #14, curbside dropbox, and Hank clerk', async () => {
+  const { buildPostOffice, POST_OFFICE } = await import('../src/world/postOffice.js');
+  const scene = new THREE.Scene();
+  scene.userData = { doors: [], interactables: [], colliders: { addHouse: (h) => h } };
+  const root = buildPostOffice(scene, { shadows: false });
+  assert.equal(root.name, 'maple-lane-post-office');
+  assert.equal(scene.userData.postOffice, root);
+  assert.equal(scene.userData.doors.length, 1);
+  assert.ok(scene.userData.interactables.some((e) => e.id === 'post-office-dropbox'));
+  assert.ok(scene.userData.interactables.some((e) => e.id === 'post-office-pobox14'));
+  assert.ok(POST_OFFICE.x > 40);
+  const hank = getNpc('hank');
+  assert.ok(hank && hank.tagline === 'Maple Lane Post Office');
+  const dlg = getDialogue('hank');
+  assert.ok(dlg.pages.length >= 2);
+});

@@ -246,6 +246,28 @@ export const NPC_DEFS = [
       homeLabel: 'park entrance'
     },
     locationHint: 'Strolling near the Maple Lane Park plaza at the east end.'
+  },
+  {
+    // Postal clerk at Maple Lane Post Office behind the service counter.
+    id: 'hank',
+    name: 'Hank',
+    role: 'post-office',
+    tagline: 'Maple Lane Post Office',
+    jobId: null,
+    dialogueId: 'hank',
+    appearance: { skin: 'tan', shirt: 'navy', pants: 'charcoal' },
+    look: {
+      body: 'male',
+      hair: 'short',
+      hairColor: 0x5d5852,
+      outfit: { shirt: 0x2b4b73, pants: 0x252b34, shoes: 0x1b1815, longSleeve: true }
+    },
+    radius: NPC_RADIUS,
+    noticeRange: 2.8,
+    talkRange: NPC_TALK_RANGE,
+    patrol: { z: -11.35, x0: 47.05, x1: 47.05, startX: 47.05, speed: 0 },
+    stationary: { yaw: Math.PI },
+    locationHint: 'Behind the service counter inside Maple Lane Post Office.'
   }
 ];
 

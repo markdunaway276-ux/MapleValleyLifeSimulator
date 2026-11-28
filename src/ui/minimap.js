@@ -990,6 +990,10 @@ export function createHudMinimap({
         const p = ud.laundromat.position;
         list.push({ id: 'laundromat', name: 'Laundromat', position: () => ({ x: p.x, z: p.z + 2.0 }) });
       }
+      if (ud.postOffice) {
+        const p = ud.postOffice.position;
+        list.push({ id: 'post-office', name: 'Post Office', position: () => ({ x: p.x, z: p.z + 2.0 }) });
+      }
       if (ud.trailerPark) list.push({ id: 'trailer-park', name: 'Trailer Park', position: () => ({ x: -30.5, z: -4.3 }) });
       return list;
     },

@@ -15,6 +15,7 @@ import { buildClinic } from './clinic.js';
 import { buildGasStation } from './gasStation.js';
 import { buildPark } from './park.js';
 import { buildTrailerPark } from './trailerPark.js';
+import { buildPostOffice } from './postOffice.js';
 import { createWorldState } from '../systems/interactables.js';
 import { sampleLighting } from './daynight.js';
 import { HOUSE, LOOK, TEXTURE } from './palette.js';
@@ -551,6 +552,7 @@ export function createScene(quality) {
   buildApproachRoad(scene, quality);
   scene.userData.park = buildPark(scene, quality, { road: road.material, walk: walkMat, curb: curbMat });
   buildTrailerPark(scene, quality);
+  buildPostOffice(scene, quality);
   scene.userData.world = createWorldState(scene);
 
   const mailbox = createMailbox({ shadows: quality.shadows });
