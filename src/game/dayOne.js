@@ -429,35 +429,35 @@ export function createDayOne(g, saveData, beginPlay) {
 
   const press = isMobile ? 'tap the prompt' : 'press E';
   function renderTask() {
-    const dismiss = isMobile ? 'Skip tutorial' : 'Skip tutorial [X]';
+    const dismiss = isMobile ? '×' : 'Skip [X]';
+    action.setAttribute('aria-label', stage === 'day' ? 'Finish tutorial' : 'Skip tutorial');
     switch (stage) {
       case 'realtor':
         if (arriving) {
-          show('You made it', isMobile ? 'Tap to get out of the pickup.' : 'Press E to get out of the pickup.', dismiss);
+          show('You made it', isMobile ? 'Tap to exit the pickup.' : 'Press E to get out of the pickup.', dismiss);
           break;
         }
-        show('Meet your realtor', (isMobile
-          ? 'Use the left stick to walk and drag the right side of the screen to look. '
-          : 'Walk with WASD and look with the mouse. ') +
-          `Rita is waiting in front of your house across the street. Cross at the crosswalk and ${press} to talk.`, dismiss);
+        show('Meet Rita', (isMobile
+          ? 'Cross to your house and tap to talk to Rita.'
+          : 'Walk with WASD, look with mouse. Cross to your house and press E to talk to Rita.'), dismiss);
         break;
       case 'unload':
-        show('Unload the truck', carrying() === 'box'
-          ? `Carry the box inside and ${press} by the living-room wall to set it down. ${trunk} left in the truck bed.`
-          : `Go to the back of your truck and ${press} to take a box. ${trunk} left in the truck bed.`, dismiss);
+        show('Unload truck', carrying() === 'box'
+          ? `Set box by living-room wall (${trunk} left).`
+          : `Take a box from the truck bed (${trunk} left).`, dismiss);
         break;
       case 'unpack':
-        show('Unpack', `Open each box in the living room (${press}) and put your things away. ${pile} to go.`, dismiss);
+        show('Unpack', `Open each box inside (${pile} left).`, dismiss);
         break;
       case 'phone':
-        show('Check your phone', 'You have new messages — Rita texted you, and you found a folded note from the last tenant. Open your Phone from the HUD.', dismiss);
+        show('Check Phone', 'New message from Rita & a folded note from Kyle.', dismiss);
         break;
       case 'market':
-        show('Meet Maple Lane', `Follow the minimap to Maple Lane Market to meet Vince, or talk to Sam, June, and Walt down by the Trailer Park. ${press} to talk.`, dismiss);
+        show('Meet Maple Lane', 'Follow the map to the Market or talk to Sam, June & Walt.', dismiss);
         break;
       case 'day':
-        show('Make the day your own', 'Meet the neighbours, ask about favours or work at the Laundromat / Fuel & Go, and use your bed at home when you’re ready to end the day.',
-          isMobile ? 'Finish tutorial' : 'Finish tutorial [X]');
+        show('Day 1', 'Explore town, take a shift, or sleep at home to end the day.',
+          isMobile ? '×' : 'Done [X]');
         break;
     }
   }

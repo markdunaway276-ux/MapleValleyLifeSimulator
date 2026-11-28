@@ -48,9 +48,6 @@ const CSS = `
 #hud-save.is-visible { display: block; }
 #hud-save.is-flash { opacity: 0.95; }
 body.mobile #hud-save { top: calc(max(10px, env(safe-area-inset-top)) + 114px); }
-@media (max-width: 540px) {
-  body.mobile #hud-save { top: calc(max(8px, env(safe-area-inset-top)) + 216px); }
-}
 `;
 
 function ensureStyles() {
