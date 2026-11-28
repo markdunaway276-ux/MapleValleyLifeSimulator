@@ -31,6 +31,10 @@ test('computeIntroShot frames the NPC from the player side without clipping behi
   assert.ok(shot.pos.z < npcPos.z);
   assert.ok(shot.pos.y > 1.3 && shot.pos.y < 1.8);
   assert.equal(shot.lookAt.x, npcPos.x);
+  // Camera looks down -Z; verify the resulting quaternion aims directly at the NPC, not 180° away.
+  const camForward = new THREE.Vector3(0, 0, -1).applyQuaternion(shot.quat).normalize();
+  const toNpc = new THREE.Vector3().subVectors(shot.lookAt, shot.pos).normalize();
+  assert.ok(camForward.dot(toNpc) > 0.99, `expected camera to face NPC, got dot=${camForward.dot(toNpc)}`);
 });
 
 test('createCutscene plays intro once on first talk, holds through dialogue, then glides back to idle', () => {

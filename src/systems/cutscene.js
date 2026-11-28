@@ -131,10 +131,11 @@ export function computeIntroShot(npcPos, playerPos) {
     nz + dz * dist + rightZ * 0.32
   );
   const lookAt = new THREE.Vector3(nx, ny + 1.44, nz);
-  const dummy = new THREE.Object3D();
-  dummy.position.copy(camPos);
-  dummy.lookAt(lookAt);
-  return { pos: camPos, quat: dummy.quaternion.clone(), lookAt };
+  // Cameras look down -Z (unlike Object3D.lookAt which aims +Z), so use Matrix4.lookAt
+  // to build a true camera quaternion pointing straight at the NPC's face.
+  const lookMat = new THREE.Matrix4().lookAt(camPos, lookAt, new THREE.Vector3(0, 1, 0));
+  const quat = new THREE.Quaternion().setFromRotationMatrix(lookMat);
+  return { pos: camPos, quat, lookAt };
 }
 
 export function createCutscene({
