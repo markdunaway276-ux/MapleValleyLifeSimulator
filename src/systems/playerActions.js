@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { bevelBox } from '../world/shapes.js';
 import { getOptionColor, normalizeAppearance } from '../data/appearance.js';
-import { HAND_POSES, blendHandPose, loadFpHands, makeHand } from './fpHands.js';
+import { HAND_POSES, blendHandPose, loadFpHands, makeHand, skinTint } from './fpHands.js';
 import { loadGltf } from '../world/gltf.js';
 
 /**
@@ -614,17 +614,10 @@ export function createPlayerActions({ camera, appearance = null } = {}) {
   }
   let skinHex = 0xe0b896;
   function applySkinTone() {
-    // The texture is baked for the default (light) skin; other skin choices tint it.
-    const base = new THREE.Color(getOptionColor('skin', 'light'));
-    const want = new THREE.Color(skinHex);
-    const tint = new THREE.Color(
-      Math.min(1.6, want.r / Math.max(0.05, base.r)),
-      Math.min(1.6, want.g / Math.max(0.05, base.g)),
-      Math.min(1.6, want.b / Math.max(0.05, base.b)));
     for (const h of Object.values(hands)) {
       if (!h) continue;
       h.object.traverse((o) => {
-        if (o.isMesh && o.material && o.material.name === 'hands-skin') o.material.color.copy(tint);
+        if (o.isMesh && o.material && o.material.name === 'hands-skin') skinTint(o.material.color, skinHex);
       });
     }
   }
