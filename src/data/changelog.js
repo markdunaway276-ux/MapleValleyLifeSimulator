@@ -8,6 +8,15 @@
 
 export const CHANGELOG = [
   {
+    version: '0.12',
+    date: '2026-11-28',
+    title: 'Real First-Person Hands',
+    notes: [
+      'Your first-person hands are now a detailed, textured 3D model with knuckles, nails and natural skin colour that follows your skin choice.',
+      'Fingers move with what you do: they grip doors, baskets and the steering wheel, make a fist to knock, point to press buttons, open to wave, close around your new keys and tap while typing.'
+    ]
+  },
+  {
     version: '0.11',
     date: '2026-11-28',
     title: 'Welcoming Title Screen Overhaul',

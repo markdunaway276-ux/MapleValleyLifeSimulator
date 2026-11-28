@@ -9,3 +9,7 @@ Trimmed to 54 seconds with fades and encoded as MP3. The game applies a cabin ra
 ## Route 9 roadside deer
 
 [“deer”](https://sketchfab.com/3d-models/deer-29b42ccfdb494968ae9dfa5a8cef0e79) by [neighbor](https://sketchfab.com/kylekip) on Sketchfab, licensed under [Creative Commons Attribution 4.0 International](https://creativecommons.org/licenses/by/4.0/).
+
+## First-person hands
+
+[“First Person hands rigged”](https://sketchfab.com/3d-models/first-person-hands-rigged-547a45535f0c4fe787948f7a7a6a88db) by [DavidFischer](https://sketchfab.com/davidfischer) on Sketchfab, licensed under [Creative Commons Attribution 4.0 International](https://creativecommons.org/licenses/by/4.0/). Re-textured for Maple Lane (skin and nail textures); see `assets/characters/CREDITS.md`.

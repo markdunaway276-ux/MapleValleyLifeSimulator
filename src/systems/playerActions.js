@@ -1,6 +1,8 @@
 import * as THREE from 'three';
 import { bevelBox } from '../world/shapes.js';
 import { getOptionColor, normalizeAppearance } from '../data/appearance.js';
+import { HAND_POSES, blendHandPose, loadFpHands, makeHand } from './fpHands.js';
+import { loadGltf } from '../world/gltf.js';
 
 /**
  * Player action animations. One place every system asks for "the player is
@@ -36,7 +38,7 @@ const P = (x, y, z, rx = 0, ry = 0, rz = 0) => ({ p: [x, y, z], r: [rx, ry, rz] 
  */
 export const ACTIONS = {
   openDoor: {
-    clip: 'Opening Door Inwards', duration: 0.75,
+    hand: 'grip', clip: 'Opening Door Inwards', duration: 0.75,
     keys: [
       { t: 0, R: REST },
       { t: 0.3, R: P(0.15, -0.27, -0.44, 0.1, 0, 0) },
@@ -46,7 +48,7 @@ export const ACTIONS = {
     ]
   },
   closeDoor: {
-    clip: 'Opening Door Inwards', duration: 0.7,
+    hand: 'flat', clip: 'Opening Door Inwards', duration: 0.7,
     keys: [
       { t: 0, R: REST },
       { t: 0.35, R: P(0.14, -0.25, -0.6, 0.15, 0, 0) },
@@ -55,7 +57,7 @@ export const ACTIONS = {
     ]
   },
   knock: {
-    clip: 'Knocking', duration: 1.1,
+    hand: 'fist', clip: 'Knocking', duration: 1.1,
     keys: [
       { t: 0, R: REST },
       { t: 0.22, R: P(0.1, -0.1, -0.4, 0.6, 0, 0) },
@@ -68,7 +70,7 @@ export const ACTIONS = {
     ]
   },
   press: {
-    clip: 'Button Pushing', duration: 0.55,
+    hand: 'point', clip: 'Button Pushing', duration: 0.55,
     keys: [
       { t: 0, R: REST },
       { t: 0.45, R: P(0.09, -0.14, -0.52, 0.2, 0, 0) },
@@ -77,7 +79,7 @@ export const ACTIONS = {
     ]
   },
   grab: {
-    clip: 'Picking Up Object', duration: 0.8,
+    hand: 'hold', clip: 'Picking Up Object', duration: 0.8,
     keys: [
       { t: 0, R: REST },
       { t: 0.45, R: P(0.1, -0.22, -0.58, 0.1, 0, -0.2) },
@@ -86,7 +88,7 @@ export const ACTIONS = {
     ]
   },
   pickUp: {
-    clip: 'Picking Up', duration: 0.9, both: true,
+    hand: 'grip', clip: 'Picking Up', duration: 0.9, both: true,
     keys: [
       { t: 0, R: REST },
       { t: 0.45, R: P(0.17, -0.5, -0.5, 0.5, 0, 0.1), dip: -0.35 },
@@ -94,7 +96,7 @@ export const ACTIONS = {
     ]
   },
   load: {
-    clip: 'Gathering Objects', duration: 1.2, both: true,
+    hand: 'grip', clip: 'Gathering Objects', duration: 1.2, both: true,
     keys: [
       { t: 0, R: CARRY },
       { t: 0.35, R: P(0.15, -0.36, -0.6, 0.3, 0, 0.1), dip: -0.3 },
@@ -103,7 +105,7 @@ export const ACTIONS = {
     ]
   },
   unload: {
-    clip: 'Gathering Objects', duration: 1.1, both: true,
+    hand: 'grip', clip: 'Gathering Objects', duration: 1.1, both: true,
     keys: [
       { t: 0, R: REST },
       { t: 0.4, R: P(0.13, -0.33, -0.66, 0.4, 0, 0.3), dip: -0.3 },
@@ -112,7 +114,7 @@ export const ACTIONS = {
     ]
   },
   handOver: {
-    clip: 'Picking Up Object', duration: 0.9, both: true,
+    hand: 'grip', clip: 'Picking Up Object', duration: 0.9, both: true,
     keys: [
       { t: 0, R: CARRY },
       { t: 0.5, R: P(0.15, -0.26, -0.62, 0, 0, 0.1) },
@@ -120,7 +122,7 @@ export const ACTIONS = {
     ]
   },
   fold: {
-    clip: 'Folding Clothes', loop: 1.3, both: true,
+    hand: 'cupped', clip: 'Folding Clothes', loop: 1.3, both: true,
     keys: [
       { t: 0, R: P(0.2, -0.4, -0.46, 0.7, 0, 0.2), dip: -0.08 },
       { t: 0.3, R: P(0.06, -0.33, -0.43, 0.7, 0, 0.6), dip: -0.08 },
@@ -130,7 +132,7 @@ export const ACTIONS = {
     ]
   },
   restock: {
-    clip: 'Picking Up Object', loop: 1.5, both: true,
+    hand: 'hold', clip: 'Picking Up Object', loop: 1.5, both: true,
     keys: [
       { t: 0, R: P(0.15, -0.46, -0.44, 0.5, 0, 0.1), dip: -0.15 },
       { t: 0.5, R: P(0.15, -0.06, -0.56, -0.2, 0, 0.1) },
@@ -139,7 +141,7 @@ export const ACTIONS = {
     ]
   },
   typing: {
-    clip: 'Typing', loop: 0.5,
+    hand: 'typing', clip: 'Typing', loop: 0.5,
     keys: [
       { t: 0, R: P(0.13, -0.4, -0.42, 1.2), L: P(-0.13, -0.38, -0.42, 1.2) },
       { t: 0.5, R: P(0.12, -0.37, -0.43, 1.2), L: P(-0.14, -0.41, -0.42, 1.2) },
@@ -147,7 +149,7 @@ export const ACTIONS = {
     ]
   },
   sit: {
-    clip: 'Sitting', duration: 0.55, both: true,
+    hand: 'flat', clip: 'Sitting', duration: 0.55, both: true,
     keys: [
       { t: 0, R: REST },
       { t: 0.5, R: P(0.3, -0.48, -0.28, 1.0, 0, -0.3) },
@@ -155,7 +157,7 @@ export const ACTIONS = {
     ]
   },
   stand: {
-    clip: 'Stand Up', duration: 0.6, both: true,
+    hand: 'flat', clip: 'Stand Up', duration: 0.6, both: true,
     keys: [
       { t: 0, R: REST },
       { t: 0.35, R: P(0.3, -0.48, -0.3, 1.0, 0, -0.3) },
@@ -164,7 +166,7 @@ export const ACTIONS = {
   },
   takeKeys: {
     // Reach out palm up, the keys are dropped in, then bring them in to look at them.
-    clip: 'Picking Up Object', duration: 1.8, prop: { name: 'keys', from: 0.36, to: 0.92 },
+    hand: 'cupped', clip: 'Picking Up Object', duration: 1.8, prop: { name: 'keys', from: 0.36, to: 0.92 },
     keys: [
       { t: 0, R: REST },
       // Palm tilted toward you (fingers up) so the keys landing in it can be seen.
@@ -176,7 +178,7 @@ export const ACTIONS = {
     ]
   },
   liftBox: {
-    clip: 'Picking Up', duration: 1.0, both: true,
+    hand: 'carryBox', clip: 'Picking Up', duration: 1.0, both: true,
     keys: [
       { t: 0, R: REST },
       { t: 0.45, R: P(0.21, -0.5, -0.55, 0.3, 0, 1.25), dip: -0.4 },
@@ -184,7 +186,7 @@ export const ACTIONS = {
     ]
   },
   setBoxDown: {
-    clip: 'Gathering Objects', duration: 1.0, both: true,
+    hand: 'carryBox', clip: 'Gathering Objects', duration: 1.0, both: true,
     keys: [
       { t: 0, R: BOX_CARRY },
       { t: 0.5, R: P(0.21, -0.5, -0.55, 0.3, 0, 1.25), dip: -0.4 },
@@ -194,7 +196,7 @@ export const ACTIONS = {
   },
   unpack: {
     // Lift things out of a box on the floor and set them aside.
-    clip: 'Picking Up Object', loop: 1.4, both: true,
+    hand: 'hold', clip: 'Picking Up Object', loop: 1.4, both: true,
     keys: [
       { t: 0, R: P(0.12, -0.45, -0.5, 0.5, 0, 0.2), dip: -0.3 },
       { t: 0.35, R: P(0.16, -0.25, -0.5, 0.1, 0, 0.1), L: P(-0.12, -0.45, -0.5, 0.5, 0, -0.2), dip: -0.2 },
@@ -203,7 +205,7 @@ export const ACTIONS = {
     ]
   },
   eat: {
-    clip: 'Drinking', duration: 1.1,
+    hand: 'hold', clip: 'Drinking', duration: 1.1,
     prop: { name: 'snack', from: 0.12, to: 0.86 },
     keys: [
       { t: 0, R: REST },
@@ -214,7 +216,7 @@ export const ACTIONS = {
     ]
   },
   drink: {
-    clip: 'Drinking', duration: 1.15,
+    hand: 'hold', clip: 'Drinking', duration: 1.15,
     prop: { name: 'cup', from: 0.1, to: 0.88 },
     keys: [
       { t: 0, R: REST },
@@ -225,7 +227,7 @@ export const ACTIONS = {
     ]
   },
   unlockDoor: {
-    clip: 'Opening Door Inwards', duration: 0.95,
+    hand: 'hold', clip: 'Opening Door Inwards', duration: 0.95,
     prop: { name: 'keys', from: 0.08, to: 0.88 },
     keys: [
       { t: 0, R: REST },
@@ -237,7 +239,7 @@ export const ACTIONS = {
     ]
   },
   cook: {
-    clip: 'Gathering Objects', duration: 1.45,
+    hand: 'hold', clip: 'Gathering Objects', duration: 1.45,
     prop: { name: 'spatula', from: 0.08, to: 0.9 },
     keys: [
       { t: 0, R: REST },
@@ -249,7 +251,7 @@ export const ACTIONS = {
     ]
   },
   wave: {
-    clip: 'Waving', duration: 0.95,
+    hand: 'open', clip: 'Waving', duration: 0.95,
     keys: [
       { t: 0, R: REST },
       { t: 0.25, R: P(0.18, -0.1, -0.38, 0.45, 0, -0.25) },
@@ -260,7 +262,7 @@ export const ACTIONS = {
   },
   exitCar: {
     // Gradually open the truck door, step down onto the street, and swing the door shut behind you.
-    clip: 'Opening Door Inwards', duration: 1.95,
+    hand: 'grip', clip: 'Opening Door Inwards', duration: 1.95,
     keys: [
       // Seated inside: left hand reaches for the interior door handle.
       { t: 0, R: P(0.24, -0.45, -0.34, 0.15, 0, 0), L: P(-0.22, -0.34, -0.34, 0.12, 0.18, 0.35), dip: -0.34 },
@@ -278,7 +280,7 @@ export const ACTIONS = {
   },
   openTruckBed: {
     // 1. Open bed cover -> 2. Unlatch & pull tailgate down flat -> 3. Drag box toward you -> 4. Lift off tailgate.
-    clip: 'Picking Up', duration: 2.55, both: true, boxFrom: 0.78,
+    hand: 'grip', clip: 'Picking Up', duration: 2.55, both: true, boxFrom: 0.78,
     keys: [
       { t: 0, R: REST, dip: 0 },
       // Unlatch & lift the hinged tonneau bed cover.
@@ -298,7 +300,7 @@ export const ACTIONS = {
   },
   reachTruckBox: {
     // Reach into the open bed, drag the next box onto the lowered tailgate, and lift it into your arms.
-    clip: 'Picking Up', duration: 1.50, both: true, boxFrom: 0.58,
+    hand: 'carryBox', clip: 'Picking Up', duration: 1.50, both: true, boxFrom: 0.58,
     keys: [
       { t: 0, R: REST, dip: 0 },
       // Reach deep into the open bed to grip the box.
@@ -432,6 +434,8 @@ function buildArm(sleeveMat, skinMat, side) {
   arm.traverse((m) => { if (m.isMesh) { m.castShadow = false; m.receiveShadow = false; m.frustumCulled = false; } });
   sleeve.traverse((m) => { if (m.isMesh) { m.castShadow = false; m.receiveShadow = false; m.frustumCulled = false; } });
   arm.userData.sleeve = sleeve;
+  // The simple-shape hand stays as a fallback until the real hand model loads.
+  arm.userData.procedural = [...arm.children];
   arm.userData.shoulder = new THREE.Vector3(side === 'R' ? SHOULDER[0] : -SHOULDER[0], SHOULDER[1], SHOULDER[2]);
   return arm;
 }
@@ -594,6 +598,64 @@ export function createPlayerActions({ camera, appearance = null } = {}) {
   rig.visible = false;
   if (camera) camera.add(rig);
 
+  // Realistic hands (fp-hands.glb) replace the simple-shape hands once loaded.
+  const hands = { R: null, L: null };
+  if (typeof window !== 'undefined' && typeof document !== 'undefined') {
+    loadFpHands(loadGltf).then(() => {
+      for (const [side, arm] of [['R', armR], ['L', armL]]) {
+        const h = makeHand(side);
+        if (!h) continue;
+        arm.add(h.object);
+        for (const part of arm.userData.procedural) part.visible = false;
+        hands[side] = h;
+      }
+      applySkinTone();
+    }).catch(() => { /* keep the simple hands */ });
+  }
+  let skinHex = 0xe0b896;
+  function applySkinTone() {
+    // The texture is baked for the default (light) skin; other skin choices tint it.
+    const base = new THREE.Color(getOptionColor('skin', 'light'));
+    const want = new THREE.Color(skinHex);
+    const tint = new THREE.Color(
+      Math.min(1.6, want.r / Math.max(0.05, base.r)),
+      Math.min(1.6, want.g / Math.max(0.05, base.g)),
+      Math.min(1.6, want.b / Math.max(0.05, base.b)));
+    for (const h of Object.values(hands)) {
+      if (!h) continue;
+      h.object.traverse((o) => {
+        if (o.isMesh && o.material && o.material.name === 'hands-skin') o.material.color.copy(tint);
+      });
+    }
+  }
+  let handClock = 0;
+  const typingPose = (phase) => {
+    const tap = (k) => Math.max(0, Math.sin(handClock * 13 + phase + k * 1.7));
+    return { index: 0.25 + 0.3 * tap(0), middle: 0.28 + 0.3 * tap(1), ring: 0.3 + 0.25 * tap(2), pinky: 0.34 + 0.2 * tap(3), thumb: 0.2, spread: 0.1 };
+  };
+  /** Finger pose for one hand this frame. */
+  function fingerPose(side, base, t, def) {
+    if (!def) return base;
+    const usesSide = side === 'R' || def.both || def.keys.some((k) => k.L);
+    if (!usesSide) return base;
+    if (def.hand === 'typing') return typingPose(side === 'R' ? 0 : 2.1);
+    let preset = HAND_POSES[def.hand] || base;
+    // Keys: palm open to receive them, then the fingers close around them.
+    if (current && current.name === 'takeKeys') preset = blendHandPose(HAND_POSES.cupped, HAND_POSES.hold, Math.min(1, Math.max(0, (t - 0.42) / 0.12)));
+    if (def.loop) return preset;
+    const inK = Math.min(1, t / 0.3);
+    const outK = Math.max(0, (t - 0.85) / 0.15);
+    const fromStart = blendHandPose(base, preset, inK * inK * (3 - 2 * inK));
+    return blendHandPose(fromStart, base, outK);
+  }
+  function setFingers(R, L) {
+    // A tiny idle movement so resting hands never look frozen.
+    const breathe = Math.sin(handClock * 1.3) * 0.025;
+    const lift = (p) => ({ ...p, index: p.index + breathe, middle: p.middle + breathe, ring: p.ring + breathe * 1.2, pinky: p.pinky + breathe * 1.4 });
+    if (hands.R) hands.R.setPose(lift(R));
+    if (hands.L) hands.L.setPose(lift(L));
+  }
+
   let current = null; // { name, def, t, elapsed, loop, duration }
   let carry = null;   // null, a laundry load kind ('dirty' | 'wet' | 'dry' | 'folded') or 'box'
   let shown = 0;      // 0..1 fade of the arms rig
@@ -603,6 +665,8 @@ export function createPlayerActions({ camera, appearance = null } = {}) {
     const s = normalizeAppearance(data);
     sleeveMat.color.set(getOptionColor('shirt', s.shirt));
     skinMat.color.set(getOptionColor('skin', s.skin));
+    skinHex = skinMat.color.getHex();
+    applySkinTone();
   }
   if (appearance) {
     applyLook(appearance.get());
@@ -655,6 +719,10 @@ export function createPlayerActions({ camera, appearance = null } = {}) {
 
   function update(delta) {
     const dt = Math.max(0, Math.min(0.1, Number(delta) || 0));
+    handClock += dt;
+    const handBase = carry === 'box' ? HAND_POSES.carryBox : (carry ? HAND_POSES.grip : HAND_POSES.relaxed);
+    let fingersR = handBase;
+    let fingersL = handBase;
     const hold = carry === 'box' ? BOX_CARRY : CARRY;
     let R = carry ? hold : REST;
     let L = carry ? mirror(hold) : REST_L;
@@ -678,6 +746,8 @@ export function createPlayerActions({ camera, appearance = null } = {}) {
         const b = sample(def.keys, t, 'L', def.both);
         R = a; L = b; targetDip = a.dip;
         propT = t;
+        fingersR = fingerPose('R', handBase, t, def);
+        fingersL = fingerPose('L', handBase, t, def);
         active = true;
         // A one-off ending on its own is not a cancel: the third-person clip may run longer.
         if (!current.loop && t >= 1) current = null;
@@ -686,6 +756,7 @@ export function createPlayerActions({ camera, appearance = null } = {}) {
     shown += ((active ? 1 : 0) - shown) * Math.min(1, dt * 12);
     rig.visible = shown > 0.02;
     if (rig.visible) {
+      setFingers(fingersR, fingersL);
       // Fade in/out by sliding from the rest pose, so arms rise into view.
       pose(armR, lerpPose(REST, R, shown));
       pose(armL, lerpPose(REST_L, L, shown));
@@ -734,6 +805,7 @@ export function createPlayerActions({ camera, appearance = null } = {}) {
       arm.rotateZ(index ? -0.54 : 0.54);
       layForearm(arm);
     }
+    setFingers(HAND_POSES.grip, HAND_POSES.grip);
   }
 
   return {
