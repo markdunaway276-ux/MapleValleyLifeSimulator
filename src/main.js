@@ -17,6 +17,9 @@ import { createCarInterior } from './world/carInterior.js';
  *   src/core/mode.js       what the player is doing and which menus are open
  */
 import { createScene } from './world/scene.js';
+import { createHomeDecor } from './world/homeDecor.js';
+import { createParcelDelivery } from './systems/parcelDelivery.js';
+import { createMysteryChapter2 } from './systems/mysteryChapter2.js';
 import { createPlayer } from './core/player.js';
 import { setupInput } from './core/input.js';
 import { isMobileDevice } from './core/device.js';
@@ -136,7 +139,8 @@ const lights = createInteriorLights({ scene, dayNight, getTime: () => clock.getT
 if (saveData.interiorLights != null) lights.apply(saveData);
 const tvSet = createTvSet({ scene, sfx, save, getPosition: () => player.position });
 if (saveData.tv != null) tvSet.apply(saveData);
-Object.assign(g, { needs, skills, lights, tvSet });
+const homeDecor = createHomeDecor({ scene, shadows: quality.shadows, saved: saveData.homeDecor });
+Object.assign(g, { needs, skills, lights, tvSet, homeDecor });
 
 // The interior is built when the house model has loaded; this may run again then.
 function installInteriorInteractables(s) {
@@ -172,10 +176,20 @@ const actions = createPlayerActions({ camera, appearance });
 Object.assign(g, { money, inbox, appearance, playerBody, npcs, actions });
 window.addEventListener('maple-sat', () => actions.play('sit'));
 window.addEventListener('maple-stood', () => actions.play('stand'));
-window.addEventListener('car-enter', () => actions.play('openDoor'));
+window.addEventListener('car-enter', () => {
+  actions.play('openDoor');
+  car?.object?.userData?.animateDriverDoor?.(1, 0, 280);
+  window.setTimeout(() => {
+    car?.object?.userData?.animateDriverDoor?.(0, 0, 320);
+  }, 380);
+});
 window.addEventListener('car-exit', () => {
   actions.play('exitCar');
   sfx.play('click');
+  car?.object?.userData?.animateDriverDoor?.(1, 60, 560);
+  window.setTimeout(() => {
+    car?.object?.userData?.animateDriverDoor?.(0, 0, 340);
+  }, 1260);
   window.setTimeout(() => sfx.play('click'), 1580);
 });
 window.addEventListener('work-start', (e) => {
@@ -360,7 +374,37 @@ needs.onChange((snap) => {
 const neighbourFavour = createNeighbourFavour({ savedStage: saveData.neighbourFavour, money, save });
 const snackFavour = createSnackFavour({ savedStage: saveData.snackFavour, inventory, money, save });
 const storyQuest = createStoryQuest({ savedStage: saveData.storyQuest, money, save, toast: (msg) => g.hud?.toast?.(msg) });
-const getTasks = () => [storyQuest.task(), neighbourFavour.task(), snackFavour.task(), ...laundry.tasks()].filter(Boolean);
+const mysteryChapter2 = createMysteryChapter2({
+  savedStage: saveData.mysteryChapter2,
+  money,
+  needs,
+  inventory,
+  inbox,
+  sfx,
+  save,
+  toast: (msg) => g.hud?.toast?.(msg)
+});
+scene.userData.mysteryChapter2 = mysteryChapter2;
+const parcelDelivery = createParcelDelivery({
+  scene,
+  player,
+  car,
+  npcs,
+  actions,
+  money,
+  sfx,
+  toast: (msg) => g.hud?.toast?.(msg),
+  minimap,
+  mode,
+  isMobile,
+  isDayOneUnloadActive: () => g.dayOne?.stage === 'unload',
+  save,
+  saved: saveData.parcelDelivery
+});
+const getTasks = () => {
+  if (storyQuest.stage === 'done' && mysteryChapter2.stage === 'locked') mysteryChapter2.unlock();
+  return [parcelDelivery.task(), mysteryChapter2.task(), storyQuest.task(), neighbourFavour.task(), snackFavour.task(), ...laundry.tasks()].filter(Boolean);
+};
 let pinnedTaskId = saveData.pinnedTaskId ?? null;
 const getPinnedTask = () => pinnedTaskId
   ? getTasks().find((task) => task.id === pinnedTaskId && !task.complete)
@@ -429,10 +473,16 @@ const phone = createPhone({
   addInboxMessage: (msg) => { const added = inbox.add(msg); save(); return added; },
   markInboxRead: (key) => { inbox.markRead(key); save(); },
   onInboxChange: (fn) => inbox.onChange(fn),
+  getHomeDecor: () => homeDecor.getOwned(),
+  buyHomeDecor: (id) => homeDecor.buy(id, { money, sfx, toast: (msg) => g.hud?.toast?.(msg), save }),
+  onHomeDecorChange: (fn) => homeDecor.onChange(fn),
   playNotification: () => sfx.play('phone-notification')
 });
 const dialogue = createDialogue({
-  getExtraPages: (id) => [...(g.dayOne?.pagesFor(id) ?? []), storyQuest.pageFor(id), neighbourFavour.pageFor(id), snackFavour.pageFor(id), dottiePage(id), dirtyPage(id)].filter(Boolean),
+  getExtraPages: (id) => {
+    if (storyQuest.stage === 'done' && mysteryChapter2.stage === 'locked') mysteryChapter2.unlock();
+    return [...(g.dayOne?.pagesFor(id) ?? []), mysteryChapter2.pageFor(id), parcelDelivery.pageFor(id), storyQuest.pageFor(id), neighbourFavour.pageFor(id), snackFavour.pageFor(id), dottiePage(id), dirtyPage(id)].filter(Boolean);
+  },
   canvas: renderer.domElement,
   isMobile,
   isStarted: () => mode.started(),
@@ -456,7 +506,7 @@ const cutscene = createCutscene({
   onIntroSeen: (id) => g.dayOne?.markIntroSeen?.(id)
 });
 mode.attach({ phone, dialogue });
-Object.assign(g, { phone, dialogue, cutscene, storyQuest, neighbourFavour, snackFavour, getPinnedTask });
+Object.assign(g, { phone, dialogue, cutscene, parcelDelivery, storyQuest, mysteryChapter2, neighbourFavour, snackFavour, getPinnedTask });
 setupInput(player, isMobile, { isInventoryOpen: () => mode.uiBlocked() || cutscene.isActive() });
 
 // --- HUD, mail, interact, start, loop -------------------------------------

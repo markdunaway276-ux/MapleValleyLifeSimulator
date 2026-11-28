@@ -192,6 +192,11 @@ export function createNpc(def, { scene, shadows = false } = {}) {
     return `Look along the ${sidewalk}.`;
   }
 
+  let walkTarget = null;
+  function walkTo(tx, tz, { speed = 1.05, endYaw = null } = {}) {
+    walkTarget = { x: tx, z: tz, speed, endYaw };
+  }
+
   function update(dt, ctx = {}) {
     routine = routineAt(def, ctx.minutes, ctx.raining);
     const player = ctx.player;
@@ -199,6 +204,38 @@ export function createNpc(def, { scene, shadows = false } = {}) {
     const seconds = Math.max(0, Number(dt) || 0);
     const px = player && player.position ? player.position.x : null;
     const pz = player && player.position ? player.position.z : null;
+
+    // Scripted walk-aside destination (e.g. Rita stepping off the front path after handing over keys).
+    // Runs as soon as dialogue ends, even while the player is standing nearby.
+    if (walkTarget && !talking) {
+      const dx = walkTarget.x - x;
+      const dz = walkTarget.z - z;
+      const distance = Math.hypot(dx, dz);
+      const speed = walkTarget.speed || 1.05;
+      if (distance > 0.06) {
+        const fraction = Math.min(1, (speed * seconds) / distance);
+        yaw = yawToward(x, z, walkTarget.x, walkTarget.z);
+        moveTo(x + dx * fraction, z + dz * fraction, player);
+        mode = 'walk';
+        phase += seconds * speed * 10;
+        applyPose(model ? 0 : Math.abs(Math.sin(phase)) * 0.04);
+        animate('walk', seconds, speed / (model?.walkSpeed || WALK_CLIP_SPEED));
+        return;
+      }
+      x = walkTarget.x;
+      z = walkTarget.z;
+      if (walkTarget.endYaw != null) {
+        yaw = walkTarget.endYaw;
+        if (def.stationary) def.stationary = { ...def.stationary, yaw: walkTarget.endYaw };
+      }
+      walkTarget = null;
+      mode = 'idle';
+      phase = 0;
+      applyPose(0);
+      animate('idle', seconds);
+      return;
+    }
+
     const close = talking || (px != null && Math.hypot(px - x, pz - z) <= noticeRange);
 
     if (close && px != null) {
@@ -292,6 +329,7 @@ export function createNpc(def, { scene, shadows = false } = {}) {
     entry,
     collider,
     update,
+    walkTo,
     locationHint,
     wave,
     dispose,

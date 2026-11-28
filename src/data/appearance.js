@@ -46,13 +46,40 @@ export const APPEARANCE_SLOTS = [
       { id: 'gray', name: 'Gray', color: '#6b6e75' },
       { id: 'cream', name: 'Cream', color: '#d8d0be' }
     ]
+  },
+  {
+    id: 'hair',
+    name: 'Hair',
+    options: [
+      { id: 'espresso', name: 'Espresso', color: '#2e231c' },
+      { id: 'chestnut', name: 'Chestnut', color: '#5c3a24' },
+      { id: 'auburn', name: 'Auburn', color: '#843e26' },
+      { id: 'blonde', name: 'Blonde', color: '#cfa866' },
+      { id: 'black', name: 'Jet Black', color: '#181a1f' },
+      { id: 'silver', name: 'Silver', color: '#a7aeb8' },
+      { id: 'slate', name: 'Slate', color: '#475569' }
+    ]
+  },
+  {
+    id: 'shoes',
+    name: 'Shoes',
+    options: [
+      { id: 'charcoal', name: 'Charcoal', color: '#2d333d' },
+      { id: 'white', name: 'White', color: '#dfe4ec' },
+      { id: 'tan', name: 'Tan', color: '#9b7248' },
+      { id: 'navy', name: 'Navy', color: '#24344d' },
+      { id: 'crimson', name: 'Crimson', color: '#9e3535' },
+      { id: 'olive', name: 'Olive', color: '#4c5b3a' }
+    ]
   }
 ];
 
 export const DEFAULT_APPEARANCE = {
   skin: 'light',
   shirt: 'sky',
-  pants: 'navy'
+  pants: 'navy',
+  hair: 'espresso',
+  shoes: 'charcoal'
 };
 
 export function getSlot(id, slots = APPEARANCE_SLOTS) {
