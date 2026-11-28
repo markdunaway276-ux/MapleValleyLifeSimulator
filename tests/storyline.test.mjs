@@ -182,3 +182,17 @@ test('setOpeningDeerBeat is exported for Route 9 deer focus choreography', async
   updateScenery(0.016, 0, { x: -175, z: 0 });
   setOpeningDeerBeat(null);
 });
+
+test('expanded main house has a roomy living room with clear open space in front of the sofa', async () => {
+  const { KENNEY_INNER, SOFA_CENTER, CHAIR_DEFS, TV_CENTER, HOUSE_SCALE_XZ } = await import('../src/world/interior.js');
+  assert.ok(HOUSE_SCALE_XZ >= 1.2, 'expected house scaled up horizontally');
+  const livingW = KENNEY_INNER.frontRoomEast - KENNEY_INNER.west;
+  const livingD = KENNEY_INNER.front - KENNEY_INNER.notchWall;
+  assert.ok(livingW >= 6.8, `expected wider living room (>= 6.8m), got ${livingW.toFixed(2)}m`);
+  assert.ok(livingD >= 3.5, `expected deeper living room (>= 3.5m), got ${livingD.toFixed(2)}m`);
+  // Neither living-room chair sits directly between the sofa and the TV.
+  for (const ch of CHAIR_DEFS.slice(0, 2)) {
+    const blockingLine = Math.abs(ch.z - SOFA_CENTER.z) < 0.7 && ch.x > SOFA_CENTER.x && ch.x < TV_CENTER.x;
+    assert.equal(blockingLine, false, `chair ${ch.id} should not block the sofa-to-TV sightline`);
+  }
+});

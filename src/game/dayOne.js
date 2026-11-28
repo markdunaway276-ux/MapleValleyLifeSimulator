@@ -4,6 +4,7 @@ import { STREET } from '../world/street.js';
 import { createNpc } from '../world/npc.js';
 import { STORY_NPCS } from '../data/npcs.js';
 import { toggleDoor } from '../systems/doors.js';
+import { DESK_CENTER } from '../world/interior.js';
 
 /**
  * Day One: the move-in story for a new game, then a short tutorial.
@@ -20,8 +21,8 @@ import { toggleDoor } from '../systems/doors.js';
 const STAGES = ['realtor', 'unload', 'unpack', 'phone', 'market', 'day', 'done'];
 const BOXES = 3;
 const UNPACK_SECONDS = 2.4;
-/** Box pile in the living room: along the front wall, west of the door, clear of the sofa. */
-const PILE = { x: -2.85, z: -6.47 };
+/** Box pile in the living room: along the front wall, west of the door, clear of the sofa & coffee table. */
+const PILE = { x: -2.45, z: -6.50 };
 const RITA_TEXT = 'Hope the unpacking went OK! Sam and June down the street are friendly, and Vince at the Market ' +
   'has everything for a first dinner. Dottie at the Laundromat is looking for help too. Welcome to Maple Lane! - Rita';
 const TENANT_NOTE = "If you're reading this, you got the place cheap. Don't trust how quiet Maple Lane looks — " +
@@ -202,7 +203,7 @@ export function createDayOne(g, saveData, beginPlay) {
 
   // Box 2: framed photo, mug, and notebook on top of the home desk.
   const box2Props = new THREE.Group();
-  box2Props.position.set(1.153, 0.74, -8.58);
+  box2Props.position.set(DESK_CENTER.x, 0.74, DESK_CENTER.z);
   const frame = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.17, 0.14), new THREE.MeshStandardMaterial({ color: 0x4b3523, roughness: 0.75 }));
   frame.position.set(0.08, 0.085, -0.18);
   frame.rotation.y = -0.25;

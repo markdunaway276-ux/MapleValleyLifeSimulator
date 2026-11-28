@@ -5,8 +5,8 @@ import { bevelBox } from './shapes.js';
 import { Parts } from './parts.js';
 import { createVertexMaterial } from './surfaces.js';
 
-/** Front-room dining table (matches interior.js). Snack sits on the top face. */
-export const SNACK_SPAWN = { x: -1.55, y: 0.78, z: -7.7 };
+/** Front-room coffee table (matches interior.js). Snack sits on the top face. */
+export const SNACK_SPAWN = { x: -3.45, y: 0.45, z: -7.80 };
 /** On the south sidewalk, east of the front-door path, clear of the porch. */
 export const MAILBOX_SPAWN = { x: 2, z: -4.4 };
 

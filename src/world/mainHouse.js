@@ -1,7 +1,11 @@
 import * as THREE from 'three';
 import { loadGltf } from './gltf.js';
 import { generateHouse } from './buildings.js';
-import { buildMainHouseInterior, removePaintedFrontDoor, BED_CENTER, DESK_CENTER, COOK_CENTER, lightSwitchPose, TV_CENTER } from './interior.js';
+import {
+  buildMainHouseInterior, removePaintedFrontDoor,
+  BED_CENTER, DESK_CENTER, COOK_CENTER, lightSwitchPose, TV_CENTER,
+  HOUSE_SCALE_XZ, HOUSE_CENTER_Z
+} from './interior.js';
 import { createBed } from '../systems/sleep.js';
 import { createDesk } from '../systems/work.js';
 import { createCook } from '../systems/skills.js';
@@ -16,7 +20,7 @@ import { buildFrontYard, textureHouseExterior } from './frontYard.js';
 import { useWorldGrit } from './surfaces.js';
 
 const HOUSE_URL = './assets/models/house_type02.glb'; // relative to the page, so it works under the Pages subpath
-const HOUSE_CENTER = new THREE.Vector3(0, 0, -10);    // same spot as the old box house
+const HOUSE_CENTER = new THREE.Vector3(0, 0, HOUSE_CENTER_Z);
 // house_type02 door is 0.27 model-units tall. Scale so that door is 2 m and
 // the porch underside (~0.326 model-units) sits at ~2.41 m, clear of a 1.6–1.7 m eye height.
 const MODEL_FRONT_DOOR = { x: 0.004, y: 0.135, z: 0.535, w: 0.14, h: 0.27 };
@@ -75,31 +79,31 @@ export function buildMainHouse(scene, quality) {
   // Fallback procedural house. The Kenney GLB is the main house; this group
   // stays only while the model loads, or if the load fails.
   const house = generateHouse({
-    width: 9.5,
+    width: 9.5 * HOUSE_SCALE_XZ,
     height: 6,
-    depth: 10,
+    depth: 10 * HOUSE_SCALE_XZ,
     roofType: 'pyramid',
     wallColor: MAIN_HOUSE._defaultMat.color,
     roofColor: MAIN_HOUSE.roof.color,
     hasDoor: false,
     shadows: quality.shadows
   });
-  house.position.set(0, 0, -10);
+  house.position.set(0, 0, HOUSE_CENTER_Z);
   scene.add(house);
   // Temporary collider for the fallback house; replaced (not duplicated) when the GLB loads.
-  colliders.addHouse({ id: 'main-house', x: 0, z: -10, width: 9.5, depth: 10, rotY: 0 });
+  colliders.addHouse({ id: 'main-house', x: 0, z: HOUSE_CENTER_Z, width: 9.5 * HOUSE_SCALE_XZ, depth: 10 * HOUSE_SCALE_XZ, rotY: 0 });
 
   // Standalone interactable door (kept independent of the fallback / GLB house).
-  // Hinged 1 × 2 m door; pivot sits at the left jamb of the fallback's front face.
+  const initialDoorW = 1.04 * HOUSE_SCALE_XZ;
   const door = createHingedDoor({
-    width: 1.04, // matches the 1.04 m opening in the Kenney model
+    width: initialDoorW,
     height: 2.0,
     depth: 0.1,
     color: PROPS.doorWood,
     shadows: quality.shadows,
     id: 'main-door'
   });
-  door.position.set(-0.52, 0, -4.94);
+  door.position.set(-initialDoorW / 2, 0, -4.94);
   scene.add(door);
 
   loadGltf(
@@ -109,17 +113,18 @@ export function buildMainHouse(scene, quality) {
       const model = gltf.scene;
       model.name = 'kenney-house';
 
-      // Uniform scale so the model's front door is 2 m tall
+      // Scale height so the front door is 2 m tall, and expand XZ by HOUSE_SCALE_XZ for a roomier floorplan.
       const rawBox = new THREE.Box3().setFromObject(model);
       const rawCenter = rawBox.getCenter(new THREE.Vector3());
       const s = TARGET_DOOR_HEIGHT / MODEL_FRONT_DOOR.h;
-      model.scale.setScalar(s);
+      const sXZ = s * HOUSE_SCALE_XZ;
+      model.scale.set(sXZ, s, sXZ);
 
       // Base on y = 0, centered on HOUSE_CENTER (the model's front already faces +z)
       model.position.set(
-        HOUSE_CENTER.x - rawCenter.x * s,
+        HOUSE_CENTER.x - rawCenter.x * sXZ,
         -rawBox.min.y * s,
-        HOUSE_CENTER.z - rawCenter.z * s
+        HOUSE_CENTER.z - rawCenter.z * sXZ
       );
 
       model.traverse((o) => {
@@ -145,14 +150,13 @@ export function buildMainHouse(scene, quality) {
       model.updateMatrixWorld(true);
       const d = MODEL_FRONT_DOOR;
       const doorWorld = model.localToWorld(new THREE.Vector3(d.x, d.y, d.z));
-      // Realign a ~0.9–1.0 × 2.0 m slab over the model's front door
-      const doorW = Math.min(1.04, Math.max(0.9, d.w * s)); // fills the 1.04 m painted opening
+      const doorW = Math.min(initialDoorW, Math.max(0.9, d.w * sXZ));
       const doorH = d.h * s;
       const doorZ = doorWorld.z + 0.06;
       const frontYard = buildFrontYard({ x: doorWorld.x, z: doorZ }, quality, scene.userData.lightPool);
       pickups.add(frontYard.group);
       scene.userData.frontYard = frontYard;
-      // Pivot at the left jamb; the panel already matches the 1 × 2 m target size.
+      // Pivot at the left jamb; the panel already matches the scaled opening.
       door.position.set(doorWorld.x - doorW / 2, 0, doorZ);
       door.userData.interactLocal.set(doorW / 2, doorH / 2, 0);
 
@@ -174,7 +178,7 @@ export function buildMainHouse(scene, quality) {
       const houseDetails = buildMainHouseDetails(model, {
         panes: glassPanes,
         shadows: quality.shadows,
-        door: { x: doorWorld.x, z: doorZ, width: doorW, surroundZ: doorWorld.z + 0.223 }
+        door: { x: doorWorld.x, z: doorZ, width: doorW, surroundZ: doorWorld.z + 0.223 * HOUSE_SCALE_XZ }
       });
       if (houseDetails) {
         pickups.add(houseDetails);
@@ -185,7 +189,8 @@ export function buildMainHouse(scene, quality) {
         outer,
         doorX: doorWorld.x,
         doorZ,
-        door
+        door,
+        doorWidth: doorW
       });
       scene.add(interior.group);
       // Parent lamp/ceiling glow to pickups (already a scene child) so the
