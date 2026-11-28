@@ -8,6 +8,14 @@
 
 export const CHANGELOG = [
   {
+    version: '0.7',
+    date: '2026-11-28',
+    title: 'Realism Pass 1: PBR Surfaces',
+    notes: [
+      'Upgraded Maple Lane\'s lawns, asphalt road, concrete sidewalks, driveway, trailer park gravel, and your house\'s hardwood floors with real CC0 photographic PBR textures (diffuse, normal, and roughness maps).'
+    ]
+  },
+  {
     version: '0.6',
     date: '2026-11-28',
     title: 'Living Valley, Camera & Maple FM',

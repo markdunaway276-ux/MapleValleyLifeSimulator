@@ -3,6 +3,7 @@ import { Parts } from './buildings.js';
 import { PLAYER_RADIUS } from '../systems/collision.js';
 import { INTERIOR } from './palette.js';
 import { createVertexMaterial } from './surfaces.js';
+import { applyPbrSurface } from './pbrTextures.js';
 
 /**
  * Basic interior for the Kenney main house.
@@ -495,6 +496,53 @@ export function buildMainHouseInterior({ shadows = false, outer, doorX, doorZ, d
   mesh.castShadow = false; // the ceiling casts the shadow via the GLB; keeps the shadow pass cheap
   mesh.receiveShadow = !!shadows;
   group.add(mesh);
+
+  // Real CC0 hardwood plank floor overlay (world-scaled UVs, 1 draw call).
+  const floorPositions = [];
+  const floorNormals = [];
+  const floorUvs = [];
+  const floorIndices = [];
+  const tileM = 2.2;
+  let vBase = 0;
+  for (const r of rooms) {
+    const y = fy + 0.0025;
+    floorPositions.push(
+      r.x0, y, r.z1,
+      r.x1, y, r.z1,
+      r.x1, y, r.z0,
+      r.x0, y, r.z0
+    );
+    for (let k = 0; k < 4; k++) floorNormals.push(0, 1, 0);
+    floorUvs.push(
+      r.x0 / tileM, r.z1 / tileM,
+      r.x1 / tileM, r.z1 / tileM,
+      r.x1 / tileM, r.z0 / tileM,
+      r.x0 / tileM, r.z0 / tileM
+    );
+    floorIndices.push(vBase, vBase + 1, vBase + 2, vBase, vBase + 2, vBase + 3);
+    vBase += 4;
+  }
+  const floorGeo = new THREE.BufferGeometry();
+  floorGeo.setAttribute('position', new THREE.Float32BufferAttribute(floorPositions, 3));
+  floorGeo.setAttribute('normal', new THREE.Float32BufferAttribute(floorNormals, 3));
+  floorGeo.setAttribute('uv', new THREE.Float32BufferAttribute(floorUvs, 2));
+  floorGeo.setIndex(floorIndices);
+  const floorMat = new THREE.MeshStandardMaterial({
+    color: 0xd9c7ad,
+    roughness: 0.72,
+    metalness: 0.04
+  });
+  applyPbrSurface(floorMat, 'wood_floor', {
+    repeat: [1, 1],
+    anisotropy: shadows ? 8 : 2,
+    normalScale: 0.55,
+    roughness: 0.72
+  });
+  const floorMesh = new THREE.Mesh(floorGeo, floorMat);
+  floorMesh.name = 'interior-hardwood-floor';
+  floorMesh.receiveShadow = !!shadows;
+  group.add(floorMesh);
+
   const glow = new THREE.Mesh(emissive.merge(), new THREE.MeshBasicMaterial({ vertexColors: true }));
   glow.name = 'interior-glow';
   group.add(glow);

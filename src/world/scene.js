@@ -20,6 +20,7 @@ import { createWorldState } from '../systems/interactables.js';
 import { sampleLighting } from './daynight.js';
 import { HOUSE, LOOK, TEXTURE } from './palette.js';
 import { createGrassTexture, createRoadTexture, createSidewalkTexture } from './textures.js';
+import { applyPbrSurface, applyRoadAsphaltPbr } from './pbrTextures.js';
 import { buildContactGeometry, contactMaterial, createContactBlob, createContactShadows } from './contact.js';
 import { CURB_WIDTH, DRIVEWAY, GARAGE_LOT, NORTH_FRONTAGE_OFFSET, STREET, SURFACE_Y, drivewayWalkHeight, surfaceHeightAt } from './street.js';
 import { createLightPool } from './lightPool.js';
@@ -218,6 +219,12 @@ export function createScene(quality) {
     roughness: 0.96,
     metalness: 0
   });
+  applyPbrSurface(groundMat, 'grass', {
+    repeat: [TEXTURE.grass.repeat * 1.4, TEXTURE.grass.repeat * 1.4],
+    anisotropy: quality.shadows ? TEXTURE.grass.anisotropy : 1,
+    normalScale: 0.55,
+    tint: 0xc2ccb0
+  });
   // Snow cover 0..1 (weather.js); settles in patches first, then blankets the lawn.
   const snowUniform = { value: 0 };
   groundMat.userData.snow = snowUniform;
@@ -260,6 +267,13 @@ export function createScene(quality) {
     roughness: 0.90,
     metalness: 0
   }), { strength: 0.75, groundGrime: 0 });
+  applyRoadAsphaltPbr(roadMat, roadTex, {
+    tilesX: 4,
+    tilesY: 2,
+    anisotropy: quality.shadows ? 8 : 4,
+    normalScale: 0.58,
+    hiRes: !!quality.shadows
+  });
   const road = new THREE.Mesh(
     new THREE.PlaneGeometry(streetLen, roadWidth),
     roadMat
@@ -299,6 +313,12 @@ export function createScene(quality) {
     roughness: 0.90,
     metalness: 0
   }), { strength: 0.65, groundGrime: 0 });
+  applyPbrSurface(walkMat, 'concrete', {
+    repeat: walkTex.repeat,
+    anisotropy: quality.shadows ? 4 : 1,
+    normalScale: 0.50,
+    tint: 0xd8d4c8
+  });
   const curbMat = useWorldGrit(new THREE.MeshStandardMaterial({ color: 0x989386, roughness: 0.95 }), { strength: 1.15, groundGrime: 0.32 });
   const halfStreet = streetLen / 2;
   const southEdge = roadCenterZ - roadWidth / 2;
@@ -369,9 +389,16 @@ export function createScene(quality) {
   driveway.computeVertexNormals();
   const driveMap = walkTex.clone();
   driveMap.repeat.set(2, 1);
-  paving('garage-driveway', driveway, new THREE.MeshStandardMaterial({
+  const driveMat = new THREE.MeshStandardMaterial({
     map: driveMap, color: 0xc3b8a6, roughness: 0.96
-  }));
+  });
+  applyPbrSurface(driveMat, 'concrete', {
+    repeat: [2, 2],
+    anisotropy: quality.shadows ? 4 : 1,
+    normalScale: 0.52,
+    tint: 0xc9c1b2
+  });
+  paving('garage-driveway', driveway, driveMat);
 
   // Player's main house: fallback procedural house + hinged door now, Kenney GLB + interior once loaded.
   const { door } = buildMainHouse(scene, quality);
