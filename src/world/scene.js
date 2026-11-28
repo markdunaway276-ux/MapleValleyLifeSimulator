@@ -184,19 +184,27 @@ export function createScene(quality) {
     roughness: 0.96,
     metalness: 0
   });
+  // Snow cover 0..1 (weather.js); settles in patches first, then blankets the lawn.
+  const snowUniform = { value: 0 };
+  groundMat.userData.snow = snowUniform;
   // Modulate the repeated tile across the entire ground plane in metre coordinates.
   groundMat.onBeforeCompile = shader => {
+    shader.uniforms.uSnow = snowUniform;
     shader.vertexShader = shader.vertexShader
       .replace('#include <common>', '#include <common>\nvarying vec2 vLawnMetres;')
       .replace('#include <begin_vertex>', '#include <begin_vertex>\nvLawnMetres = position.xy;');
     shader.fragmentShader = shader.fragmentShader
-      .replace('#include <common>', '#include <common>\nvarying vec2 vLawnMetres;')
+      .replace('#include <common>', '#include <common>\nvarying vec2 vLawnMetres;\nuniform float uSnow;')
       .replace('#include <map_fragment>', `#include <map_fragment>
         vec2 p = vLawnMetres;
         float broad = sin(p.x * 0.39 + p.y * 0.16) * sin(p.y * 0.32 - p.x * 0.12);
         float fine = sin(p.x * 1.54 - p.y * 1.12) * sin(p.y * 1.18 + p.x * 0.72);
         float dry = smoothstep(0.20, 0.82, broad + fine * 0.24);
         diffuseColor.rgb *= mix(vec3(0.86, 0.92, 0.88), vec3(1.16, 1.04, 0.82), dry) + fine * 0.065;
+        float wide = sin(p.x * 0.083 + p.y * 0.051 + 1.7) * sin(p.y * 0.067 - p.x * 0.029);
+        float drift = 0.5 + wide * 0.26 + broad * 0.2 + fine * 0.12;
+        float cover = smoothstep(drift - 0.14, drift + 0.14, uSnow * 1.25 - 0.08);
+        diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.90, 0.93, 0.97) * (0.94 + fine * 0.05), cover * 0.94);
       `);
   };
   const ground = new THREE.Mesh(groundGeo, groundMat);

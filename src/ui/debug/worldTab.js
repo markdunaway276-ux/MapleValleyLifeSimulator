@@ -2,7 +2,7 @@ import { makeSection } from './style.js';
 
 /**
  * Debug menu — World tab: Time of day (slider, pause, speed multipliers)
- * and Weather overrides (Auto, Clear, Cloudy, Rain).
+ * and Weather overrides (Auto plus each step from Clear to Rain / Snow).
  */
 export function buildWorldTab(pane, { getClock, getWeather }) {
   let timeEls = null;
@@ -97,8 +97,12 @@ export function buildWorldTab(pane, { getClock, getWeather }) {
     const choices = [
       { id: 'auto', label: 'Auto' },
       { id: 'clear', label: 'Clear' },
-      { id: 'cloudy', label: 'Cloudy' },
-      { id: 'rain', label: 'Rain' }
+      { id: 'partly', label: 'Partly' },
+      { id: 'cloudy', label: 'Overcast' },
+      { id: 'drizzle', label: 'Drizzle' },
+      { id: 'rain', label: 'Rain' },
+      { id: 'flurries', label: 'Flurries' },
+      { id: 'snow', label: 'Snow' }
     ];
     const btns = choices.map((c) => {
       const btn = document.createElement('button');

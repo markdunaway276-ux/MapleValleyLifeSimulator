@@ -202,7 +202,10 @@ export function getDialogue(npcId, ctx = {}, packs = DIALOGUE) {
   const weather = ctx.weather && (typeof ctx.weather === 'string' ? ctx.weather : ctx.weather.id);
   const period = ctx.period || (ctx.time && ctx.time.period);
   let pages = pack.default || [];
+  // Lighter steps of rain/snow reuse the heavier pack's lines when no own pack exists.
+  const family = { drizzle: 'rain', flurries: 'snow' }[weather];
   if (weather && pack[weather]) pages = pack[weather];
+  else if (family && pack[family]) pages = pack[family];
   else if (period && pack[period]) pages = pack[period];
 
   const out = [];

@@ -47,17 +47,19 @@ export function startLoop(g) {
     g.presentation.update(delta, Math.hypot(player.position.x - prevX, player.position.z - prevZ), currentTime.minutes);
     g.weather.update(delta, currentTime);
     const rain = g.weather.rainAmount();
+    const snowfall = g.weather.snowAmount ? g.weather.snowAmount() : 0;
     const deerFocus = g.dayOne?.opening ? g.car?.object?.position : (mode.driving() ? g.car?.object?.position : player.position);
     updateScenery(delta, rain, deerFocus);
     g.npcs.update(delta, {
       player,
       talkingId: g.dialogue.currentNpc() || g.cutscene?.currentNpc?.() || null,
       minutes: currentTime.minutes,
-      raining: rain >= 0.25
+      raining: rain >= 0.25 || snowfall >= 0.6
     });
     g.weather.applyFog(scene, quality);
     const indoor = isIndoors(scene, player.position);
     g.rain.update(delta, { position: player.position, intensity: rain, indoor });
+    g.snow?.update(delta, { position: player.position, intensity: snowfall, indoor });
     if (typeof g.sfx.setRain === 'function') g.sfx.setRain(rain, { indoor });
     const shop = scene.userData.laundromat;
     if (g.laundry) {
@@ -109,13 +111,12 @@ export function startLoop(g) {
       if (sky.material?.uniforms) {
         if (sky.material.uniforms.time) sky.material.uniforms.time.value += delta;
         if (sky.material.uniforms.cloudCover) {
-          const w = g.weather.get?.();
-          const cover = w && w.id === 'rain' ? 0.85 : (w && w.id === 'cloudy' ? 0.68 : 0.36);
+          const cover = g.weather.cloudAmount ? g.weather.cloudAmount() : 0.36;
           sky.material.uniforms.cloudCover.value += (cover - sky.material.uniforms.cloudCover.value) * Math.min(1, delta * 0.8);
         }
       }
     }
-    updateWetSurfaces(scene, rain);
+    updateWetSurfaces(scene, rain, g.weather.snowCover ? g.weather.snowCover() : 0);
     updateHouseWindows(time.minutes);
     scene.userData.ambientParticles?.update(delta, { playerPos: player.position, minutes: time.minutes, rain });
     scene.userData.frontYard?.update(time.totalMinutes);

@@ -53,16 +53,23 @@ export const PHONE_APPS = [
       icon.className = 'phone-weather-icon';
       const name = document.createElement('p');
       name.className = 'phone-weather-name';
+      const detail = document.createElement('p');
+      detail.className = 'phone-weather-detail';
       function paint(state) {
         const w = state || (ctx && ctx.getWeather ? ctx.getWeather() : null);
         icon.textContent = (w && w.icon) || '☀️';
-        name.textContent = (w && w.name) || 'Clear';
+        name.textContent = ((w && w.name) || 'Clear') + (w && Number.isFinite(w.tempF) ? ` · ${w.tempF}°F` : '');
+        const bits = [];
+        if (w && w.progress < 1 && w.from && w.from !== w.to) bits.push('Conditions changing');
+        if (w && w.snowCover > 0.15) bits.push(w.snowCover > 0.7 ? 'Snow on the ground' : 'A dusting of snow');
+        if (w && w.cold) bits.push('Cold spell');
+        detail.textContent = bits.join(' · ');
       }
       paint();
       const off = ctx && typeof ctx.onWeatherChange === 'function'
         ? ctx.onWeatherChange(paint)
         : null;
-      screen.append(title, icon, name);
+      screen.append(title, icon, name, detail);
       return () => { if (typeof off === 'function') off(); };
     }
   }

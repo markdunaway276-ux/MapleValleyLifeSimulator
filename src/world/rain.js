@@ -89,10 +89,13 @@ export function createRain({ scene, isMobile = false } = {}) {
       mat.opacity = 0;
       return;
     }
-    mat.opacity = 0.18 + 0.22 * amount;
+    mat.opacity = 0.18 + 0.22 * Math.min(1, amount);
+    // Drizzle draws a few streaks; a downpour draws them all.
+    const drawn = Math.max(12, Math.round(count * Math.min(1, 0.15 + amount * 0.85)));
+    geom.setDrawRange(0, drawn * 2);
     const step = Math.max(0, Number(dt) || 0);
     const hx = RAIN_BOX.x, hy = RAIN_BOX.y, hz = RAIN_BOX.z;
-    for (let i = 0; i < count; i++) {
+    for (let i = 0; i < drawn; i++) {
       let x = seeds[i * 4];
       let y = seeds[i * 4 + 1] - seeds[i * 4 + 3] * step;
       let z = seeds[i * 4 + 2];
