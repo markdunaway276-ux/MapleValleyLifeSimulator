@@ -333,7 +333,7 @@ export function createSkills({
       }
       addXp('cooking', XP_COOK + 10);
       if (sfxApi && typeof sfxApi.play === 'function') sfxApi.play('eat');
-      if (typeof toastFn === 'function') toastFn('Cooked a hot home meal! (+75 Hunger, +18 Mood)');
+      if (typeof toastFn === 'function') toastFn('Cooked a hot home meal! (+75 Hunger, +9 Energy)');
       if (typeof save === 'function') save();
       if (typeof window !== 'undefined' && typeof window.dispatchEvent === 'function') {
         window.dispatchEvent(new CustomEvent('maple-cooked', {

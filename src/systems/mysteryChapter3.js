@@ -52,15 +52,27 @@ export function createMysteryChapter3({
     return true;
   }
 
+  function hasItem(id) {
+    const items = typeof inventory?.getItems === 'function' ? inventory.getItems() : [];
+    return items.some((it) => it && it.id === id);
+  }
+
+  /** Give an item; false when the bag is full (the story then waits). */
+  function giveItem(id) {
+    if (!inventory || typeof inventory.addItem !== 'function') return true;
+    if (hasItem(id)) return true;
+    return !!inventory.addItem(id, 1);
+  }
+
   function borrowFlashlightFromWalt() {
-    if (stage !== 'walt') return false;
-    stage = 'night-clue';
-    if (inventory && typeof inventory.addItem === 'function') {
-      const items = typeof inventory.getItems === 'function' ? inventory.getItems() : [];
-      if (!items.some((it) => it && it.id === 'flashlight')) {
-        inventory.addItem('flashlight', 1);
-      }
+    // 'night-clue' too: Walt hands over a spare if the flashlight went missing.
+    if (stage !== 'walt' && !(stage === 'night-clue' && !hasItem('flashlight'))) return false;
+    if (!giveItem('flashlight')) {
+      toast?.('Your bag is full — make room, then come back for Walt’s flashlight.');
+      sfx?.play?.('click');
+      return false;
     }
+    stage = 'night-clue';
     sfx?.play?.('pickup');
     toast?.('Received Walt’s Field Flashlight! Press F after dark (7 PM–6 AM) by Maple Lane Pond.');
     commit();
@@ -81,10 +93,12 @@ export function createMysteryChapter3({
       return false;
     }
 
-    stage = 'vince';
-    if (inventory && typeof inventory.addItem === 'function') {
-      inventory.addItem('creek-capsule', 1);
+    if (!giveItem('creek-capsule')) {
+      toast?.('Your bag is full — make room to carry the East Creek Time Capsule.');
+      sfx?.play?.('click');
+      return false;
     }
+    stage = 'vince';
     needs?.add?.('mood', 18);
     sfx?.play?.('pickup');
     toast?.('Found the East Creek Time Capsule! Bring the spring-headwaters map to Vince at the Market.');
@@ -121,7 +135,7 @@ export function createMysteryChapter3({
       body: "Vince just showed me the original East Creek spring map you found! The county's designating Maple Lane Pond a protected valley landmark. Maple Lane is lucky to have you!",
       day: (clock?.getTime?.()?.day | 0) || 1
     });
-    toast?.(`Chapter 3 complete! Maple Lane Pond protected (+$${reward} · +35 Mood)`);
+    toast?.(`Chapter 3 complete! Maple Lane Pond protected (+$${reward} · +18 Energy)`);
     commit();
     return true;
   }
@@ -165,6 +179,13 @@ export function createMysteryChapter3({
   }
 
   function pageFor(npcId) {
+    if (stage === 'night-clue' && npcId === 'walt' && inventory && !hasItem('flashlight')) {
+      return {
+        lines: ["Lost track of my flashlight, huh? No harm done — I keep a spare."],
+        action: { label: 'Take spare Field Flashlight [F]', run: borrowFlashlightFromWalt },
+        response: ['Press F after 7 PM by the pond. Hang on to this one!']
+      };
+    }
     if (stage === 'walt' && npcId === 'walt') {
       const waltScore = friendship?.get?.('walt')?.score ?? 0;
       const lines = waltScore >= 20

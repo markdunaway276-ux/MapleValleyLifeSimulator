@@ -8,6 +8,16 @@
 
 export const CHANGELOG = [
   {
+    version: '0.20.1',
+    date: '2026-11-28',
+    title: 'Fixes: Chapter 3, Mood & Odd Jobs',
+    notes: [
+      'Chapter 3 no longer gets stuck when your bag is full — Walt and the time capsule wait until you have room, and Walt keeps a spare flashlight.',
+      'Mood rewards (Maple the cat, fishing, story moments, notice board jobs) now give you a little Energy instead of nothing.',
+      'Cold days now count for the winter odd jobs, the "Today:" town-event message only shows once a day, and the laundromat folding table gives the right hint for your own load.'
+    ]
+  },
+  {
     version: '0.20',
     date: '2026-11-28',
     title: 'Laundromat & Soap Overhaul',

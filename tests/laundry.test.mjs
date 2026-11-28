@@ -56,7 +56,7 @@ test('washing without detergent offers one-step wash + soap ($5) and fails clean
   assert.equal(laundry.machineOption('dryer-1').run(), false);
   assert.match(state.toasts.at(-1), /still washing/);
   assert.equal(laundry.tableOption().run(), false);
-  assert.match(state.toasts.at(-1), /no folding needed/);
+  assert.match(state.toasts.at(-1), /still washing.*no folding needed/i);
 
   // Short on cash ($4) without detergent cannot start the $5 soap-included wash.
   const broke = rig({ detergent: 0, cash: 4 });

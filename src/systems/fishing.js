@@ -78,7 +78,7 @@ export function createFishing({
       foundLocket = true;
       toast('You reeled in a Tarnished Locket engraved "K.M. — Route 9"!');
     } else {
-      toast(`Caught a ${catchDef.label}! (+10 Mood · Sell at Vince's Market)`);
+      toast(`Caught a ${catchDef.label}! (+5 Energy · Sell at Vince's Market)`);
     }
     sfx?.play?.('pickup');
     onCatch(catchDef);

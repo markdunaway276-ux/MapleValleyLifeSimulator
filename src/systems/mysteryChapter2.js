@@ -85,7 +85,7 @@ export function createMysteryChapter2({
       body: "Good work, kid. With Kyle's survey ledger safe in your hands, Maple Lane's creek and deer are going to stay protected. Keep the $50 — you earned it.",
       day: 1
     });
-    toast?.(`Mystery solved! Found Kyle’s ledger & $${CHAPTER2_REWARD} stash (+30 Mood).`);
+    toast?.(`Mystery solved! Found Kyle’s ledger & $${CHAPTER2_REWARD} stash (+15 Energy).`);
     commit();
     return true;
   }

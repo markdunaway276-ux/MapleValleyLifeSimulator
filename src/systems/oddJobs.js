@@ -75,8 +75,9 @@ export function createOddJobs({
     const snowCover = typeof weather.snowCover === 'function' ? Number(weather.snowCover()) : 0;
     const snowfall = typeof weather.snowAmount === 'function' ? Number(weather.snowAmount()) : 0;
     const snap = typeof weather.get === 'function' ? weather.get() : null;
-    const temp = snap && typeof snap.temperatureC === 'number' ? snap.temperatureC : 15;
-    return snowCover >= 0.15 || snowfall >= 0.1 || temp <= 3;
+    // weather.get() reports Fahrenheit as `tempF`.
+    const tempF = snap && typeof snap.tempF === 'number' ? snap.tempF : 60;
+    return snowCover >= 0.15 || snowfall >= 0.1 || tempF <= 37;
   }
 
   function isAvailable(jobId) {

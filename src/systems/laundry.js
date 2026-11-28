@@ -311,14 +311,16 @@ export function createLaundry({
   function tableOption() {
     if (folding) return null;
     if (!carry) {
-      const ownBusy = machines.some((m) => m.load && m.load.owner === 'you');
+      const own = machines.find((m) => m.load && m.load.owner === 'you');
       return {
         prompt: 'use the folding table',
         action: null,
         run: () => {
           toast(
             shift.on ? 'Bring dry customer laundry here to fold it.'
-              : ownBusy ? 'Your own clothes are ready to wear straight out of the dryer — no folding needed!'
+              : own && running(own) ? `Your clothes are still ${own.kind === 'washer' ? 'washing' : 'drying'} — ${minutesLeft(own)} min left. No folding needed for your own load.`
+                : own && own.kind === 'washer' ? 'Your wash is done — move it to a dryer. Your own clothes need no folding.'
+                  : own ? 'Your clothes are dry — grab them from the dryer. No folding needed!'
                 : 'Clock in at the back (or ask Dottie) to work a shift.'
           );
           return false;
