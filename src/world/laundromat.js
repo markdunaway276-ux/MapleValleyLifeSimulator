@@ -71,23 +71,74 @@ const BENCHES = [
   { id: 'laundromat-bench-out', x: -1.9, z: 0.35, w: 1.8, facing: 1 }
 ];
 
-function drumTexture() {
+function drumTexture(mode = 'idle') {
+  if (typeof document === 'undefined') return null;
   const c = document.createElement('canvas');
-  c.width = c.height = 128;
+  c.width = c.height = 256;
   const ctx = c.getContext('2d');
-  const g = ctx.createRadialGradient(64, 64, 8, 64, 64, 64);
-  g.addColorStop(0, '#5b7894');
-  g.addColorStop(1, '#1d2a38');
+  const cx = 128;
+  const cy = 128;
+  // Brushed stainless steel inner drum base.
+  const g = ctx.createRadialGradient(cx, cy, 14, cx, cy, 128);
+  if (mode === 'wash') {
+    g.addColorStop(0, '#7eb4cf');
+    g.addColorStop(0.7, '#345870');
+    g.addColorStop(1, '#1a2c3a');
+  } else if (mode === 'dry') {
+    g.addColorStop(0, '#8d9aa6');
+    g.addColorStop(0.7, '#434d58');
+    g.addColorStop(1, '#1e242b');
+  } else {
+    g.addColorStop(0, '#c6d0d9');
+    g.addColorStop(0.52, '#8b96a1');
+    g.addColorStop(0.84, '#4e5863');
+    g.addColorStop(1, '#262d35');
+  }
   ctx.fillStyle = g;
-  ctx.fillRect(0, 0, 128, 128);
-  const colors = ['#c94f4f', '#e8e2d0', '#4a7fb8', '#d9b443', '#6c9a5a', '#9a6cc0'];
-  for (let i = 0; i < 16; i++) {
-    const a = (i / 16) * Math.PI * 2;
-    const rr = 26 + (i % 3) * 10;
-    ctx.fillStyle = colors[i % colors.length];
+  ctx.fillRect(0, 0, 256, 256);
+
+  // Subtle concentric drum ribs & stainless perforations.
+  ctx.strokeStyle = 'rgba(255, 255, 255, 0.14)';
+  ctx.lineWidth = 2;
+  for (const r of [38, 66, 94, 114]) {
     ctx.beginPath();
-    ctx.ellipse(64 + Math.cos(a) * rr, 64 + Math.sin(a) * rr, 14, 8, a, 0, Math.PI * 2);
-    ctx.fill();
+    ctx.arc(cx, cy, r, 0, Math.PI * 2);
+    ctx.stroke();
+  }
+  ctx.fillStyle = 'rgba(20, 26, 32, 0.35)';
+  for (let ring = 0; ring < 3; ring++) {
+    const rr = 48 + ring * 26;
+    const count = 14 + ring * 6;
+    for (let i = 0; i < count; i++) {
+      const a = (i / count) * Math.PI * 2 + ring * 0.2;
+      ctx.beginPath();
+      ctx.arc(cx + Math.cos(a) * rr, cy + Math.sin(a) * rr, 2.4, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+
+  if (mode !== 'idle') {
+    const colors = ['#cf5550', '#ece6d6', '#4a85c2', '#dfb848', '#6ca05c', '#9c6ec4'];
+    for (let i = 0; i < 18; i++) {
+      const a = (i / 18) * Math.PI * 2;
+      const rr = 42 + (i % 3) * 22;
+      ctx.fillStyle = colors[i % colors.length];
+      ctx.beginPath();
+      ctx.ellipse(cx + Math.cos(a) * rr, cy + Math.sin(a) * rr, 26, 15, a, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    if (mode === 'wash') {
+      // Frothy white & icy-blue soap suds around the tumbling clothes.
+      for (let i = 0; i < 30; i++) {
+        const a = (i / 30) * Math.PI * 2 + (i % 2) * 0.14;
+        const rr = 26 + (i % 4) * 24;
+        const rad = 7 + (i % 3) * 4.5;
+        ctx.fillStyle = i % 3 === 0 ? 'rgba(218, 246, 255, 0.80)' : 'rgba(255, 255, 255, 0.76)';
+        ctx.beginPath();
+        ctx.arc(cx + Math.cos(a) * rr, cy + Math.sin(a) * rr, rad, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
   }
   const tex = new THREE.CanvasTexture(c);
   tex.colorSpace = THREE.SRGBColorSpace;
@@ -102,6 +153,7 @@ function bagMesh() {
   sack.position.y = 0.17;
   const knot = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.06, 0.1, 6), mat);
   knot.position.y = 0.36;
+  g.userData.mat = mat;
   g.add(sack, knot);
   return g;
 }
@@ -164,6 +216,421 @@ function buildSoapDispenser() {
   plate.rotation.y = Math.PI / 2;
   plate.position.set(0.094, 0.11, 0);
   g.add(body, trim, chute, coinSlot, plate);
+  return g;
+}
+
+/** Lavender Fabric Softener dispenser on the west end of the center washer island. */
+function buildSoftenerDispenser() {
+  const g = new THREE.Group();
+  g.name = 'laundromat-softener-dispenser-mesh';
+  const body = new THREE.Mesh(
+    new THREE.BoxGeometry(0.16, 0.56, 0.40),
+    new THREE.MeshStandardMaterial({ color: 0xe9e4f2, roughness: 0.45, metalness: 0.2 })
+  );
+  const trim = new THREE.Mesh(
+    new THREE.BoxGeometry(0.17, 0.07, 0.42),
+    new THREE.MeshStandardMaterial({ color: 0x6b4f8c, roughness: 0.4, metalness: 0.2 })
+  );
+  trim.position.y = 0.25;
+  const chute = new THREE.Mesh(
+    new THREE.BoxGeometry(0.04, 0.12, 0.22),
+    new THREE.MeshStandardMaterial({ color: 0x2a3136, roughness: 0.6, metalness: 0.5 })
+  );
+  chute.position.set(-0.075, -0.16, 0);
+  const plate = signPlate('FABRIC SOFTENER', '$2 · +15 ENERGY', 0.35, 0.15, { bg: '#5a3f78', accent: '#f5dcff' });
+  plate.rotation.y = -Math.PI / 2;
+  plate.position.set(-0.084, 0.09, 0);
+  g.add(body, trim, chute, plate);
+  return g;
+}
+
+/** Cozy magazine rack near the front benches for passing time while machines run. */
+function buildMagazineRack() {
+  const g = new THREE.Group();
+  g.name = 'laundromat-magazine-rack';
+  const wood = new THREE.MeshStandardMaterial({ color: 0x7b583a, roughness: 0.85 });
+  const frame = new THREE.Mesh(new THREE.BoxGeometry(0.56, 1.05, 0.28), wood);
+  frame.position.y = 0.525;
+  g.add(frame);
+  const covers = [0xd65b4a, 0x4b8bb8, 0xd9a844, 0x5c9668, 0x9b6db5, 0xc97b4c];
+  for (let row = 0; row < 2; row++) {
+    for (let col = 0; col < 3; col++) {
+      const mag = new THREE.Mesh(
+        new THREE.BoxGeometry(0.14, 0.22, 0.03),
+        new THREE.MeshStandardMaterial({ color: covers[(row * 3 + col) % covers.length], roughness: 0.65 })
+      );
+      mag.position.set(-0.17 + col * 0.17, 0.42 + row * 0.32, -0.145);
+      mag.rotation.x = 0.18;
+      g.add(mag);
+    }
+  }
+  const header = signPlate('MAGAZINES', 'PASS TIME', 0.50, 0.16, { bg: '#3e523a', accent: '#f7dfa0' });
+  header.rotation.y = Math.PI;
+  header.position.set(0, 0.96, -0.145);
+  g.add(header);
+  return g;
+}
+
+/** Double-sided overhead sign above the 5 center-island self-serve washers. */
+function buildOverheadSign() {
+  const g = new THREE.Group();
+  g.name = 'laundromat-washers-sign';
+  const rodMat = new THREE.MeshStandardMaterial({ color: 0x555c61, metalness: 0.7, roughness: 0.35 });
+  for (const x of [-0.75, 0.75]) {
+    const rod = new THREE.Mesh(new THREE.CylinderGeometry(0.014, 0.014, 0.65, 8), rodMat);
+    rod.position.set(x, 0.45, 0);
+    g.add(rod);
+  }
+  const backing = new THREE.Mesh(
+    new THREE.BoxGeometry(1.9, 0.38, 0.04),
+    new THREE.MeshStandardMaterial({ color: 0x163945, roughness: 0.5 })
+  );
+  const front = signPlate('SELF-SERVE WASHERS', '$3 + SOAP · OR $5 INCL. SOAP', 1.84, 0.34);
+  front.position.z = 0.022;
+  const back = signPlate('SELF-SERVE WASHERS', '$3 + SOAP · OR $5 INCL. SOAP', 1.84, 0.34);
+  back.rotation.y = Math.PI;
+  back.position.z = -0.022;
+  g.add(backing, front, back);
+  return g;
+}
+
+/** Live Order Board mounted beside the folding table showing active shift orders & streaks. */
+function buildOrderBoard() {
+  const g = new THREE.Group();
+  g.name = 'laundromat-order-board';
+  const frame = new THREE.Mesh(
+    new THREE.BoxGeometry(0.05, 0.78, 1.12),
+    new THREE.MeshStandardMaterial({ color: 0x5c432c, roughness: 0.85 })
+  );
+  g.add(frame);
+  if (typeof document === 'undefined') {
+    const fallback = new THREE.Mesh(new THREE.PlaneGeometry(1.04, 0.70), new THREE.MeshBasicMaterial({ color: 0x1e2c26 }));
+    fallback.rotation.y = Math.PI / 2;
+    fallback.position.x = 0.028;
+    g.add(fallback);
+    return { group: g, draw: () => {} };
+  }
+  const canvas = document.createElement('canvas');
+  canvas.width = 512;
+  canvas.height = 340;
+  const ctx = canvas.getContext('2d');
+  const tex = new THREE.CanvasTexture(canvas);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  const face = new THREE.Mesh(new THREE.PlaneGeometry(1.04, 0.70), new THREE.MeshBasicMaterial({ map: tex }));
+  face.rotation.y = Math.PI / 2;
+  face.position.x = 0.028;
+  g.add(face);
+
+  let lastSig = '';
+  function draw(summary) {
+    const sig = summary
+      ? `${summary.onShift}|${summary.streak}|${summary.done}|${summary.orders.map((o) => `${o.id}:${o.taken}:${Math.floor(o.dueLeft / 5)}`).join(',')}`
+      : 'idle';
+    if (sig === lastSig) return;
+    lastSig = sig;
+    ctx.fillStyle = '#1b2b25';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.strokeStyle = '#d9c08a';
+    ctx.lineWidth = 8;
+    ctx.strokeRect(8, 8, canvas.width - 16, canvas.height - 16);
+    ctx.fillStyle = '#f6d57a';
+    ctx.font = 'bold 34px system-ui, sans-serif';
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('DROP-OFF ORDER BOARD', 28, 44);
+    if (!summary || !summary.onShift) {
+      ctx.fillStyle = '#dce8e1';
+      ctx.font = '26px system-ui, sans-serif';
+      ctx.fillText('Off Shift — Ask Dottie or', 28, 128);
+      ctx.fillText('clock in at the back wall!', 28, 168);
+      ctx.fillStyle = '#9fd3b3';
+      ctx.font = 'bold 24px system-ui, sans-serif';
+      ctx.fillText('$8+/order + tips · 3-streak +$5', 28, 240);
+      if (summary && summary.totalOrders > 0) {
+        ctx.fillStyle = '#b9c9c2';
+        ctx.font = '22px system-ui, sans-serif';
+        ctx.fillText(`Lifetime orders completed: ${summary.totalOrders}`, 28, 290);
+      }
+    } else {
+      ctx.fillStyle = '#9fd3b3';
+      ctx.font = 'bold 24px system-ui, sans-serif';
+      ctx.fillText(`Done: ${summary.done}  ·  Streak: ${summary.streak}  ·  $${summary.earned}`, 28, 88);
+      if (!summary.orders.length) {
+        ctx.fillStyle = '#dce8e1';
+        ctx.font = '26px system-ui, sans-serif';
+        ctx.fillText('Waiting for next drop-off bag…', 28, 165);
+      } else {
+        summary.orders.slice(0, 3).forEach((o, i) => {
+          const y = 148 + i * 58;
+          ctx.fillStyle = '#' + (o.color ?? 0x8a6d52).toString(16).padStart(6, '0');
+          ctx.beginPath();
+          ctx.arc(42, y, 13, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.fillStyle = '#ffffff';
+          ctx.font = 'bold 26px system-ui, sans-serif';
+          ctx.fillText(o.name, 68, y);
+          ctx.fillStyle = o.dueLeft <= 0 ? '#ff6b6b' : o.dueLeft <= 35 ? '#fbbf24' : '#a7f3d0';
+          ctx.font = 'bold 24px system-ui, sans-serif';
+          ctx.textAlign = 'right';
+          ctx.fillText(o.dueLeft <= 0 ? 'LATE' : `${o.dueLeft} min`, canvas.width - 28, y);
+          ctx.textAlign = 'left';
+        });
+      }
+    }
+    tex.needsUpdate = true;
+  }
+  draw(null);
+  return { group: g, draw };
+}
+
+/** Tiny crisp digital LED countdown display for each washer/dryer control strip. */
+function buildDigitalReadout() {
+  if (typeof document === 'undefined') {
+    const mesh = new THREE.Mesh(new THREE.PlaneGeometry(0.14, 0.048), new THREE.MeshBasicMaterial({ color: 0x0e1820 }));
+    return { mesh, set: () => {} };
+  }
+  const c = document.createElement('canvas');
+  c.width = 128;
+  c.height = 48;
+  const ctx = c.getContext('2d');
+  const tex = new THREE.CanvasTexture(c);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  const mesh = new THREE.Mesh(new THREE.PlaneGeometry(0.14, 0.048), new THREE.MeshBasicMaterial({ map: tex }));
+  let lastKey = '';
+  function set(text, color = '#38bdf8') {
+    const key = `${text}|${color}`;
+    if (key === lastKey) return;
+    lastKey = key;
+    ctx.fillStyle = '#0c1116';
+    ctx.fillRect(0, 0, 128, 48);
+    ctx.fillStyle = color;
+    ctx.font = 'bold 30px monospace';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(text, 64, 25);
+    tex.needsUpdate = true;
+  }
+  set('RDY', '#38bdf8');
+  return { mesh, set };
+}
+
+/** Classic brushed-chrome rolling wire laundry cart on 4 casters. */
+function buildLaundryCart(steelMat) {
+  const g = new THREE.Group();
+  g.name = 'laundromat-cart';
+  const wheelMat = new THREE.MeshStandardMaterial({ color: 0x22262b, roughness: 0.7 });
+  const wireMat = new THREE.MeshStandardMaterial({ color: 0xcbd5df, metalness: 0.85, roughness: 0.24 });
+  const wheelGeo = new THREE.CylinderGeometry(0.045, 0.045, 0.025, 12);
+  wheelGeo.rotateZ(Math.PI / 2);
+  for (const sx of [-0.26, 0.26]) {
+    for (const sz of [-0.18, 0.18]) {
+      const w = new THREE.Mesh(wheelGeo, wheelMat);
+      w.position.set(sx, 0.045, sz);
+      g.add(w);
+      const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.012, 0.36, 8), steelMat);
+      leg.position.set(sx, 0.24, sz);
+      g.add(leg);
+    }
+  }
+  // Wire basket rim & vertical ribs.
+  const bottom = new THREE.Mesh(new THREE.BoxGeometry(0.58, 0.02, 0.42), wireMat);
+  bottom.position.y = 0.42;
+  g.add(bottom);
+  for (const ry of [0.54, 0.68, 0.80]) {
+    for (const sz of [-0.21, 0.21]) {
+      const bar = new THREE.Mesh(new THREE.BoxGeometry(0.60, 0.014, 0.014), wireMat);
+      bar.position.set(0, ry, sz);
+      g.add(bar);
+    }
+    for (const sx of [-0.30, 0.30]) {
+      const bar = new THREE.Mesh(new THREE.BoxGeometry(0.014, 0.014, 0.42), wireMat);
+      bar.position.set(sx, ry, 0);
+      g.add(bar);
+    }
+  }
+  for (let i = -2; i <= 2; i++) {
+    for (const sz of [-0.21, 0.21]) {
+      const rib = new THREE.Mesh(new THREE.CylinderGeometry(0.006, 0.006, 0.38, 6), wireMat);
+      rib.position.set(i * 0.12, 0.61, sz);
+      g.add(rib);
+    }
+  }
+  // Overhead garment rack arch.
+  for (const sx of [-0.30, 0.30]) {
+    const post = new THREE.Mesh(new THREE.CylinderGeometry(0.011, 0.011, 0.88, 8), steelMat);
+    post.position.set(sx, 1.24, 0);
+    g.add(post);
+  }
+  const topBar = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.012, 0.62, 8), steelMat);
+  topBar.rotation.z = Math.PI / 2;
+  topBar.position.y = 1.68;
+  g.add(topBar);
+  return g;
+}
+
+/** Warm desk lamp, potted succulent, and folded towel stack for Dottie's counter & folding table. */
+function buildCounterDetails() {
+  const g = new THREE.Group();
+  g.name = 'laundromat-counter-details';
+  // Warm desk lamp on the south end of Dottie's counter.
+  const lamp = new THREE.Group();
+  lamp.position.set(-1.36, 1.08, -0.72);
+  const base = new THREE.Mesh(new THREE.CylinderGeometry(0.075, 0.09, 0.03, 16), new THREE.MeshStandardMaterial({ color: 0xb88f4c, metalness: 0.7, roughness: 0.3 }));
+  base.position.y = 0.015;
+  const stem = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.014, 0.28, 10), new THREE.MeshStandardMaterial({ color: 0xb88f4c, metalness: 0.7, roughness: 0.3 }));
+  stem.position.y = 0.16;
+  const shade = new THREE.Mesh(
+    new THREE.ConeGeometry(0.11, 0.13, 18, 1, true),
+    new THREE.MeshStandardMaterial({ color: 0xf7e6c4, emissive: 0xffd28a, emissiveIntensity: 0.65, side: THREE.DoubleSide, roughness: 0.6 })
+  );
+  shade.position.y = 0.31;
+  lamp.add(base, stem, shade);
+  g.add(lamp);
+
+  // Small potted plant at the north end of Dottie's counter.
+  const plant = new THREE.Group();
+  plant.position.set(-1.26, 1.08, -3.28);
+  const pot = new THREE.Mesh(new THREE.CylinderGeometry(0.075, 0.055, 0.11, 12), new THREE.MeshStandardMaterial({ color: 0xb86a4b, roughness: 0.85 }));
+  pot.position.y = 0.055;
+  const leafMat = new THREE.MeshStandardMaterial({ color: 0x4c8a56, roughness: 0.7 });
+  for (let i = 0; i < 6; i++) {
+    const a = (i / 6) * Math.PI * 2;
+    const leaf = new THREE.Mesh(new THREE.SphereGeometry(0.045, 8, 6), leafMat);
+    leaf.scale.set(1.3, 0.55, 0.7);
+    leaf.position.set(Math.cos(a) * 0.045, 0.125 + (i % 2) * 0.02, Math.sin(a) * 0.045);
+    leaf.rotation.y = -a;
+    plant.add(leaf);
+  }
+  plant.add(pot);
+  g.add(plant);
+
+  // Neat stack of folded pastel towels on the folding table corner.
+  const towelColors = [0xd8e8f2, 0xf2e4c9, 0xd8c8e8];
+  towelColors.forEach((col, i) => {
+    const towel = new THREE.Mesh(
+      new THREE.BoxGeometry(0.32, 0.055, 0.24),
+      new THREE.MeshStandardMaterial({ color: col, roughness: 0.92 })
+    );
+    towel.position.set(-0.85, 0.94 + i * 0.058, -6.52);
+    towel.rotation.y = (i - 1) * 0.06;
+    g.add(towel);
+  });
+  return g;
+}
+
+/** Glowing overhead fluorescent light tube fixture. */
+function buildCeilingFixture() {
+  const g = new THREE.Group();
+  const housing = new THREE.Mesh(
+    new THREE.BoxGeometry(1.5, 0.05, 0.22),
+    new THREE.MeshStandardMaterial({ color: 0xd8dfe6, roughness: 0.4, metalness: 0.5 })
+  );
+  const tube = new THREE.Mesh(
+    new THREE.BoxGeometry(1.42, 0.03, 0.14),
+    new THREE.MeshBasicMaterial({ color: 0xfff6e5 })
+  );
+  tube.position.y = -0.032;
+  g.add(housing, tube);
+  return g;
+}
+
+/** Glowing "OPEN 24 HRS" neon window sign visible from Maple Lane. */
+function buildNeonOpenSign() {
+  const g = new THREE.Group();
+  g.name = 'laundromat-neon-open';
+  const backing = new THREE.Mesh(
+    new THREE.BoxGeometry(0.86, 0.36, 0.035),
+    new THREE.MeshStandardMaterial({ color: 0x15181e, roughness: 0.5 })
+  );
+  let faceMat;
+  if (typeof document !== 'undefined') {
+    const c = document.createElement('canvas');
+    c.width = 512;
+    c.height = 220;
+    const ctx = c.getContext('2d');
+    ctx.fillStyle = '#11141a';
+    ctx.fillRect(0, 0, 512, 220);
+    ctx.strokeStyle = '#38bdf8';
+    ctx.lineWidth = 12;
+    ctx.strokeRect(14, 14, 484, 192);
+    ctx.fillStyle = '#ff4d5a';
+    ctx.font = 'bold 92px system-ui, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('OPEN', 256, 86);
+    ctx.fillStyle = '#ffd166';
+    ctx.font = 'bold 44px system-ui, sans-serif';
+    ctx.fillText('24 HOURS', 256, 162);
+    const tex = new THREE.CanvasTexture(c);
+    tex.colorSpace = THREE.SRGBColorSpace;
+    faceMat = new THREE.MeshStandardMaterial({ map: tex, emissiveMap: tex, emissive: 0xffffff, emissiveIntensity: 0.85, roughness: 0.2 });
+  } else {
+    faceMat = new THREE.MeshStandardMaterial({ color: 0xff4d5a, emissive: 0xff4d5a, emissiveIntensity: 0.85 });
+  }
+  const face = new THREE.Mesh(new THREE.PlaneGeometry(0.82, 0.32), faceMat);
+  face.position.z = 0.02;
+  g.add(backing, face);
+  return { group: g, mat: faceMat };
+}
+
+/** Retro red $1 gumball machine for the waiting nook. */
+function buildGumballMachine(steelMat) {
+  const g = new THREE.Group();
+  g.name = 'laundromat-gumball-machine';
+  const redMat = new THREE.MeshStandardMaterial({ color: 0xc92c2c, roughness: 0.26, metalness: 0.35 });
+  const base = new THREE.Mesh(new THREE.CylinderGeometry(0.13, 0.18, 0.12, 20), redMat);
+  base.position.y = 0.06;
+  const stand = new THREE.Mesh(new THREE.CylinderGeometry(0.032, 0.038, 0.68, 16), steelMat);
+  stand.position.y = 0.44;
+  const body = new THREE.Mesh(new THREE.CylinderGeometry(0.13, 0.14, 0.22, 20), redMat);
+  body.position.y = 0.88;
+  const crank = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.03, 0.04), steelMat);
+  crank.position.set(0, 0.88, -0.14);
+  const globe = new THREE.Mesh(
+    new THREE.SphereGeometry(0.155, 20, 16),
+    new THREE.MeshStandardMaterial({ color: 0xf4fbff, transparent: true, opacity: 0.35, roughness: 0.06, metalness: 0.15, depthWrite: false })
+  );
+  globe.position.y = 1.12;
+  const cap = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.11, 0.05, 16), redMat);
+  cap.position.y = 1.28;
+  const ballColors = [0xff4d6d, 0x38bdf8, 0xfbbf24, 0x4ade80, 0xc084fc, 0xfb923c];
+  const ballGeo = new THREE.SphereGeometry(0.028, 8, 6);
+  for (let i = 0; i < 18; i++) {
+    const a = (i / 18) * Math.PI * 2 * 2.3;
+    const r = (i % 3) * 0.038 + 0.025;
+    const b = new THREE.Mesh(ballGeo, new THREE.MeshStandardMaterial({ color: ballColors[i % ballColors.length], roughness: 0.25 }));
+    b.position.set(Math.cos(a) * r, 1.04 + Math.floor(i / 6) * 0.045, Math.sin(a) * r);
+    g.add(b);
+  }
+  g.add(base, stand, body, crank, globe, cap);
+  return g;
+}
+
+/** Compact $2 hot coffee & tea station for the laundromat. */
+function buildCoffeeStation(steelMat) {
+  const g = new THREE.Group();
+  g.name = 'laundromat-coffee-station';
+  const cabinet = new THREE.Mesh(
+    new THREE.BoxGeometry(0.46, 0.86, 0.56),
+    new THREE.MeshStandardMaterial({ color: 0x5c432c, roughness: 0.8 })
+  );
+  cabinet.position.y = 0.43;
+  const top = new THREE.Mesh(new THREE.BoxGeometry(0.50, 0.04, 0.60), steelMat);
+  top.position.y = 0.88;
+  const brewer = new THREE.Mesh(
+    new THREE.BoxGeometry(0.28, 0.42, 0.34),
+    new THREE.MeshStandardMaterial({ color: 0x202429, roughness: 0.35, metalness: 0.45 })
+  );
+  brewer.position.set(-0.04, 1.11, 0);
+  const plate = signPlate('HOT COFFEE & TEA', '$2 · +15 ENERGY', 0.32, 0.13, { bg: '#4a2e1d', accent: '#f7d59c' });
+  plate.rotation.y = Math.PI / 2;
+  plate.position.set(0.105, 1.19, 0);
+  const carafe = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.055, 0.068, 0.14, 14),
+    new THREE.MeshStandardMaterial({ color: 0x3b2316, roughness: 0.18, metalness: 0.1 })
+  );
+  carafe.position.set(0.06, 0.97, 0);
+  g.add(cabinet, top, brewer, plate, carafe);
   return g;
 }
 
@@ -269,26 +736,185 @@ export function buildLaundromat(scene, quality) {
     return object;
   }
 
-  // Washers and dryers: an animated drum over the model's door plus a status light.
-  const drumTex = drumTexture();
+  // Washers and dryers: smooth 48-segment brushed stainless porthole doors, curved glass domes,
+  // sleek dark-acrylic control strips with rotary dials, and subtle rising steam on dryers.
+  const idleDrumTex = drumTexture('idle');
+  const washerDrumTex = drumTexture('wash');
+  const dryerDrumTex = drumTexture('dry');
+  const steamGeo = new THREE.SphereGeometry(0.085, 8, 6);
+  const steelMat = new THREE.MeshStandardMaterial({ color: 0xd6dfe6, metalness: 0.85, roughness: 0.22 });
+  const trimSteelMat = new THREE.MeshStandardMaterial({ color: 0xbfc9d2, metalness: 0.82, roughness: 0.26 });
+  const gasketMat = new THREE.MeshStandardMaterial({ color: 0x242a30, roughness: 0.65, metalness: 0.1 });
+  const acrylicMat = new THREE.MeshStandardMaterial({ color: 0x161b21, roughness: 0.14, metalness: 0.25 });
+  const glassDomeMat = new THREE.MeshStandardMaterial({
+    color: 0xeef6ff, transparent: true, opacity: 0.24, roughness: 0.06, metalness: 0.18, depthWrite: false
+  });
+  const dialGeo = new THREE.CylinderGeometry(0.032, 0.036, 0.024, 24);
+  dialGeo.rotateX(Math.PI / 2);
+  const handleGeo = new THREE.CylinderGeometry(0.011, 0.011, 0.11, 14);
+  const hingeGeo = new THREE.BoxGeometry(0.028, 0.075, 0.024);
+
   const drums = [];
   for (const m of [...WASHERS, ...DRYERS]) {
-    const drum = new THREE.Mesh(
-      new THREE.CircleGeometry(m.r, 20),
-      new THREE.MeshBasicMaterial({ map: drumTex, transparent: true, opacity: 0.92 })
+    const isWasher = m.id.startsWith('washer');
+    const activeTex = isWasher ? washerDrumTex : dryerDrumTex;
+    const front = new THREE.Group();
+    front.position.set(m.x, m.y, m.z + 0.008);
+
+    // Always-visible recessed 48-segment stainless drum (swaps to tumbling clothes when active).
+    const drumMat = new THREE.MeshStandardMaterial({
+      map: idleDrumTex, roughness: 0.35, metalness: 0.45, emissive: 0x000000, emissiveIntensity: 0
+    });
+    const drum = new THREE.Mesh(new THREE.CircleGeometry(m.r - 0.01, 48), drumMat);
+    drum.position.z = 0.002;
+    front.add(drum);
+
+    // Hinged chrome porthole door pivot on the left rim so the door swings open on load/unload.
+    const hingeX = -(m.r + 0.022);
+    const doorPivot = new THREE.Group();
+    doorPivot.position.set(hingeX, 0, 0.012);
+    const offset = -hingeX;
+
+    const bezel = new THREE.Mesh(new THREE.TorusGeometry(m.r + 0.018, 0.03, 16, 48), steelMat);
+    bezel.position.set(offset, 0, 0.01);
+    const gasket = new THREE.Mesh(new THREE.TorusGeometry(m.r - 0.012, 0.013, 12, 40), gasketMat);
+    gasket.position.set(offset, 0, -0.002);
+    const handle = new THREE.Mesh(handleGeo, steelMat);
+    handle.position.set(offset + m.r + 0.024, 0, 0.034);
+    const dome = new THREE.Mesh(
+      new THREE.SphereGeometry(m.r - 0.006, 32, 14, 0, Math.PI * 2, 0, Math.PI * 0.38),
+      glassDomeMat
     );
-    drum.position.set(m.x, m.y, m.z + 0.012);
-    drum.visible = false;
+    dome.rotation.x = Math.PI / 2;
+    dome.scale.set(1, 1, 0.24);
+    dome.position.set(offset, 0, -0.006);
+    doorPivot.add(bezel, gasket, handle, dome);
+    front.add(doorPivot);
+
+    // Fixed steel hinge on the left rim.
+    const hinge = new THREE.Mesh(hingeGeo, trimSteelMat);
+    hinge.position.set(-(m.r + 0.026), 0, 0.024);
+    front.add(hinge);
+
+    // Sleek dark-acrylic control strip + brushed steel rotary dial + live LED countdown readout + status bar.
+    const panelY = m.r + 0.135;
+    const panelBack = new THREE.Mesh(new THREE.BoxGeometry(isWasher ? 0.64 : 0.72, 0.105, 0.022), trimSteelMat);
+    panelBack.position.set(0, panelY, 0.014);
+    const acrylic = new THREE.Mesh(new THREE.BoxGeometry(isWasher ? 0.34 : 0.40, 0.068, 0.012), acrylicMat);
+    acrylic.position.set(0.06, panelY, 0.024);
+    const dial = new THREE.Mesh(dialGeo, steelMat);
+    dial.position.set(isWasher ? -0.20 : -0.24, panelY, 0.028);
+    const readout = buildDigitalReadout();
+    readout.mesh.position.set(isWasher ? 0.01 : 0.02, panelY, 0.031);
     const led = new THREE.Mesh(
-      new THREE.BoxGeometry(0.05, 0.03, 0.01),
+      new THREE.BoxGeometry(0.08, 0.022, 0.014),
       new THREE.MeshBasicMaterial({ color: 0x38bdf8 })
     );
-    led.position.set(m.x + m.r * 0.9, m.y + m.r + 0.12, m.z + 0.012);
-    group.add(drum, led);
-    drums.push({ ...m, drum, led });
-    const isWasher = m.id.startsWith('washer');
+    led.position.set(isWasher ? 0.16 : 0.19, panelY, 0.028);
+    front.add(panelBack, acrylic, dial, readout.mesh, led);
+    group.add(front);
+
+    const puffs = [];
+    if (!isWasher) {
+      for (let k = 0; k < 3; k++) {
+        const mat = new THREE.MeshBasicMaterial({ color: 0xf4f7fa, transparent: true, opacity: 0, depthWrite: false });
+        const puff = new THREE.Mesh(steamGeo, mat);
+        puff.position.set(m.x + (k - 1) * 0.14, 1.95, m.z - 0.15);
+        puff.visible = false;
+        group.add(puff);
+        puffs.push({ mesh: puff, mat, phase: k * 2.1, baseX: m.x + (k - 1) * 0.14, baseZ: m.z - 0.15 });
+      }
+    }
+    drums.push({
+      ...m,
+      drum,
+      drumMat,
+      idleDrumTex,
+      activeTex,
+      doorPivot,
+      readout,
+      led,
+      puffs,
+      lastPhase: 'idle',
+      swingTimer: 0
+    });
     spot('laundromat-' + m.id, m.x, 1.25, m.z + (isWasher ? 0.28 : 0.32), isWasher ? 1.65 : 1.8, () => laundry()?.machineOption(m.id) || null);
   }
+
+  // Overhead warm-white interior strip lights + 3D fluorescent ceiling fixtures.
+  const lightPool = ud && ud.lightPool;
+  for (const [lx, lz] of [[3.2, -1.6], [3.2, -5.6], [-0.3, -3.8]]) {
+    const fixture = buildCeilingFixture();
+    fixture.position.set(lx, 3.45, lz);
+    group.add(fixture);
+    if (lightPool) {
+      lightPool.addPoint({ x: LAUNDROMAT.x + lx, y: 3.2, z: LAUNDROMAT.z + lz, color: 0xfff1dc, intensity: 16, distance: 9, decay: 2 });
+    } else {
+      const lamp = new THREE.PointLight(0xfff1dc, 16, 9, 2);
+      lamp.position.set(lx, 3.2, lz);
+      group.add(lamp);
+    }
+  }
+
+  // Rolling chrome laundry carts & counter/folding table details.
+  const cart1 = buildLaundryCart(steelMat);
+  cart1.position.set(0.28, 0, -6.25);
+  cart1.rotation.y = 0.22;
+  const cart2 = buildLaundryCart(steelMat);
+  cart2.position.set(5.78, 0, -3.75);
+  cart2.rotation.y = -0.18;
+  group.add(cart1, cart2, buildCounterDetails());
+
+  // Glowing "OPEN 24 HRS" neon sign in the front shop window facing Maple Lane.
+  const neonOpen = buildNeonOpenSign();
+  neonOpen.group.position.set(2.6, 2.05, -0.16);
+  group.add(neonOpen.group);
+
+  // Retro red $1 Gumball Machine in the waiting nook beside the indoor benches.
+  const gumball = buildGumballMachine(steelMat);
+  gumball.position.set(6.45, 0, -0.55);
+  group.add(gumball);
+  const FLAVORS = ['cherry', 'blue raspberry', 'lemon-lime', 'grape', 'orange'];
+  let gumballCount = 0;
+  spot('laundromat-gumball', 6.45, 1.15, -0.88, 1.65, () => ({
+    prompt: 'buy a gumball ($1)',
+    run: (ctx) => {
+      if (!ctx?.money?.spend?.(1, { category: 'Purchase', label: 'Gumball · Laundromat' })) {
+        ctx?.toast?.('Not enough cash.');
+        return false;
+      }
+      ctx?.sfx?.play?.('vending');
+      ctx?.needs?.add?.('energy', 5);
+      ctx?.needs?.add?.('mood', 6);
+      const flavor = FLAVORS[gumballCount++ % FLAVORS.length];
+      ctx?.toast?.(`Popped a ${flavor} gumball! (+5 Energy)`);
+      return 'press';
+    }
+  }));
+
+  // Cozy $2 Hot Coffee & Tea Station along the back-left wall.
+  const coffeeStation = buildCoffeeStation(steelMat);
+  coffeeStation.position.set(-0.98, 0, -7.55);
+  group.add(coffeeStation);
+  spot('laundromat-coffee', -0.65, 1.18, -7.55, 1.75, () => ({
+    prompt: 'pour hot coffee ($2)',
+    run: (ctx) => {
+      if (!ctx?.money?.spend?.(2, { category: 'Purchase', label: 'Hot Coffee · Laundromat' })) {
+        ctx?.toast?.('Not enough cash.');
+        return false;
+      }
+      ctx?.sfx?.play?.('vending');
+      ctx?.needs?.add?.('energy', 15);
+      ctx?.needs?.add?.('mood', 8);
+      ctx?.toast?.('Warm cup of laundromat coffee! (+15 Energy)');
+      return 'drink';
+    }
+  }));
+
+  // Overhead sign above the 5 center-island self-serve washers.
+  const overheadSign = buildOverheadSign();
+  overheadSign.position.set(3.2, 2.38, -3.75);
+  group.add(overheadSign);
 
   // East-wall washers are decorative commercial units — point players to the 5 center-island washers.
   spot('laundromat-wall-washers', 6.85, 1.25, -2.8, 1.4, () => ({
@@ -301,6 +927,17 @@ export function buildLaundromat(scene, quality) {
 
   spot('laundromat-table', TABLE_SPOT.x, 1.1, TABLE_SPOT.z, 1.5, () => laundry()?.tableOption() || null);
   spot('laundromat-counter', COUNTER_SPOT.x, 1.1, COUNTER_SPOT.z, 1.55, () => laundry()?.counterOption() || null);
+
+  // Live Order Board mounted on partition-back beside the folding table.
+  const orderBoard = buildOrderBoard();
+  orderBoard.group.position.set(-1.21, 1.72, -5.85);
+  group.add(orderBoard.group);
+
+  // Magazine rack near the indoor benches to pass time while machines run.
+  const magRack = buildMagazineRack();
+  magRack.position.set(0.85, 0, -0.52);
+  group.add(magRack);
+  spot('laundromat-magazines', 0.85, 1.1, -0.82, 1.75, () => laundry()?.waitOption() || null);
 
   const bags = BAG_SPOTS.map(([x, z]) => {
     const b = bagMesh();
@@ -331,12 +968,26 @@ export function buildLaundromat(scene, quality) {
     }));
   }
 
-  // Vending machine out front: detergent on the left button, snacks on the right.
+  // Indoor Fabric Softener dispenser on the west end of the center washer island.
+  const softenerOffer = vend?.stock?.find((o) => o.item === 'softener');
+  if (softenerOffer) {
+    const softenerDispenser = buildSoftenerDispenser();
+    softenerDispenser.position.set(1.04, 1.28, -3.75);
+    group.add(softenerDispenser);
+    spot('laundromat-softener-dispenser', 0.82, 1.28, -3.75, 1.8, () => ({
+      prompt: `buy ${softenerOffer.name} ($${softenerOffer.price})`,
+      run: (ctx) => (buyFromShop(vend, ctx, softenerOffer) ? 'press' : false)
+    }));
+  }
+
+  // Vending machine out front: detergent, snacks, and fabric softener.
   const vendSign = signPlate('SOAP $2 · SNACKS $5', 'LAUNDRY VENDING', 1.05, 0.34);
   vendSign.position.set(-5.55, 1.92, 0.87);
   group.add(vendSign);
+  const vendSpacing = vend.stock.length > 2 ? 0.45 : 0.6;
+  const vendStart = -5.55 - ((vend.stock.length - 1) * vendSpacing) / 2;
   vend.stock.forEach((offer, i) => {
-    spot('laundromat-vend-' + offer.item, -5.85 + i * 0.6, 1.35, 1.15, 1.8, () => ({
+    spot('laundromat-vend-' + offer.item, vendStart + i * vendSpacing, 1.35, 1.15, 1.8, () => ({
       prompt: `buy ${offer.name} ($${offer.price})`,
       run: (ctx) => (buyFromShop(vend, ctx, offer) ? 'press' : false)
     }));
@@ -378,6 +1029,7 @@ export function buildLaundromat(scene, quality) {
 
   const signMats = [];
   const windowMats = new Set();
+  const stainlessTint = new THREE.Color(0xdbe3ea);
   loadGltf(URL, (gltf) => {
     const model = gltf.scene;
     model.traverse((o) => {
@@ -388,16 +1040,35 @@ export function buildLaundromat(scene, quality) {
       o.receiveShadow = !!quality.shadows;
       if (!m) return;
       m.shadowSide = THREE.DoubleSide;
-      if (/^(BrickSmallPainted|Roof_tiles|RooftilesMetal)/.test(m.name) && m.map) {
+      if (/^(BrickSmallPainted|Roof_tiles|RooftilesMetal|Laundry|Metal|TilesPlain)/.test(m.name) && m.map) {
         m.map.anisotropy = Math.max(m.map.anisotropy, quality.shadows ? 8 : 4);
         m.map.needsUpdate = true;
+      }
+      // Modern brushed stainless steel PBR pass on all washer/dryer bodies & metal trim.
+      if (/^Laundry($|_01|_S)/.test(m.name)) {
+        m.roughness = 0.24;
+        m.metalness = 0.68;
+        if ('envMapIntensity' in m) m.envMapIntensity = 1.15;
+        if (m.color) m.color.lerp(stainlessTint, 0.35);
+      } else if (/^Metal$/.test(m.name)) {
+        m.roughness = 0.22;
+        m.metalness = 0.78;
+        if ('envMapIntensity' in m) m.envMapIntensity = 1.2;
+      } else if (/^TilesPlain$/.test(m.name)) {
+        m.roughness = 0.34;
+        m.metalness = 0.05;
+      } else if (/^Glass/.test(m.name)) {
+        m.roughness = 0.07;
+        m.metalness = 0.12;
       }
       if (/^Glass/.test(m.name) && m.emissive) windowMats.add(m);
       if (/^Emissor/.test(m.name) && !signMats.includes(m)) signMats.push(m);
       if (m.map && !OUTSIDE.test(m.name) && !m.userData.stripLit) {
+        const isAppliance = /^Laundry($|_01|_S)|^Metal$/.test(m.name);
         m.emissiveMap = m.map;
         m.emissive.setRGB(1, 0.98, 0.94);
-        m.emissiveIntensity = STRIP_LIGHT;
+        // Keep brushed stainless appliances less self-lit so real specular highlights pop.
+        m.emissiveIntensity = isAppliance ? 0.14 : STRIP_LIGHT;
         m.userData.stripLit = true;
       }
     });
@@ -410,23 +1081,73 @@ export function buildLaundromat(scene, quality) {
     spin += delta;
     for (const d of drums) {
       const s = l ? l.machineState(d.id) : null;
-      d.drum.visible = !!(s && (s.running || s.finished));
-      if (s && s.running) {
-        // Washers slosh back and forth; dryers tumble one way.
-        d.drum.rotation.z = d.id.startsWith('washer') ? Math.sin(spin * 2.4) * 2.2 : -spin * 3.2;
+      const active = !!(s && (s.running || s.finished));
+      const wantMap = active ? d.activeTex : d.idleDrumTex;
+      if (d.drumMat.map !== wantMap) {
+        d.drumMat.map = wantMap;
+        d.drumMat.needsUpdate = true;
       }
+      if (s && s.running) {
+        // Washers slosh back and forth; dryers tumble one way with a soft warm drum light.
+        d.drum.rotation.z = d.id.startsWith('washer') ? Math.sin(spin * 2.4) * 2.2 : -spin * 3.2;
+        d.drumMat.emissive.setHex(d.id.startsWith('washer') ? 0x1e3a4c : 0x4a351c);
+        d.drumMat.emissiveIntensity = 0.38;
+      } else {
+        d.drumMat.emissive.setHex(0x000000);
+        d.drumMat.emissiveIntensity = 0;
+      }
+      if (d.puffs && d.puffs.length) {
+        const steaming = !!(s && s.running);
+        for (const p of d.puffs) {
+          p.mesh.visible = steaming;
+          if (steaming) {
+            const t = (spin * 0.55 + p.phase) % 1;
+            p.mesh.position.set(p.baseX + Math.sin(spin * 1.4 + p.phase) * 0.06, 1.88 + t * 0.52, p.baseZ);
+            const scale = 0.65 + t * 1.1;
+            p.mesh.scale.setScalar(scale);
+            p.mat.opacity = Math.sin(t * Math.PI) * 0.24;
+          }
+        }
+      }
+      const phase = !s || (!s.running && !s.finished) ? 'idle' : s.running ? 'running' : 'finished';
+      if (phase !== d.lastPhase) {
+        if ((d.lastPhase === 'idle' && phase === 'running') || (d.lastPhase === 'finished' && phase === 'idle')) {
+          d.swingTimer = 1.05;
+        }
+        d.lastPhase = phase;
+      }
+      if (d.swingTimer > 0) d.swingTimer = Math.max(0, d.swingTimer - delta);
+      const targetAngle = d.swingTimer > 0
+        ? -Math.sin((d.swingTimer / 1.05) * Math.PI) * 1.15
+        : (phase === 'finished' ? -0.18 : 0);
+      d.doorPivot.rotation.y += (targetAngle - d.doorPivot.rotation.y) * Math.min(1, delta * 9);
+
+      if (phase === 'running') {
+        d.readout.set(`${s.minutesLeft || 1}m`, '#fbbf24');
+      } else if (phase === 'finished') {
+        d.readout.set('DONE', '#4ade80');
+      } else {
+        d.readout.set('RDY', '#38bdf8');
+      }
+
       const color = !s || (!s.running && !s.finished) ? 0x38bdf8
         : s.running ? 0xffa020 : (Math.floor(spin * 2) % 2 ? 0x30ff60 : 0x0c4018);
       d.led.material.color.setHex(color);
     }
-    const waiting = l ? Math.min(bags.length, l.waitingCount()) : 0;
-    bags.forEach((b, i) => { b.visible = i < waiting; });
+    const waitingList = l && typeof l.waitingOrders === 'function' ? l.waitingOrders() : [];
+    bags.forEach((b, i) => {
+      const o = waitingList[i];
+      b.visible = !!o;
+      if (o && b.userData.mat) b.userData.mat.color.setHex(o.color);
+    });
+    if (l && typeof l.boardSummary === 'function') orderBoard.draw(l.boardSummary());
     clockScreen.material.color.setHex(l && l.onShift ? 0x40e070 : 0x2a4a2a);
     if (time) {
       const m = time.minutes;
       const dusk = THREE.MathUtils.smoothstep(m, 17.5 * 60, 19.5 * 60);
       const dawn = 1 - THREE.MathUtils.smoothstep(m, 5.5 * 60, 7 * 60);
       const night = Math.min(1, dusk + dawn);
+      neonOpen.mat.emissiveIntensity = 0.75 + 1.35 * night;
       for (const s of signMats) s.emissiveIntensity = 0.55 + 1.6 * night;
       for (const window of windowMats) {
         window.emissive.setHex(0xffd29a);

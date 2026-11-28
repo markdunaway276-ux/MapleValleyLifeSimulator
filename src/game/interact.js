@@ -50,6 +50,7 @@ export function setupInteract(g) {
       player,
       sfx: g.sfx,
       money: g.money,
+      needs: g.needs,
       toast,
       sleep: () => g.sleeper.start(),
       work: (jobId) => g.worker.start(typeof jobId === 'string' ? { jobId } : {}),

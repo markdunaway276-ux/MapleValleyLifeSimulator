@@ -352,6 +352,7 @@ Object.assign(g, { sleeper, worker });
 // --- laundromat -----------------------------------------------------------
 const laundry = createLaundry({
   getMinutes: () => clock.getTime().totalMinutes,
+  advanceMinutes: (mins) => clock.advance(mins),
   money,
   needs,
   inventory,
@@ -359,6 +360,7 @@ const laundry = createLaundry({
   toast: (msg) => g.hud.toast(msg),
   save: () => save(),
   startWork: (job) => worker.start({ job }),
+  onOrderComplete: ({ onTime }) => friendship.add('dottie', onTime ? 6 : 2, 'Dottie'),
   saved: saveData.laundry
 });
 scene.userData.laundry = laundry;

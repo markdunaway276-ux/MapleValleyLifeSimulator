@@ -8,6 +8,72 @@
 
 export const CHANGELOG = [
   {
+    version: '0.26',
+    date: '2026-11-28',
+    title: 'Cozy Home Interior & Curb Appeal Overhaul',
+    notes: [
+      'Added crisp white baseboards, crown moulding, doorway casings, wooden window sills, brass curtain rods, and soft sage-linen curtains across the living room, bedroom, and kitchen.',
+      'Built a cozy interactive brick hearth fireplace in the living room with flickering embers and warm light (press E to light/extinguish for +8 Energy).',
+      'Upgraded the kitchen with upper wall cabinets, a stainless steel sink & gooseneck faucet, hanging copper/steel cookware rack, and warm under-cabinet glow.',
+      'Polished the bedroom and bathroom with an interactive standing full-length mirror, glowing bedside lamp & alarm clock, backlit bathroom vanity mirror, chrome rain showerhead, and folded towel rack.',
+      'Upgraded the front yard with a brass "14 MAPLE LANE" house plaque, woven welcome mat, and 6 warm glowing solar pathway lights along the stone walkway.'
+    ]
+  },
+  {
+    version: '0.25',
+    date: '2026-11-28',
+    title: 'Gas Station Hoses, Canopy Glow & Store Details',
+    notes: [
+      'Added smooth hanging rubber fuel hoses and chrome nozzles in holsters on both sides of all 4 fuel pumps.',
+      'Mounted 8 recessed glowing canopy LED light panels with soft warm asphalt light pools that illuminate the forecourt at dusk and night.',
+      'Added glowing cherry & blue-raspberry slushie barrels with spinning swirl paddles plus gentle rising steam wisps above the coffee pots.',
+      'Dressed the storefront with a "BAGGED ICE" emblem, a wire-mesh Propane Exchange Cage stocked with cylinders, entrance planter boxes, overhead aisle signs, a convex chrome security mirror, and a glowing green register readout.'
+    ]
+  },
+  {
+    version: '0.24',
+    date: '2026-11-28',
+    title: 'Maple Lane Fuel & Go Visual Overhaul',
+    notes: [
+      'Upgraded the gas station with a modern PBR surface polish on fuel pumps, brushed steel trim, glossy coffee/slushie machines, cool-lit drink coolers, and polished store floor tiles.',
+      'Added glowing digital price displays and Regular/Plus/Premium octane buttons on all 4 pumps, plus illuminated Pump #1–#4 canopy plaques.',
+      'Dressed the forecourt with painted parking stalls, yellow pump-island guide lanes, glossy safety bollards, windshield squeegee/trash stations, and a Free Air & Water station.',
+      'Added a glowing double-sided LED Roadside Fuel Price Sign, warm canopy fascia accent lighting, a glowing "FRESH COFFEE & SLUSHIES" bar sign, entrance welcome mat, and a neon "OPEN" window sign.'
+    ]
+  },
+  {
+    version: '0.23',
+    date: '2026-11-28',
+    title: 'Laundromat Doors, Timers & Cozy Waiting Nook',
+    notes: [
+      'Hinged chrome porthole doors now swing open smoothly when loading or unloading a washer/dryer and crack ajar when a cycle finishes.',
+      'Added live digital LED countdown displays (RDY / minutes left / DONE) on every washer and dryer control strip.',
+      'Dressed the interior with rolling chrome wire laundry carts, a warm counter desk lamp, potted plant, folded pastel towels, 3D ceiling light fixtures, and a glowing "OPEN 24 HOURS" neon window sign.',
+      'Added a cozy waiting nook with a retro red $1 Gumball Machine (+5 Energy) and a $2 Hot Coffee & Tea Station (+15 Energy).'
+    ]
+  },
+  {
+    version: '0.22',
+    date: '2026-11-28',
+    title: 'Modern Brushed Stainless Washers & Dryers',
+    notes: [
+      'Upgraded all laundromat washers and dryers to a sleek modern brushed stainless steel finish with smooth 48-segment chrome porthole bezels, dark rubber gaskets, door handles, and curved specular glass domes.',
+      'Added always-visible 256×256 perforated stainless-steel inner drums with soft interior lighting while running, plus sleek dark-acrylic control strips with rotary cycle dials and glowing status bars.',
+      'Added warm-white overhead interior strip lights and a freshly-mopped sheen to the laundromat floor tiles so the stainless steel and curved glass gleam.'
+    ]
+  },
+  {
+    version: '0.21',
+    date: '2026-11-28',
+    title: 'Cozy Laundromat Experience',
+    notes: [
+      'New Magazine Rack by the indoor benches: read Maple Valley Monthly while your washer or dryer runs to pass time straight to completion (+5 Energy).',
+      'Warm clothes refresh & Fabric Softener ($2): pulling your clothes fresh out of the dryer restores +8 Energy (+15 Energy with lavender Fabric Softener from the new island dispenser).',
+      'Richer Laundromat Shifts: live Drop-Off Order Board, color-coded customer bags with deadline timers, +$5 bonus for every 3 on-time orders in a row, and Dottie Friendship rewards.',
+      'Lucky finds & sensory polish: chance to find $1–$3 in stray quarters when unloading machines, soapy suds in running washers, warm rising steam above running dryers, and an overhead Self-Serve Washers sign.'
+    ]
+  },
+  {
     version: '0.20.1',
     date: '2026-11-28',
     title: 'Fixes: Chapter 3, Mood & Odd Jobs',
