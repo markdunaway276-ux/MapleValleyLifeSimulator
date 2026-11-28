@@ -63,6 +63,7 @@ export function startLoop(g) {
     g.rain.update(delta, { position: player.position, intensity: rain, indoor });
     g.snow?.update(delta, { position: player.position, intensity: snowfall, indoor });
     if (typeof g.sfx.setRain === 'function') g.sfx.setRain(rain, { indoor });
+    g.radio?.update?.(delta, { playerPos: player.position, rain, indoor });
     const shop = scene.userData.laundromat;
     if (g.laundry) {
       g.laundry.update();

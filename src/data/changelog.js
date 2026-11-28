@@ -8,6 +8,18 @@
 
 export const CHANGELOG = [
   {
+    version: '0.6',
+    date: '2026-11-28',
+    title: 'Living Valley, Camera & Maple FM',
+    notes: [
+      'Passing AI traffic now cruises Maple Lane & Route 9 with headlights, brake lights, and polite yielding for you and your pickup.',
+      'Neighbours pop open colorful umbrellas when it rains, and playful squirrels scurry around Maple Lane Park.',
+      'Phone Camera now supports 1×/1.5×/2× zoom, live film filters (Warm Film, Golden, Cozy B&W), and a 12-photo Gallery.',
+      'New Maple FM Radio phone app with 3 cozy procedural stations (press R while driving to cycle stations) plus pond & breeze ambience.',
+      'Major graphics polish: sky reflections, 3D lighting relief on siding/brick/roofs, 3D grass & leaves, Fresnel pond water, 3D parallax mountains, and live Look Presets in Settings.'
+    ]
+  },
+  {
     version: '0.5',
     date: '2026-11-27',
     title: 'A Maple Lane story',

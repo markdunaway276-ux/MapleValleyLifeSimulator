@@ -18,6 +18,7 @@ import { createCarInterior } from './world/carInterior.js';
  */
 import { createScene } from './world/scene.js';
 import { createSkyEnvMap } from './world/envMap.js';
+import { createRadio } from './systems/radio.js';
 import { createHomeDecor } from './world/homeDecor.js';
 import { createParcelDelivery } from './systems/parcelDelivery.js';
 import { createMysteryChapter2 } from './systems/mysteryChapter2.js';
@@ -131,7 +132,15 @@ const rain = createRain({ scene, isMobile });
 const snow = createSnow({ scene, isMobile });
 clock.on('newDay', (e) => window.dispatchEvent(new CustomEvent('maple-new-day', { detail: e })));
 const sfx = createSfx({ getTime: () => clock.getTime(), getScene: () => scene });
-Object.assign(g, { clock, weather, dayNight, rain, snow, sfx });
+const radio = createRadio({ isMuted: () => sfx.isMuted() });
+window.addEventListener('keydown', (e) => {
+  if (e.code === 'KeyR' && !e.repeat && !e.ctrlKey && !e.metaKey && !e.altKey && mode.driving() && !mode.uiBlocked() &&
+      !e.target?.closest?.('input, textarea, [contenteditable]')) {
+    const next = radio.cycleStation();
+    g.hud?.toast?.(next.playing ? `📻 ${next.station.name} (${next.station.freq})` : '📻 Radio off');
+  }
+});
+Object.assign(g, { clock, weather, dayNight, rain, snow, sfx, radio });
 
 // --- needs, skills, the house interior -----------------------------------
 const needs = createNeeds();
@@ -491,6 +500,7 @@ const phone = createPhone({
   onHomeDecorChange: (fn) => homeDecor.onChange(fn),
   getFriendship: (id) => friendship.get(id),
   onTextSent: (id, name) => friendship.add(id, 5, name),
+  radio,
   playNotification: () => sfx.play('phone-notification')
 });
 const dialogue = createDialogue({

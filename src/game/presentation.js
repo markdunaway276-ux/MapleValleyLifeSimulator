@@ -310,26 +310,38 @@ body.mobile #hud-camera-view {
     }
   }
 
-  function capture(render, source, { yaw = 0, pitch = 0 } = {}) {
+  function capture(render, source, { yaw = 0, pitch = 0, zoom = 1, filter = 'none' } = {}) {
     const firstVisible = first.phone.visible;
     const thirdVisible = third.phone.visible;
     const actionsVisible = actionRig?.visible;
     const saved = camera.quaternion.clone();
+    const savedFov = camera.fov;
     const look = new THREE.Euler().setFromQuaternion(saved, 'YXZ');
     look.y += yaw;
     look.x = THREE.MathUtils.clamp(look.x + pitch, -1.45, 1.45);
     first.phone.visible = third.phone.visible = false;
     if (actionRig) actionRig.visible = false;
     camera.quaternion.setFromEuler(look);
+    const z = Math.max(1, Math.min(2.5, Number(zoom) || 1));
+    if (z !== 1) {
+      camera.fov = savedFov / z;
+      camera.updateProjectionMatrix();
+    }
     try {
       render();
       const photo = document.createElement('canvas');
-      const scale = Math.min(1, 480 / Math.max(source.width, source.height));
+      const scale = Math.min(1, 560 / Math.max(source.width, source.height));
       photo.width = Math.max(1, Math.round(source.width * scale));
       photo.height = Math.max(1, Math.round(source.height * scale));
-      photo.getContext('2d').drawImage(source, 0, 0, photo.width, photo.height);
-      return photo.toDataURL('image/jpeg', 0.76);
+      const pctx = photo.getContext('2d');
+      if (filter && filter !== 'none' && 'filter' in pctx) pctx.filter = filter;
+      pctx.drawImage(source, 0, 0, photo.width, photo.height);
+      return photo.toDataURL('image/jpeg', 0.80);
     } finally {
+      if (camera.fov !== savedFov) {
+        camera.fov = savedFov;
+        camera.updateProjectionMatrix();
+      }
       camera.quaternion.copy(saved);
       camera.updateMatrixWorld();
       if (actionRig) actionRig.visible = actionsVisible;

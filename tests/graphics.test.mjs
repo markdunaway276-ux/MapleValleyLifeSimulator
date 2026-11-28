@@ -288,3 +288,27 @@ test('Part 1 living town: AI traffic drives & yields for player, NPCs open umbre
   lw.update(0.1, { minutes: 12 * 60, rain: 0.85 });
   assert.equal(squirrels.visible, false);
 });
+
+test('Part 2 audio & camera: Maple FM Radio cycles stations/volume cleanly and Camera supports zoom & film filters', async () => {
+  const { createRadio, RADIO_STATIONS } = await import('../src/systems/radio.js');
+  const { CAMERA_FILTERS } = await import('../src/ui/phone/photos.js');
+
+  assert.ok(RADIO_STATIONS.length >= 4);
+  const radio = createRadio({ isMuted: () => false });
+  assert.equal(radio.getState().stationId, 'off');
+  assert.equal(radio.getState().playing, false);
+
+  const s1 = radio.cycleStation();
+  assert.equal(s1.stationId, 'acoustic');
+  assert.equal(s1.playing, true);
+
+  radio.setVolume(0.75);
+  assert.equal(radio.getState().volume, 0.75);
+
+  radio.setStation('off');
+  assert.equal(radio.getState().playing, false);
+  radio.dispose();
+
+  assert.ok(CAMERA_FILTERS.length >= 4);
+  assert.equal(CAMERA_FILTERS[0].id, 'none');
+});
