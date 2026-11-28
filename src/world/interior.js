@@ -4,6 +4,7 @@ import { PLAYER_RADIUS } from '../systems/collision.js';
 import { INTERIOR } from './palette.js';
 import { createVertexMaterial } from './surfaces.js';
 import { applyPbrSurface } from './pbrTextures.js';
+import { placeGltfProp } from './modelProps.js';
 
 /**
  * Basic interior for the Kenney main house.
@@ -262,6 +263,7 @@ export function buildMainHouseInterior({ shadows = false, outer, doorX, doorZ, d
   const gapL = doorX - halfDoor;
   const gapR = doorX + halfDoor;
   const parts = new Parts(true);
+  const furnitureFallback = new Parts(true);
   // Unlit parts (window glass, lamps, ceiling) keep their flat colour: no baked AO.
   const emissive = new Parts(true, { ao: false });
   const lampParts = new Parts(true, { ao: false });
@@ -356,20 +358,21 @@ export function buildMainHouseInterior({ shadows = false, outer, doorX, doorZ, d
   plane(parts, RUG, '+y', 3.1, 2.2, -2.95, fy + 0.006, -7.80);
   // plush sofa against the west wall, facing east toward the TV with clear open floor
   const sofaX = K.west + 0.45;
-  parts.box(FABRIC, 0.9, 0.42, 1.7, sofaX, 0.21 + fy, -7.80);
-  parts.box(FABRIC, 0.22, 0.5, 1.7, K.west + 0.11, 0.67 + fy, -7.80);
-  parts.box(INTERIOR.fabricDark, 0.18, 0.3, 1.7, sofaX, 0.57 + fy, -7.80);
-  parts.box(FABRIC, 0.7, 0.2, 0.2, sofaX, 0.52 + fy, -8.55); // arms
-  parts.box(FABRIC, 0.7, 0.2, 0.2, sofaX, 0.52 + fy, -7.05);
+  furnitureFallback.surface('fabric');
+  furnitureFallback.box(FABRIC, 0.9, 0.42, 1.7, sofaX, 0.21 + fy, -7.80);
+  furnitureFallback.box(FABRIC, 0.22, 0.5, 1.7, K.west + 0.11, 0.67 + fy, -7.80);
+  furnitureFallback.box(INTERIOR.fabricDark, 0.18, 0.3, 1.7, sofaX, 0.57 + fy, -7.80);
+  furnitureFallback.box(FABRIC, 0.7, 0.2, 0.2, sofaX, 0.52 + fy, -8.55); // arms
+  furnitureFallback.box(FABRIC, 0.7, 0.2, 0.2, sofaX, 0.52 + fy, -7.05);
   solid('main-int-sofa', K.west, K.west + 0.9, -8.65, -6.95);
   // compact low coffee table in front of the sofa (generous legroom & wide walkway to door/TV)
-  table(parts, -3.45, -7.80, 0.55, 1.15, 0.42);
+  table(furnitureFallback, -3.45, -7.80, 0.55, 1.15, 0.42);
   solid('main-int-table1', -3.73, -3.17, -8.38, -7.22);
   // reading chair tucked near the back-west living room corner, clear of the sofa
-  chair(parts, -3.45, -9.25, '+z');
+  chair(furnitureFallback, -3.45, -9.25, '+z');
   solid('main-int-chair1', -3.66, -3.24, -9.46, -9.04);
   // desk chair pulled up to the home-office desk
-  chair(parts, 0.85, -9.25, '+x');
+  chair(furnitureFallback, 0.85, -9.25, '+x');
   solid('main-int-chair2', 0.64, 1.06, -9.46, -9.04);
   frame(parts, '-x', K.frontRoomEast, 1.7, -7.80, 0.75, 0.52, INTERIOR.frames[0]);
   // home-office desk + laptop against the east wall (south of the TV)
@@ -383,11 +386,11 @@ export function buildMainHouseInterior({ shadows = false, outer, doorX, doorZ, d
         parts.box(WOOD_DARK, 0.055, h - 0.05, 0.055, cx + sxSign * (w / 2 - 0.06), (h - 0.05) / 2 + fy, cz + szSign * (d / 2 - 0.06));
       }
     }
-    // laptop (base + a short upright lid facing the room)
-    parts.surface('appliance');
-    parts.box(INTERIOR.laptop, 0.24, 0.02, 0.18, cx - 0.02, h + 0.01 + fy, cz);
-    parts.box(INTERIOR.laptopLid, 0.02, 0.16, 0.18, cx + 0.11, h + 0.09 + fy, cz);
-    parts.box(INTERIOR.laptopScreen, 0.01, 0.13, 0.15, cx + 0.095, h + 0.09 + fy, cz);
+    // laptop fallback (replaced by classic_laptop GLB when loaded)
+    furnitureFallback.surface('appliance');
+    furnitureFallback.box(INTERIOR.laptop, 0.24, 0.02, 0.18, cx - 0.02, h + 0.01 + fy, cz);
+    furnitureFallback.box(INTERIOR.laptopLid, 0.02, 0.16, 0.18, cx + 0.11, h + 0.09 + fy, cz);
+    furnitureFallback.box(INTERIOR.laptopScreen, 0.01, 0.13, 0.15, cx + 0.095, h + 0.09 + fy, cz);
     solid('main-int-desk', cx - w / 2, cx + w / 2, cz - d / 2, cz + d / 2);
   }
 
@@ -402,7 +405,8 @@ export function buildMainHouseInterior({ shadows = false, outer, doorX, doorZ, d
   parts.surface('wood');
   parts.box(WOOD_DARK, 1.5, 0.85, 0.08, -4.25, 0.6 + fy, -16.65); // headboard
   solid('main-int-bed', -5.00, -3.50, -16.55, -14.55);
-  parts.box(WOOD, 0.45, 0.5, 0.45, -3.05, 0.25 + fy, -16.45);
+  furnitureFallback.surface('wood');
+  furnitureFallback.box(WOOD, 0.45, 0.5, 0.45, -3.05, 0.25 + fy, -16.45);
   solid('main-int-nightstand', -3.275, -2.825, -16.675, -16.225);
   parts.surface('fabric');
   plane(parts, INTERIOR.rug2, '+y', 1.9, 1.2, -3.8, fy + 0.006, -13.0);
@@ -463,11 +467,11 @@ export function buildMainHouseInterior({ shadows = false, outer, doorX, doorZ, d
   parts.surface('metal');
   parts.box(INTERIOR.handle, 0.04, 0.5, 0.04, 4.98 - 0.12, 1.36 + fy, -10.18 - 0.38);
   solid('main-int-fridge', 4.62, 5.34, -10.54, -9.82);
-  table(parts, 2.25, -13.0, 1.4, 0.85);
+  table(furnitureFallback, 2.25, -13.0, 1.4, 0.85);
   solid('main-int-table2', 1.55, 2.95, -13.425, -12.575);
-  chair(parts, 2.25, -13.85, '+z');
+  chair(furnitureFallback, 2.25, -13.85, '+z');
   solid('main-int-chair3', 2.04, 2.46, -14.06, -13.64);
-  chair(parts, 2.25, -12.15, '-z');
+  chair(furnitureFallback, 2.25, -12.15, '-z');
   solid('main-int-chair4', 2.04, 2.46, -12.36, -11.94);
   frame(parts, '-x', K.east, 1.7, -13.2, 0.65, 0.48, INTERIOR.frames[2]);
 
@@ -496,6 +500,39 @@ export function buildMainHouseInterior({ shadows = false, outer, doorX, doorZ, d
   mesh.castShadow = false; // the ceiling casts the shadow via the GLB; keeps the shadow pass cheap
   mesh.receiveShadow = !!shadows;
   group.add(mesh);
+
+  const fallbackMesh = new THREE.Mesh(furnitureFallback.merge(), interiorMaterial(!!shadows));
+  fallbackMesh.name = 'interior-furniture-fallback';
+  fallbackMesh.castShadow = false;
+  fallbackMesh.receiveShadow = !!shadows;
+  group.add(fallbackMesh);
+
+  // Realistic CC0 furniture models (Poly Haven) — replaces fallbackMesh once loaded.
+  const glbFurniture = new THREE.Group();
+  glbFurniture.name = 'interior-furniture-glb';
+  group.add(glbFurniture);
+  const FURNITURE_PROPS = [
+    { name: 'sofa-glb', url: './assets/models/interior/sofa.glb', x: SOFA_CENTER.x, y: fy, z: SOFA_CENTER.z, rotY: Math.PI / 2, fitSize: [1.72, 0.90, 0.90] },
+    { name: 'coffee-table-glb', url: './assets/models/interior/coffee-table.glb', x: -3.45, y: fy, z: -7.80, rotY: 0, fitSize: [0.58, 0.44, 1.16] },
+    { name: 'armchair-glb', url: './assets/models/interior/armchair.glb', x: -3.45, y: fy, z: -9.25, rotY: 0.25, fitSize: [0.84, 0.94, 0.86] },
+    { name: 'desk-chair-glb', url: './assets/models/interior/dining-chair.glb', x: 0.85, y: fy, z: -9.25, rotY: Math.PI / 2, fitSize: [0.54, 0.92, 0.54] },
+    { name: 'laptop-glb', url: './assets/models/interior/laptop.glb', x: DESK_CENTER.x, y: fy + DESK_SIZE.height, z: DESK_CENTER.z, rotY: -Math.PI / 2, fitSize: [0.34, 0.26, 0.34] },
+    { name: 'nightstand-glb', url: './assets/models/interior/nightstand.glb', x: -3.05, y: fy, z: -16.45, rotY: 0, fitSize: [0.50, 0.58, 0.46] },
+    { name: 'dining-table-glb', url: './assets/models/interior/dining-table.glb', x: 2.25, y: fy, z: -13.0, rotY: 0, fitSize: [1.46, 0.78, 0.86] },
+    { name: 'kitchen-chair-north-glb', url: './assets/models/interior/dining-chair.glb', x: 2.25, y: fy, z: -13.85, rotY: 0, fitSize: [0.54, 0.92, 0.54] },
+    { name: 'kitchen-chair-south-glb', url: './assets/models/interior/dining-chair.glb', x: 2.25, y: fy, z: -12.15, rotY: Math.PI, fitSize: [0.54, 0.92, 0.54] }
+  ];
+  let remainingGlbs = FURNITURE_PROPS.length;
+  for (const prop of FURNITURE_PROPS) {
+    placeGltfProp(glbFurniture, prop.url, {
+      ...prop,
+      shadows: !!shadows,
+      onLoaded: () => {
+        remainingGlbs -= 1;
+        if (remainingGlbs <= 0) fallbackMesh.visible = false;
+      }
+    });
+  }
 
   // Real CC0 hardwood plank floor overlay (world-scaled UVs, 1 draw call).
   const floorPositions = [];

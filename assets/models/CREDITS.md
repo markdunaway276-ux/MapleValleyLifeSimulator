@@ -84,3 +84,10 @@
 - **License:** Creative Commons Zero (CC0 1.0), https://creativecommons.org/publicdomain/zero/1.0/
 - **Changes:** Downloaded 1K diffuse, OpenGL normal (`nor_gl`), and roughness maps, resized to 512 px, and re-encoded as WebP for fast browser loading.
 
+## interior/*.glb (sofa, coffee-table, armchair, dining-chair, dining-table, nightstand, laptop, potted-plant, bookshelf)
+
+- **Source:** [Poly Haven](https://polyhaven.com/models) (`sofa_02`, `modern_coffee_table_01`, `mid_century_lounge_chair`, `WoodenChair_01`, `WoodenTable_01`, `ClassicNightstand_01`, `classic_laptop`, `potted_plant_04`, `wooden_bookshelf_worn`)
+- **License:** Creative Commons Zero (CC0 1.0), https://creativecommons.org/publicdomain/zero/1.0/
+- **Changes:** Downloaded 1K glTF models and packed each into a self-contained `.glb` with embedded `EXT_texture_webp` textures resized to max 512 px.
+
+

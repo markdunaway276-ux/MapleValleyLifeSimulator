@@ -8,6 +8,15 @@
 
 export const CHANGELOG = [
   {
+    version: '0.8',
+    date: '2026-11-28',
+    title: 'Realism Pass 2: Cozy Home Furniture',
+    notes: [
+      'Upgraded your house interior with realistic 3D furniture: sofa, coffee table, mid-century reading armchair, wooden kitchen dining set, desk chair, classic laptop, and bedroom nightstand.',
+      'Upgraded the Home Decor Potted Plant and Walnut Bookshelf with realistic 3D models.'
+    ]
+  },
+  {
     version: '0.7',
     date: '2026-11-28',
     title: 'Realism Pass 1: PBR Surfaces',

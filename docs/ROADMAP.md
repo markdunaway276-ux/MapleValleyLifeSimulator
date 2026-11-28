@@ -10,8 +10,8 @@ All committed assets must be **CC0** or **CC-BY** (credited in `assets/models/CR
 
 - [x] **Batch 1 — Real CC0 PBR Surface Textures**
   - Upgraded core world surfaces (lawn grass, Maple Lane asphalt road, concrete sidewalks & driveway, trailer park gravel, and player house hardwood floors) with real CC0 albedo, normal, and roughness maps (512 px WebP from Poly Haven) with procedural fallbacks.
-- [ ] **Batch 2 — Player House Interior & Decor**
-  - Replace procedural furniture and decor (`src/world/interior.js`, `src/world/homeDecor.js`) — couch, armchairs, coffee/dining tables, lamps, potted plants, shelves, and small decor — with optimized CC0 `.glb` models while preserving sitting anchors and collisions.
+- [x] **Batch 2 — Player House Interior & Decor**
+  - Replaced procedural living room, bedroom, kitchen, and decor items (`src/world/interior.js`, `src/world/homeDecor.js`) — sofa, coffee table, reading armchair, dining table & chairs, desk chair, laptop, nightstand, potted houseplant, and wooden bookshelf — with 9 optimized CC0 Poly Haven `.glb` models while preserving all sitting anchors and colliders.
 - [ ] **Batch 3 — Street, Front Yard & Park Props**
   - Upgrade repeating outdoor props (`src/world/props.js`, `src/world/park.js`, `src/world/frontYard.js`) — benches, picnic tables, trash cans, porch chairs, planters, fire hydrants, and mailboxes.
 - [ ] **Batch 4 — Realistic AI Traffic Vehicles**

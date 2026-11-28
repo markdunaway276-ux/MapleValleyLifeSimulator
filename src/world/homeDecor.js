@@ -6,6 +6,7 @@
 import * as THREE from 'three';
 import { HOME_DECOR_ITEMS, getHomeDecorItem } from '../data/homeDecor.js';
 import { COOK_CENTER, FLOOR_Y, KENNEY_INNER } from './interior.js';
+import { placeGltfProp } from './modelProps.js';
 
 function makePaintingTexture() {
   if (typeof document === 'undefined') return null;
@@ -107,6 +108,12 @@ function buildDecorMeshes(shadows) {
     leaf.castShadow = cast;
     plant.add(leaf);
   }
+  placeGltfProp(plant, './assets/models/interior/potted-plant.glb', {
+    name: 'decor-fiddle-plant-glb',
+    targetHeight: 1.05,
+    shadows: cast,
+    hideOnLoad: [...plant.children]
+  });
   map.set('fiddle-plant', plant);
 
   // 3. Brass Floor Lamp (beside the living-room sofa)
@@ -177,6 +184,13 @@ function buildDecorMeshes(shadows) {
       }
     }
   }
+  placeGltfProp(shelf, './assets/models/interior/bookshelf.glb', {
+    name: 'decor-walnut-bookshelf-glb',
+    rotY: Math.PI,
+    fitSize: [1.05, 1.62, 0.38],
+    shadows: cast,
+    hideOnLoad: [...shelf.children]
+  });
   map.set('walnut-bookshelf', shelf);
 
   // 6. Bedside Lamp & Fern (in the bedroom beside the bed)

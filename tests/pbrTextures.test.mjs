@@ -9,6 +9,7 @@ register(new URL('./helpers/threeHook.mjs', import.meta.url));
 
 const THREE = await import('three');
 const { PBR_SETS, applyPbrSurface, applyRoadAsphaltPbr } = await import('../src/world/pbrTextures.js');
+const { placeGltfProp } = await import('../src/world/modelProps.js');
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -29,4 +30,19 @@ test('applyPbrSurface and applyRoadAsphaltPbr are safe no-ops in headless Node',
   assert.equal(applyPbrSurface(mat, 'grass', { repeat: [4, 4] }), mat);
   assert.equal(applyPbrSurface(mat, 'nonexistent'), mat);
   assert.equal(applyRoadAsphaltPbr(mat, { repeat: new THREE.Vector2(10, 1) }), mat);
+});
+
+test('all 9 CC0 interior furniture GLBs exist with valid glTF binary headers and placeGltfProp is headless-safe', () => {
+  const models = [
+    'sofa', 'coffee-table', 'armchair', 'dining-chair',
+    'dining-table', 'nightstand', 'laptop', 'potted-plant', 'bookshelf'
+  ];
+  for (const name of models) {
+    const file = path.join(ROOT, 'assets', 'models', 'interior', `${name}.glb`);
+    assert.ok(fs.existsSync(file), `missing interior GLB: ${file}`);
+    const head = fs.readFileSync(file).subarray(0, 4).toString('ascii');
+    assert.equal(head, 'glTF', `invalid GLB header for ${name}.glb`);
+  }
+  const group = new THREE.Group();
+  assert.equal(placeGltfProp(group, './assets/models/interior/sofa.glb', { x: 0, y: 0, z: 0 }), null);
 });
