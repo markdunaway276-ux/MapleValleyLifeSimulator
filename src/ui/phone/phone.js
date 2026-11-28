@@ -7,6 +7,7 @@ import { createPhotoLibrary } from './photos.js';
  * they do under the bag or Debug menu.
  */
 import { PHONE_APPS, INSTALLED_APPS, CALENDAR_APP, SKILLS_APP, getPhoneApp } from './apps.js';
+import { APP_ICON_META, ANDROID_STATUS_ICONS_SVG, FINGERPRINT_SVG } from './icons.js';
 import { requestPointerLock, exitPointerLock } from '../../core/pointerLock.js';
 
 const MESSAGE_ALERT_MS = 6500;
@@ -73,16 +74,19 @@ body.mobile #hud-phone {
 #hud-phone-alert {
   position: fixed; z-index: 38; left: 50%; transform: translateX(-50%);
   top: calc(max(12px, env(safe-area-inset-top)) + 104px);
-  width: min(58vw, 310px); min-height: 44px; padding: 7px 10px;
-  border-radius: 13px; border: 1px solid #769aab; background: #202e3af5;
-  color: #fff; text-align: left; font: 13px/1.3 system-ui, sans-serif;
+  width: min(58vw, 310px); min-height: 44px; padding: 9px 14px;
+  border-radius: 22px; border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(22, 26, 32, 0.94);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+  color: #f1f3f5; text-align: left; font: 13px/1.3 Roboto, 'Segoe UI', system-ui, sans-serif;
   cursor: pointer; touch-action: manipulation;
 }
 #hud-phone-alert strong, #hud-phone-alert span {
   display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
-#hud-phone-alert span { color: #c8dce6; }
-#hud-phone-alert:focus-visible { outline: 2px solid #d3f1ff; outline-offset: 2px; }
+#hud-phone-alert strong { font-weight: 600; font-size: 12.5px; color: #a8c7fa; }
+#hud-phone-alert span { color: #d6dce3; font-size: 12px; }
+#hud-phone-alert:focus-visible { outline: 2px solid #a8c7fa; outline-offset: 2px; }
 .phone-overlay {
   display: none;
   position: fixed;
@@ -91,7 +95,7 @@ body.mobile #hud-phone {
   align-items: center;
   justify-content: center;
   background: rgba(0, 0, 0, 0.55);
-  font-family: system-ui, sans-serif;
+  font-family: Roboto, 'Segoe UI', system-ui, -apple-system, sans-serif;
   pointer-events: auto;
   -webkit-tap-highlight-color: transparent;
 }
@@ -106,25 +110,40 @@ body.mobile #hud-phone {
   display: flex;
   flex-direction: column;
   background:
-    radial-gradient(ellipse at 90% 15%, #627a9c 0%, transparent 47%),
-    radial-gradient(ellipse at 12% 79%, #355c64 0%, transparent 60%),
-    linear-gradient(160deg, #263044, #132029 80%);
-  color: #fff;
+    radial-gradient(ellipse at 82% 16%, rgba(88, 128, 178, 0.52) 0%, transparent 52%),
+    radial-gradient(ellipse at 16% 84%, rgba(40, 96, 104, 0.58) 0%, transparent 58%),
+    linear-gradient(168deg, #121a26 0%, #0d151d 55%, #091016 100%);
+  color: #eef2f6;
   border: 0;
   border-radius: 6% / 3%;
   overflow: hidden;
   position: relative;
 }
-
-.phone-device::before {
-  content: ''; position: absolute; left: 50%; top: 9px; transform: translateX(-50%);
-  width: 9px; height: 9px; background: #080d10; border-radius: 50%;
-  box-shadow: inset 0 0 0 2px #252d35; pointer-events: none;
+.phone-device.is-app-open {
+  background: #111418;
 }
-.phone-device[data-wallpaper="dusk"] { background: linear-gradient(156deg, #51507f, #6b4857 48%, #1e2538); }
-.phone-device[data-wallpaper="forest"] { background: linear-gradient(156deg, #537768, #263e3c 50%, #152622); }
-.phone-device[data-wallpaper="photo"] {
-  background: linear-gradient(#151f3380, #151f3390), var(--phone-photo) center / cover;
+.phone-device::before {
+  content: ''; position: absolute; left: 50%; top: 8px; transform: translateX(-50%);
+  width: 10px; height: 10px; z-index: 5;
+  background: radial-gradient(circle at 38% 35%, #24303d 0%, #06080b 65%);
+  border-radius: 50%;
+  box-shadow: 0 0 0 1.5px rgba(0, 0, 0, 0.85), inset 0 0 0 1px rgba(255, 255, 255, 0.12);
+  pointer-events: none;
+}
+.phone-device[data-wallpaper="dusk"]:not(.is-app-open) {
+  background:
+    radial-gradient(ellipse at 80% 18%, rgba(164, 98, 118, 0.45) 0%, transparent 52%),
+    radial-gradient(ellipse at 20% 82%, rgba(74, 72, 134, 0.52) 0%, transparent 56%),
+    linear-gradient(165deg, #1d1a2c, #281c28 52%, #11141f);
+}
+.phone-device[data-wallpaper="forest"]:not(.is-app-open) {
+  background:
+    radial-gradient(ellipse at 78% 18%, rgba(74, 128, 98, 0.44) 0%, transparent 52%),
+    radial-gradient(ellipse at 18% 82%, rgba(36, 78, 72, 0.55) 0%, transparent 58%),
+    linear-gradient(165deg, #13211b, #11221e 55%, #0a1411);
+}
+.phone-device[data-wallpaper="photo"]:not(.is-app-open) {
+  background: linear-gradient(rgba(10, 14, 20, 0.45), rgba(10, 14, 20, 0.65)), var(--phone-photo) center / cover;
 }
 .phone-overlay.is-thumb-active .phone-device::after {
   content: ''; position: absolute; z-index: 4; pointer-events: none;
@@ -137,79 +156,153 @@ body.mobile #hud-phone {
   box-shadow: 1px 3px 6px #12192262;
 }
 .phone-lock-preview {
-  width: min(100%, 250px); color: #fff; background: #243041bb; border: 0;
-  border-radius: 14px; min-height: 44px; padding: 8px; cursor: pointer;
+  width: min(100%, 260px); color: #eef2f6;
+  background: rgba(20, 25, 32, 0.72);
+  backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.11);
+  border-radius: 18px; min-height: 44px; padding: 10px 13px; cursor: pointer;
   text-align: left; overflow-wrap: anywhere;
 }
-.phone-lock-preview span { display: block; opacity: 0.8; }
+.phone-lock-preview strong { font-size: 12.5px; font-weight: 600; color: #f1f5f9; display: block; }
+.phone-lock-preview span { display: block; font-size: 11.5px; color: rgba(226, 232, 240, 0.78); margin-top: 2px; }
 .phone-map-destination {
-  min-height: 44px; flex-shrink: 0; margin-bottom: 8px;
-  border-radius: 8px; color: white; background: #293748;
+  min-height: 42px; flex-shrink: 0; margin-bottom: 8px; padding: 0 10px;
+  border-radius: 12px; border: 1px solid rgba(255, 255, 255, 0.12);
+  color: #eef2f6; background: #1c2128; font: 500 13px/1.2 Roboto, system-ui, sans-serif;
 }
-.phone-viewfinder { width: 100%; display: block; border-radius: 10px; touch-action: none; object-fit: contain; }
+.phone-viewfinder { width: 100%; display: block; border-radius: 12px; touch-action: none; object-fit: contain; }
 .phone-photo-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
-.phone-photo-grid button { padding: 4px; min-width: 0; }
-.phone-photo-grid img { display: block; width: 100%; }
+.phone-photo-grid button { padding: 4px; min-width: 0; border-radius: 10px; border: 1px solid rgba(255, 255, 255, 0.08); background: #1c2128; }
+.phone-photo-grid img { display: block; width: 100%; border-radius: 7px; }
 .phone-status-left { touch-action: none; }
+.phone-sys-icons {
+  display: inline-flex; align-items: center; gap: 4px;
+  color: rgba(241, 245, 249, 0.9); flex: 0 0 auto;
+}
 .phone-shade-toggle {
-  flex: 0 0 auto; min-width: 38px; min-height: 44px; padding: 0;
-  color: inherit; background: transparent; border: 0; font-size: 18px;
-  cursor: pointer; touch-action: manipulation;
+  flex: 0 0 auto; min-width: 30px; min-height: 34px; padding: 0 4px;
+  color: rgba(241, 245, 249, 0.85); background: transparent; border: 0; font-size: 15px;
+  cursor: pointer; touch-action: manipulation; border-radius: 8px;
 }
+.phone-shade-toggle:hover { background: rgba(255, 255, 255, 0.1); }
 .phone-lock {
-  display: grid; place-content: center; justify-items: center; gap: 8px;
-  flex: 1 0 auto; min-height: 170px; text-align: center; touch-action: none;
+  display: flex; flex-direction: column; align-items: center; justify-content: space-between;
+  gap: 10px; flex: 1 1 auto; padding: 18px 8px 12px;
+  text-align: center; touch-action: none;
 }
-.phone-lock-time { font: 350 clamp(30px, 7vw, 64px)/1 system-ui, sans-serif; }
-.phone-lock-unlock, .phone-shade-row {
-  min-height: 44px; color: inherit; font: inherit; border: 0;
-  border-radius: 14px; background: #334355; padding: 8px 12px; cursor: pointer;
+.phone-lock-clock { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+.phone-lock-time {
+  font: 300 clamp(38px, 8vw, 56px)/1 Roboto, 'Segoe UI', system-ui, sans-serif;
+  letter-spacing: -0.04em; color: #f6f9fc;
+  text-shadow: 0 2px 12px rgba(0, 0, 0, 0.35);
+}
+.phone-lock-day {
+  font: 500 12.5px/1.2 Roboto, system-ui, sans-serif;
+  color: rgba(235, 242, 250, 0.82); letter-spacing: 0.02em;
+}
+.phone-lock-cards {
+  display: flex; flex-direction: column; align-items: center; gap: 7px; width: 100%;
+}
+.phone-lock-unlock {
+  width: 50px; height: 50px; min-width: 50px; min-height: 50px;
+  display: inline-flex; align-items: center; justify-content: center;
+  border-radius: 50%; border: 1px solid rgba(168, 199, 250, 0.42);
+  background: rgba(168, 199, 250, 0.14); color: #d3e3fd;
+  cursor: pointer; touch-action: manipulation;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
+}
+.phone-lock-unlock:hover, .phone-lock-unlock:focus-visible {
+  background: rgba(168, 199, 250, 0.28); outline: none;
+}
+.phone-lock-hint {
+  font: 500 10.5px/1.2 Roboto, system-ui, sans-serif;
+  color: rgba(235, 242, 250, 0.65); letter-spacing: 0.02em;
 }
 .phone-shade {
-  position: absolute; z-index: 2; inset: 0; padding: 14px;
-  overflow: auto; background: #202b39; color: white;
+  position: absolute; z-index: 6; inset: 0; padding: 14px 14px 16px;
+  overflow: auto;
+  background: rgba(14, 17, 22, 0.96);
+  backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
+  color: #eef2f6;
 }
 .phone-shade[hidden] { display: none; }
 .phone-shade-header {
   display: flex; align-items: center; justify-content: space-between; gap: 4px;
-  touch-action: none;
+  touch-action: none; margin-bottom: 10px;
 }
-.phone-shade-row { width: 100%; text-align: left; margin-bottom: 8px; }
-.phone-shade-row span { display: block; opacity: 0.8; overflow-wrap: anywhere; }
+.phone-shade-header h3 { margin: 0; font: 500 14px/1.2 Roboto, system-ui, sans-serif; color: #c4cfdc; }
+.phone-qs-grid {
+  display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px;
+  margin-bottom: 14px;
+}
+.phone-qs-tile {
+  display: flex; flex-direction: column; align-items: flex-start; justify-content: center;
+  gap: 2px; min-height: 48px; padding: 8px 12px;
+  border: 0; border-radius: 20px;
+  background: #232932; color: #d5dde7;
+  font: 500 12px/1.2 Roboto, system-ui, sans-serif;
+  cursor: pointer; touch-action: manipulation; text-align: left;
+}
+.phone-qs-tile span { font-size: 10.5px; opacity: 0.72; }
+.phone-qs-tile.is-on { background: #a8c7fa; color: #0b2242; }
+.phone-qs-tile.is-on span { color: #173660; opacity: 0.88; }
+.phone-shade-section {
+  margin: 0 0 8px; font: 600 11px/1.2 Roboto, system-ui, sans-serif;
+  text-transform: uppercase; letter-spacing: 0.06em; color: #8c98a8;
+}
+.phone-shade-row {
+  width: 100%; min-height: 44px; text-align: left; margin-bottom: 8px;
+  color: #eef2f6; font: inherit;
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 16px; background: #1c2129; padding: 10px 12px; cursor: pointer;
+}
+.phone-shade-row strong { display: block; font-size: 12.5px; font-weight: 600; }
+.phone-shade-row span { display: block; font-size: 11.5px; color: #adb8c6; margin-top: 2px; overflow-wrap: anywhere; }
 .phone-pref {
   display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between;
-  gap: 8px; min-height: 44px; margin-bottom: 8px;
+  gap: 8px; min-height: 48px; margin-bottom: 8px; padding: 8px 12px;
+  border-radius: 14px; background: #1b2028; border: 1px solid rgba(255, 255, 255, 0.06);
+  font-size: 13px;
 }
-.phone-pref select { min-height: 44px; color: #fff; background: #293748; border-radius: 8px; }
-.phone-pref input { width: 24px; height: 24px; accent-color: #9ed4c4; }
+.phone-pref select {
+  min-height: 36px; padding: 0 8px; color: #eef2f6; background: #262d38;
+  border: 1px solid rgba(255, 255, 255, 0.12); border-radius: 10px;
+}
+.phone-pref input { width: 20px; height: 20px; accent-color: #a8c7fa; }
 .phone-status {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 8px;
-  min-height: 44px;
-  padding: 8px 10px 4px 16px;
+  gap: 6px;
+  min-height: 36px;
+  padding: 6px 8px 2px 14px;
   flex: 0 0 auto;
 }
 .phone-status-left {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   min-width: 0;
   flex: 1 1 auto;
 }
+.phone-status-right {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex: 0 0 auto;
+}
 .phone-status-time {
   margin: 0;
-  font: 600 13px/1.2 system-ui, sans-serif;
-  letter-spacing: 0.02em;
+  font: 600 11.5px/1.2 Roboto, system-ui, sans-serif;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.01em;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  flex: 1 1 auto;
 }
 .phone-status-weather {
   flex: 0 0 auto;
-  font-size: 16px;
+  font-size: 13px;
   line-height: 1;
 }
 .phone-status-weather:empty { display: none; }
@@ -221,18 +314,18 @@ body.mobile #hud-phone {
 }
 .phone-weather-name {
   margin: 10px 0 0;
-  font: 650 18px/1.2 system-ui, sans-serif;
+  font: 600 18px/1.2 Roboto, system-ui, sans-serif;
   text-align: center;
 }
 .phone-close {
   box-sizing: border-box;
-  width: 44px; height: 44px; min-width: 44px; min-height: 44px;
+  width: 34px; height: 34px; min-width: 34px; min-height: 34px;
   padding: 0; margin: 0;
   border: 0;
   border-radius: 10px;
   background: transparent;
-  color: #fff;
-  font: 600 22px/1 system-ui, sans-serif;
+  color: rgba(241, 245, 249, 0.9);
+  font: 500 20px/1 Roboto, system-ui, sans-serif;
   cursor: pointer;
   touch-action: manipulation;
 }
@@ -244,45 +337,53 @@ body.mobile #hud-phone {
 .phone-screen {
   flex: 1 1 auto;
   overflow: auto;
-  padding: 8px 16px 4px;
+  padding: 6px 14px 4px;
   display: flex;
   flex-direction: column;
 }
 
 .phone-task-pin {
   margin-top: 6px;
-  min-height: 44px;
-  padding: 0 12px;
-  border: 1px solid #687867;
-  border-radius: 8px;
-  background: #263a2c;
-  color: #fff;
-  font: inherit;
+  min-height: 40px;
+  padding: 0 14px;
+  border: 1px solid rgba(168, 199, 250, 0.28);
+  border-radius: 20px;
+  background: rgba(168, 199, 250, 0.14);
+  color: #d3e3fd;
+  font: 500 12.5px/1 Roboto, system-ui, sans-serif;
   cursor: pointer;
 }
+/* Pixel / Android "At a Glance" transparent home widget */
 .phone-launcher-widget {
-  flex: 0 0 auto; margin: 10px 0 8px; padding: 13px 14px;
-  border-radius: 19px; background: rgba(20, 27, 37, 0.55);
-  font: 500 13px/1.3 system-ui, sans-serif;
+  flex: 0 0 auto; margin: 8px 2px 10px; padding: 6px 4px;
+  background: transparent;
+  font: 500 13px/1.3 Roboto, system-ui, sans-serif;
+  text-shadow: 0 1px 6px rgba(0, 0, 0, 0.45);
+}
+.phone-launcher-widget strong {
+  display: block; font-size: 16px; font-weight: 500; letter-spacing: -0.01em; color: #f8fafc;
+}
+.phone-launcher-widget span {
+  display: block; font-size: 11.5px; color: rgba(226, 232, 240, 0.82); margin-top: 2px;
 }
 .phone-grid {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 18px 10px;
-  padding: 8px 0 4px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px 6px;
+  padding: 6px 0 4px;
 }
 .phone-app {
   box-sizing: border-box;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 6px;
+  gap: 5px;
   min-width: 44px;
-  min-height: 72px;
-  padding: 4px;
+  min-height: 66px;
+  padding: 2px;
   border: 0;
   background: transparent;
-  color: #fff;
+  color: #f1f5f9;
   cursor: pointer;
   touch-action: manipulation;
   -webkit-tap-highlight-color: transparent;
@@ -290,7 +391,8 @@ body.mobile #hud-phone {
 .phone-app:hover, .phone-app:focus { outline: none; }
 .phone-app:hover .phone-app-icon,
 .phone-app:focus .phone-app-icon {
-  filter: brightness(1.12);
+  transform: scale(1.06);
+  filter: brightness(1.08);
 }
 .phone-app-icon {
   box-sizing: border-box;
@@ -298,37 +400,40 @@ body.mobile #hud-phone {
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 50%;
-  background: #d6ebe0;
-  box-shadow: inset 0 -3px 6px rgba(0, 0, 0, 0.12);
-  font-size: 23px;
+  border-radius: 26%;
+  background: linear-gradient(145deg, #3b4656, #242b35);
+  color: #f1f5f9;
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.34), inset 0 1px 0 rgba(255, 255, 255, 0.22);
+  font-size: 20px;
   line-height: 1;
+  transition: transform 0.14s ease, filter 0.14s ease;
 }
-.phone-app:nth-child(3n + 2) .phone-app-icon { background: #dce2fa; }
-.phone-app:nth-child(3n) .phone-app-icon { background: #f0dfca; }
-.phone-app:focus-visible .phone-app-icon { outline: 2px solid white; outline-offset: 2px; }
+.phone-app:focus-visible .phone-app-icon { outline: 2px solid #a8c7fa; outline-offset: 2px; }
 .phone-app-name {
-  font: 600 11px/1.2 system-ui, sans-serif;
+  font: 500 10.5px/1.2 Roboto, system-ui, sans-serif;
   text-align: center;
   max-width: 100%;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.65);
 }
 
 .phone-app-title {
-  margin: 8px 0 12px;
-  font: 650 18px/1.2 system-ui, sans-serif;
+  margin: 4px 0 12px;
+  font: 500 18px/1.2 Roboto, system-ui, sans-serif;
+  letter-spacing: -0.01em;
+  color: #f1f5f9;
 }
 .phone-placeholder {
   margin: 8px 0 0;
-  font: 15px/1.45 system-ui, sans-serif;
-  color: rgba(255, 255, 255, 0.82);
+  font: 14px/1.45 Roboto, system-ui, sans-serif;
+  color: rgba(226, 232, 240, 0.78);
 }
 .phone-messages {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 8px;
   margin: 0 0 8px;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
@@ -338,35 +443,37 @@ body.mobile #hud-phone {
 .phone-message {
   box-sizing: border-box;
   min-height: 44px;
-  padding: 10px 12px;
-  border-radius: 12px;
-  background: rgba(255, 255, 255, 0.08);
+  padding: 11px 13px;
+  border-radius: 16px;
+  background: #1b2028;
+  border: 1px solid rgba(255, 255, 255, 0.06);
 }
 .phone-message-from {
-  font: 650 14px/1.3 system-ui, sans-serif;
+  font: 600 13px/1.3 Roboto, system-ui, sans-serif;
+  color: #a8c7fa;
 }
 .phone-message-day {
   margin-top: 2px;
-  font: 600 11px/1.2 system-ui, sans-serif;
-  color: rgba(255, 255, 255, 0.62);
+  font: 500 10.5px/1.2 Roboto, system-ui, sans-serif;
+  color: #8c98a8;
 }
 .phone-message-body {
   margin: 6px 0 0;
-  font: 14px/1.45 system-ui, sans-serif;
-  color: rgba(255, 255, 255, 0.9);
+  font: 13.5px/1.45 Roboto, system-ui, sans-serif;
+  color: #e4eaf2;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
 }
 .phone-bank-label {
   margin: 4px 0 0;
-  font: 600 13px/1.2 system-ui, sans-serif;
-  color: rgba(255, 255, 255, 0.7);
+  font: 500 12.5px/1.2 Roboto, system-ui, sans-serif;
+  color: #9aa7b8;
 }
 .phone-bank-balance {
-  margin: 8px 0 0;
-  font: 700 32px/1.1 system-ui, sans-serif;
+  margin: 6px 0 0;
+  font: 600 32px/1.1 Roboto, system-ui, sans-serif;
   font-variant-numeric: tabular-nums;
-  color: #8fddb0;
+  color: #81c995;
 }
 
 .phone-home-bar {
@@ -374,12 +481,12 @@ body.mobile #hud-phone {
   align-items: center;
   justify-content: center;
   flex: 0 0 auto;
-  min-height: 44px;
-  padding: 0 16px;
+  min-height: 36px;
+  padding: 0 16px 4px;
 }
 .phone-home {
   box-sizing: border-box;
-  width: 104px; height: 44px;
+  width: 112px; height: 32px;
   padding: 0; margin: 0;
   border: 0;
   border-radius: 16px;
@@ -390,10 +497,10 @@ body.mobile #hud-phone {
 }
 .phone-home::after {
   content: ''; display: block; width: 88px; height: 4px;
-  margin: auto; background: #e9eef0; border-radius: 8px;
+  margin: auto; background: rgba(238, 242, 246, 0.82); border-radius: 8px;
 }
 .phone-home:hover, .phone-home:focus-visible {
-  background: rgba(255, 255, 255, 0.16);
+  background: rgba(255, 255, 255, 0.12);
   outline: none;
 }
 `;
@@ -513,10 +620,14 @@ export function createPhone({
   shadeToggle.type = 'button';
   shadeToggle.className = 'phone-shade-toggle';
   shadeToggle.textContent = '⌄';
-  shadeToggle.title = 'Notifications';
+  shadeToggle.title = 'Notifications & Quick Settings';
   shadeToggle.setAttribute('aria-label', 'Open notifications');
   shadeToggle.setAttribute('aria-expanded', 'false');
-  status.append(statusLeft, shadeToggle, closeBtn);
+  const statusRight = document.createElement('div');
+  statusRight.className = 'phone-status-right';
+  statusRight.insertAdjacentHTML('afterbegin', ANDROID_STATUS_ICONS_SVG);
+  statusRight.append(shadeToggle, closeBtn);
+  status.append(statusLeft, statusRight);
 
   const screen = document.createElement('div');
   screen.className = 'phone-screen';
@@ -533,6 +644,7 @@ export function createPhone({
   const lockTime = document.createElement('div');
   lockTime.className = 'phone-lock-time';
   const lockDay = document.createElement('div');
+  lockDay.className = 'phone-lock-day';
   const shade = document.createElement('section');
   shade.className = 'phone-shade';
   shade.hidden = true;
@@ -604,13 +716,27 @@ export function createPhone({
     weatherEl.setAttribute('aria-hidden', weatherEl.textContent ? 'false' : 'true');
   }
 
+  let dndOn = false;
+  let wifiOn = true;
+
   function updateStatus(time) {
     const t = time || ctx.getTime();
-    timeEl.textContent = (t && t.label) || '';
-    lockTime.textContent = t?.label?.match(/\b\d{1,2}:\d{2}\b/)?.[0] || '--:--';
-    lockDay.textContent = t?.day != null ? 'Day ' + t.day : 'Maple Lane';
-    launcherWidget.textContent = t && t.day != null ? 'Maple Lane · Day ' + t.day : 'Maple Lane';
-    paintWeather();
+    const w = ctx.getWeather ? ctx.getWeather() : null;
+    const shortClock = t?.label?.match(/\b\d{1,2}:\d{2}\b/)?.[0] || '--:--';
+    timeEl.textContent = shortClock;
+    lockTime.textContent = shortClock;
+    const dayLabel = t?.day != null ? 'Day ' + t.day + ' · Maple Lane' : 'Maple Lane';
+    lockDay.textContent = w?.name ? `${dayLabel} · ${w.name}` : dayLabel;
+    launcherWidget.replaceChildren();
+    const titleLine = document.createElement('strong');
+    titleLine.textContent = t && t.day != null ? 'Day ' + t.day + ' · Maple Lane' : 'Maple Lane';
+    const subLine = document.createElement('span');
+    const pinned = ctx.getPinnedTask?.();
+    subLine.textContent = pinned?.title
+      ? `${w?.name ? w.name + ' · ' : ''}${pinned.title}`
+      : (w?.name ? `${w.name} · 5G` : '5G · Connected');
+    launcherWidget.append(titleLine, subLine);
+    paintWeather(w);
   }
 
   function clearApp() {
@@ -651,7 +777,7 @@ export function createPhone({
     const header = document.createElement('div');
     header.className = 'phone-shade-header';
     const title = document.createElement('h3');
-    title.textContent = 'Notifications';
+    title.textContent = lockTime.textContent + ' · Quick Settings';
     const dismiss = document.createElement('button');
     dismiss.type = 'button';
     dismiss.className = 'phone-shade-toggle';
@@ -661,6 +787,41 @@ export function createPhone({
     header.append(title, dismiss);
     swipe(header, -1, () => setShade(false));
     shade.append(header);
+
+    // Android Material 3 Quick Settings pill tiles
+    const qsGrid = document.createElement('div');
+    qsGrid.className = 'phone-qs-grid';
+    function addQsTile(label, sub, on, onClick) {
+      const tile = document.createElement('button');
+      tile.type = 'button';
+      tile.className = 'phone-qs-tile' + (on ? ' is-on' : '');
+      const strong = document.createElement('strong');
+      strong.textContent = label;
+      const span = document.createElement('span');
+      span.textContent = sub;
+      tile.append(strong, span);
+      tile.addEventListener('click', () => { onClick(); renderShade(); });
+      qsGrid.append(tile);
+    }
+    addQsTile('Internet', wifiOn ? 'MapleLane 5G' : 'Off', wifiOn, () => { wifiOn = !wifiOn; });
+    addQsTile('Sound', prefs.sound ? 'Ring on' : 'Muted', !!prefs.sound, () => {
+      ctx.setPhonePrefs({ sound: !prefs.sound });
+      if (prefs.sound) ctx.previewNotification();
+    });
+    const wpKeys = Object.keys(WALLPAPERS);
+    const wpName = WALLPAPERS[prefs.wallpaper] || 'Photo';
+    addQsTile('Wallpaper', wpName, true, () => {
+      const idx = wpKeys.indexOf(prefs.wallpaper);
+      ctx.setPhonePrefs({ wallpaper: wpKeys[(idx + 1) % wpKeys.length] });
+    });
+    addQsTile('Do Not Disturb', dndOn ? 'On' : 'Off', dndOn, () => { dndOn = !dndOn; });
+    shade.append(qsGrid);
+
+    const sec = document.createElement('p');
+    sec.className = 'phone-shade-section';
+    sec.textContent = 'Notifications';
+    shade.append(sec);
+
     const notes = (ctx.getInbox?.() ?? []).filter(Boolean).slice(0, 3);
     const tasks = (ctx.getTasks?.() ?? []).filter(task => !task.complete).slice(0, 3);
     function addRow(app, heading, summary) {
@@ -675,29 +836,31 @@ export function createPhone({
       row.addEventListener('click', () => openApp(app));
       shade.append(row);
     }
-    for (const note of notes) addRow('messages', note.from || 'Mail', note.body || '');
+    for (const note of notes) addRow('messages', note.from || 'Messages', note.body || '');
     for (const task of tasks) addRow('tasks', task.title, task.step || '');
     if (!notes.length && !tasks.length) {
       const empty = document.createElement('p');
-      empty.textContent = 'No messages or task reminders.';
+      empty.className = 'phone-placeholder';
+      empty.textContent = 'No notifications.';
       shade.append(empty);
     }
   }
 
   function renderLock(preferredMessage = null) {
     clearApp();
+    device.classList.remove('is-app-open');
     locked = true;
     closeBtn.textContent = '\u00d7';
     closeBtn.setAttribute('aria-label', 'Put phone away');
     homeBtn.setAttribute('aria-label', 'Unlock phone');
     const lock = document.createElement('div');
     lock.className = 'phone-lock';
-    const unlock = document.createElement('button');
-    unlock.type = 'button';
-    unlock.className = 'phone-lock-unlock';
-    unlock.textContent = 'Unlock';
-    unlock.addEventListener('click', renderHome);
-    lock.append(lockTime, lockDay);
+    const clockWrap = document.createElement('div');
+    clockWrap.className = 'phone-lock-clock';
+    clockWrap.append(lockTime, lockDay);
+
+    const cardsWrap = document.createElement('div');
+    cardsWrap.className = 'phone-lock-cards';
     const latest = preferredMessage ?? (ctx.getInbox?.() ?? []).find(Boolean);
     const task = ctx.getPinnedTask?.() ?? (ctx.getTasks?.() ?? []).find(item => !item.complete);
     for (const [app, title, summary] of [
@@ -714,15 +877,33 @@ export function createPhone({
       preview.textContent = summary?.length > 92 ? summary.slice(0, 89) + '…' : summary || '';
       card.append(name, preview);
       card.addEventListener('click', () => openApp(app));
-      lock.append(card);
+      cardsWrap.append(card);
     }
-    lock.append(unlock);
+
+    const unlockWrap = document.createElement('div');
+    unlockWrap.style.display = 'flex';
+    unlockWrap.style.flexDirection = 'column';
+    unlockWrap.style.alignItems = 'center';
+    unlockWrap.style.gap = '6px';
+    const unlock = document.createElement('button');
+    unlock.type = 'button';
+    unlock.className = 'phone-lock-unlock';
+    unlock.setAttribute('aria-label', 'Unlock phone');
+    unlock.innerHTML = FINGERPRINT_SVG;
+    unlock.addEventListener('click', renderHome);
+    const hint = document.createElement('span');
+    hint.className = 'phone-lock-hint';
+    hint.textContent = 'Tap or swipe up to unlock';
+    unlockWrap.append(unlock, hint);
+
+    lock.append(clockWrap, cardsWrap, unlockWrap);
     swipe(lock, -1, renderHome);
     screen.append(lock);
   }
 
   function renderHome() {
     clearApp();
+    device.classList.remove('is-app-open');
     locked = false;
     homeBtn.setAttribute('aria-label', 'Home');
     closeBtn.textContent = '\u00d7';
@@ -740,7 +921,14 @@ export function createPhone({
       btn.setAttribute('aria-label', app.name || app.id || 'App');
       const icon = document.createElement('span');
       icon.className = 'phone-app-icon';
-      icon.textContent = app.icon || '';
+      const meta = APP_ICON_META[app.id];
+      if (meta) {
+        icon.style.background = meta.bg;
+        icon.style.color = meta.fg;
+        icon.innerHTML = meta.svg;
+      } else {
+        icon.textContent = app.icon || '';
+      }
       const name = document.createElement('span');
       name.className = 'phone-app-name';
       name.textContent = app.name || app.id || '';
@@ -761,6 +949,7 @@ export function createPhone({
     clearApp();
     setShade(false);
     locked = false;
+    device.classList.add('is-app-open');
     homeBtn.setAttribute('aria-label', 'Home');
     current = app.id;
     closeBtn.textContent = '‹';

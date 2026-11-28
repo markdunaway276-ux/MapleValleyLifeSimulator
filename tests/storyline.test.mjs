@@ -196,3 +196,15 @@ test('expanded main house has a roomy living room with clear open space in front
     assert.equal(blockingLine, false, `chair ${ch.id} should not block the sofa-to-TV sightline`);
   }
 });
+
+test('Android phone UI provides Material vector SVG icons for every installed app', async () => {
+  const { INSTALLED_APPS } = await import('../src/ui/phone/apps.js');
+  const { APP_ICON_META, ANDROID_STATUS_ICONS_SVG, FINGERPRINT_SVG } = await import('../src/ui/phone/icons.js');
+  for (const app of INSTALLED_APPS) {
+    const meta = APP_ICON_META[app.id];
+    assert.ok(meta && meta.svg.includes('<svg'), `expected vector SVG icon for app ${app.id}`);
+    assert.ok(meta.bg && meta.fg, `expected adaptive icon colors for app ${app.id}`);
+  }
+  assert.ok(ANDROID_STATUS_ICONS_SVG.includes('<svg'));
+  assert.ok(FINGERPRINT_SVG.includes('<svg'));
+});
