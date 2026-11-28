@@ -25,20 +25,73 @@ import { BUILT_WITH, loadCredits } from '../data/credits.js';
 
 const TITLE_CSS_ID = 'mv-title-styles';
 const TITLE_CSS = `
-#title-screen .mv-logo { margin: 2px 0 0; text-align: center; font: 800 34px/1.05 Georgia, 'Times New Roman', serif; letter-spacing: 0.02em; color: #f6e3c4; text-shadow: 0 2px 14px rgba(201,138,69,0.35); }
-#title-screen .mv-logo .leaf { display: inline-block; margin-right: 6px; animation: mv-leaf 5s ease-in-out infinite; }
-@keyframes mv-leaf { 0%,100% { transform: rotate(-8deg) translateY(0); } 50% { transform: rotate(10deg) translateY(3px); } }
-#title-screen .mv-press { margin: 26px 0 8px; text-align: center; font: 600 15px system-ui, sans-serif; letter-spacing: 0.12em; text-transform: uppercase; animation: mv-pulse 2.2s ease-in-out infinite; }
+#title-screen { overflow: hidden; }
+#title-screen .mv-leaves { position: fixed; inset: 0; pointer-events: none; overflow: hidden; z-index: 0; }
+#title-screen .mv-leaf-drift { position: absolute; top: -10vh; font-size: 20px; opacity: 0; filter: drop-shadow(0 3px 6px rgba(0,0,0,0.35)); animation: mv-fall var(--dur, 12s) linear var(--del, 0s) infinite; }
+@keyframes mv-fall {
+  0% { transform: translate3d(0, -8vh, 0) rotate(0deg); opacity: 0; }
+  12% { opacity: 0.72; }
+  85% { opacity: 0.62; }
+  100% { transform: translate3d(var(--sway, 10vw), 112vh, 0) rotate(320deg); opacity: 0; }
+}
+#title-screen .mv-panel {
+  position: relative; z-index: 2;
+  background: linear-gradient(165deg, rgba(24, 19, 15, 0.80) 0%, rgba(16, 14, 12, 0.88) 100%);
+  border: 1px solid rgba(238, 186, 108, 0.36);
+  border-radius: 22px;
+  box-shadow: 0 28px 72px rgba(0, 0, 0, 0.58), 0 0 46px rgba(214, 142, 60, 0.16), inset 0 1px 0 rgba(255, 236, 198, 0.14);
+  backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
+  padding: 28px 28px 22px;
+  animation: mv-card-in 0.55s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+@keyframes mv-card-in { from { opacity: 0; transform: translateY(14px) scale(0.97); } to { opacity: 1; transform: translateY(0) scale(1); } }
+#title-screen .mv-crest { display: grid; place-items: center; width: 58px; height: 58px; margin: 0 auto 10px; border-radius: 50%; background: radial-gradient(circle at 35% 30%, rgba(248, 200, 122, 0.38), rgba(186, 102, 38, 0.22)); border: 1px solid rgba(244, 194, 118, 0.52); box-shadow: 0 0 28px rgba(226, 146, 62, 0.38); font-size: 30px; }
+#title-screen .mv-crest .leaf { display: inline-block; animation: mv-leaf 5s ease-in-out infinite; }
+@keyframes mv-leaf { 0%,100% { transform: rotate(-9deg) translateY(0); } 50% { transform: rotate(11deg) translateY(2px); } }
+#title-screen .mv-logo { margin: 0; text-align: center; font: 800 38px/1.02 Georgia, 'Times New Roman', serif; letter-spacing: 0.03em; background: linear-gradient(180deg, #fff8e8 0%, #f4ca82 65%, #d69445 100%); -webkit-background-clip: text; background-clip: text; color: transparent; filter: drop-shadow(0 3px 14px rgba(201,138,69,0.38)); }
+#title-screen .mv-tagline { margin: 6px 0 0; text-align: center; font: 600 12px/1.4 system-ui, sans-serif; letter-spacing: 0.16em; text-transform: uppercase; color: rgba(245, 224, 186, 0.78); }
+#title-screen .mv-rule { width: 84px; height: 2px; margin: 12px auto 12px; border-radius: 999px; background: linear-gradient(90deg, transparent, #e4a957, transparent); }
+#title-screen .mv-postcard { display: inline-flex; align-items: center; gap: 6px; margin: 0 auto 16px; padding: 4px 12px; border-radius: 999px; background: rgba(255, 232, 192, 0.08); border: 1px solid rgba(242, 194, 120, 0.24); font: 600 12px/1.3 system-ui, sans-serif; color: #f4dfba; }
+#title-screen .mv-postcard-wrap { text-align: center; }
+#title-screen .mv-cta {
+  position: relative; overflow: hidden; display: block; width: 100%; margin: 14px 0 10px; padding: 14px 20px;
+  border: 1px solid rgba(255, 226, 168, 0.65); border-radius: 13px; cursor: pointer;
+  background: linear-gradient(135deg, #d88f3c 0%, #c27228 55%, #a8581d 100%);
+  color: #1c130b; font: 800 17px/1.1 system-ui, sans-serif; letter-spacing: 0.04em;
+  box-shadow: 0 10px 26px rgba(196, 114, 40, 0.42), inset 0 1px 0 rgba(255, 244, 214, 0.55);
+  transition: transform 0.16s ease, box-shadow 0.16s ease, filter 0.16s ease;
+}
+#title-screen .mv-cta:hover { transform: translateY(-2px); filter: brightness(1.07); box-shadow: 0 14px 32px rgba(216, 134, 52, 0.54), inset 0 1px 0 rgba(255, 244, 214, 0.7); }
+#title-screen .mv-cta::after {
+  content: ''; position: absolute; top: 0; left: -60%; width: 45%; height: 100%;
+  background: linear-gradient(105deg, transparent 0%, rgba(255, 250, 232, 0.42) 50%, transparent 100%);
+  animation: mv-shimmer 3.2s ease-in-out infinite;
+}
+@keyframes mv-shimmer { 0%, 45% { left: -60%; } 100% { left: 135%; } }
+#title-screen .mv-press { margin: 8px 0 4px; text-align: center; font: 600 12px system-ui, sans-serif; letter-spacing: 0.14em; text-transform: uppercase; color: rgba(246, 228, 198, 0.78); animation: mv-pulse 2.2s ease-in-out infinite; }
 @keyframes mv-pulse { 0%,100% { opacity: 0.45; } 50% { opacity: 1; } }
-#title-screen .mv-badge { display: inline-block; margin-left: 8px; padding: 1px 7px; border-radius: 999px; background: #c98a45; color: #1e1a16; font: 800 11px/1.6 system-ui, sans-serif; letter-spacing: 0.06em; vertical-align: 2px; }
-#title-screen .mv-version { margin: 12px 0 0; text-align: center; font-size: 12px; opacity: 0.5; }
+#title-screen .mv-btn { border-radius: 12px; transition: transform 0.14s ease, border-color 0.14s ease, background 0.14s ease, box-shadow 0.14s ease; }
+#title-screen .mv-btn:hover { transform: translateY(-1px); border-color: rgba(242, 192, 116, 0.58); box-shadow: 0 6px 18px rgba(0, 0, 0, 0.28); }
+#title-screen .mv-btn.is-primary { background: linear-gradient(135deg, #d88f3c 0%, #b86923 100%); border-color: rgba(255, 224, 166, 0.6); color: #1b130b; box-shadow: 0 8px 24px rgba(196, 114, 40, 0.36); }
+#title-screen .mv-btn-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 8px; }
+#title-screen .mv-btn-grid .mv-btn { margin-top: 0; padding: 10px 12px; font-size: 14px; }
+#title-screen .mv-badge { display: inline-block; margin-left: 6px; padding: 1px 7px; border-radius: 999px; background: #f0b156; color: #1e150c; font: 800 10px/1.6 system-ui, sans-serif; letter-spacing: 0.06em; vertical-align: 1px; box-shadow: 0 0 10px rgba(240, 177, 86, 0.55); }
+#title-screen .mv-version { margin: 14px 0 0; text-align: center; font-size: 11px; letter-spacing: 0.08em; opacity: 0.52; }
 #title-screen .mv-notes { margin: 6px 0 0; padding-left: 20px; font-size: 14px; line-height: 1.45; }
 #title-screen .mv-notes li { margin: 4px 0; }
 #title-screen .mv-note-head { margin: 18px 0 2px; font: 700 16px system-ui, sans-serif; }
 #title-screen .mv-note-date { font-weight: 400; font-size: 12px; opacity: 0.6; margin-left: 6px; }
 #title-screen .mv-credit { margin: 6px 0 0; font-size: 14px; line-height: 1.45; }
-@media (prefers-reduced-motion: reduce) { #title-screen .mv-logo .leaf, #title-screen .mv-press { animation: none; } }
+@media (prefers-reduced-motion: reduce) { #title-screen .mv-crest .leaf, #title-screen .mv-press, #title-screen .mv-leaf-drift, #title-screen .mv-cta::after, #title-screen .mv-panel { animation: none; } }
 `;
+
+function timeOfDayPostcard() {
+  const h = new Date().getHours();
+  if (h >= 5 && h < 11) return '🌅 Golden Morning · Maple Lane';
+  if (h >= 11 && h < 17) return '☀️ Sunny Afternoon · Maple Lane';
+  if (h >= 17 && h < 20) return '🌇 Warm Dusk · Maple Lane';
+  return '🌙 Starry Night · Maple Lane';
+}
 
 function ensureTitleStyles() {
   if (document.getElementById(TITLE_CSS_ID)) return;
@@ -122,15 +175,38 @@ export function createTitleScreen({
 } = {}) {
   ensureMenuStyles();
   ensureTitleStyles();
+  document.body.classList.add('title-open');
   const old = document.getElementById('instructions');
   if (old) old.style.display = 'none';
 
   const root = el('div', { id: 'title-screen', class: 'mv-overlay is-open', role: 'dialog', 'aria-label': 'Title screen' });
-  root.style.background = 'radial-gradient(ellipse at center, rgba(20,14,8,0.04), rgba(8,6,4,0.32))';
+  root.style.background = 'radial-gradient(ellipse at 50% 45%, rgba(236,158,72,0.08), rgba(8,6,4,0.42))';
   root.style.backdropFilter = 'none';
   root.style.webkitBackdropFilter = 'none';
   root.addEventListener('touchstart', (e) => e.stopPropagation(), { passive: true });
   root.addEventListener('pointerdown', (e) => e.stopPropagation());
+
+  // Gentle drifting autumn maple leaves over the live 3D town backdrop.
+  const leavesLayer = el('div', { class: 'mv-leaves', 'aria-hidden': 'true' });
+  const leafSeeds = [
+    { left: '8%', dur: '13s', del: '0s', sway: '8vw', size: '18px' },
+    { left: '21%', dur: '16s', del: '-4s', sway: '-7vw', size: '22px' },
+    { left: '36%', dur: '14s', del: '-8s', sway: '10vw', size: '16px' },
+    { left: '58%', dur: '15s', del: '-2s', sway: '-9vw', size: '21px' },
+    { left: '74%', dur: '12s', del: '-6s', sway: '7vw', size: '19px' },
+    { left: '89%', dur: '17s', del: '-10s', sway: '-8vw', size: '17px' }
+  ];
+  for (const s of leafSeeds) {
+    const lf = el('span', { class: 'mv-leaf-drift', text: '🍁' });
+    lf.style.left = s.left;
+    lf.style.fontSize = s.size;
+    lf.style.setProperty('--dur', s.dur);
+    lf.style.setProperty('--del', s.del);
+    lf.style.setProperty('--sway', s.sway);
+    leavesLayer.append(lf);
+  }
+  root.append(leavesLayer);
+
   const panel = el('div', { class: 'mv-panel' });
   root.append(panel);
   container.append(root);
@@ -170,19 +246,30 @@ export function createTitleScreen({
 
   function start() {
     root.classList.remove('is-open');
+    document.body.classList.remove('title-open');
     onStart();
   }
 
-  function logo() {
-    const h = el('h2', { class: 'mv-logo' });
-    h.append(el('span', { class: 'leaf', 'aria-hidden': 'true', text: '🍁' }), 'Maple Valley');
-    return h;
+  function heroHeader() {
+    const frag = document.createDocumentFragment();
+    const crest = el('div', { class: 'mv-crest', 'aria-hidden': 'true' });
+    crest.append(el('span', { class: 'leaf', text: '🍁' }));
+    const h = el('h2', { class: 'mv-logo', text: 'Maple Lane' });
+    const tag = el('p', { class: 'mv-tagline', text: 'Welcome home to Maple Valley' });
+    const rule = el('div', { class: 'mv-rule', 'aria-hidden': 'true' });
+    const pcWrap = el('div', { class: 'mv-postcard-wrap' });
+    pcWrap.append(el('span', { class: 'mv-postcard', text: timeOfDayPostcard() }));
+    frag.append(crest, h, tag, rule, pcWrap);
+    return frag;
   }
 
   function renderPress() {
-    panel.append(logo(), el('p', { class: 'mv-sub', text: 'A small-town life simulator' }));
-    panel.append(el('p', { class: 'mv-press', text: isMobile ? 'Tap to begin' : 'Press any key' }));
-    panel.append(el('p', { class: 'mv-version', text: `v${LATEST_VERSION}` }));
+    panel.append(heroHeader());
+    const enterBtn = el('button', { type: 'button', class: 'mv-cta', text: 'Enter Maple Lane' });
+    enterBtn.addEventListener('click', (e) => { e.stopPropagation(); leavePress(); });
+    panel.append(enterBtn);
+    panel.append(el('p', { class: 'mv-press', text: isMobile ? 'Tap anywhere to begin' : 'or press any key' }));
+    panel.append(el('p', { class: 'mv-version', text: `v${LATEST_VERSION} · ${CHANGELOG[0].title}` }));
   }
 
   function leavePress() {
@@ -197,24 +284,27 @@ export function createTitleScreen({
   });
 
   function renderMain() {
-    panel.append(logo(), el('p', { class: 'mv-sub', text: 'A small-town life simulator' }));
+    panel.append(heroHeader());
     const active = getGameSlot();
     const data = readSlot(active);
-    if (data) panel.append(button('Continue', start, { primary: true, sub: `Slot ${active} · ${slotSummary(data)}` }));
-    else panel.append(button('Start new game', start, { primary: true, sub: `Slot ${active}` }));
-    panel.append(button('New game', () => go('new')));
-    panel.append(button('Load game', () => go('load')));
-    panel.append(button('Settings', () => go('settings')));
-    const news = button("What's New", () => go('news'), { sub: `v${LATEST_VERSION} · ${CHANGELOG[0].title}` });
+    if (data) panel.append(button('▶  Continue', start, { primary: true, sub: `Slot ${active} · ${slotSummary(data)}` }));
+    else panel.append(button('✨  Start New Game', start, { primary: true, sub: `Slot ${active} · Begin Day One` }));
+
+    const slotsRow = el('div', { class: 'mv-btn-grid' });
+    slotsRow.append(button('🌱  New Game', () => go('new')), button('📂  Load Game', () => go('load')));
+    panel.append(slotsRow);
+
+    const utilRow = el('div', { class: 'mv-btn-grid' });
+    const news = button("📰  What's New", () => go('news'));
     if (hasUnseenUpdate(readSeenVersion())) news.firstChild.after(el('span', { class: 'mv-badge', text: 'NEW' }));
-    panel.append(news);
-    panel.append(button('Credits', () => go('credits')));
-    const fsBtn = button(isFullscreenActive() ? 'Exit fullscreen' : 'Fullscreen', async () => {
+    const fsBtn = button(isFullscreenActive() ? '⛶  Exit Fullscreen' : '⛶  Fullscreen', async () => {
       await toggleFullscreen();
-      fsBtn.textContent = isFullscreenActive() ? 'Exit fullscreen' : 'Fullscreen';
+      fsBtn.textContent = isFullscreenActive() ? '⛶  Exit Fullscreen' : '⛶  Fullscreen';
     });
-    panel.append(fsBtn);
-    panel.append(el('p', { class: 'mv-version', text: `v${LATEST_VERSION}` }));
+    utilRow.append(button('⚙️  Settings', () => go('settings')), news, button('🎞  Credits', () => go('credits')), fsBtn);
+    panel.append(utilRow);
+
+    panel.append(el('p', { class: 'mv-version', text: `v${LATEST_VERSION} · ${CHANGELOG[0].title}` }));
   }
 
   function renderNews() {

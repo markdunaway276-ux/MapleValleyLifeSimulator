@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { Parts } from './parts.js';
 import { STREET, SURFACE_Y } from './street.js';
 import { hash2, tileNoise } from './textures.js';
+import { placeGltfProp } from './modelProps.js';
 
 function surfaceTexture(type, quality) {
   const size = quality.shadows ? 256 : 128;
@@ -144,6 +145,27 @@ export function buildFrontYard(door, quality, lightPool = null) {
     porchLight.position.set(lampX + 0.27, lampY - 0.13, lampZ + 0.48);
     group.add(porchLight);
   }
+
+  // Realistic CC0 front-yard planter boxes & porch rocking chair.
+  for (const side of [-1, 1]) {
+    placeGltfProp(group, './assets/models/props/planter-box.glb', {
+      name: side < 0 ? 'front-yard-planter-west' : 'front-yard-planter-east',
+      x: door.x + side * 1.45,
+      y: 0,
+      z: door.z + 0.58,
+      targetHeight: 0.42,
+      shadows: !!quality.shadows
+    });
+  }
+  placeGltfProp(group, './assets/models/props/rocking-chair.glb', {
+    name: 'front-yard-rocking-chair',
+    x: door.x + 2.35,
+    y: 0,
+    z: door.z + 1.35,
+    rotY: -0.45,
+    targetHeight: 0.96,
+    shadows: !!quality.shadows
+  });
 
   return {
     group,

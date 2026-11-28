@@ -560,7 +560,8 @@ export function createPhone({
   getDestinations = null,
   getWaypointId = null,
   setWaypoint = null,
-  capturePhoto = null
+  capturePhoto = null,
+  radio = null
 } = {}) {
   ensureStyles();
 
@@ -699,7 +700,7 @@ export function createPhone({
     setWaypoint,
     capturePhoto,
     photos,
-    radio: opts.radio || null,
+    radio: radio || null,
     openApp,
     getPhonePrefs: () => ({ ...prefs }),
     setPhonePrefs(patch) {

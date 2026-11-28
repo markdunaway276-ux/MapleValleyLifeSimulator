@@ -587,6 +587,7 @@ g.prompt = prompt;
 
 function beginPlay() {
   instructions.classList.add('hidden');
+  document.body.classList.remove('title-open');
   if (!isMobile && !inventory.isOpen() && navigator.userActivation?.isActive !== false) {
     requestPointerLock(renderer.domElement);
   }
