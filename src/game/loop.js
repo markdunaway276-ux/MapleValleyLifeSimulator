@@ -98,18 +98,23 @@ export function startLoop(g) {
     updateDoors(scene.userData.doors, delta);
     updatePickups(scene.userData.interactables, delta);
     const time = clock.getTime();
-    g.dayNight.update(delta, time);
+    const titleOpen = g.title.isOpen();
+    const localClock = titleOpen ? new Date() : null;
+    const lightingMinutes = localClock ? localClock.getHours() * 60 + localClock.getMinutes() : time.minutes;
+    g.dayNight.update(delta, lightingMinutes);
     scene.userData.frontYard?.update(time.totalMinutes);
-    scene.userData.streetlights.update(time.minutes);
-    scene.userData.park.update(time.minutes);
-    scene.userData.cornerShop?.userData.updateFrontage?.(time.minutes);
-    scene.userData.clinic?.userData.updateLighting?.(time.minutes);
-    scene.userData.gasStation?.userData.updateLighting?.(time.minutes);
+    scene.userData.streetlights.update(lightingMinutes);
+    scene.userData.park.update(lightingMinutes);
+    scene.userData.cornerShop?.userData.updateFrontage?.(lightingMinutes);
+    scene.userData.clinic?.userData.updateLighting?.(lightingMinutes);
+    scene.userData.gasStation?.userData.updateLighting?.(lightingMinutes);
     scene.userData.lightPool?.update(player.position);
     g.prompt.update();
     g.minimap.update(delta);
     g.dayOne.update();
-    if (!g.dayOne.draw(delta, g.view.draw)) {
+    if (titleOpen) {
+      g.drawTitleBackdrop(delta);
+    } else if (!g.dayOne.draw(delta, g.view.draw)) {
       const driving = mode.driving();
       g.cabin.update({ visible: driving, speed: g.car.getSpeed(), steer: g.car.getSteer(),
         fuel: g.car.fuel.get() / FUEL.TANK, boxes: g.dayOne.stage === 'realtor',

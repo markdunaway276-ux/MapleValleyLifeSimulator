@@ -11,8 +11,49 @@
  * stops autosaves and reloads the page directly into the chosen slot.
  */
 
+import { CAR_SPAWN } from '../world/props.js';
+import { WHATS_NEW } from '../data/changelog.js';
 import { ensureMenuStyles, el, button, heading, renderSettings } from './menuKit.js';
 import { SLOT_COUNT, getGameSlot, setActiveSlot, readSlot, clearSlot, freezeSaves } from '../systems/save.js';
+
+export function createTitleBackdrop({ camera, car, draw }) {
+  const position = camera.position.clone();
+  const rotation = camera.quaternion.clone();
+  const parkedPosition = car.position.clone();
+  const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)');
+  let elapsed = 0;
+
+  return (delta) => {
+    if (!reducedMotion.matches) elapsed += delta;
+    const drift = Math.sin(elapsed * 0.085);
+    const portrait = camera.aspect < 1;
+    position.copy(camera.position);
+    rotation.copy(camera.quaternion);
+    parkedPosition.copy(car.position);
+    const parkedHeading = car.rotation.y;
+    const oldFov = camera.fov;
+
+    try {
+      car.position.set(CAR_SPAWN.x, 0, CAR_SPAWN.z);
+      car.rotation.y = CAR_SPAWN.rotY;
+      camera.position.set(15 + 3 * drift, 9 + drift, 22 + 1.4 * drift);
+      camera.fov = 70;
+      camera.updateProjectionMatrix();
+      // Frame the truck below-right of the panel on desktop and above it on phones.
+      camera.lookAt(portrait ? 11 + 1.5 * drift : -16, portrait ? 0 : 2, portrait ? 16 + 0.7 * drift : 6);
+      draw();
+    } finally {
+      car.position.copy(parkedPosition);
+      car.rotation.y = parkedHeading;
+      car.updateMatrixWorld(true);
+      camera.position.copy(position);
+      camera.quaternion.copy(rotation);
+      camera.fov = oldFov;
+      camera.updateProjectionMatrix();
+      camera.updateMatrixWorld(true);
+    }
+  };
+}
 
 const READY_FLAG = 'mapleValleyLife_slotReady';
 
@@ -52,7 +93,9 @@ export function createTitleScreen({
   if (old) old.style.display = 'none';
 
   const root = el('div', { id: 'title-screen', class: 'mv-overlay is-open', role: 'dialog', 'aria-label': 'Title screen' });
-  root.style.background = 'radial-gradient(ellipse at center, rgba(20,14,8,0.35), rgba(8,6,4,0.8))';
+  root.style.background = 'radial-gradient(ellipse at center, rgba(20,14,8,0.04), rgba(8,6,4,0.32))';
+  root.style.backdropFilter = 'none';
+  root.style.webkitBackdropFilter = 'none';
   root.addEventListener('touchstart', (e) => e.stopPropagation(), { passive: true });
   root.addEventListener('pointerdown', (e) => e.stopPropagation());
   const panel = el('div', { class: 'mv-panel' });
@@ -103,6 +146,7 @@ export function createTitleScreen({
     panel.append(button('New game', () => go('new')));
     panel.append(button('Load game', () => go('load')));
     panel.append(button('Settings', () => go('settings')));
+    panel.append(button("What's New", () => go('changelog')));
   }
 
   function renderSlots(kind) {
@@ -147,6 +191,11 @@ export function createTitleScreen({
         onReload: () => location.reload(),
         onBack: () => go('main')
       });
+    } else if (page === 'changelog') {
+      panel.append(heading("What's New", WHATS_NEW.title));
+      const list = el('ul', { class: 'mv-note' });
+      for (const change of WHATS_NEW.changes) list.append(el('li', { text: change }));
+      panel.append(list, button('Back', () => go('main'), { primary: true }));
     } else if (page === 'new' || page === 'load') renderSlots(page);
     else renderMain();
   }

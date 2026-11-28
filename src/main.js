@@ -55,7 +55,7 @@ import { createTvSet, registerTvInteractable } from './systems/tv.js';
 import { createRenderer, createView } from './game/rendering.js';
 import { createDisplay } from './systems/display.js';
 import { createPauseMenu } from './ui/pauseMenu.js';
-import { createTitleScreen } from './ui/titleScreen.js';
+import { createTitleBackdrop, createTitleScreen } from './ui/titleScreen.js';
 import { createSettings } from './systems/settings.js';
 import { createStats } from './systems/stats.js';
 import { getNpc } from './data/npcs.js';
@@ -570,6 +570,8 @@ g.title = createTitleScreen({
   getSfx: () => sfx,
   applyLive
 });
+
+g.drawTitleBackdrop = createTitleBackdrop({ camera, car: g.car.object, draw: view.draw });
 
 g.presentation = createPresentation({ camera, scene, mode, playerBody, actionRig: actions.rig });
 g.hud.sync();

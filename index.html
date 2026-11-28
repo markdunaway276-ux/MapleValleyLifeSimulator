@@ -33,8 +33,11 @@
     .road-trip-bar.top { top: 0; transform: translateY(-100%); }
     .road-trip-bar.bottom { bottom: 0; transform: translateY(100%); }
     .road-trip.playing .road-trip-bar { transform: translateY(0); }
+    .road-trip.playing.leaving .road-trip-bar.top { transform: translateY(-100%); }
+    .road-trip.playing.leaving .road-trip-bar.bottom { transform: translateY(100%); }
     @media (orientation: portrait) { .road-trip { --bar: 12vh; } }
     .road-trip-title { position: absolute; top: 46%; width: 100%; text-align: center; text-shadow: 0 2px 15px #19140d; opacity: 0; }
+    .road-trip-credit { font-size: clamp(22px, 4vw, 54px); letter-spacing: .08em; }
     .road-trip-title strong { display: block; font-size: clamp(27px, 7vw, 92px); font-weight: 500; letter-spacing: .19em; padding-left: .19em; }
     .road-trip-title span { font-size: clamp(14px, 2vw, 27px); letter-spacing: .16em; }
     .road-trip-caption, .road-trip-notice { position: absolute; opacity: 0; bottom: calc(var(--bar) + 14px); left: 5%; padding: 6px 10px; background: #211d16b0; font-size: 15px; }
@@ -42,7 +45,7 @@
     .road-trip-loading { position: absolute; inset: 0; display: grid; place-content: center; justify-items: center; gap: 16px; background: #0e0d0a; font-size: clamp(18px, 4vw, 28px); transition: opacity .9s ease; pointer-events: none; }
     .road-trip:not(.loading) .road-trip-loading { opacity: 0; }
     .road-trip-loading progress { width: min(58vw, 250px); height: 5px; accent-color: #cfad75; }
-    .road-trip-skip { position: absolute; right: max(14px, env(safe-area-inset-right)); bottom: max(12px, env(safe-area-inset-bottom)); border: 1px solid #ae9674; border-radius: 6px; background: #231f19; color: inherit; font-size: 14px; }
+    .road-trip-skip { position: absolute; right: max(14px, env(safe-area-inset-right)); bottom: max(12px, env(safe-area-inset-bottom)); min-height: 44px; padding: 6px 14px; touch-action: none; user-select: none; border: 1px solid #ae9674; border-radius: 6px; background: linear-gradient(to right, #665139 calc(var(--held, 0) * 100%), #231f19 0); color: inherit; font-size: 14px; }
     .road-trip.finished .road-trip-skip, .road-trip.finished .road-trip-title, .road-trip.finished .road-trip-caption, .road-trip.finished .road-trip-notice { visibility: hidden; }
     @media (prefers-reduced-motion: reduce) { .road-trip-bar { transition-duration: .2s; } }
   </style>
