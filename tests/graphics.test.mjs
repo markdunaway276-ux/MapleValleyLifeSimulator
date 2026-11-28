@@ -78,7 +78,8 @@ test('atmosphere builders add valley horizon, power lines, street clutter, wet r
   scene.add(road, walk);
 
   const horizon = buildValleyHorizon(scene, { shadows: true });
-  assert.ok(horizon.getObjectByName('valley-hills'));
+  assert.equal(horizon.name, 'valley-horizon');
+  assert.equal(horizon.children.length, 0);
 
   const details = buildStreetDetails(scene, { shadows: true });
   assert.ok(details.getObjectByName('power-lines'));

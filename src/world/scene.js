@@ -27,10 +27,10 @@ import { buildValleyHorizon, buildStreetDetails, createAmbientParticles } from '
 
 export { STREET, gradeMainHouse };
 
-/** Large inverted dome, fog disabled, drawn behind the world: gradient + drifting clouds + sun/moon glow + stars. */
+/** Large inverted dome, fog disabled, drawn behind the world: gradient + drifting clouds + sun/moon glow + stars + distant valley ridges. */
 function createSkyDome(quality, look) {
-  const radius = quality.far * 0.85;
-  const geometry = new THREE.SphereGeometry(radius, 24, 16);
+  const radius = Math.max(40, (quality.far || 120) * 0.85);
+  const geometry = new THREE.SphereGeometry(radius, 32, 20);
   const sunDir = new THREE.Vector3(...(look.sunPos || [22, 32, 16])).normalize();
   const uniforms = {
     topColor: { value: new THREE.Color(look.skyTop) },
@@ -47,8 +47,8 @@ function createSkyDome(quality, look) {
     vertexShader: /* glsl */`
       varying vec3 vDir;
       void main() {
-        vec4 w = modelMatrix * vec4(position, 1.0);
-        vDir = normalize(w.xyz);
+        // Local unit direction so moving sky.position with the camera never warps the sky.
+        vDir = normalize(position);
         gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
       }
     `,
@@ -88,6 +88,13 @@ function createSkyDome(quality, look) {
         return v;
       }
 
+      float ridge(float a, float seed) {
+        return 0.045
+          + 0.022 * sin(a * 3.0 + seed)
+          + 0.013 * sin(a * 7.0 - seed * 1.6)
+          + 0.006 * cos(a * 13.0 + seed * 0.7);
+      }
+
       void main() {
         vec3 dir = normalize(vDir);
         float h = max(dir.y, 0.0);
@@ -96,8 +103,8 @@ function createSkyDome(quality, look) {
         // Sun / moon atmospheric halo and disc.
         float sDot = max(dot(dir, normalize(sunDir)), 0.0);
         float dayAmt = 1.0 - smoothstep(0.55, 0.92, nightFactor);
-        float halo = pow(sDot, 10.0) * 0.28 * dayAmt + pow(sDot, 64.0) * 0.35 * dayAmt;
-        float disc = smoothstep(0.9983, 0.9994, sDot) * (0.95 * dayAmt + 0.35 * nightFactor);
+        float halo = pow(sDot, 10.0) * 0.26 * dayAmt + pow(sDot, 64.0) * 0.30 * dayAmt;
+        float disc = smoothstep(0.9985, 0.9995, sDot) * (0.90 * dayAmt + 0.32 * nightFactor);
         col += sunColor * (halo + disc);
 
         // Soft drifting clouds projected onto the sky plane above the horizon.
@@ -109,7 +116,7 @@ function createSkyDome(quality, look) {
           cloudMask = smoothstep(thresh, thresh + 0.24, n) * smoothstep(0.02, 0.22, dir.y);
           vec3 cloudLit = mix(bottomColor * 1.12, sunColor * 1.08, 0.35 + 0.45 * pow(sDot, 4.0));
           vec3 cloudCol = mix(cloudLit, topColor * 0.55 + vec3(0.05, 0.07, 0.10), nightFactor);
-          col = mix(col, cloudCol, cloudMask * (0.58 - nightFactor * 0.22));
+          col = mix(col, cloudCol, cloudMask * (0.55 - nightFactor * 0.22));
         }
 
         // Crisp twinkling stars at night (masked near horizon and behind clouds).
@@ -122,6 +129,17 @@ function createSkyDome(quality, look) {
             col += vec3(0.82, 0.88, 1.0) * twinkle * starAlpha * 0.85;
           }
         }
+
+        // Distant misty valley hill silhouettes painted into the horizon (never clips or blocks roads).
+        float az = atan(dir.z, dir.x);
+        float farH = ridge(az, 1.4) * 1.35 + 0.015;
+        float nearH = ridge(az, 4.1) * 0.92;
+        float farMask = 1.0 - smoothstep(farH - 0.004, farH + 0.004, dir.y);
+        float nearMask = 1.0 - smoothstep(nearH - 0.004, nearH + 0.004, dir.y);
+        vec3 farCol = mix(bottomColor * 0.72, vec3(0.14, 0.18, 0.20), 0.35 + nightFactor * 0.45);
+        vec3 nearCol = mix(bottomColor * 0.52, vec3(0.10, 0.14, 0.12), 0.50 + nightFactor * 0.38);
+        col = mix(col, farCol, farMask * 0.62 * smoothstep(-0.02, 0.015, dir.y));
+        col = mix(col, nearCol, nearMask * 0.78 * smoothstep(-0.02, 0.01, dir.y));
 
         gl_FragColor = vec4(col, 1.0);
       }

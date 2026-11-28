@@ -13,75 +13,13 @@ import { createContactBlob } from './contact.js';
  * - Golden-hour dust motes & night fireflies
  */
 
-function ridgeHeight(angle, seed) {
-  return (
-    Math.sin(angle * 3 + seed) * 4.5 +
-    Math.sin(angle * 7 - seed * 1.7) * 2.8 +
-    Math.cos(angle * 13 + seed * 0.6) * 1.4
-  );
-}
-
 /**
- * Two misty low-poly mountain/hill rings encircling Maple Lane so the ground
- * plane never ends abruptly in fog. 1 draw call, fog-blended.
+ * Horizon valley ridges are now rendered seamlessly inside the camera-centered
+ * sky dome shader (scene.js) so they never block Route 9 or clip on mobile.
  */
-export function buildValleyHorizon(scene, quality = {}) {
+export function buildValleyHorizon(scene) {
   const group = new THREE.Group();
   group.name = 'valley-horizon';
-
-  const rings = [
-    { radius: 118, baseH: 11, amp: 1.0, segs: 64, seed: 1.2, colLow: 0x26322b, colHigh: 0x3b4943 },
-    { radius: 158, baseH: 20, amp: 1.35, segs: 64, seed: 3.7, colLow: 0x2b363a, colHigh: 0x4b5a62 }
-  ];
-
-  const pos = [];
-  const col = [];
-  const cLow = new THREE.Color();
-  const cHigh = new THREE.Color();
-
-  for (const r of rings) {
-    cLow.setHex(r.colLow);
-    cHigh.setHex(r.colHigh);
-    for (let i = 0; i < r.segs; i++) {
-      const a0 = (i / r.segs) * Math.PI * 2;
-      const a1 = ((i + 1) / r.segs) * Math.PI * 2;
-      // Keep the far west Route 9 approach slightly lower so the highway feels open.
-      const westDip0 = 1 - 0.42 * Math.exp(-(((Math.cos(a0) + 1) / 0.45) ** 2));
-      const westDip1 = 1 - 0.42 * Math.exp(-(((Math.cos(a1) + 1) / 0.45) ** 2));
-      const h0 = Math.max(4, (r.baseH + ridgeHeight(a0, r.seed) * r.amp) * westDip0);
-      const h1 = Math.max(4, (r.baseH + ridgeHeight(a1, r.seed) * r.amp) * westDip1);
-
-      const x0 = Math.cos(a0) * r.radius;
-      const z0 = Math.sin(a0) * r.radius + 10;
-      const x1 = Math.cos(a1) * r.radius;
-      const z1 = Math.sin(a1) * r.radius + 10;
-
-      // Two triangles per quad, inward-facing so the player sees them from inside the valley.
-      pos.push(
-        x0, -2, z0, x1, -2, z1, x1, h1, z1,
-        x0, -2, z0, x1, h1, z1, x0, h0, z0
-      );
-      col.push(
-        cLow.r, cLow.g, cLow.b, cLow.r, cLow.g, cLow.b, cHigh.r, cHigh.g, cHigh.b,
-        cLow.r, cLow.g, cLow.b, cHigh.r, cHigh.g, cHigh.b, cHigh.r, cHigh.g, cHigh.b
-      );
-    }
-  }
-
-  const geo = new THREE.BufferGeometry();
-  geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
-  geo.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
-  geo.computeVertexNormals();
-
-  const mat = new THREE.MeshBasicMaterial({
-    vertexColors: true,
-    side: THREE.DoubleSide,
-    fog: true
-  });
-  const mesh = new THREE.Mesh(geo, mat);
-  mesh.name = 'valley-hills';
-  mesh.frustumCulled = false;
-  group.add(mesh);
   scene.add(group);
   return group;
 }

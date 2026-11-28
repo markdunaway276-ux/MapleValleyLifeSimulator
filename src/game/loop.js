@@ -103,12 +103,15 @@ export function startLoop(g) {
     const time = clock.getTime();
     g.dayNight.update(delta, time);
     const sky = scene.getObjectByName('sky');
-    if (sky?.material?.uniforms) {
-      if (sky.material.uniforms.time) sky.material.uniforms.time.value += delta;
-      if (sky.material.uniforms.cloudCover) {
-        const w = g.weather.get?.();
-        const cover = w && w.id === 'rain' ? 0.85 : (w && w.id === 'cloudy' ? 0.68 : 0.36);
-        sky.material.uniforms.cloudCover.value += (cover - sky.material.uniforms.cloudCover.value) * Math.min(1, delta * 0.8);
+    if (sky) {
+      if (g.camera) sky.position.copy(g.camera.position);
+      if (sky.material?.uniforms) {
+        if (sky.material.uniforms.time) sky.material.uniforms.time.value += delta;
+        if (sky.material.uniforms.cloudCover) {
+          const w = g.weather.get?.();
+          const cover = w && w.id === 'rain' ? 0.85 : (w && w.id === 'cloudy' ? 0.68 : 0.36);
+          sky.material.uniforms.cloudCover.value += (cover - sky.material.uniforms.cloudCover.value) * Math.min(1, delta * 0.8);
+        }
       }
     }
     updateWetSurfaces(scene, rain);

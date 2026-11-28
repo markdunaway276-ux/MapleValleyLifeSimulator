@@ -158,6 +158,8 @@ export function createRoadTrip(g, onFinish, wave) {
         else if(at>=32) { camera.position.set(-35,14,-9); camera.lookAt(18,2,lane); }
       }
     }
+    const sky = scene.getObjectByName('sky');
+    if (sky) sky.position.copy(camera.position);
     try { render(); }
     finally {
       camera.position.copy(eye);
