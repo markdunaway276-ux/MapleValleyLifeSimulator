@@ -165,16 +165,20 @@ export function updateWetSurfaces(scene, rainAmount, snowCover = 0) {
   for (const name of ['road', 'country-asphalt']) {
     const road = scene?.getObjectByName?.(name);
     if (road?.material) {
-      road.material.roughness = 0.90 - Math.max(wet * 0.64, snow * 0.3);
-      const c = (1 - wet * 0.28) * (1 - snow * 0.3) + snow * 0.3 * 1.55;
-      road.material.color.setRGB(c, c, c * (1 + wet * 0.04 + snow * 0.03));
+      road.material.roughness = 0.90 - Math.max(wet * 0.72, snow * 0.3);
+      road.material.envMapIntensity = 0.45 + wet * 1.45;
+      const c = (1 - wet * 0.30) * (1 - snow * 0.3) + snow * 0.3 * 1.55;
+      road.material.color.setRGB(c, c, c * (1 + wet * 0.05 + snow * 0.03));
     }
   }
-  const walk = scene?.getObjectByName?.('sidewalk-north');
-  if (walk?.material) {
-    walk.material.roughness = 0.90 - wet * 0.52;
-    const c = (1 - wet * 0.20) * (1 - snow * 0.6) + snow * 0.6 * 1.3;
-    walk.material.color.setRGB(c, c, c * (1 + wet * 0.03 + snow * 0.03));
+  for (const name of ['sidewalk-north', 'sidewalk-south']) {
+    const walk = scene?.getObjectByName?.(name);
+    if (walk?.material) {
+      walk.material.roughness = 0.90 - wet * 0.58;
+      walk.material.envMapIntensity = 0.35 + wet * 1.05;
+      const c = (1 - wet * 0.22) * (1 - snow * 0.6) + snow * 0.6 * 1.3;
+      walk.material.color.setRGB(c, c, c * (1 + wet * 0.04 + snow * 0.03));
+    }
   }
   const ground = scene?.getObjectByName?.('ground');
   const u = ground?.material?.userData?.snow;

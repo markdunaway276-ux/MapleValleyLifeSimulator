@@ -149,7 +149,77 @@ export function createPlayerPickup({ shadows }) {
     }
   }
 
-  loadGltf('assets/models/vehicles/pickup.glb', ({ scene: pickup }) => {
+  // Volumetric dusk/night headlight cones & lens halos at the front bumper (+X).
+  const headGroup = new THREE.Group();
+  headGroup.name = 'pickup-headlights';
+  const beamLen = 5.4;
+  const beamGeo = new THREE.ConeGeometry(1.15, beamLen, 14, 1, true);
+  beamGeo.translate(0, -beamLen / 2, 0);
+  beamGeo.rotateZ(Math.PI / 2); // Point along +X (front of truck)
+  const beamMat = new THREE.ShaderMaterial({
+    uniforms: {
+      color: { value: new THREE.Color(0xfff0cc) },
+      opacity: { value: 0 }
+    },
+    vertexShader: /* glsl */`
+      varying float vDist;
+      varying float vRim;
+      void main() {
+        vDist = clamp(position.x / ${beamLen.toFixed(2)}, 0.0, 1.0);
+        vec3 n = normalize(normalMatrix * normal);
+        vec4 mv = modelViewMatrix * vec4(position, 1.0);
+        vec3 v = normalize(-mv.xyz);
+        vRim = pow(abs(dot(n, v)), 1.4);
+        gl_Position = projectionMatrix * mv;
+      }
+    `,
+    fragmentShader: /* glsl */`
+      uniform vec3 color;
+      uniform float opacity;
+      varying float vDist;
+      varying float vRim;
+      void main() {
+        float fade = pow(1.0 - vDist, 1.75) * smoothstep(0.0, 0.08, vDist) * vRim;
+        gl_FragColor = vec4(color, fade * opacity);
+      }
+    `,
+    transparent: true,
+    depthWrite: false,
+    blending: THREE.AdditiveBlending,
+    side: THREE.DoubleSide
+  });
+  const lensGeo = new THREE.SphereGeometry(0.16, 10, 8);
+  const lensMat = new THREE.MeshBasicMaterial({
+    color: 0xfff3d4,
+    transparent: true,
+    opacity: 0,
+    depthWrite: false,
+    blending: THREE.AdditiveBlending
+  });
+  for (const zOff of [-0.66, 0.66]) {
+    const beam = new THREE.Mesh(beamGeo, beamMat);
+    beam.position.set(2.26, 0.78, zOff);
+    beam.rotation.z = -0.09; // Gentle downward pitch toward the road
+    const lens = new THREE.Mesh(lensGeo, lensMat);
+    lens.position.set(2.26, 0.78, zOff);
+    headGroup.add(beam, lens);
+  }
+  headGroup.visible = false;
+  car.add(headGroup);
+  car.userData.updateHeadlights = (minutes, rain = 0, driving = false) => {
+    const evening = THREE.MathUtils.smoothstep(minutes, 18 * 60 + 15, 19 * 60 + 20);
+    const morning = 1 - THREE.MathUtils.smoothstep(minutes, 5 * 60 + 30, 6 * 60 + 30);
+    const dark = Math.min(1, evening + morning);
+    const strength = Math.max(dark, driving && rain > 0.25 ? 0.55 : 0);
+    headGroup.visible = strength > 0.03;
+    if (headGroup.visible) {
+      const haze = 1 + Math.min(1, Number(rain) || 0) * 0.45;
+      beamMat.uniforms.opacity.value = (driving ? 0.19 : 0.09) * strength * haze;
+      lensMat.opacity = (driving ? 0.42 : 0.24) * strength * haze;
+    }
+  };
+
+  if (typeof window !== 'undefined') loadGltf('assets/models/vehicles/pickup.glb', ({ scene: pickup }) => {
     const body = pickup.getObjectByName('truck-body');
     const interior = pickup.getObjectByName('truck-interior');
     const wheels = WHEEL_NAMES.map(name => pickup.getObjectByName(name));
@@ -165,13 +235,20 @@ export function createPlayerPickup({ shadows }) {
       object.receiveShadow = shadows;
       if (object.material.name === 'body') {
         object.material.color.setHex(BODY_PAINT);
+        object.material.roughness = 0.24;
+        object.material.metalness = 0.42;
+        object.material.envMapIntensity = 1.35;
         stripStaticTailgate(object);
       }
       if (object.material.name === 'black_m' || object.material.name === 'material') {
+        object.material.envMapIntensity = 1.1;
         stripStaticTailgate(object);
       }
       if (object.material.name === 'interior') object.material.color.setHex(0x303031);
-      if (object.material.name === 'd_glass') glass.add(object.material);
+      if (object.material.name === 'd_glass') {
+        object.material.envMapIntensity = 1.65;
+        glass.add(object.material);
+      }
     });
     car.userData.wheels = wheels.map(wheel => addWheelPivot(pickup, wheel, WHEEL_RADIUS));
     Object.assign(car.userData.seat, CAR_SEAT);

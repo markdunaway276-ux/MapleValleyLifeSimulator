@@ -11,7 +11,7 @@ function memStorage(init = {}) {
 
 test('normalizeDisplay clamps and fills defaults', () => {
   assert.deepEqual(normalizeDisplay(null), { ...DISPLAY_DEFAULTS });
-  assert.deepEqual(normalizeDisplay({ brightness: 9, film: -1, grain: 0 }), { brightness: 2, film: 0, grain: false });
+  assert.deepEqual(normalizeDisplay({ brightness: 9, film: -1, grain: 0 }), { brightness: 2, film: 0, grain: false, preset: 'classic' });
   assert.equal(normalizeDisplay({ brightness: 'x' }).brightness, 1);
 });
 

@@ -25,6 +25,9 @@ import { CURB_WIDTH, DRIVEWAY, GARAGE_LOT, NORTH_FRONTAGE_OFFSET, STREET, SURFAC
 import { createLightPool } from './lightPool.js';
 import { useWorldGrit } from './surfaces.js';
 import { buildValleyHorizon, buildStreetDetails, createAmbientParticles } from './atmosphere.js';
+import { buildGroundFoliage } from './foliage.js';
+import { buildLivingWorld } from './livingWorld.js';
+import { buildValleyGraphics } from './valleyGraphics.js';
 
 export { STREET, gradeMainHouse };
 
@@ -101,33 +104,63 @@ function createSkyDome(quality, look) {
         float h = max(dir.y, 0.0);
         vec3 col = mix(bottomColor, topColor, pow(h, exponent));
 
-        // Sun / moon atmospheric halo and disc.
-        float sDot = max(dot(dir, normalize(sunDir)), 0.0);
+        // Sun atmospheric Mie/Rayleigh horizon scattering + crisp sun disc.
+        vec3 sDir = normalize(sunDir);
+        float sDot = max(dot(dir, sDir), 0.0);
         float dayAmt = 1.0 - smoothstep(0.55, 0.92, nightFactor);
-        float halo = pow(sDot, 10.0) * 0.26 * dayAmt + pow(sDot, 64.0) * 0.30 * dayAmt;
-        float disc = smoothstep(0.9985, 0.9995, sDot) * (0.90 * dayAmt + 0.32 * nightFactor);
+        float horizonBand = pow(1.0 - h, 3.6);
+        // Warm sunlit horizon scatter (strongest at dawn and golden hour).
+        col += sunColor * horizonBand * pow(sDot, 2.5) * 0.34 * dayAmt;
+        float halo = pow(sDot, 8.0) * 0.28 * dayAmt + pow(sDot, 64.0) * 0.36 * dayAmt;
+        float disc = smoothstep(0.9985, 0.9995, sDot) * (0.95 * dayAmt);
         col += sunColor * (halo + disc);
 
-        // Soft drifting clouds projected onto the sky plane above the horizon.
-        float cloudMask = 0.0;
-        if (dir.y > 0.02) {
-          vec2 uv = dir.xz / (dir.y + 0.24) * 1.15 + vec2(time * 0.008, time * 0.003);
-          float n = fbm(uv);
-          float thresh = mix(0.62, 0.34, clamp(cloudCover, 0.0, 1.0));
-          cloudMask = smoothstep(thresh, thresh + 0.24, n) * smoothstep(0.02, 0.22, dir.y);
-          vec3 cloudLit = mix(bottomColor * 1.12, sunColor * 1.08, 0.35 + 0.45 * pow(sDot, 4.0));
-          vec3 cloudCol = mix(cloudLit, topColor * 0.55 + vec3(0.05, 0.07, 0.10), nightFactor);
-          col = mix(col, cloudCol, cloudMask * (0.55 - nightFactor * 0.22));
+        // Crisp moon disc + soft lunar halo at night.
+        if (nightFactor > 0.15) {
+          float mDot = max(dot(dir, sDir), 0.0);
+          float moonHalo = pow(mDot, 16.0) * 0.16 + pow(mDot, 120.0) * 0.22;
+          float moonDisc = smoothstep(0.9982, 0.9991, mDot) * 0.92;
+          col += vec3(0.84, 0.90, 1.0) * (moonHalo + moonDisc) * smoothstep(0.15, 0.72, nightFactor);
         }
 
-        // Crisp twinkling stars at night (masked near horizon and behind clouds).
-        if (nightFactor > 0.2 && dir.y > 0.08) {
-          vec2 starUv = floor(dir.xz / (dir.y + 0.45) * 165.0);
+        // Two-layer clouds: high wispy cirrus + billowing cumulus with sunlit silver linings.
+        float cloudMask = 0.0;
+        if (dir.y > 0.015) {
+          float horizonFade = smoothstep(0.015, 0.22, dir.y);
+          vec2 proj = dir.xz / (dir.y + 0.24);
+
+          // High wispy cirrus streaks.
+          vec2 cirrusUv = proj * 0.72 + vec2(time * 0.004, -time * 0.002);
+          float cirrus = fbm(cirrusUv * vec2(1.8, 0.65));
+          float cirrusMask = smoothstep(0.56, 0.84, cirrus) * horizonFade * 0.26 * (1.0 - nightFactor * 0.5);
+          col = mix(col, mix(bottomColor * 1.15, sunColor * 1.1, 0.45), cirrusMask);
+
+          // Main billowing cumulus layer with directional self-shadowing toward the sun.
+          vec2 uv = proj * 1.12 + vec2(time * 0.0085, time * 0.0032);
+          float n = fbm(uv);
+          float nSun = fbm(uv + sDir.xz * 0.14);
+          float thresh = mix(0.60, 0.33, clamp(cloudCover, 0.0, 1.0));
+          cloudMask = smoothstep(thresh, thresh + 0.23, n) * horizonFade;
+
+          // Cloud lighting: warm backlit silver lining near sun + cool shaded undersides.
+          float litDelta = clamp((n - nSun) * 2.2 + 0.45, 0.0, 1.0);
+          float silverLining = pow(sDot, 6.0) * smoothstep(thresh, thresh + 0.12, n) * (1.0 - smoothstep(thresh + 0.12, thresh + 0.30, n)) * dayAmt;
+          vec3 cloudShadow = mix(topColor * 0.62, bottomColor * 0.76, 0.55);
+          vec3 cloudBright = mix(bottomColor * 1.18, sunColor * 1.14, 0.38 + 0.48 * pow(sDot, 3.0));
+          vec3 cloudLit = mix(cloudShadow, cloudBright, litDelta) + sunColor * silverLining * 0.55;
+          vec3 cloudCol = mix(cloudLit, topColor * 0.52 + vec3(0.05, 0.07, 0.11), nightFactor);
+          col = mix(col, cloudCol, cloudMask * (0.68 - nightFactor * 0.24));
+        }
+
+        // Crisp multi-tinted twinkling stars at night (masked near horizon and behind clouds).
+        if (nightFactor > 0.2 && dir.y > 0.07) {
+          vec2 starUv = floor(dir.xz / (dir.y + 0.45) * 185.0);
           float r = hash21(starUv);
-          if (r > 0.9935) {
-            float twinkle = 0.65 + 0.35 * sin(time * 2.4 + r * 900.0);
-            float starAlpha = smoothstep(0.2, 0.78, nightFactor) * smoothstep(0.08, 0.28, dir.y) * (1.0 - cloudMask * 0.85);
-            col += vec3(0.82, 0.88, 1.0) * twinkle * starAlpha * 0.85;
+          if (r > 0.992) {
+            float twinkle = 0.62 + 0.38 * sin(time * (2.0 + fract(r * 73.0) * 2.2) + r * 900.0);
+            float starAlpha = smoothstep(0.2, 0.75, nightFactor) * smoothstep(0.07, 0.26, dir.y) * (1.0 - cloudMask * 0.85);
+            vec3 starTint = mix(vec3(0.78, 0.86, 1.0), vec3(1.0, 0.92, 0.78), fract(r * 131.0));
+            col += starTint * twinkle * starAlpha * 0.92;
           }
         }
 
@@ -640,10 +673,13 @@ export function createScene(quality) {
   car.add(carShadow);
   car.userData.contactShadow = carShadow;
 
-  // Environmental polish: valley horizon hills, utility poles/power lines & street clutter, dust/fireflies.
+  // Environmental polish: valley horizon hills, utility poles/power lines & street clutter, dust/fireflies, 3D foliage.
   scene.userData.valleyHorizon = buildValleyHorizon(scene, quality);
   scene.userData.streetDetails = buildStreetDetails(scene, quality);
   scene.userData.ambientParticles = createAmbientParticles(scene, quality);
+  scene.userData.groundFoliage = buildGroundFoliage(scene, quality);
+  scene.userData.livingWorld = buildLivingWorld(scene, quality);
+  scene.userData.valleyGraphics = buildValleyGraphics(scene, quality);
 
   return scene;
 }

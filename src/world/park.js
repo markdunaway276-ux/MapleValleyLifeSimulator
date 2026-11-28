@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { Parts } from './parts.js';
 import { CURB_WIDTH, STREET, SURFACE_Y } from './street.js';
+import { createSeat } from '../systems/sit.js';
 
 function createWoodChipMaterial(quality) {
   if (typeof document === 'undefined') {
@@ -158,7 +159,7 @@ export function buildPark(scene, quality, streetMaterials) {
   for (let x = minX + 0.35; x < maxX - 0.35; x += 0.65) {
     surface('service-road-crossing', { minX: x, maxX: x + 0.3, minZ, maxZ }, SURFACE_Y.road + 0.002, 0xd8d6c7);
   }
-  return buildActivityArea(park, scene.userData.colliders, quality);
+  return buildActivityArea(park, scene.userData.colliders, quality, scene);
 }
 
 function buildPond(park, colliders, quality) {
@@ -176,24 +177,91 @@ function buildPond(park, colliders, quality) {
   shore.receiveShadow = quality.shadows;
   park.add(shore);
 
-  const waterMaterial = new THREE.MeshStandardMaterial({ color: 0x406d69, roughness: 0.34, metalness: 0.15 });
-  waterMaterial.onBeforeCompile = shader => {
-    shader.vertexShader = shader.vertexShader
-      .replace('#include <common>', '#include <common>\nvarying vec2 vPondPosition;')
-      .replace('#include <begin_vertex>', '#include <begin_vertex>\nvPondPosition = position.xy;');
-    shader.fragmentShader = shader.fragmentShader
-      .replace('#include <common>', '#include <common>\nvarying vec2 vPondPosition;')
-      .replace('#include <color_fragment>', `#include <color_fragment>
-        vec2 pondPoint = vPondPosition;
-        float ripples = sin(pondPoint.y * 74.0 + sin(pondPoint.x * 23.0) * 2.0);
-        float rim = smoothstep(0.62, 1.0, length(pondPoint));
-        diffuseColor.rgb *= 0.88 + rim * 0.34 + ripples * 0.07;`);
+  const waterUniforms = {
+    uTime: { value: 0 },
+    uSkyTop: { value: new THREE.Color(0x4a7ea4) },
+    uSkyBottom: { value: new THREE.Color(0xc2d2dc) },
+    uSunColor: { value: new THREE.Color(0xffe4bc) },
+    uSunDir: { value: new THREE.Vector3(22, 32, 16).normalize() }
   };
+  const waterMaterial = new THREE.ShaderMaterial({
+    uniforms: waterUniforms,
+    vertexShader: /* glsl */`
+      varying vec2 vPondUv;
+      varying vec3 vWorldPos;
+      void main() {
+        vPondUv = position.xy;
+        vec4 wp = modelMatrix * vec4(position, 1.0);
+        vWorldPos = wp.xyz;
+        gl_Position = projectionMatrix * viewMatrix * wp;
+      }
+    `,
+    fragmentShader: /* glsl */`
+      uniform float uTime;
+      uniform vec3 uSkyTop;
+      uniform vec3 uSkyBottom;
+      uniform vec3 uSunColor;
+      uniform vec3 uSunDir;
+      varying vec2 vPondUv;
+      varying vec3 vWorldPos;
+
+      float wave(vec2 p, float t) {
+        float w = 0.0;
+        w += sin(p.x * 2.4 + t * 1.15 + sin(p.y * 1.6 - t * 0.6)) * 0.45;
+        w += sin(p.y * 3.1 - t * 0.92 + cos(p.x * 2.1 + t * 0.7)) * 0.35;
+        w += sin((p.x + p.y) * 5.2 + t * 1.6) * 0.20;
+        return w;
+      }
+
+      void main() {
+        vec2 wp = vWorldPos.xz;
+        float e = 0.08;
+        float h0 = wave(wp, uTime);
+        float hx = wave(wp + vec2(e, 0.0), uTime);
+        float hz = wave(wp + vec2(0.0, e), uTime);
+        vec3 n = normalize(vec3((h0 - hx) * 0.16, 1.0, (h0 - hz) * 0.16));
+
+        vec3 viewDir = normalize(cameraPosition - vWorldPos);
+        float ndv = max(dot(n, viewDir), 0.02);
+        float fresnel = 0.08 + 0.82 * pow(1.0 - ndv, 3.2);
+
+        // Reflect sky gradient along perturbed water normal.
+        vec3 refl = reflect(-viewDir, n);
+        float skyH = clamp(refl.y * 0.85 + 0.15, 0.0, 1.0);
+        vec3 skyRefl = mix(uSkyBottom, uSkyTop, pow(skyH, 0.75));
+
+        // Shallow turquoise-sage rim vs deep mossy-teal pond center.
+        float radial = length(vPondUv);
+        float shallow = smoothstep(0.58, 0.98, radial);
+        vec3 deepCol = vec3(0.09, 0.20, 0.21);
+        vec3 shallowCol = vec3(0.24, 0.38, 0.34);
+        vec3 waterBody = mix(deepCol, shallowCol, shallow);
+        // Subtle sunlit caustic shimmer in the shallows.
+        waterBody += vec3(0.05, 0.08, 0.06) * shallow * (0.5 + 0.5 * h0);
+
+        vec3 col = mix(waterBody, skyRefl, fresnel * 0.78);
+
+        // Crisp sun/moon sparkle glint across the wavelets.
+        vec3 sunD = normalize(uSunDir);
+        vec3 halfV = normalize(sunD + viewDir);
+        float spec = pow(max(dot(n, halfV), 0.0), 96.0) * 1.15 + pow(max(dot(n, halfV), 0.0), 18.0) * 0.14;
+        col += uSunColor * spec * smoothstep(-0.05, 0.22, sunD.y);
+
+        // Soft animated foam ring right along the grassy shoreline.
+        float foamWave = sin(radial * 28.0 - uTime * 1.8 + h0 * 2.2) * 0.5 + 0.5;
+        float foam = smoothstep(0.91, 0.995, radial) * (0.35 + 0.45 * foamWave);
+        col = mix(col, mix(uSkyBottom, vec3(0.92, 0.96, 0.97), 0.5), foam * 0.55);
+
+        gl_FragColor = vec4(col, 1.0);
+      }
+    `
+  });
   const water = new THREE.Mesh(new THREE.CircleGeometry(1, 64), waterMaterial);
   water.name = 'park-pond-water';
+  water.userData.waterUniforms = waterUniforms;
   water.rotation.x = -Math.PI / 2;
   water.scale.set(radiusX - 0.43, radiusZ - 0.47, 1);
-  water.position.set(centerX, 0.012, centerZ);
+  water.position.set(centerX, 0.014, centerZ);
   park.add(water);
 
   const parts = new Parts(true);
@@ -235,7 +303,7 @@ function buildPond(park, colliders, quality) {
   park.add(details);
 }
 
-function buildActivityArea(park, colliders, quality) {
+function buildActivityArea(park, colliders, quality, scene) {
   const parts = new Parts(true);
   const metal = 0x35413d;
   const wood = 0x986341;
@@ -264,27 +332,29 @@ function buildActivityArea(park, colliders, quality) {
   post(69, 17, 2.15);
   box(metal, 2.22, 0.72, 0.15, 68, 1.76, 17);
   obstacle('sign', 68, 17, 2.22, 0.18);
-  const canvas = document.createElement('canvas');
-  canvas.width = 512;
-  canvas.height = 160;
-  const ctx = canvas.getContext('2d');
-  ctx.fillStyle = '#284339';
-  ctx.fillRect(0, 0, 512, 160);
-  ctx.strokeStyle = '#cfbd89';
-  ctx.lineWidth = 4;
-  ctx.strokeRect(10, 10, 492, 140);
-  ctx.fillStyle = '#f5ecd5';
-  ctx.textAlign = 'center';
-  ctx.font = 'bold 40px Georgia';
-  ctx.fillText('MAPLE LANE PARK', 256, 75);
-  ctx.font = '22px sans-serif';
-  ctx.fillText('PLAYGROUND  •  PICNIC AREA', 256, 114);
-  const signTexture = new THREE.CanvasTexture(canvas);
-  signTexture.colorSpace = THREE.SRGBColorSpace;
-  const sign = new THREE.Mesh(new THREE.PlaneGeometry(2.13, 0.65), new THREE.MeshStandardMaterial({ map: signTexture }));
-  sign.rotation.y = Math.PI;
-  sign.position.set(68, ground + 1.76, 16.918);
-  park.add(sign);
+  if (typeof document !== 'undefined') {
+    const canvas = document.createElement('canvas');
+    canvas.width = 512;
+    canvas.height = 160;
+    const ctx = canvas.getContext('2d');
+    ctx.fillStyle = '#284339';
+    ctx.fillRect(0, 0, 512, 160);
+    ctx.strokeStyle = '#cfbd89';
+    ctx.lineWidth = 4;
+    ctx.strokeRect(10, 10, 492, 140);
+    ctx.fillStyle = '#f5ecd5';
+    ctx.textAlign = 'center';
+    ctx.font = 'bold 40px Georgia';
+    ctx.fillText('MAPLE LANE PARK', 256, 75);
+    ctx.font = '22px sans-serif';
+    ctx.fillText('PLAYGROUND  •  PICNIC AREA', 256, 114);
+    const signTexture = new THREE.CanvasTexture(canvas);
+    signTexture.colorSpace = THREE.SRGBColorSpace;
+    const sign = new THREE.Mesh(new THREE.PlaneGeometry(2.13, 0.65), new THREE.MeshStandardMaterial({ map: signTexture }));
+    sign.rotation.y = Math.PI;
+    sign.position.set(68, ground + 1.76, 16.918);
+    park.add(sign);
+  }
 
   // --- Playground: galvanized steel & molded plastic tower, slide, swingset, seesaw, and 3D wood chips ---
   const swingPivots = buildPlaygroundEquipment(park, colliders, quality, ground);
@@ -359,20 +429,122 @@ function buildActivityArea(park, colliders, quality) {
     park.add(lens, light);
     obstacle('lamp-' + x, x, z, 0.18, 0.18);
   }
+  // --- Pond wildlife: 2 gliding 3D mallard ducks + expanding translucent water ripples ---
+  const pond = STREET.expansion.pond;
+  const pondCx = (pond.minX + pond.maxX) / 2;
+  const pondCz = (pond.minZ + pond.maxZ) / 2;
+  const pondRx = (pond.maxX - pond.minX) * 0.28;
+  const pondRz = (pond.maxZ - pond.minZ) * 0.28;
+  const waterY = SURFACE_Y.road + 0.02;
+
+  function makeDuck(isDrake) {
+    const g = new THREE.Group();
+    const bodyMat = new THREE.MeshStandardMaterial({ color: isDrake ? 0x6f5a47 : 0x7d654d, roughness: 0.85 });
+    const headMat = new THREE.MeshStandardMaterial({ color: isDrake ? 0x1d5c43 : 0x6d5640, roughness: 0.72 });
+    const billMat = new THREE.MeshStandardMaterial({ color: 0xe2a028, roughness: 0.6 });
+    const body = new THREE.Mesh(new THREE.SphereGeometry(0.16, 10, 8), bodyMat);
+    body.scale.set(0.85, 0.72, 1.35);
+    body.position.y = 0.08;
+    const head = new THREE.Mesh(new THREE.SphereGeometry(0.085, 10, 8), headMat);
+    head.position.set(0, 0.22, 0.16);
+    const bill = new THREE.Mesh(new THREE.ConeGeometry(0.036, 0.09, 6), billMat);
+    bill.rotation.x = Math.PI / 2;
+    bill.position.set(0, 0.20, 0.26);
+    const tail = new THREE.Mesh(new THREE.ConeGeometry(0.055, 0.12, 6), bodyMat);
+    tail.rotation.x = -0.9;
+    tail.position.set(0, 0.13, -0.21);
+    g.add(body, head, bill, tail);
+    return g;
+  }
+
+  const ducks = [
+    { mesh: makeDuck(true), phase: 0, speed: 0.26, rx: pondRx, rz: pondRz },
+    { mesh: makeDuck(false), phase: 2.35, speed: 0.22, rx: pondRx * 0.72, rz: pondRz * 0.82 }
+  ];
+  for (const d of ducks) {
+    d.mesh.name = 'park-pond-duck';
+    park.add(d.mesh);
+  }
+
+  const rippleMat = new THREE.MeshBasicMaterial({ color: 0xd9f2ff, transparent: true, opacity: 0.38, depthWrite: false, side: THREE.DoubleSide });
+  const ripples = [];
+  for (let i = 0; i < 3; i++) {
+    const ring = new THREE.Mesh(new THREE.RingGeometry(0.18, 0.25, 20), rippleMat.clone());
+    ring.rotation.x = -Math.PI / 2;
+    ring.position.set(pondCx + (i - 1) * 1.6, waterY + 0.008, pondCz + (i % 2 ? 0.9 : -0.8));
+    park.add(ring);
+    ripples.push({ mesh: ring, offset: i * 0.33 });
+  }
+
+  // Register both playground swings as sittable seats (energy & mood recovery + gentle swinging arc!).
+  const seats = (scene.userData.seats ??= []);
+  const swingSeats = [];
+  const swingXs = [80.65, 82.15];
+  for (let i = 0; i < swingXs.length; i++) {
+    const sx = swingXs[i];
+    const seat = createSeat({
+      id: 'park-swing-' + i,
+      label: 'swing',
+      center: { x: sx, y: ground + 0.52, z: 22.25 },
+      seat: { x: sx, y: ground + 1.18, z: 22.25, yaw: Math.PI },
+      stand: { x: sx, z: 21.15 },
+      interact: { x: sx, y: ground + 0.72, z: 22.05 },
+      size: { width: 0.54, height: 0.45, depth: 0.44 }
+    });
+    seat.position.set(sx, ground + 0.52, 22.25);
+    park.add(seat);
+    seats.push(seat);
+    swingSeats.push(seat);
+  }
+
   const fixtures = new THREE.Mesh(parts.merge(), new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.86 }));
   fixtures.castShadow = fixtures.receiveShadow = !!quality.shadows;
   park.add(fixtures);
+  const pondWater = park.getObjectByName('park-pond-water');
   let swayClock = 0;
   return {
-    update(minutes) {
-      swayClock += 0.016;
+    update(minutes, delta = 0.016, sample = null) {
+      const dt = Math.max(0, Math.min(0.1, Number(delta) || 0.016));
+      swayClock += dt;
+      if (pondWater?.userData?.waterUniforms) {
+        const wu = pondWater.userData.waterUniforms;
+        wu.uTime.value = swayClock;
+        if (sample) {
+          wu.uSkyTop.value.setHex(sample.skyTop ?? 0x4a7ea4);
+          wu.uSkyBottom.value.setHex(sample.skyBottom ?? 0xc2d2dc);
+          wu.uSunColor.value.setHex(sample.sun ?? 0xffe4bc);
+          if (sample.sunPos) wu.uSunDir.value.set(sample.sunPos[0], sample.sunPos[1], sample.sunPos[2]).normalize();
+        }
+      }
       const dusk = THREE.MathUtils.smoothstep(minutes, 1100, 1160);
       const dawn = 1 - THREE.MathUtils.smoothstep(minutes, 335, 395);
       for (const [index, light] of lights.entries()) light.intensity = (index === 2 ? 12 : 20) * (dusk + dawn);
       lenses.emissiveIntensity = dusk + dawn;
-      // Gentle breeze sway on the hanging swing seats.
+      // Gentle breeze sway on empty swings, or joyful swinging arc when the player sits on one!
       for (let i = 0; i < swingPivots.length; i++) {
-        swingPivots[i].rotation.x = Math.sin(swayClock * 1.35 + i * 2.1) * 0.045;
+        const seat = swingSeats[i];
+        const riding = !!(seat?.userData?.sit?.isSeated?.() && seat.userData.sit.object?.() === seat);
+        const amp = riding ? 0.38 : 0.045;
+        const freq = riding ? 2.15 : 1.35;
+        swingPivots[i].rotation.x = Math.sin(swayClock * freq + i * 2.1) * amp;
+      }
+      // Glide ducks smoothly around the pond.
+      for (let i = 0; i < ducks.length; i++) {
+        const d = ducks[i];
+        const a = swayClock * d.speed + d.phase;
+        const nx = pondCx + Math.cos(a) * d.rx;
+        const nz = pondCz + Math.sin(a * 1.15) * d.rz;
+        const dx = -Math.sin(a) * d.rx * d.speed;
+        const dz = Math.cos(a * 1.15) * d.rz * d.speed * 1.15;
+        d.mesh.position.set(nx, waterY + Math.sin(swayClock * 3.1 + i) * 0.012, nz);
+        d.mesh.rotation.y = Math.atan2(dx, dz);
+      }
+      // Expanding translucent pond ripples.
+      for (let i = 0; i < ripples.length; i++) {
+        const r = ripples[i];
+        const p = (swayClock * 0.28 + r.offset) % 1;
+        r.mesh.scale.setScalar(0.5 + p * 3.2);
+        r.mesh.material.opacity = (1 - p) * 0.36;
       }
     }
   };
