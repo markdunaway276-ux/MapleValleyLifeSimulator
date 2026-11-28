@@ -34,10 +34,20 @@ export function createPhotoLibrary(storage) {
 
   return {
     list: () => photos,
-    add(image) {
+    add(image, meta = null) {
       if (typeof image !== 'string' || !JPEG_DATA.test(image)) return false;
       if (photos.length >= MAX_PHOTOS) return false;
-      return write([{ id: globalThis.crypto?.randomUUID?.() ?? String(Date.now()), image }, ...photos]);
+      const entry = {
+        id: globalThis.crypto?.randomUUID?.() ?? String(Date.now()),
+        image
+      };
+      if (meta && typeof meta === 'object') {
+        if (typeof meta.zoom === 'number') entry.zoom = meta.zoom;
+        if (typeof meta.filterId === 'string') entry.filterId = meta.filterId;
+        if (typeof meta.hour === 'number') entry.hour = meta.hour;
+        if (typeof meta.zone === 'string') entry.zone = meta.zone;
+      }
+      return write([entry, ...photos]);
     },
     remove(id) {
       return write(photos.filter(photo => photo.id !== id));
@@ -134,7 +144,13 @@ export const CAMERA_APP = {
       }
       const image = frame();
       if (!image) return;
-      status.textContent = ctx.photos.add(image)
+      const extra = typeof ctx.getPhotoContext === 'function' ? ctx.getPhotoContext() : {};
+      const meta = {
+        zoom: aim.zoom,
+        filterId: CAMERA_FILTERS[filterIdx]?.id || 'none',
+        ...(extra && typeof extra === 'object' ? extra : {})
+      };
+      status.textContent = ctx.photos.add(image, meta)
         ? `Saved (${ctx.photos.list().length}/${ctx.photos.limit}) to Gallery.`
         : 'Could not save the photo in this browser.';
     });
@@ -181,11 +197,19 @@ export const GALLERY_APP = {
       image.className = 'phone-viewfinder';
       image.alt = 'Saved Maple Lane photo';
       image.src = photo.image;
-      content.append(image,
+      const actions = [
         button('Use as wallpaper', () => {
           status.textContent = ctx.setPhonePrefs({ wallpaper: 'photo', photoId: photo.id })
             ? 'Wallpaper changed.' : 'Could not save this wallpaper.';
-        }),
+        })
+      ];
+      if (typeof ctx.hangPhoto === 'function') {
+        actions.push(button('Hang at home', () => {
+          const res = ctx.hangPhoto(photo.id);
+          status.textContent = res ? `Hung in ${res.label} frame!` : 'Could not hang photo.';
+        }));
+      }
+      actions.push(
         button('All photos', list),
         button('Delete photo', () => {
           if (!ctx.photos.remove(photo.id)) {
@@ -195,7 +219,9 @@ export const GALLERY_APP = {
           if (ctx.getPhonePrefs().photoId === photo.id) ctx.setPhonePrefs({ wallpaper: 'coast', photoId: null });
           status.textContent = 'Photo deleted.';
           list();
-        }));
+        })
+      );
+      content.append(image, ...actions);
     }
     list();
   }

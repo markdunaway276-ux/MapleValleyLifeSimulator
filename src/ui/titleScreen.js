@@ -36,11 +36,10 @@ const TITLE_CSS = `
 }
 #title-screen .mv-panel {
   position: relative; z-index: 2;
-  background: linear-gradient(165deg, rgba(24, 19, 15, 0.80) 0%, rgba(16, 14, 12, 0.88) 100%);
-  border: 1px solid rgba(238, 186, 108, 0.36);
+  background: linear-gradient(165deg, rgba(24, 19, 15, 0.88) 0%, rgba(15, 13, 11, 0.93) 100%);
+  border: 1px solid rgba(238, 186, 108, 0.38);
   border-radius: 22px;
   box-shadow: 0 28px 72px rgba(0, 0, 0, 0.58), 0 0 46px rgba(214, 142, 60, 0.16), inset 0 1px 0 rgba(255, 236, 198, 0.14);
-  backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
   padding: 28px 28px 22px;
   animation: mv-card-in 0.55s cubic-bezier(0.2, 0.8, 0.2, 1) both;
 }

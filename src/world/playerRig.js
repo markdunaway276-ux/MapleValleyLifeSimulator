@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { getOptionColor } from '../data/appearance.js';
 import { createCharacterModel, WALK_CLIP_SPEED } from './characterModel.js';
+import { applyAppearanceToModel, attachAccessories, outfitToBody } from './characterAccessories.js';
 
 /** First-person action name -> baked Mixamo clip (assets/characters/actions/<key>.json). */
 const ACTION_CLIPS = {
@@ -122,48 +123,85 @@ export function attachPlayerRig(body, { shadows, appearance }) {
     });
   }
 
+  let headBone = null;
+  let baseHeadScale = null;
+  let headParts = [];
+  let headAccessories = [];
+  let rigFirstPerson = true;
+  let activeBodyKey = null;
+  let loadSeq = 0;
+  let smoothSpeed = 0;
+
   function applyPalette() {
-    model?.root.traverse(mesh => {
-      if (!mesh.isMesh) return;
-      const colors = mesh.material.userData?.clothes;
-      if (colors) {
-        colors.cShirt.value.set(getOptionColor('shirt', look.shirt));
-        colors.cPants.value.set(getOptionColor('pants', look.pants));
-        colors.cSkin.value.set(getOptionColor('skin', look.skin));
-        if (colors.cShoes) colors.cShoes.value.set(getOptionColor('shoes', look.shoes));
-      } else if (/hair/i.test(mesh.name || mesh.material?.name || '')) {
-        mesh.material.color?.set(getOptionColor('hair', look.hair));
+    if (!model) return;
+    applyAppearanceToModel(model.root, look);
+    const acc = attachAccessories(model.root, look.accessory, {
+      shirtColor: getOptionColor('shirt', look.shirt),
+      shadows: !!shadows
+    });
+    headAccessories = acc.headAccessories;
+    if (rigShown && rigFirstPerson) {
+      for (const m of headAccessories) m.visible = false;
+    }
+  }
+
+  function loadOutfitBody(bodyKey) {
+    if (bodyKey === activeBodyKey && model) return;
+    activeBodyKey = bodyKey;
+    const mySeq = ++loadSeq;
+    createCharacterModel({
+      body: bodyKey || PLAYER_BODY,
+      hair: 'simpleparted',
+      hairColor: getOptionColor('hair', look.hair),
+      shadows,
+      mixamo: ACTION_FILES,
+      outfit: {
+        shirt: getOptionColor('shirt', look.shirt),
+        pants: getOptionColor('pants', look.pants),
+        skin: getOptionColor('skin', look.skin),
+        shoes: getOptionColor('shoes', look.shoes)
       }
+    }).then(loaded => {
+      if (!loaded) return;
+      if (disposed || mySeq !== loadSeq) { loaded.dispose(); return; }
+      const upper = loaded.root.getObjectByName('upperarm_r');
+      const lower = loaded.root.getObjectByName('lowerarm_r');
+      const hand = loaded.root.getObjectByName('hand_r');
+      if (!upper?.isBone || !lower?.isBone || !hand?.isBone) { loaded.dispose(); return; }
+      const fingers = [];
+      hand.traverse(bone => {
+        const match = /^(thumb|index|middle|ring|pinky)_0[123]_r$/i.exec(bone.name);
+        if (match && bone.isBone) fingers.push({ bone, thumb: match[1] === 'thumb' });
+      });
+      const animatedPose = [upper, lower, hand, ...fingers.map(entry => entry.bone)]
+        .map(bone => ({ bone, rotation: bone.quaternion.clone() }));
+      right = { upper, lower, hand, fingers, animatedPose };
+      leftHand = loaded.root.getObjectByName('hand_l') || null;
+      headBone = loaded.root.getObjectByName('Head')
+        || loaded.root.getObjectByName('head')
+        || loaded.root.getObjectByName('neck02')
+        || null;
+      baseHeadScale = headBone ? headBone.scale.clone() : null;
+      headParts = [];
+      loaded.root.traverse(obj => {
+        if (obj.isMesh && /hair|braid|bob|ponytail|short|eyebrow|eyelash|eye|low-poly/i.test(obj.name || '')) {
+          headParts.push(obj);
+        }
+      });
+      const carryWalk = carryWalkClip(loaded.getClip('walk'), loaded.getClip('carry'));
+      if (carryWalk) loaded.addClip('carryWalk', carryWalk);
+      if (model) {
+        model.object.removeFromParent();
+        model.dispose();
+      }
+      model = loaded;
+      body.group.add(model.object);
+      applyPalette();
+      applyRigVisibility(true, rigFirstPerson);
     });
   }
 
-  createCharacterModel({ body: PLAYER_BODY, hair: 'simpleparted', hairColor: getOptionColor('hair', look.hair), shadows, mixamo: ACTION_FILES, outfit: {
-    shirt: getOptionColor('shirt', look.shirt),
-    pants: getOptionColor('pants', look.pants),
-    skin: getOptionColor('skin', look.skin),
-    shoes: getOptionColor('shoes', look.shoes)
-  } }).then(loaded => {
-    if (!loaded) return;
-    const upper = loaded.root.getObjectByName('upperarm_r');
-    const lower = loaded.root.getObjectByName('lowerarm_r');
-    const hand = loaded.root.getObjectByName('hand_r');
-    if (disposed || !upper?.isBone || !lower?.isBone || !hand?.isBone) { loaded.dispose(); return; }
-    const fingers = [];
-    hand.traverse(bone => {
-      const match = /^(thumb|index|middle|ring|pinky)_0[123]_r$/i.exec(bone.name);
-      if (match && bone.isBone) fingers.push({ bone, thumb: match[1] === 'thumb' });
-    });
-    const animatedPose = [upper, lower, hand, ...fingers.map(entry => entry.bone)]
-      .map(bone => ({ bone, rotation: bone.quaternion.clone() }));
-    right = { upper, lower, hand, fingers, animatedPose };
-    leftHand = loaded.root.getObjectByName('hand_l') || null;
-    const carryWalk = carryWalkClip(loaded.getClip('walk'), loaded.getClip('carry'));
-    if (carryWalk) loaded.addClip('carryWalk', carryWalk);
-    model = loaded;
-    model.object.visible = false;
-    body.group.add(model.object);
-    applyPalette();
-  });
+  loadOutfitBody(outfitToBody(look.outfit));
 
   function aimBone(bone, child, start, end, weight) {
     bone.getWorldPosition(origin);
@@ -182,23 +220,26 @@ export function attachPlayerRig(body, { shadows, appearance }) {
 
   function updateRig(seconds, moved, lift, wrist, thumbPress) {
     if (!model) return;
-    const speed = moved / Math.max(seconds, 0.001);
-    moving = lift < 0.05 && speed > (moving ? 0.12 : 0.22);
+    const rawSpeed = moved / Math.max(seconds, 0.001);
+    const blend = Math.min(1, seconds * 12);
+    smoothSpeed += (rawSpeed - smoothSpeed) * blend;
+    const speed = smoothSpeed;
+    moving = lift < 0.05 && speed > (moving ? 0.14 : 0.24);
     // Walking away ends a one-off action; jobs keep you in place anyway.
     if (acting) acting.left -= seconds;
     const busy = acting && acting.left > 0 && lift < 0.05 && !(moving && !acting.loop);
     if (!busy) acting = null;
-    const walkScale = THREE.MathUtils.clamp(speed / (model.walkSpeed || WALK_CLIP_SPEED), 0.38, 2.8);
+    const walkScale = THREE.MathUtils.clamp(speed / (model.walkSpeed || WALK_CLIP_SPEED), 0.42, 2.6);
     if (busy) {
-      model.play(acting.key, { fade: 0.2, timeScale: acting.rate, restart: acting.fresh });
+      model.play(acting.key, { fade: 0.22, timeScale: acting.rate, restart: acting.fresh });
       acting.fresh = false;
     } else if (carrying && lift < 0.05 && model.has('carry')) {
-      model.play(moving && model.has('carryWalk') ? 'carryWalk' : 'carry', { fade: 0.2, timeScale: moving ? walkScale : 1 });
-    } else if (moving && model.has('run') && model.runSpeed && speed > 5.8) {
+      model.play(moving && model.has('carryWalk') ? 'carryWalk' : 'carry', { fade: 0.24, timeScale: moving ? walkScale : 1 });
+    } else if (moving && model.has('run') && model.runSpeed && speed > 5.4) {
       // Running (Shift): the run clip, matched to ground speed.
-      model.play('run', { fade: 0.2, timeScale: THREE.MathUtils.clamp(speed / model.runSpeed, 0.6, 2.2) });
+      model.play('run', { fade: 0.24, timeScale: THREE.MathUtils.clamp(speed / model.runSpeed, 0.65, 2.1) });
     } else {
-      model.play(moving ? 'walk' : 'idle', { fade: 0.18, timeScale: moving ? walkScale : 1 });
+      model.play(moving ? 'walk' : 'idle', { fade: 0.24, timeScale: moving ? walkScale : 1 });
     }
     for (const { bone, rotation } of right.animatedPose) bone.quaternion.copy(rotation);
     model.update(seconds);
@@ -235,20 +276,40 @@ export function attachPlayerRig(body, { shadows, appearance }) {
     socket.quaternion.copy(parent.multiply(current));
   }
 
+  function applyRigVisibility(show, firstPerson = false) {
+    if (!model) return false;
+    const vis = !!show;
+    rigShown = vis;
+    rigFirstPerson = !!firstPerson;
+    model.object.visible = vis;
+    for (const part of placeholder) part.visible = !vis;
+    if (vis && firstPerson) {
+      if (headBone) headBone.scale.set(0.001, 0.001, 0.001);
+      for (const m of headParts) m.visible = false;
+      for (const m of headAccessories) m.visible = false;
+      model.object.position.z = 0.14;
+    } else {
+      if (headBone && baseHeadScale) headBone.scale.copy(baseHeadScale);
+      for (const m of headParts) m.visible = true;
+      for (const m of headAccessories) m.visible = true;
+      model.object.position.z = 0;
+    }
+    if (vis) model.object.updateMatrixWorld(true);
+    basket.visible = rigShown && !firstPerson && !!carrying;
+    return vis;
+  }
+
   return Object.assign(body, {
     apply(state) {
       look = oldApply(state);
-      applyPalette();
+      const wantedBody = outfitToBody(look.outfit);
+      if (wantedBody !== activeBodyKey) loadOutfitBody(wantedBody);
+      else applyPalette();
       return look;
     },
     updateRig,
-    showRig(show) {
-      if (!model) return false;
-      model.object.visible = !!show;
-      for (const part of placeholder) part.visible = !show;
-      rigShown = !!show;
-      basket.visible = rigShown && !!carrying;
-      return !!show;
+    showRig(show, { firstPerson = false } = {}) {
+      return applyRigVisibility(show, firstPerson);
     },
     rigSocket: socket,
     dispose() {

@@ -51,9 +51,44 @@ export const HOME_DECOR_ITEMS = [
     price: 28,
     icon: '🛋️',
     description: 'Warm linen bedside lamp and potted fern to make the bedroom feel like home.'
+  },
+  {
+    id: 'pet-bed',
+    name: 'Cozy Pet Bed',
+    room: 'Living Room',
+    price: 22,
+    icon: '🐾',
+    description: 'Plush sage-and-cream cushion where Maple curls up to nap indoors.'
+  },
+  {
+    id: 'string-lights',
+    name: 'Warm String Lights',
+    room: 'Living Room',
+    price: 18,
+    icon: '✨',
+    description: 'Soft golden fairy lights draped across your living room wall for evening glow.'
+  },
+  {
+    id: 'coffee-bar',
+    name: 'Kitchen Espresso Corner',
+    room: 'Kitchen',
+    price: 38,
+    icon: '☕',
+    description: 'Compact brushed-steel espresso machine and ceramic mugs for your kitchen counter.'
   }
 ];
 
+export const HOME_THEMES = Object.freeze([
+  { id: 'classic', name: 'Classic', swatch: '#dfd5c3', tint: 0xffffff },
+  { id: 'sage', name: 'Valley Sage', swatch: '#9db49e', tint: 0xe3efe2 },
+  { id: 'cabin', name: 'Autumn Cabin', swatch: '#cfa476', tint: 0xf7e7d2 },
+  { id: 'coastal', name: 'Misty Morning', swatch: '#9eb6cc', tint: 0xe2ecf7 }
+]);
+
 export function getHomeDecorItem(id) {
   return HOME_DECOR_ITEMS.find((item) => item.id === id) || null;
+}
+
+export function getHomeTheme(id) {
+  return HOME_THEMES.find((t) => t.id === id) || HOME_THEMES[0];
 }

@@ -33,7 +33,41 @@ export const QUEST_CATALOG = Object.freeze([
     npcId: 'hank',
     rewardCash: 20,
     rewardMood: 15,
-    rewardFriendship: 8
+    rewardFriendship: 8,
+    photoGig: 'any'
+  },
+  {
+    id: 'board-photo-wildlife',
+    source: 'notice-board',
+    title: 'Park Wildlife Snap',
+    step: 'Use Phone Camera zoom (1.5× or 2×) to photograph wildlife at Maple Lane Park, then show Sam.',
+    npcId: 'sam',
+    rewardCash: 26,
+    rewardMood: 12,
+    rewardFriendship: 10,
+    photoGig: 'zoom'
+  },
+  {
+    id: 'board-photo-golden',
+    source: 'notice-board',
+    title: 'Golden-Hour Maple Lane',
+    step: 'Snap a photo with the Warm Film or Golden filter (or at sunset), then show June.',
+    npcId: 'june',
+    rewardCash: 30,
+    rewardMood: 14,
+    rewardFriendship: 12,
+    photoGig: 'golden'
+  },
+  {
+    id: 'board-photo-bw',
+    source: 'notice-board',
+    title: 'Vintage Valley Portrait',
+    step: 'Take a Cozy B&W photo in town with your Phone Camera, then show Dottie at the Laundromat.',
+    npcId: 'dottie',
+    rewardCash: 25,
+    rewardMood: 12,
+    rewardFriendship: 10,
+    photoGig: 'bw'
   },
   {
     id: 'pond-locket-lead',
@@ -64,16 +98,44 @@ export function createQuestBoard({
   toast = () => {},
   save = () => {},
   friendship = null,
-  getPhotoIds = () => []
+  getPhotoIds = () => [],
+  getPhotos = null
 } = {}) {
   const active = new Set();
   const completed = new Set();
-  // Photo ids already in the Gallery when the postcard quest was taken: only a new photo counts.
+  // Photo ids already in the Gallery when each photo gig was taken: only a new photo counts.
   let postcardBaseline = [];
-  const photoIds = () => {
-    try { const ids = getPhotoIds(); return Array.isArray(ids) ? ids : []; } catch { return []; }
+  const photoBaselines = Object.create(null);
+
+  const readPhotosList = () => {
+    if (typeof getPhotos === 'function') {
+      try {
+        const list = getPhotos();
+        if (Array.isArray(list)) return list.filter((p) => p && typeof p.id === 'string');
+      } catch { /* fall through */ }
+    }
+    try {
+      const ids = getPhotoIds();
+      return Array.isArray(ids) ? ids.filter((id) => typeof id === 'string').map((id) => ({ id })) : [];
+    } catch {
+      return [];
+    }
   };
-  const hasNewPhoto = () => photoIds().some((id) => !postcardBaseline.includes(id));
+  const photoIds = () => readPhotosList().map((p) => p.id);
+
+  function matchesPhotoGig(questId, mode) {
+    const base = questId === 'board-park-photo' ? postcardBaseline : (photoBaselines[questId] || []);
+    const fresh = readPhotosList().filter((p) => !base.includes(p.id));
+    if (!fresh.length) return false;
+    if (mode === 'any') return true;
+    if (mode === 'zoom') return fresh.some((p) => (p.zoom || 1) >= 1.5);
+    if (mode === 'golden') {
+      return fresh.some((p) => p.filterId === 'warm' || p.filterId === 'golden'
+        || (typeof p.hour === 'number' && p.hour >= 16.5 && p.hour <= 20));
+    }
+    if (mode === 'bw') return fresh.some((p) => p.filterId === 'bw');
+    return false;
+  }
 
   const byId = (id) => QUEST_CATALOG.find(q => q.id === id) || null;
 
@@ -82,6 +144,7 @@ export function createQuestBoard({
     if (!def || active.has(id) || completed.has(id)) return false;
     active.add(id);
     if (id === 'board-park-photo') postcardBaseline = photoIds();
+    if (def.photoGig) photoBaselines[id] = photoIds();
     if (!silent) {
       toast(`New quest (${QUEST_SOURCES[def.source] || 'Lead'}): ${def.title}`);
       sfx?.play?.('phone-notification');
@@ -149,7 +212,7 @@ export function createQuestBoard({
     }
 
     // 2) Hank: "Maple Lane Postcard"
-    if (npcId === 'hank' && active.has('board-park-photo') && hasNewPhoto()) {
+    if (npcId === 'hank' && active.has('board-park-photo') && matchesPhotoGig('board-park-photo', 'any')) {
       return {
         lines: [
           "Hey, nice shot on your phone! That'll make a great Maple Lane postcard for the lobby rack."
@@ -160,6 +223,54 @@ export function createQuestBoard({
         },
         response: [
           "Appreciate it! Here's $20 — keep snapping pictures as you explore the valley."
+        ]
+      };
+    }
+
+    // 2b) Sam: "Park Wildlife Snap" (zoomed photo)
+    if (npcId === 'sam' && active.has('board-photo-wildlife') && matchesPhotoGig('board-photo-wildlife', 'zoom')) {
+      return {
+        lines: [
+          'Whoa, awesome zoom shot! You caught the Maple Lane wildlife up close without spooking them.'
+        ],
+        action: {
+          label: 'Share wildlife photo (+$26)',
+          run: () => complete('board-photo-wildlife')
+        },
+        response: [
+          "Love it! Here's $26 — you should hang a copy on your wall at home too!"
+        ]
+      };
+    }
+
+    // 2c) June: "Golden-Hour Maple Lane" (Warm/Golden filter or sunset)
+    if (npcId === 'june' && active.has('board-photo-golden') && matchesPhotoGig('board-photo-golden', 'golden')) {
+      return {
+        lines: [
+          'Oh, that warm golden light makes Maple Lane look like a painting!'
+        ],
+        action: {
+          label: 'Share golden-hour photo (+$30)',
+          run: () => complete('board-photo-golden')
+        },
+        response: [
+          "Thank you! Here's $30 — you've really got an eye for photography."
+        ]
+      };
+    }
+
+    // 2d) Dottie: "Vintage Valley Portrait" (Cozy B&W filter)
+    if (npcId === 'dottie' && active.has('board-photo-bw') && matchesPhotoGig('board-photo-bw', 'bw')) {
+      return {
+        lines: [
+          'Now THAT is classic black-and-white charm, hon! Looks right out of an old Maple Valley album.'
+        ],
+        action: {
+          label: 'Share B&W photo (+$25)',
+          run: () => complete('board-photo-bw')
+        },
+        response: [
+          "Bless you, hon! Here's $25 — I'm pinning this right behind the counter."
         ]
       };
     }
@@ -262,14 +373,25 @@ export function createQuestBoard({
     getTasks,
     isActive: (id) => active.has(id),
     isCompleted: (id) => completed.has(id),
-    serialize: () => ({ active: [...active], completed: [...completed], postcardBaseline: [...postcardBaseline] }),
+    serialize: () => ({
+      active: [...active],
+      completed: [...completed],
+      postcardBaseline: [...postcardBaseline],
+      photoBaselines: { ...photoBaselines }
+    }),
     apply(data) {
       active.clear();
       completed.clear();
       const qb = data?.questBoard;
       postcardBaseline = [];
+      for (const k of Object.keys(photoBaselines)) delete photoBaselines[k];
       if (!qb || typeof qb !== 'object') return;
       if (Array.isArray(qb.postcardBaseline)) postcardBaseline = qb.postcardBaseline.filter((id) => typeof id === 'string');
+      if (qb.photoBaselines && typeof qb.photoBaselines === 'object') {
+        for (const [k, v] of Object.entries(qb.photoBaselines)) {
+          if (Array.isArray(v)) photoBaselines[k] = v.filter((id) => typeof id === 'string');
+        }
+      }
       for (const id of qb.completed || []) if (byId(id)) completed.add(id);
       for (const id of qb.active || []) if (byId(id) && !completed.has(id)) active.add(id);
     }

@@ -190,9 +190,18 @@ export function buildCornerShop(scene, quality) {
   }
 
   // Existing offers, prices and restock job use their normal interactions.
+  const MARKET_STANDS = [
+    { x: -7.25, z: 3.24 }, // groceries
+    { x: -1.95, z: 6.85 }, // apple
+    { x: 8.58, z: 7.86 },  // snack
+    { x: 6.0, z: 10.4 },   // sandwich
+    { x: -5.4, z: 4.8 },   // tomato-seeds
+    { x: -5.4, z: 6.2 },   // herb-seeds
+    { x: -5.4, z: 7.6 },   // pumpkin-seeds
+    { x: 5.55, z: 5.6 }    // detergent (household aisle)
+  ];
   getShop('corner-shop').stock.forEach((offer, i) => {
-    const stand = [{ x: -7.25, z: 3.24 }, { x: -1.95, z: 6.85 }, { x: 8.58, z: 7.86 }][i]
-      ?? { x: 6.0, z: 10.4 + i * 0.1 };
+    const stand = MARKET_STANDS[i] ?? { x: 6.0, z: 10.4 + i * 0.4 };
     registerSpot(scene, shop, {
       id: 'market-' + offer.item, ...stand,
       prompt: 'buy ' + offer.name + ' ($' + offer.price + ')', action: 'grab',

@@ -98,10 +98,18 @@ export function makeHand(side) {
   // --- keep only this hand (+ a short wrist stub) -------------------------
   const keep = new Set();
   hand.traverse((o) => { if (o.isBone) keep.add(o); });
+  const forearms = new Set();
+  const forearmRe = new RegExp(`^forearm${S}(?:\\d|_|$)`);
+  root.traverse((o) => {
+    if (o.isBone && (forearmRe.test(plain(o.name)) || o === forearm || o === hand.parent)) {
+      forearms.add(o);
+    }
+  });
   const handHead = hand.getWorldPosition(new THREE.Vector3());
   const midTipBone = bone(new RegExp(`^f_middle03${S}_end`)) || bone(new RegExp(`^f_middle03${S}_`));
   const midTip = midTipBone.getWorldPosition(new THREE.Vector3());
   const lengthModel = handHead.distanceTo(midTip);
+  const stubRadius = lengthModel * Math.max(STUB, 0.25);
 
   const meshes = [];
   root.traverse((o) => { if (o.isSkinnedMesh) meshes.push(o); });
@@ -115,15 +123,19 @@ export function makeHand(side) {
     const v = new THREE.Vector3();
     for (let i = 0; i < pos.count; i++) {
       let best = 0, bestW = -1;
+      let hasHandWeight = false;
       for (let k = 0; k < 4; k++) {
         const w = sw.getComponent(i, k);
-        if (w > bestW) { bestW = w; best = si.getComponent(i, k); }
+        const idx = si.getComponent(i, k);
+        if (w > 0.05 && keep.has(bones[idx])) hasHandWeight = true;
+        if (w > bestW) { bestW = w; best = idx; }
       }
+      if (hasHandWeight) { keepVert[i] = 1; continue; }
       const b = bones[best];
       if (keep.has(b)) { keepVert[i] = 1; continue; }
-      if (b === forearm) {
+      if (forearms.has(b)) {
         v.fromBufferAttribute(pos, i).applyMatrix4(mesh.bindMatrix);
-        if (v.distanceTo(handHead) <= lengthModel * STUB) keepVert[i] = 1;
+        if (v.distanceTo(handHead) <= stubRadius) keepVert[i] = 1;
       }
     }
     const index = geo.index;

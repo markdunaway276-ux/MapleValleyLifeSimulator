@@ -4,7 +4,7 @@ A running list of planned visual upgrades and future gameplay builds for Maple L
 
 ---
 
-## Phase A — 3D Assets & Visual Realism (In Progress)
+## Phase A — 3D Assets & Visual Realism (Complete)
 
 All committed assets must be **CC0** or **CC-BY** (credited in `assets/models/CREDITS.md` / `CREDITS.md`), with real brand logos removed and textures compressed (256–512 px WebP) for fast browser loading.
 
@@ -16,25 +16,25 @@ All committed assets must be **CC0** or **CC-BY** (credited in `assets/models/CR
   - Upgraded Maple Lane Park, front yard, and street props (`src/world/park.js`, `src/world/frontYard.js`, `src/world/atmosphere.js`) with 6 CC0 Poly Haven `.glb` models: wooden park benches, picnic tables, galvanized trash cans, planter boxes, front-yard rocking chair, and plaza patio set.
 - [x] **Batch 4 — Realistic AI Traffic Vehicles**
   - Replaced boxy passing cars in `src/world/traffic.js` with 3 optimized, unbranded CC0 realistic vehicles (`traffic-sedan.glb`, `traffic-suv.glb`, `traffic-coupe.glb`) while preserving dusk/night headlights, beams, brake lights, and polite yielding.
-- [ ] **Batch 5 — Wildlife (Pond Ducks & Park Squirrels)**
-  - Upgraded Maple Lane Park pond ducks with realistic CC0 `mallard-duck.glb` (`src/world/park.js`). Park squirrels still ready for a lightweight CC0 squirrel GLB when available.
+- [x] **Batch 5 — Wildlife (Pond Ducks & Park Squirrels)**
+  - Upgraded Maple Lane Park pond ducks (`mallard-duck.glb` in `src/world/park.js`) and park squirrels (`squirrel.glb` in `src/world/livingWorld.js`) with realistic CC0 `.glb` models to match `assets/models/scenery/deer.glb`.
 
 ---
 
-## Phase B — Planned Gameplay Builds
+## Phase B — Gameplay Builds (Complete)
 
-- [ ] **1. Home Cooking & Backyard Gardening**
-  - Cook real meals at your kitchen stove using Market groceries and pond-caught fish (e.g., Pan-Seared Trout, Morning Pancakes, Hearty Stew, Warm Cocoa) for stronger hunger/energy/mood buffs and neighbour gifts.
-  - Add raised garden beds in the yard: plant seeds, water them (rain counts automatically), grow crops over game days, and harvest produce to cook or sell to Vince.
-- [ ] **2. Photo Gigs, Framed Gallery Photos & Seasonal Odd Jobs**
-  - Notice Board photo commissions using the Phone Camera's zoom & filters (ducks, squirrels, golden-hour Maple Lane, neighbours).
-  - Hang photos from your Phone Gallery in picture frames inside your house.
-  - Weather-reactive odd jobs for neighbours (snow shoveling during cold spells, yard cleanup, pickup haul runs).
-- [ ] **3. Weekly Town Events (Live Calendar)**
-  - Saturday Park Farmers' Market / Yard Sale with pop-up stalls, rotating decor/treats, and mingling neighbours.
-  - Sunday Pond Fishing Derby with a friendly leaderboard and a trophy for your house.
-- [ ] **4. Adoptable Pet & Cozy Home Upgrade**
-  - Befriend a wandering town cat or dog with treats or fish so it moves into your yard/house, follows you on walks, and naps indoors.
-  - Deeper home customization (wall/floor themes, new cozy decor, framed photos).
-- [ ] **5. Mystery Chapter 3 (Next Story Arc)**
-  - Continue from `src/systems/mysteryChapter2.js` and rare pond clues: night-time investigation with a flashlight, friendship-aware dialogue branches, and a new town discovery.
+- [x] **1. Home Cooking & Backyard Gardening**
+  - Cook real meals at your kitchen stove using Market groceries, backyard produce, and pond-caught fish (Home Meal, Morning Pancakes, Garden Salad, Fresh Tomato Soup, Pan-Seared Trout, Hearty Harvest Stew, Warm Cocoa) for stronger hunger/energy buffs and neighbour gifts.
+  - Added 4 cedar raised garden beds in the backyard: buy seeds at Vince's Market, plant & water them (rain counts automatically), grow crops over game days, and harvest produce to cook or sell to Vince.
+- [x] **2. Photo Gigs, Framed Gallery Photos & Seasonal Odd Jobs**
+  - Notice Board photo commissions using the Phone Camera's zoom & filters (Park Wildlife Snap for Sam, Golden-Hour Maple Lane for June, Vintage Valley Portrait for Dottie).
+  - Hang photos from your Phone Gallery in 3 wooden picture frames inside your house (Living Room, Kitchen, Bedroom), or press E on any frame to cycle photos.
+  - Weather-reactive daily odd jobs for neighbours (Snow Shoveling during snowy/cold spells, Yard Cleanup in mild weather, and Supply Haul Runs).
+- [x] **3. Weekly Town Events (Live Calendar)**
+  - Saturday Park Farmers' Market (8 AM–6 PM) with 3 striped pop-up stalls, rotating weekly seeds & treats, and +20% produce/fish sale bonus.
+  - Sunday Pond Fishing Derby (7 AM–7 PM) with a live leaderboard stand, $45 grand prize, and a permanent 3D Golden Trout Trophy displayed inside your house, plus live event markers in the Phone Calendar app.
+- [x] **4. Adoptable Pet & Cozy Home Upgrade**
+  - Befriend Maple the ginger tabby cat with treats/fish or daily pets so she moves into your house, follows you on walks, and naps indoors on her Cozy Pet Bed.
+  - Added 4 switchable interior Home Themes (Classic, Valley Sage, Autumn Cabin, Misty Morning) and 3 new cozy 3D decor items (Cozy Pet Bed, Warm String Lights, Kitchen Espresso Corner).
+- [x] **5. Mystery Chapter 3 (The East Creek Signal)**
+  - Continues from `src/systems/mysteryChapter2.js`: borrow Walt's Field Flashlight (`[F]`), investigate the glowing East Creek stone cairn at Maple Lane Park Pond after dark, and unlock friendship-aware dialogue branches with Walt and Vince to protect Maple Lane Pond.

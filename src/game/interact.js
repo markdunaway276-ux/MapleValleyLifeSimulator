@@ -53,7 +53,9 @@ export function setupInteract(g) {
       toast,
       sleep: () => g.sleeper.start(),
       work: (jobId) => g.worker.start(typeof jobId === 'string' ? { jobId } : {}),
-      cook: () => g.skills.cook({ clock: g.clock, needs: g.needs, sfx: g.sfx, inventory: g.inventory, toast }),
+      cook: () => (g.cookingMenu
+        ? g.cookingMenu.open()
+        : g.skills.cook({ clock: g.clock, needs: g.needs, sfx: g.sfx, inventory: g.inventory, toast })),
       sit: g.sitter,
       dialogue: g.dialogue,
       talk: (def) => (g.cutscene ? g.cutscene.talkWithIntro(def.id) : g.dialogue.open(def.id))

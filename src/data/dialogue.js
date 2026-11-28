@@ -21,7 +21,7 @@ export const DIALOGUE = {
   },
   dottie: {
     default: [
-      { lines: ["Welcome to Maple Lane Laundromat, hon. I'm Dottie.", 'Washers up front, dryers along the back.'] },
+      { lines: ["Welcome to Maple Lane Laundromat, hon. I'm Dottie.", 'Self-serve washers are on the center island, dryers in back — grab soap from the wall dispenser or right from me.'] },
       { lines: ['Need a little cash? Clock in back there and help me with the drop-off bags.', 'Wash, dry, fold, hand it back. Quick work gets tips.'] }
     ],
     night: [

@@ -3,7 +3,7 @@
  * buy with earned cash, and immediately place them inside your Maple Lane house.
  */
 
-import { HOME_DECOR_ITEMS } from '../../data/homeDecor.js';
+import { HOME_DECOR_ITEMS, HOME_THEMES } from '../../data/homeDecor.js';
 
 const STYLE_ID = 'maple-phone-home-app-css';
 
@@ -42,6 +42,35 @@ const CSS = `
   font: 400 11.5px/1.25 system-ui, sans-serif;
   color: rgba(255, 255, 255, 0.62);
   flex-shrink: 0;
+}
+.phome-themes {
+  display: flex;
+  gap: 5px;
+  flex-wrap: wrap;
+  flex-shrink: 0;
+}
+.phome-theme-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 8px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(255, 255, 255, 0.06);
+  color: rgba(240, 245, 252, 0.86);
+  font: 600 10.5px/1 system-ui, sans-serif;
+  cursor: pointer;
+}
+.phome-theme-btn.is-active {
+  border-color: rgba(164, 206, 255, 0.72);
+  background: rgba(68, 122, 214, 0.34);
+  color: #fff;
+}
+.phome-theme-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  border: 1px solid rgba(0, 0, 0, 0.35);
 }
 .phome-list {
   flex: 1 1 auto;
@@ -130,6 +159,7 @@ export function renderHomeApp(screen, ctx = {}) {
     screen.innerHTML = '';
     const ownedList = typeof ctx.getHomeDecor === 'function' ? (ctx.getHomeDecor() || []) : [];
     const ownedSet = new Set(ownedList);
+    const activeTheme = typeof ctx.getHomeTheme === 'function' ? ctx.getHomeTheme() : 'classic';
     const cash = typeof ctx.getMoney === 'function' ? Number(ctx.getMoney()) : 0;
 
     const root = document.createElement('div');
@@ -148,6 +178,23 @@ export function renderHomeApp(screen, ctx = {}) {
     const sub = document.createElement('p');
     sub.className = 'phome-sub';
     sub.textContent = `Furnish your house (${ownedSet.size}/${HOME_DECOR_ITEMS.length} placed)`;
+
+    const themeBar = document.createElement('div');
+    themeBar.className = 'phome-themes';
+    for (const theme of HOME_THEMES) {
+      const tbtn = document.createElement('button');
+      tbtn.type = 'button';
+      tbtn.className = 'phome-theme-btn' + (activeTheme === theme.id ? ' is-active' : '');
+      const dot = document.createElement('span');
+      dot.className = 'phome-theme-dot';
+      dot.style.background = theme.swatch;
+      tbtn.append(dot, document.createTextNode(theme.name));
+      tbtn.addEventListener('click', () => {
+        ctx.setHomeTheme?.(theme.id);
+        paint();
+      });
+      themeBar.appendChild(tbtn);
+    }
 
     const list = document.createElement('div');
     list.className = 'phome-list';
@@ -192,7 +239,7 @@ export function renderHomeApp(screen, ctx = {}) {
       list.appendChild(card);
     }
 
-    root.append(head, sub, list);
+    root.append(head, sub, themeBar, list);
     screen.appendChild(root);
   }
 

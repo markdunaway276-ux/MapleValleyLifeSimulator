@@ -52,6 +52,13 @@ export function startLoop(g) {
     updateScenery(delta, rain, deerFocus);
     g.homeDecor?.update?.(delta);
     g.parcelDelivery?.update?.();
+    g.gardening?.syncWithWorld?.({ day: currentTime.day, rain });
+    if (g.townEvents) {
+      g.townEvents.syncWithClock();
+      g.townEventsProps?.sync?.();
+    }
+    g.petActor?.update?.(delta, { playerPos: player.position, driving: mode.driving() });
+    g.mysteryClue?.update?.(delta, currentTime.minutes);
     g.npcs.update(delta, {
       player,
       talkingId: g.dialogue.currentNpc() || g.cutscene?.currentNpc?.() || null,

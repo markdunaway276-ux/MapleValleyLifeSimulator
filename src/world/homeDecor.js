@@ -4,7 +4,7 @@
  */
 
 import * as THREE from 'three';
-import { HOME_DECOR_ITEMS, getHomeDecorItem } from '../data/homeDecor.js';
+import { HOME_DECOR_ITEMS, getHomeDecorItem, getHomeTheme } from '../data/homeDecor.js';
 import { COOK_CENTER, FLOOR_Y, KENNEY_INNER } from './interior.js';
 import { placeGltfProp } from './modelProps.js';
 
@@ -226,11 +226,69 @@ function buildDecorMeshes(shadows) {
   bedDecor.add(stand, lampBase, lampShade, miniPot, fern);
   map.set('bedroom-lamp', bedDecor);
 
+  // 7. Cozy Pet Bed (plush living-room cushion where Maple naps)
+  const petBed = new THREE.Group();
+  petBed.name = 'decor-pet-bed';
+  petBed.position.set(-0.62, FLOOR_Y, -8.35);
+  const rimMat = new THREE.MeshStandardMaterial({ color: 0x6f8b73, roughness: 0.94 });
+  const cushionMat = new THREE.MeshStandardMaterial({ color: 0xefe5d4, roughness: 0.96 });
+  const outerRim = new THREE.Mesh(new THREE.TorusGeometry(0.32, 0.085, 8, 18), rimMat);
+  outerRim.rotation.x = Math.PI / 2;
+  outerRim.position.y = 0.08;
+  outerRim.castShadow = outerRim.receiveShadow = cast;
+  const pillow = new THREE.Mesh(new THREE.CylinderGeometry(0.29, 0.30, 0.075, 16), cushionMat);
+  pillow.position.y = 0.04;
+  pillow.receiveShadow = cast;
+  petBed.add(outerRim, pillow);
+  map.set('pet-bed', petBed);
+
+  // 8. Warm String Lights (golden fairy bulbs along the living-room west wall)
+  const lights = new THREE.Group();
+  lights.name = 'decor-string-lights';
+  const cordMat = new THREE.MeshBasicMaterial({ color: 0x3b352e });
+  const bulbMat = new THREE.MeshBasicMaterial({ color: 0xffe2a3 });
+  for (let i = 0; i < 9; i++) {
+    const t = i / 8;
+    const z = -6.55 - t * 2.55;
+    const sag = Math.sin(t * Math.PI) * 0.16;
+    const bulb = new THREE.Mesh(new THREE.SphereGeometry(0.028, 6, 5), bulbMat);
+    bulb.position.set(KENNEY_INNER.west + 0.055, 2.38 - sag, z);
+    lights.add(bulb);
+    if (i < 8) {
+      const seg = new THREE.Mesh(new THREE.BoxGeometry(0.008, 0.008, 0.32), cordMat);
+      seg.position.set(KENNEY_INNER.west + 0.045, 2.39 - sag, z - 0.16);
+      lights.add(seg);
+    }
+  }
+  map.set('string-lights', lights);
+
+  // 9. Kitchen Espresso Corner (sleek espresso machine + 2 ceramic mugs on kitchen counter)
+  const coffeeBar = new THREE.Group();
+  coffeeBar.name = 'decor-coffee-bar';
+  coffeeBar.position.set(COOK_CENTER.x + 0.95, 0.92, COOK_CENTER.z + 0.04);
+  const steelMat = new THREE.MeshStandardMaterial({ color: 0xb7c0c9, roughness: 0.34, metalness: 0.72 });
+  const darkMat = new THREE.MeshStandardMaterial({ color: 0x262a30, roughness: 0.55 });
+  const mugMat = new THREE.MeshStandardMaterial({ color: 0xd96b43, roughness: 0.65 });
+  const body = new THREE.Mesh(new THREE.BoxGeometry(0.28, 0.32, 0.24), steelMat);
+  body.position.y = 0.16;
+  body.castShadow = cast;
+  const tray = new THREE.Mesh(new THREE.BoxGeometry(0.28, 0.03, 0.12), darkMat);
+  tray.position.set(0, 0.015, 0.14);
+  const head = new THREE.Mesh(new THREE.BoxGeometry(0.26, 0.08, 0.10), darkMat);
+  head.position.set(0, 0.28, 0.12);
+  const mug1 = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.035, 0.085, 10), mugMat);
+  mug1.position.set(-0.04, 0.072, 0.14);
+  const mug2 = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.035, 0.085, 10), new THREE.MeshStandardMaterial({ color: 0xefe7da, roughness: 0.65 }));
+  mug2.position.set(0.22, 0.042, 0.08);
+  coffeeBar.add(body, tray, head, mug1, mug2);
+  map.set('coffee-bar', coffeeBar);
+
   return map;
 }
 
-export function createHomeDecor({ scene = null, shadows = false, saved = null } = {}) {
+export function createHomeDecor({ scene = null, shadows = false, saved = null, savedTheme = 'classic' } = {}) {
   const owned = new Set(Array.isArray(saved) ? saved.filter((id) => !!getHomeDecorItem(id)) : []);
+  let themeId = getHomeTheme(savedTheme).id;
   const listeners = [];
   const root = new THREE.Group();
   root.name = 'home-decor';
@@ -265,8 +323,21 @@ export function createHomeDecor({ scene = null, shadows = false, saved = null } 
     });
   }
 
+  function applyThemeToInterior() {
+    const interiorGroup = scene?.userData?.interior?.group;
+    if (!interiorGroup) return;
+    const theme = getHomeTheme(themeId);
+    interiorGroup.traverse((obj) => {
+      if (obj.isMesh && obj.material && obj.material.vertexColors && obj.material.color) {
+        obj.material.color.setHex(theme.tint);
+        obj.material.needsUpdate = true;
+      }
+    });
+  }
+
   function sync() {
     for (const [id, obj] of meshes.entries()) obj.visible = owned.has(id);
+    applyThemeToInterior();
   }
 
   function emit() {
@@ -280,6 +351,20 @@ export function createHomeDecor({ scene = null, shadows = false, saved = null } 
 
   function has(id) {
     return owned.has(id);
+  }
+
+  function getTheme() {
+    return themeId;
+  }
+
+  function setTheme(id, { save, toast } = {}) {
+    const theme = getHomeTheme(id);
+    themeId = theme.id;
+    applyThemeToInterior();
+    toast?.(`Home theme set to ${theme.name}!`);
+    save?.();
+    emit();
+    return theme;
   }
 
   function buy(id, { money, sfx, toast, save } = {}) {
@@ -303,9 +388,13 @@ export function createHomeDecor({ scene = null, shadows = false, saved = null } 
 
   function apply(data) {
     const raw = Array.isArray(data) ? data : (Array.isArray(data?.homeDecor) ? data.homeDecor : null);
-    if (!raw) return getOwned();
-    owned.clear();
-    for (const id of raw) if (getHomeDecorItem(id)) owned.add(id);
+    if (raw) {
+      owned.clear();
+      for (const id of raw) if (getHomeDecorItem(id)) owned.add(id);
+    }
+    if (data && typeof data.homeTheme === 'string') {
+      themeId = getHomeTheme(data.homeTheme).id;
+    }
     sync();
     emit();
     return getOwned();
@@ -343,6 +432,9 @@ export function createHomeDecor({ scene = null, shadows = false, saved = null } 
     items: HOME_DECOR_ITEMS,
     getOwned,
     has,
+    getTheme,
+    setTheme,
+    applyThemeToInterior,
     buy,
     apply,
     serialize: getOwned,

@@ -8,6 +8,111 @@
 
 export const CHANGELOG = [
   {
+    version: '0.20',
+    date: '2026-11-28',
+    title: 'Laundromat & Soap Overhaul',
+    notes: [
+      'Added a clearly labeled indoor Soap & Detergent Dispenser ($2) mounted right beside the center-island washers, plus Dottie now sells Detergent directly across the counter and Maple Lane Market stocks it in the household aisle.',
+      'One-step washing: if you walk up to a washer without detergent in your bag, you can now start a wash directly for $5 (wash + soap included).',
+      'Made washers, dryers, and the outdoor vending machine much easier to reach and trigger, added glowing blue Ready LEDs on usable machines, and added clearer signage and status hints.'
+    ]
+  },
+  {
+    version: '0.19',
+    date: '2026-11-28',
+    title: 'Mystery Chapter 3: The East Creek Signal (Phase B Complete)',
+    notes: [
+      'New Story Chapter: after completing Chapter 2 (PO Box #14), Walt texts you about a strange amber glint by Maple Lane Park Pond after dark and lends you his Field Flashlight (press F or toggle from Bag).',
+      'Night-Time Investigation: explore the north-east bank of Maple Lane Pond after 7 PM with your Flashlight ON to uncover the East Creek Time Capsule.',
+      'Friendship-Aware Dialogue Branches: close friendships with Walt and Vince unlock extra hints, heartfelt backstory, and a $100 Town Steward bonus ($75 standard) plus an epilogue from Dr. Maya.'
+    ]
+  },
+  {
+    version: '0.18',
+    date: '2026-11-28',
+    title: 'Adoptable Pet (Maple) & Cozy Home Upgrade',
+    notes: [
+      'Meet Maple, a friendly ginger tabby cat wandering Maple Lane! Pet her daily or offer fresh fish/snacks to build Bond (3/3) and adopt her — once adopted, press E anytime to have her follow you on walks or curl up for a nap inside your house.',
+      'Cozy Home Upgrade: added 3 new 3D items in the Phone Home app — Cozy Pet Bed (where Maple naps!), Warm String Lights, and Kitchen Espresso Corner.',
+      'Added 4 switchable Home Themes in the Phone Home app (Classic, Valley Sage, Autumn Cabin, and Misty Morning) that tint your house interior live.'
+    ]
+  },
+  {
+    version: '0.17',
+    date: '2026-11-28',
+    title: 'Weekly Town Events (Live Calendar)',
+    notes: [
+      "Saturday Park Farmers' Market (8 AM–6 PM): 3 striped pop-up stalls appear in Maple Lane Park Plaza with rotating weekly seeds, homemade treats, and a +20% bonus when selling backyard produce or fish.",
+      'Sunday Pond Fishing Derby (7 AM–7 PM): fish caught at Maple Lane Pond score points on the town leaderboard against Walt, Sam, and Hank — beat 1st place to win $45 and unlock a permanent 3D Golden Trout Trophy inside your house!',
+      'Phone Calendar App now highlights Saturday Market (green dot) and Sunday Derby (gold dot) days with a live weekly events schedule.'
+    ]
+  },
+  {
+    version: '0.16',
+    date: '2026-11-28',
+    title: 'Photo Gigs, Framed Home Photos & Seasonal Odd Jobs',
+    notes: [
+      'Notice Board Photo Gigs: pick up 3 new photography commissions at the Post Office (Park Wildlife Snap with Camera Zoom for Sam, Golden-Hour Maple Lane with Warm/Golden filter for June, and Vintage Valley Portrait in Cozy B&W for Dottie).',
+      'Framed Gallery Photos at Home: 3 wooden picture frames mounted in your Living Room, Kitchen, and Bedroom — tap "Hang at home" on any photo in your Phone Gallery or press E on a wall frame to cycle your photos.',
+      'Weather-Reactive Seasonal Odd Jobs: help neighbours with Snow Shoveling during cold/snowy spells (Sam & June), Yard Cleanup in mild weather (Walt & June), and Supply Haul Runs (Vince & Dottie) for daily cash, Fitness XP, and Friendship.'
+    ]
+  },
+  {
+    version: '0.15.2',
+    date: '2026-11-28',
+    title: 'Sleek Phone Style & Wardrobe Layout',
+    notes: [
+      'Removed the old 2D ghost character from appearing behind the live 3D character in the Phone Style app.',
+      'Redesigned the Style & Wardrobe layout into a compact, sleek 3D stage with Wardrobe / Colors tabs and inline color rows so you can customize without bulky scrolling.'
+    ]
+  },
+  {
+    version: '0.15.1',
+    date: '2026-11-28',
+    title: 'Phone Hand Alignment & Mesh Fix',
+    notes: [
+      'Fixed the duplicate floating hand in front of the camera when opening your phone in first-person.',
+      'Fixed missing wrist/palm triangles on the realistic first-person hand mesh and reseated the fingers behind the phone case so they wrap cleanly around the edge without poking through the screen.'
+    ]
+  },
+  {
+    version: '0.15',
+    date: '2026-11-28',
+    title: 'Home Cooking & Backyard Gardening',
+    notes: [
+      'Interactive Kitchen Stove Recipe Menu: cook 7 home-cooked meals (Home Meal, Morning Pancakes, Garden Salad, Fresh Tomato Soup, Pan-Seared Trout, Hearty Harvest Stew, and Warm Cocoa) for stronger Hunger & Energy buffs.',
+      'Share any home-cooked meal with Maple Lane neighbours during conversation for a big Friendship boost.',
+      'Backyard Kitchen Garden: 4 cedar raised garden beds behind your house — buy Tomato, Herb, or Pumpkin Seeds at Vince\'s Market, water them (rain waters them automatically!), grow crops overnight, and harvest produce to cook or sell back to Vince.'
+    ]
+  },
+  {
+    version: '0.14',
+    date: '2026-11-28',
+    title: 'Realism Pass 5: Park Squirrels (Phase A Complete)',
+    notes: [
+      'Upgraded Maple Lane Park\'s scurrying squirrels with a realistic 3D tree squirrel model, completing the Phase A 3D realism pass alongside the pond mallard ducks and roadside deer.'
+    ]
+  },
+  {
+    version: '0.13',
+    date: '2026-11-28',
+    title: '3D Wardrobe & Style Viewer',
+    notes: [
+      'Upgraded the Phone Style app with a live interactive 3D turntable character viewer—drag to spin 360° and toggle Idle/Walk poses.',
+      'Added 5 switchable 3D Outfits (Casual Jacket, Town Clerk, Relaxed Tee, Cozy Sweater, Classic Coat) and 4 wearable 3D Accessories (Baseball Cap, Knit Beanie, Glasses, Daypack).',
+      'Shirt, Pants, Hair, and Shoes color swatches now recolor your rigged 3D character live, with smoother walk/run animation blending.'
+    ]
+  },
+  {
+    version: '0.12.2',
+    date: '2026-11-28',
+    title: 'First-Person Rigged Body & Smooth Boot',
+    notes: [
+      'Looking down in first-person now shows your real rigged 3D character (torso, arms, clothes, and shoes) instead of the blocky placeholder body.',
+      'Removed the extra blocky door from the pickup truck and throttled background asset loading for a smoother, faster startup.'
+    ]
+  },
+  {
     version: '0.12.1',
     date: '2026-11-28',
     title: 'Real Hands on Your Phone',

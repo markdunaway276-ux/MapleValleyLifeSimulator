@@ -20,10 +20,23 @@ import { createScene } from './world/scene.js';
 import { createSkyEnvMap } from './world/envMap.js';
 import { createRadio } from './systems/radio.js';
 import { createFishing } from './systems/fishing.js';
+import { createCooking } from './systems/cooking.js';
+import { createCookingMenu } from './ui/cookingMenu.js';
+import { createGardening } from './systems/gardening.js';
+import { buildBackyardGarden } from './world/garden.js';
+import { createFramedPhotos } from './world/framedPhotos.js';
+import { createOddJobs } from './systems/oddJobs.js';
+import { createTownEvents } from './systems/townEvents.js';
+import { buildTownEventsProps } from './world/townEventsProps.js';
+import { createPet } from './systems/pet.js';
+import { buildPetActor } from './world/petActor.js';
 import { createQuestBoard } from './systems/questBoard.js';
 import { createHomeDecor } from './world/homeDecor.js';
 import { createParcelDelivery } from './systems/parcelDelivery.js';
 import { createMysteryChapter2 } from './systems/mysteryChapter2.js';
+import { createMysteryChapter3 } from './systems/mysteryChapter3.js';
+import { createFlashlight } from './systems/flashlight.js';
+import { buildMysteryClue } from './world/mysteryClue.js';
 import { createFriendship } from './systems/friendship.js';
 import { createPlayer } from './core/player.js';
 import { setupInput } from './core/input.js';
@@ -75,6 +88,7 @@ import { createSaver } from './game/gameState.js';
 import { createHud } from './game/hud.js';
 import { createPlayerActions } from './systems/playerActions.js';
 import { createLaundry, FOLD_JOB } from './systems/laundry.js';
+import { buyFromShop, getShop } from './systems/shop.js';
 import { LOW_THRESHOLD } from './systems/needs.js';
 import { setupDailyMail } from './game/dailyMail.js';
 import { setupInteract } from './game/interact.js';
@@ -154,7 +168,7 @@ const lights = createInteriorLights({ scene, dayNight, getTime: () => clock.getT
 if (saveData.interiorLights != null) lights.apply(saveData);
 const tvSet = createTvSet({ scene, sfx, save, getPosition: () => player.position });
 if (saveData.tv != null) tvSet.apply(saveData);
-const homeDecor = createHomeDecor({ scene, shadows: quality.shadows, saved: saveData.homeDecor });
+const homeDecor = createHomeDecor({ scene, shadows: quality.shadows, saved: saveData.homeDecor, savedTheme: saveData.homeTheme });
 Object.assign(g, { needs, skills, lights, tvSet, homeDecor });
 
 // The interior is built when the house model has loaded; this may run again then.
@@ -165,6 +179,7 @@ function installInteriorInteractables(s) {
   registerTvInteractable(s);
   lights.refresh();
   tvSet.refresh({ position: player.position, indoor: isInsideMainHouse(s, player.position) });
+  homeDecor.applyThemeToInterior();
 }
 scene.userData.onInteriorReady = installInteriorInteractables;
 installInteriorInteractables(scene);
@@ -258,7 +273,16 @@ const inventory = createInventory({
       if (g.phone) g.phone.open();
       return;
     }
-    if (use && use.need) needs.add(use.need, use.amount || 0);
+    if (use && use.action === 'flashlight') {
+      inventory.close();
+      g.flashlight?.toggle?.();
+      return;
+    }
+    if (use && use.effects && typeof use.effects === 'object') {
+      for (const [needId, amount] of Object.entries(use.effects)) needs.add(needId, amount);
+    } else if (use && use.need) {
+      needs.add(use.need, use.amount || 0);
+    }
     if (use && use.action === 'eat') actions.play('eat');
     if (use && use.sfx) sfx.play(use.sfx);
     save();
@@ -425,6 +449,12 @@ const parcelDelivery = createParcelDelivery({
   save,
   saved: saveData.parcelDelivery
 });
+const readStoredPhotos = () => {
+  try {
+    const raw = JSON.parse(localStorage.getItem('mapleValleyLife_phonePhotos') || '[]');
+    return Array.isArray(raw) ? raw.filter((p) => p && typeof p.id === 'string') : [];
+  } catch { return []; }
+};
 const questBoard = createQuestBoard({
   inventory,
   money,
@@ -433,12 +463,8 @@ const questBoard = createQuestBoard({
   toast: (msg) => g.hud?.toast?.(msg),
   save,
   friendship,
-  getPhotoIds: () => {
-    try {
-      const raw = JSON.parse(localStorage.getItem('mapleValleyLife_phonePhotos') || '[]');
-      return Array.isArray(raw) ? raw.map((p) => p && p.id).filter(Boolean) : [];
-    } catch { return []; }
-  }
+  getPhotoIds: () => readStoredPhotos().map((p) => p.id),
+  getPhotos: readStoredPhotos
 });
 questBoard.apply(saveData);
 scene.userData.questBoard = questBoard;
@@ -453,16 +479,143 @@ const fishing = createFishing({
   save,
   onCatch: (c) => {
     if (c?.id === 'old-locket') questBoard.accept('pond-locket-lead');
+    g.townEvents?.recordDerbyCatch?.(c);
   }
 });
 fishing.apply(saveData);
 scene.userData.fishing = fishing;
-Object.assign(g, { fishing, questBoard });
+
+const cooking = createCooking({
+  clock,
+  needs,
+  inventory,
+  skills,
+  friendship,
+  sfx,
+  toast: (msg) => g.hud?.toast?.(msg),
+  save
+});
+cooking.apply(saveData);
+scene.userData.cooking = cooking;
+
+const gardening = createGardening({
+  clock,
+  needs,
+  inventory,
+  money,
+  skills,
+  sfx,
+  toast: (msg) => g.hud?.toast?.(msg),
+  save
+});
+gardening.apply(saveData);
+scene.userData.gardening = gardening;
+buildBackyardGarden(scene, quality, gardening);
+
+const cookingMenu = createCookingMenu({
+  canvas: renderer.domElement,
+  isMobile,
+  isStarted: () => mode.started(),
+  isBlocked: () => mode.busy() || mode.menuOpen({ except: 'cooking' }),
+  onBeforeOpen: () => {
+    if (inventory.isOpen()) inventory.close();
+    if (g.phone?.isOpen?.()) g.phone.close();
+  },
+  cooking,
+  inventory,
+  skills,
+  onCooked: () => actions.play('cook'),
+  onPractice: () => {
+    const ok = skills.cook({ clock, needs, sfx, inventory: null, toast: (msg) => g.hud?.toast?.(msg) });
+    if (ok) actions.play('cook');
+    return ok;
+  }
+});
+mode.attach({ cooking: cookingMenu });
+
+const framedPhotos = createFramedPhotos({
+  scene,
+  shadows: quality.shadows,
+  saved: saveData.framedPhotos,
+  getPhotos: readStoredPhotos,
+  sfx,
+  toast: (msg) => g.hud?.toast?.(msg),
+  save
+});
+
+const oddJobs = createOddJobs({
+  clock,
+  weather,
+  needs,
+  money,
+  skills,
+  friendship,
+  sfx,
+  toast: (msg) => g.hud?.toast?.(msg),
+  save
+});
+oddJobs.apply(saveData);
+scene.userData.oddJobs = oddJobs;
+
+const townEvents = createTownEvents({
+  clock,
+  inventory,
+  money,
+  friendship,
+  sfx,
+  toast: (msg) => g.hud?.toast?.(msg),
+  save
+});
+townEvents.apply(saveData);
+scene.userData.townEvents = townEvents;
+const townEventsProps = buildTownEventsProps(scene, quality, townEvents);
+
+const pet = createPet({
+  clock,
+  inventory,
+  needs,
+  sfx,
+  toast: (msg) => g.hud?.toast?.(msg),
+  save
+});
+pet.apply(saveData);
+scene.userData.pet = pet;
+const petActor = buildPetActor(scene, quality, pet);
+
+const flashlight = createFlashlight({
+  camera,
+  inventory,
+  sfx,
+  toast: (msg) => g.hud?.toast?.(msg),
+  isAllowed: () => mode.started() && !mode.uiBlocked()
+});
+
+const mysteryChapter3 = createMysteryChapter3({
+  savedStage: saveData.mysteryChapter3,
+  clock,
+  money,
+  needs,
+  inventory,
+  inbox,
+  friendship,
+  flashlight,
+  sfx,
+  save,
+  toast: (msg) => g.hud?.toast?.(msg)
+});
+const mysteryClue = buildMysteryClue(scene, quality, mysteryChapter3);
+
+Object.assign(g, {
+  fishing, cooking, cookingMenu, gardening, framedPhotos, oddJobs,
+  townEvents, townEventsProps, pet, petActor, flashlight, mysteryChapter3, mysteryClue, questBoard
+});
 
 const getTasks = () => {
   if (storyQuest.stage === 'done' && mysteryChapter2.stage === 'locked') mysteryChapter2.unlock();
+  if (mysteryChapter2.stage === 'done' && mysteryChapter3.stage === 'locked') mysteryChapter3.unlock();
   return [
     parcelDelivery.task(),
+    mysteryChapter3.task(),
     mysteryChapter2.task(),
     storyQuest.task(),
     ...questBoard.getTasks(),
@@ -483,13 +636,28 @@ function dottiePage(id) {
     ? { lines: [laundry.nextStep() || 'You are doing fine, hon.'], action: { label: 'Clock me out', run: () => !!option.run() }, response: ['Thanks for the help. See you next time.'] }
     : { lines: ['Want to work a shift?'], action: { label: 'Clock me in', run: () => !!option.run() }, response: ['Bags are on the counter. Wash, dry, fold, hand it back.'] };
 }
+/** Dottie also sells detergent directly across the counter. */
+function dottieSoapPage(id) {
+  if (id !== 'dottie') return null;
+  const vend = getShop('laundromat-vending');
+  const offer = vend?.stock?.find((o) => o.item === 'detergent');
+  if (!offer) return null;
+  return {
+    lines: ['Need laundry soap? I keep single-load detergent right behind the counter too.'],
+    action: {
+      label: `Buy Detergent ($${offer.price})`,
+      run: () => !!buyFromShop(vend, { money, inventory, sfx, toast: (msg) => g.hud?.toast?.(msg) }, offer)
+    },
+    response: ['Here you go, hon! Any of the center-island washers will take it.']
+  };
+}
 /** Neighbours notice when your clothes need a wash. */
 function dirtyPage(id) {
   if (needs.get('clean') > LOW_THRESHOLD) return null;
   const lines = {
     sam: ['No offence, but you might want to swing by the laundromat.'],
     june: ['Is that shirt from last week? The laundromat is down at the east end.'],
-    dottie: ["Hon, those clothes need a wash. Grab detergent from the machine out front."]
+    dottie: ["Hon, those clothes need a wash. Grab soap from the wall dispenser inside, or pay $5 right at any washer."]
   };
   return lines[id] ? { lines: lines[id] } : null;
 }
@@ -528,6 +696,9 @@ const phone = createPhone({
   getWaypointId: minimap.getWaypointId,
   setWaypoint: minimap.setWaypoint,
   capturePhoto: (aim) => g.presentation.capture(view.draw, renderer.domElement, aim),
+  getPhotoContext: () => ({ hour: ((clock.getTime().minutes / 60) % 24 + 24) % 24 }),
+  hangPhoto: (photoId, slotId) => framedPhotos.hangPhoto(photoId, slotId),
+  getTownEvents: () => townEvents.getStatus(),
   getAppearance: () => appearance.get(),
   setAppearance: (slot, id) => appearance.set(slot, id),
   onAppearanceChange: (fn) => appearance.onChange(fn),
@@ -542,6 +713,8 @@ const phone = createPhone({
   getHomeDecor: () => homeDecor.getOwned(),
   buyHomeDecor: (id) => homeDecor.buy(id, { money, sfx, toast: (msg) => g.hud?.toast?.(msg), save }),
   onHomeDecorChange: (fn) => homeDecor.onChange(fn),
+  getHomeTheme: () => homeDecor.getTheme(),
+  setHomeTheme: (id) => homeDecor.setTheme(id, { save, toast: (msg) => g.hud?.toast?.(msg) }),
   getFriendship: (id) => friendship.get(id),
   onTextSent: (id, name) => friendship.add(id, 5, name),
   radio,
@@ -551,7 +724,24 @@ const dialogue = createDialogue({
   getExtraPages: (id) => {
     friendship.add(id, 8, getNpc(id)?.name);
     if (storyQuest.stage === 'done' && mysteryChapter2.stage === 'locked') mysteryChapter2.unlock();
-    return [...(g.dayOne?.pagesFor(id) ?? []), mysteryChapter2.pageFor(id), parcelDelivery.pageFor(id), questBoard.pageFor(id), fishing.pageFor(id), storyQuest.pageFor(id), neighbourFavour.pageFor(id), snackFavour.pageFor(id), dottiePage(id), dirtyPage(id)].filter(Boolean);
+    if (mysteryChapter2.stage === 'done' && mysteryChapter3.stage === 'locked') mysteryChapter3.unlock();
+    return [
+      ...(g.dayOne?.pagesFor(id) ?? []),
+      mysteryChapter3.pageFor(id),
+      mysteryChapter2.pageFor(id),
+      parcelDelivery.pageFor(id),
+      questBoard.pageFor(id),
+      fishing.pageFor(id),
+      gardening.pageFor(id),
+      cooking.pageFor(id, getNpc(id)?.name),
+      oddJobs.pageFor(id),
+      storyQuest.pageFor(id),
+      neighbourFavour.pageFor(id),
+      snackFavour.pageFor(id),
+      dottiePage(id),
+      dottieSoapPage(id),
+      dirtyPage(id)
+    ].filter(Boolean);
   },
   canvas: renderer.domElement,
   isMobile,
@@ -561,6 +751,7 @@ const dialogue = createDialogue({
   onBeforeOpen: () => {
     if (inventory.isOpen()) inventory.close();
     if (phone.isOpen()) phone.close();
+    if (cookingMenu.isOpen()) cookingMenu.close();
   },
   getTime: () => clock.getTime(),
   getWeather: () => weather.get()

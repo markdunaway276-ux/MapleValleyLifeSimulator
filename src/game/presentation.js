@@ -230,10 +230,11 @@ body.mobile #hud-camera-view {
     const stepAngle = Math.sin(stride) * swing;
     playerBody.legs[0].rotation.x = stepAngle;
     playerBody.legs[1].rotation.x = -stepAngle;
-    arm.shoulder.rotation.x = 0.79 * pose + stepAngle * 0.65 * (1 - pose);
-    arm.elbow.rotation.x = 1.38 * pose;
-    wrist.rotation.set(-2.28 * pose, 0.14 * pose, -0.08 * pose);
-    playerBody.updateRig(delta, walk ? moved : 0, pose, wrist, pressing ? 1 : 0);
+    const thirdPose = (thirdPerson && canUseThird() && focus < 0.75) ? pose : 0;
+    arm.shoulder.rotation.x = 0.79 * thirdPose + stepAngle * 0.65 * (1 - thirdPose);
+    arm.elbow.rotation.x = 1.38 * thirdPose;
+    wrist.rotation.set(-2.28 * thirdPose, 0.14 * thirdPose, -0.08 * thirdPose);
+    playerBody.updateRig(delta, walk ? moved : 0, thirdPose, wrist, pressing ? 1 : 0);
     first.phone.position.set(0.21 - 0.105 * pose, -0.42 + 0.28 * pose, -0.42);
     first.phone.rotation.set(0.5 * (1 - pose), 0.16, -0.2 * (1 - pose));
     first.phone.scale.setScalar(1);
@@ -297,19 +298,20 @@ body.mobile #hud-camera-view {
         if (focus < 0.75) camera.layers.enable(HIDDEN_FROM_FP_LAYER);
       }
     }
+    const isThirdActive = inThird && focus < 0.75;
     first.phone.visible = raise > 0 && (!inThird || focus >= 0.75);
-    third.phone.visible = raise > 0 && inThird && focus < 0.75;
-    const usingRig = playerBody.showRig(inThird && focus < 0.75);
-    const mount = usingRig ? playerBody.rigSocket : wrist;
+    third.phone.visible = raise > 0 && isThirdActive;
+    const usingRig = playerBody.showRig(true, { firstPerson: !isThirdActive });
+    const mount = (usingRig && isThirdActive) ? playerBody.rigSocket : wrist;
     if (third.phone.parent !== mount) mount.add(third.phone);
-    third.phone.position.set(usingRig ? -0.024 : 0, usingRig ? 0.089 : 0.049, usingRig ? 0.018 : 0);
-    fallbackGrip.visible = !usingRig;
+    third.phone.position.set(usingRig && isThirdActive ? -0.024 : 0, usingRig && isThirdActive ? 0.089 : 0.049, usingRig && isThirdActive ? 0.018 : 0);
+    fallbackGrip.visible = !(usingRig && isThirdActive);
     if (actionRig && (inThird || raise > 0)) actionRig.visible = false;
 
     try {
       render();
     } finally {
-      playerBody.showRig(false);
+      playerBody.showRig(true, { firstPerson: true });
       if (actionRig) actionRig.visible = actionsVisible;
       camera.position.copy(eye);
       camera.quaternion.copy(orientation);

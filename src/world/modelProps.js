@@ -1,27 +1,78 @@
 import * as THREE from 'three';
-import { loadGltf } from './gltf.js';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 
 /**
  * Reusable loader & placement helper for CC0/CC-BY `.glb` props (interior
- * furniture, outdoor street/park props, etc.). Caches parsed GLTF scenes per
- * URL so repeated props (e.g. dining chairs, benches) only download once,
- * automatically grounds each model at y = 0, fits it cleanly into its target
- * footprint without stretching, and safely no-ops in headless Node tests.
+ * furniture, outdoor street/park props, etc.).
+ *
+ * Uses a gentle throttled background queue (max 2 concurrent downloads after a
+ * brief startup breather, yielding a frame between attaches) with its own
+ * GLTFLoader so decorative props stream in smoothly without stalling the
+ * initial loading screen or starving the hero title-screen assets.
  */
 
 const sceneCache = new Map();
+const loadQueue = [];
+let propLoader = null;
+let activeLoads = 0;
+let queueStarted = false;
+const MAX_CONCURRENT = 2;
+const STARTUP_BREATHER_MS = 450;
 
 function canLoadInBrowser() {
   return typeof document !== 'undefined' && typeof Image !== 'undefined';
 }
 
+function getPropLoader() {
+  if (!propLoader) propLoader = new GLTFLoader();
+  return propLoader;
+}
+
+function nextFrame() {
+  if (typeof requestAnimationFrame === 'function') {
+    return new Promise((resolve) => requestAnimationFrame(resolve));
+  }
+  return Promise.resolve();
+}
+
+function pumpQueue() {
+  while (activeLoads < MAX_CONCURRENT && loadQueue.length > 0) {
+    const job = loadQueue.shift();
+    activeLoads += 1;
+    getPropLoader().load(
+      job.url,
+      (gltf) => {
+        activeLoads -= 1;
+        const root = gltf?.scene || gltf?.scenes?.[0];
+        if (!root) job.reject(new Error(`Empty GLTF scene: ${job.url}`));
+        else job.resolve(root);
+        nextFrame().then(pumpQueue);
+      },
+      undefined,
+      (err) => {
+        activeLoads -= 1;
+        job.reject(err);
+        nextFrame().then(pumpQueue);
+      }
+    );
+  }
+}
+
+function enqueueLoad(url) {
+  return new Promise((resolve, reject) => {
+    loadQueue.push({ url, resolve, reject });
+    if (!queueStarted) {
+      queueStarted = true;
+      setTimeout(pumpQueue, STARTUP_BREATHER_MS);
+    } else {
+      pumpQueue();
+    }
+  });
+}
+
 function loadCachedScene(url) {
   if (!sceneCache.has(url)) {
-    const p = loadGltf(url).then((gltf) => {
-      const root = gltf?.scene || gltf?.scenes?.[0];
-      if (!root) throw new Error(`Empty GLTF scene: ${url}`);
-      return root;
-    }).catch((err) => {
+    const p = enqueueLoad(url).catch((err) => {
       sceneCache.delete(url);
       throw err;
     });

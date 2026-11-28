@@ -1,11 +1,10 @@
 import * as THREE from 'three';
-import { worldAssets } from './assetLoading.js';
 
 /**
  * Real CC0 PBR surface textures (512 px WebP, sourced from Poly Haven) with
- * seamless procedural fallbacks. Loads asynchronously via the shared
- * `worldAssets` loading manager so the title/loading gate tracks them, and
- * safely no-ops in headless Node unit tests.
+ * seamless procedural fallbacks. Streams gently in the background (max 3
+ * concurrent decodes with 1-frame yields) so the loading/title screen stays
+ * responsive, and safely no-ops in headless Node unit tests.
  */
 
 export const PBR_BASE_PATH = './assets/textures/pbr/';
@@ -20,14 +19,54 @@ export const PBR_SETS = Object.freeze({
 
 let sharedLoader = null;
 const imageCache = new Map();
+const texQueue = [];
+let activeTex = 0;
+const MAX_CONCURRENT_TEX = 3;
 
 function canLoadInBrowser() {
   return typeof document !== 'undefined' && typeof Image !== 'undefined';
 }
 
 function getLoader() {
-  if (!sharedLoader) sharedLoader = new THREE.TextureLoader(worldAssets);
+  if (!sharedLoader) sharedLoader = new THREE.TextureLoader();
   return sharedLoader;
+}
+
+function nextFrame() {
+  if (typeof requestAnimationFrame === 'function') {
+    return new Promise((resolve) => requestAnimationFrame(resolve));
+  }
+  return Promise.resolve();
+}
+
+function pumpTexQueue() {
+  while (activeTex < MAX_CONCURRENT_TEX && texQueue.length > 0) {
+    const job = texQueue.shift();
+    activeTex += 1;
+    getLoader().load(
+      job.url,
+      (loaded) => {
+        activeTex -= 1;
+        job.entry.texture = loaded;
+        const waiters = job.entry.waiters || [];
+        job.entry.waiters = null;
+        for (let i = 0; i < waiters.length; i++) {
+          const w = waiters[i];
+          const tex = i === 0 ? loaded : loaded.clone();
+          tex.image = loaded.image;
+          configureTexture(tex, w.opts);
+          w.onReady(tex);
+        }
+        nextFrame().then(pumpTexQueue);
+      },
+      undefined,
+      () => {
+        activeTex -= 1;
+        job.entry.waiters = null;
+        nextFrame().then(pumpTexQueue);
+      }
+    );
+  }
 }
 
 function configureTexture(tex, { repeat, anisotropy = 4, colorSpace = THREE.SRGBColorSpace }) {
@@ -60,24 +99,8 @@ function loadCachedTexture(url, opts, onReady) {
   }
   const entry = { texture: null, waiters: [{ opts, onReady }] };
   imageCache.set(url, entry);
-  getLoader().load(
-    url,
-    (loaded) => {
-      entry.texture = loaded;
-      for (const w of entry.waiters) {
-        const tex = w === entry.waiters[0] ? loaded : loaded.clone();
-        tex.image = loaded.image;
-        configureTexture(tex, w.opts);
-        w.onReady(tex);
-      }
-      entry.waiters = null;
-    },
-    undefined,
-    () => {
-      // Keep procedural fallback silently if texture cannot be fetched.
-      entry.waiters = null;
-    }
-  );
+  texQueue.push({ url, entry });
+  pumpTexQueue();
 }
 
 /**

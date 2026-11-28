@@ -41,7 +41,11 @@ export const SHOP_DEFS = [
       { item: 'groceries', name: 'Groceries', price: 8, sfx: 'cash' },
       { item: 'apple', name: 'Apple', price: 3, sfx: 'cash' },
       { item: 'snack', name: 'Snack', price: 5, sfx: 'cash' },
-      { item: 'sandwich', name: 'Sandwich', price: 7, sfx: 'cash' }
+      { item: 'sandwich', name: 'Sandwich', price: 7, sfx: 'cash' },
+      { item: 'tomato-seeds', name: 'Tomato Seeds', price: 4, sfx: 'cash' },
+      { item: 'herb-seeds', name: 'Herb Seeds', price: 3, sfx: 'cash' },
+      { item: 'pumpkin-seeds', name: 'Pumpkin Seeds', price: 6, sfx: 'cash' },
+      { item: 'detergent', name: 'Detergent', price: 2, sfx: 'cash' }
     ]
   }
 ];
