@@ -8,6 +8,15 @@
 
 export const CHANGELOG = [
   {
+    version: '0.12',
+    date: '2026-11-28',
+    title: 'First-Person Rigged Body & Smooth Boot',
+    notes: [
+      'Looking down in first-person now shows your real rigged 3D character (torso, arms, clothes, and shoes) instead of the blocky placeholder body.',
+      'Removed the extra blocky door from the pickup truck and throttled background asset loading for a smoother, faster startup.'
+    ]
+  },
+  {
     version: '0.11',
     date: '2026-11-28',
     title: 'Welcoming Title Screen Overhaul',

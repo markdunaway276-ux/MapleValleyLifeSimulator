@@ -289,19 +289,20 @@ body.mobile #hud-camera-view {
         if (focus < 0.75) camera.layers.enable(HIDDEN_FROM_FP_LAYER);
       }
     }
+    const isThirdActive = inThird && focus < 0.75;
     first.phone.visible = raise > 0 && (!inThird || focus >= 0.75);
-    third.phone.visible = raise > 0 && inThird && focus < 0.75;
-    const usingRig = playerBody.showRig(inThird && focus < 0.75);
-    const mount = usingRig ? playerBody.rigSocket : wrist;
+    third.phone.visible = raise > 0 && isThirdActive;
+    const usingRig = playerBody.showRig(true, { firstPerson: !isThirdActive });
+    const mount = (usingRig && isThirdActive) ? playerBody.rigSocket : wrist;
     if (third.phone.parent !== mount) mount.add(third.phone);
-    third.phone.position.set(usingRig ? -0.024 : 0, usingRig ? 0.089 : 0.049, usingRig ? 0.018 : 0);
-    fallbackGrip.visible = !usingRig;
+    third.phone.position.set(usingRig && isThirdActive ? -0.024 : 0, usingRig && isThirdActive ? 0.089 : 0.049, usingRig && isThirdActive ? 0.018 : 0);
+    fallbackGrip.visible = !(usingRig && isThirdActive);
     if (actionRig && (inThird || raise > 0)) actionRig.visible = false;
 
     try {
       render();
     } finally {
-      playerBody.showRig(false);
+      playerBody.showRig(true, { firstPerson: true });
       if (actionRig) actionRig.visible = actionsVisible;
       camera.position.copy(eye);
       camera.quaternion.copy(orientation);

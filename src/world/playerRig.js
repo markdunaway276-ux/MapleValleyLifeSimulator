@@ -137,6 +137,11 @@ export function attachPlayerRig(body, { shadows, appearance }) {
     });
   }
 
+  let headBone = null;
+  let baseHeadScale = null;
+  let headParts = [];
+  let rigFirstPerson = true;
+
   createCharacterModel({ body: PLAYER_BODY, hair: 'simpleparted', hairColor: getOptionColor('hair', look.hair), shadows, mixamo: ACTION_FILES, outfit: {
     shirt: getOptionColor('shirt', look.shirt),
     pants: getOptionColor('pants', look.pants),
@@ -157,12 +162,23 @@ export function attachPlayerRig(body, { shadows, appearance }) {
       .map(bone => ({ bone, rotation: bone.quaternion.clone() }));
     right = { upper, lower, hand, fingers, animatedPose };
     leftHand = loaded.root.getObjectByName('hand_l') || null;
+    headBone = loaded.root.getObjectByName('Head')
+      || loaded.root.getObjectByName('head')
+      || loaded.root.getObjectByName('neck02')
+      || null;
+    baseHeadScale = headBone ? headBone.scale.clone() : null;
+    headParts = [];
+    loaded.root.traverse(obj => {
+      if (obj.isMesh && /hair|braid|eyebrow|eyelash|eye|low-poly/i.test(obj.name || '')) {
+        headParts.push(obj);
+      }
+    });
     const carryWalk = carryWalkClip(loaded.getClip('walk'), loaded.getClip('carry'));
     if (carryWalk) loaded.addClip('carryWalk', carryWalk);
     model = loaded;
-    model.object.visible = false;
     body.group.add(model.object);
     applyPalette();
+    applyRigVisibility(true, rigFirstPerson);
   });
 
   function aimBone(bone, child, start, end, weight) {
@@ -235,6 +251,27 @@ export function attachPlayerRig(body, { shadows, appearance }) {
     socket.quaternion.copy(parent.multiply(current));
   }
 
+  function applyRigVisibility(show, firstPerson = false) {
+    if (!model) return false;
+    const vis = !!show;
+    rigShown = vis;
+    rigFirstPerson = !!firstPerson;
+    model.object.visible = vis;
+    for (const part of placeholder) part.visible = !vis;
+    if (vis && firstPerson) {
+      if (headBone) headBone.scale.set(0.001, 0.001, 0.001);
+      for (const m of headParts) m.visible = false;
+      model.object.position.z = 0.14;
+    } else {
+      if (headBone && baseHeadScale) headBone.scale.copy(baseHeadScale);
+      for (const m of headParts) m.visible = true;
+      model.object.position.z = 0;
+    }
+    if (vis) model.object.updateMatrixWorld(true);
+    basket.visible = rigShown && !firstPerson && !!carrying;
+    return vis;
+  }
+
   return Object.assign(body, {
     apply(state) {
       look = oldApply(state);
@@ -242,13 +279,8 @@ export function attachPlayerRig(body, { shadows, appearance }) {
       return look;
     },
     updateRig,
-    showRig(show) {
-      if (!model) return false;
-      model.object.visible = !!show;
-      for (const part of placeholder) part.visible = !show;
-      rigShown = !!show;
-      basket.visible = rigShown && !!carrying;
-      return !!show;
+    showRig(show, { firstPerson = false } = {}) {
+      return applyRigVisibility(show, firstPerson);
     },
     rigSocket: socket,
     dispose() {
