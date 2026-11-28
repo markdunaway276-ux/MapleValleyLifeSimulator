@@ -138,3 +138,10 @@ test('time clock wraps minutes, identifies periods, advances across midnight wit
   copy.apply({ time: clock.serialize() });
   assert.deepEqual(copy.serialize(), clock.serialize());
 });
+
+test('mood rewards turn into half as much energy instead of doing nothing', () => {
+  const needs = createNeeds();
+  needs.set('energy', 50);
+  needs.add('mood', 20);
+  assert.equal(needs.get('energy'), 60);
+});

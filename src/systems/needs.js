@@ -37,6 +37,10 @@ export const ENERGY_ON_SLEEP = 100;
 export const CLEAN_FULL_MINUTES = 2 * 24 * 60;
 export const CLEAN_PER_GAME_MINUTE = NEED_MAX / CLEAN_FULL_MINUTES;
 
+/** Mood rewards become Energy at this rate (see `add`). */
+export const MOOD_ID = 'mood';
+export const MOOD_TO_ENERGY = 0.5;
+
 export const NEED_DEFS = [
   { id: 'hunger', name: 'Hunger', min: NEED_MIN, max: NEED_MAX, default: NEED_MAX },
   { id: 'energy', name: 'Energy', min: NEED_MIN, max: NEED_MAX, default: NEED_MAX },
@@ -117,6 +121,11 @@ export function createNeeds({
   }
 
   function add(id, delta) {
+    // There is no separate Mood meter: feel-good rewards (pets, fishing, story
+    // beats) give half their amount as Energy instead of silently doing nothing.
+    if (id === MOOD_ID && state[id] == null) {
+      return add('energy', Math.round((Number(delta) || 0) * MOOD_TO_ENERGY));
+    }
     if (state[id] == null) return undefined;
     return set(id, state[id] + (Number(delta) || 0));
   }

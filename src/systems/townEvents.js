@@ -307,7 +307,8 @@ export function createTownEvents({
       derbyDay,
       derbyPoints,
       derbyCatches,
-      derbyClaimedDay
+      derbyClaimedDay,
+      lastNotifiedDay
     };
   }
 
@@ -320,6 +321,7 @@ export function createTownEvents({
     derbyPoints = Math.max(0, Number(e.derbyPoints) | 0);
     derbyCatches = Math.max(0, Number(e.derbyCatches) | 0);
     derbyClaimedDay = Math.max(0, Number(e.derbyClaimedDay) | 0);
+    if (Number.isFinite(Number(e.lastNotifiedDay))) lastNotifiedDay = Number(e.lastNotifiedDay) | 0;
     emit();
   }
 

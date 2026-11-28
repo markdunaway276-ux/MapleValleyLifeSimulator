@@ -128,3 +128,16 @@ test('Weekly Town Events: Sunday Pond Fishing Derby tracks leaderboard, awards $
   assert.equal(events2.hasTrophy(), true);
   assert.equal(events2.getStatus().derbyWins, 1);
 });
+
+test('the "Today: …" toast is remembered across saves', async () => {
+  const { createTownEvents } = await import('../src/systems/townEvents.js');
+  const toasts = [];
+  const clock = { getTime: () => ({ day: 6, minutes: 9 * 60 }) };
+  const a = createTownEvents({ clock, toast: (m) => toasts.push(m) });
+  a.syncWithClock();
+  assert.equal(toasts.length, 1);
+  const b = createTownEvents({ clock, toast: (m) => toasts.push(m) });
+  b.apply({ townEvents: a.serialize() });
+  b.syncWithClock();
+  assert.equal(toasts.length, 1, 'reloading the same day does not toast again');
+});

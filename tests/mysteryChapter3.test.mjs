@@ -110,3 +110,33 @@ test('Mystery Chapter 3: flashlight night investigation, friendship-aware Vince 
   assert.ok(inbox.get().some((m) => m.id === 'ch3-maya-epilogue'));
   assert.equal(CHAPTER3_REWARD, 75);
 });
+
+test('chapter 3 waits (no soft-lock) when the bag is full, and Walt has a spare flashlight', () => {
+  const bag = makeBag(2);
+  bag.addItem('snack', 1);
+  bag.addItem('apple', 1);
+  const clock = makeClock(21);
+  const flashlight = { isOn: () => true };
+  const ch3 = createMysteryChapter3({ savedStage: 'walt', clock, inventory: bag, flashlight });
+
+  assert.equal(ch3.borrowFlashlightFromWalt(), false, 'full bag: Walt keeps the flashlight');
+  assert.equal(ch3.stage, 'walt', 'story does not move on without the flashlight');
+
+  bag.consume(0, 1);
+  assert.equal(ch3.borrowFlashlightFromWalt(), true);
+  assert.equal(ch3.stage, 'night-clue');
+
+  // Bag full again: the capsule must not vanish.
+  bag.addItem('snack', 1);
+  bag.consume(bag.getItems().findIndex((it) => it && it.id === 'flashlight'), 1);
+  bag.addItem('coffee', 1);
+  assert.equal(ch3.inspectNightClue(), false);
+  assert.equal(ch3.stage, 'night-clue');
+
+  // Flashlight went missing: Walt offers a spare.
+  const page = ch3.pageFor('walt');
+  assert.ok(page && /spare/i.test(page.action.label));
+  bag.consume(0, 1);
+  assert.equal(page.action.run(), true);
+  assert.ok(bag.getItems().some((it) => it && it.id === 'flashlight'));
+});

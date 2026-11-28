@@ -131,7 +131,7 @@ test('Seasonal Odd Jobs: snow shoveling appears in snow, yard cleanup in mild we
   const weather = {
     snowCover: () => (snowy ? 0.5 : 0),
     snowAmount: () => (snowy ? 0.4 : 0),
-    get: () => ({ temperatureC: snowy ? -2 : 16 })
+    get: () => ({ tempF: snowy ? 28 : 61 })
   };
 
   const oddJobs = createOddJobs({ clock, weather, needs, money, skills, friendship });
