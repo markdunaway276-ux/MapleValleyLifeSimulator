@@ -135,6 +135,13 @@ export function startLoop(g) {
       tvOn: !!g.tvSet?.isOn?.()
     });
     scene.userData.valleyGraphics?.update(delta, { playerPos: player.position, minutes: lightingMinutes, rain });
+    scene.userData.traffic?.update(delta, {
+      minutes: lightingMinutes,
+      rain,
+      playerPos: player.position,
+      playerCar: g.car?.object || null,
+      opening: titleOpen || !!g.dayOne?.opening
+    });
     g.car?.object?.userData?.updateHeadlights?.(lightingMinutes, rain, mode.driving());
     scene.userData.frontYard?.update(time.totalMinutes);
     scene.userData.streetlights.update(lightingMinutes, rain);

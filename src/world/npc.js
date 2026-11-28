@@ -104,6 +104,28 @@ export function createNpc(def, { scene, shadows = false } = {}) {
     collider = world.addTree({ id: 'npc-' + def.id, x, z, radius });
   }
 
+  // Weather-reactive 3D umbrella (pops open over the NPC's shoulder when raining outdoors).
+  const umbrellaColors = [0x9e3c34, 0x325a78, 0xc88a2e, 0x3b684d, 0x6c4a7a, 0x2c3640];
+  let uHash = 0;
+  for (let i = 0; i < def.id.length; i++) uHash = (uHash * 31 + def.id.charCodeAt(i)) >>> 0;
+  const umbrella = new THREE.Group();
+  umbrella.name = 'npc-umbrella';
+  const canopyMat = new THREE.MeshStandardMaterial({
+    color: umbrellaColors[uHash % umbrellaColors.length],
+    roughness: 0.65,
+    side: THREE.DoubleSide
+  });
+  const shaftMat = new THREE.MeshStandardMaterial({ color: 0x2a2d32, roughness: 0.5, metalness: 0.5 });
+  const canopy = new THREE.Mesh(new THREE.ConeGeometry(0.56, 0.22, 10, 1, true), canopyMat);
+  canopy.position.y = 0.72;
+  const shaft = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.012, 0.76, 6), shaftMat);
+  shaft.position.y = 0.36;
+  umbrella.add(canopy, shaft);
+  umbrella.position.set(0.24, 1.24, 0.12);
+  umbrella.rotation.z = -0.10;
+  umbrella.visible = false;
+  group.add(umbrella);
+
   group.userData.npcId = def.id;
   group.userData.kind = 'npc';
   group.userData.getPrompt = (isMobile) => talkPrompt(name, !!isMobile);
@@ -199,6 +221,9 @@ export function createNpc(def, { scene, shadows = false } = {}) {
 
   function update(dt, ctx = {}) {
     routine = routineAt(def, ctx.minutes, ctx.raining);
+    // Open umbrella when raining outdoors (skip indoor shop clerks like Vince/Hank/Maya/Dottie).
+    const indoorNpc = !!def.indoor || (def.stationary && Math.abs(z) > 10.5 && x > -28 && x < 40);
+    umbrella.visible = !!ctx.raining && !indoorNpc;
     const player = ctx.player;
     const talking = ctx.talkingId === def.id;
     const seconds = Math.max(0, Number(dt) || 0);

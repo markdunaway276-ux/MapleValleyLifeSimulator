@@ -177,6 +177,32 @@ export function buildLivingWorld(scene, quality = {}) {
   });
   group.add(crowGroup);
 
+  // --- 4b. Playful Park Squirrels darting around Maple Lane Park ---
+  const squirrelGroup = new THREE.Group();
+  squirrelGroup.name = 'park-squirrels';
+  function makeSquirrel(coatHex) {
+    const g = new THREE.Group();
+    const furMat = new THREE.MeshStandardMaterial({ color: coatHex, roughness: 0.88 });
+    const body = new THREE.Mesh(new THREE.SphereGeometry(0.095, 8, 6), furMat);
+    body.scale.set(0.82, 0.82, 1.38);
+    body.position.set(0, 0.08, 0);
+    const head = new THREE.Mesh(new THREE.SphereGeometry(0.058, 7, 6), furMat);
+    head.position.set(0, 0.145, 0.11);
+    const tail = new THREE.Mesh(new THREE.SphereGeometry(0.068, 7, 6), furMat);
+    tail.scale.set(0.75, 1.75, 0.9);
+    tail.position.set(0, 0.17, -0.13);
+    tail.rotation.x = -0.35;
+    g.add(body, head, tail);
+    g.userData.tail = tail;
+    return g;
+  }
+  const squirrels = [
+    { mesh: makeSquirrel(0x7c5438), cx: 65.5, cz: 17.5, rx: 4.8, rz: 3.6, phase: 0.4, speed: 0.55 },
+    { mesh: makeSquirrel(0x6b645c), cx: 79.0, cz: 10.5, rx: 4.2, rz: 3.8, phase: 2.7, speed: 0.62 }
+  ];
+  for (const sq of squirrels) squirrelGroup.add(sq.mesh);
+  group.add(squirrelGroup);
+
   // --- 5. Interior Golden Sunbeams & Dynamic TV Wall Bounce Light ---
   const sunbeamGroup = new THREE.Group();
   sunbeamGroup.name = 'interior-sunbeams';
@@ -303,6 +329,27 @@ export function buildLivingWorld(scene, quality = {}) {
       for (let i = 0; i < crows.length; i++) {
         const c = crows[i];
         c.mesh.rotation.y = c.baseYaw + Math.sin(clock * 0.8 + c.phase) * 0.25;
+      }
+
+      // 4b) Playful park squirrels scurrying in stop-and-go bursts during dry daytime.
+      squirrelGroup.visible = daytime > 0.1 && wet < 0.55;
+      if (squirrelGroup.visible) {
+        for (let i = 0; i < squirrels.length; i++) {
+          const sq = squirrels[i];
+          // Smooth stop-and-go burst progression.
+          const raw = clock * sq.speed + sq.phase;
+          const burst = Math.floor(raw) + THREE.MathUtils.smoothstep(raw % 1, 0.15, 0.72);
+          const a = burst * 1.35;
+          const x = sq.cx + Math.cos(a) * sq.rx;
+          const z = sq.cz + Math.sin(a * 1.2) * sq.rz;
+          const moving = (raw % 1) > 0.15 && (raw % 1) < 0.72;
+          const hop = moving ? Math.abs(Math.sin(clock * 14 + i * 2)) * 0.055 : 0;
+          sq.mesh.position.set(x, SURFACE_Y.ground + hop, z);
+          const dx = -Math.sin(a) * sq.rx;
+          const dz = Math.cos(a * 1.2) * sq.rz * 1.2;
+          sq.mesh.rotation.y = Math.atan2(dx, dz);
+          sq.mesh.userData.tail.rotation.x = -0.35 + Math.sin(clock * (moving ? 14 : 4.5) + i) * 0.22;
+        }
       }
 
       // 5) Interior sunbeams & TV bounce light.

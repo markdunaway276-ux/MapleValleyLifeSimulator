@@ -221,3 +221,70 @@ test('valley graphics upgrades: normal relief, 3D mountains, night porch spills,
   assert.equal(vg.group.getObjectByName('night-porch-spills').visible, true);
   assert.equal(vg.group.getObjectByName('rain-splashes').visible, true);
 });
+
+test('Part 1 living town: AI traffic drives & yields for player, NPCs open umbrellas in rain, and park squirrels scurry', async () => {
+  const { buildTownTraffic } = await import('../src/world/traffic.js');
+  const { createNpc } = await import('../src/world/npc.js');
+  const { buildLivingWorld } = await import('../src/world/livingWorld.js');
+
+  const scene = new THREE.Scene();
+  const traffic = buildTownTraffic(scene, { shadows: true });
+  assert.equal(traffic.cars.length, 3);
+  const car0 = traffic.cars[0];
+  const startX = car0.x;
+
+  // Hidden during opening drive.
+  traffic.update(0.1, { minutes: 12 * 60, rain: 0, opening: true });
+  assert.equal(traffic.root.visible, false);
+
+  // Drives forward when road is clear.
+  traffic.update(0.1, { minutes: 12 * 60, rain: 0, opening: false });
+  assert.equal(traffic.root.visible, true);
+  assert.ok(car0.x > startX);
+
+  // Brakes & yields when player stands directly ahead in the same lane.
+  const aheadX = car0.x + car0.dir * 4.5;
+  traffic.update(0.1, { minutes: 21 * 60, rain: 0, playerPos: { x: aheadX, z: car0.z }, opening: false });
+  assert.equal(car0.braking, true);
+  assert.equal(car0.cones.visible, true);
+
+  // Outdoor NPC pops open umbrella when raining and closes it when dry.
+  const prevDoc = globalThis.document;
+  globalThis.document = {
+    createElement: () => ({
+      width: 64, height: 64,
+      getContext: () => ({
+        createImageData: (w, h) => ({ data: new Uint8ClampedArray(w * h * 4) }),
+        putImageData() {},
+        createRadialGradient: () => ({ addColorStop() {} }),
+        fillRect() {}, clearRect() {}
+      })
+    })
+  };
+  try {
+    const npc = createNpc({
+      id: 'test-sam',
+      name: 'Sam',
+      patrol: { x0: -5, x1: 5, startX: 0, z: -2.5 },
+      colors: { shirt: 0x446688, pants: 0x333333, shoes: 0x222222 }
+    }, scene, { shadows: false });
+    const umbrella = npc.group.getObjectByName('npc-umbrella');
+    assert.ok(umbrella);
+    npc.update(0.05, { minutes: 12 * 60, raining: false });
+    assert.equal(umbrella.visible, false);
+    npc.update(0.05, { minutes: 12 * 60, raining: true });
+    assert.equal(umbrella.visible, true);
+  } finally {
+    if (prevDoc === undefined) delete globalThis.document;
+    else globalThis.document = prevDoc;
+  }
+
+  // Park squirrels scurry during dry daytime and hide in heavy rain.
+  const lw = buildLivingWorld(scene, { shadows: true });
+  const squirrels = lw.group.getObjectByName('park-squirrels');
+  assert.ok(squirrels);
+  lw.update(0.1, { minutes: 12 * 60, rain: 0 });
+  assert.equal(squirrels.visible, true);
+  lw.update(0.1, { minutes: 12 * 60, rain: 0.85 });
+  assert.equal(squirrels.visible, false);
+});

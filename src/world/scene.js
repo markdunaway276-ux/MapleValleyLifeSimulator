@@ -28,6 +28,7 @@ import { buildValleyHorizon, buildStreetDetails, createAmbientParticles } from '
 import { buildGroundFoliage } from './foliage.js';
 import { buildLivingWorld } from './livingWorld.js';
 import { buildValleyGraphics } from './valleyGraphics.js';
+import { buildTownTraffic } from './traffic.js';
 
 export { STREET, gradeMainHouse };
 
@@ -680,6 +681,7 @@ export function createScene(quality) {
   scene.userData.groundFoliage = buildGroundFoliage(scene, quality);
   scene.userData.livingWorld = buildLivingWorld(scene, quality);
   scene.userData.valleyGraphics = buildValleyGraphics(scene, quality);
+  scene.userData.traffic = buildTownTraffic(scene, quality);
 
   return scene;
 }
