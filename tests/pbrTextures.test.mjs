@@ -74,3 +74,36 @@ test('all CC0 traffic vehicle GLBs and mallard duck GLB exist with valid glTF bi
     assert.equal(head, 'glTF', `invalid GLB header for ${dir}/${name}`);
   }
 });
+
+test('Wardrobe outfit & accessory slots and 3D characterAccessories helpers work cleanly', async () => {
+  const { APPEARANCE_SLOTS, DEFAULT_APPEARANCE, normalizeAppearance } = await import('../src/data/appearance.js');
+  const { outfitToBody, attachAccessories, applyAppearanceToModel } = await import('../src/world/characterAccessories.js');
+
+  const slotIds = APPEARANCE_SLOTS.map((s) => s.id);
+  assert.ok(slotIds.includes('outfit') && slotIds.includes('accessory'));
+  assert.equal(DEFAULT_APPEARANCE.outfit, 'casual');
+  assert.equal(DEFAULT_APPEARANCE.accessory, 'none');
+  assert.equal(outfitToBody('workwear'), 'clerk');
+  assert.equal(outfitToBody('cozy'), 'june');
+
+  const fakeRoot = new THREE.Group();
+  const head = new THREE.Bone();
+  head.name = 'Head';
+  const spine = new THREE.Bone();
+  spine.name = 'spine_03';
+  const suit = new THREE.Mesh(new THREE.BoxGeometry(0.4, 1.4, 0.2), new THREE.MeshStandardMaterial({ color: 0xffffff }));
+  suit.name = 'female_casualsuit02';
+  fakeRoot.add(head, spine, suit);
+
+  const look = normalizeAppearance({ outfit: 'casual', accessory: 'cap', shirt: 'red', pants: 'denim' });
+  applyAppearanceToModel(fakeRoot, look);
+  assert.ok(suit.material.userData.suitSplit, 'suit mesh should receive shirt/pants split shader');
+
+  const capRes = attachAccessories(fakeRoot, 'cap', { shirtColor: '#c43b3b' });
+  assert.equal(capRes.headAccessories.length, 1);
+  assert.ok(head.getObjectByName('maple-accessory-mount'));
+
+  const bagRes = attachAccessories(fakeRoot, 'backpack', { shirtColor: '#2f6b3a' });
+  assert.equal(bagRes.headAccessories.length, 0);
+  assert.ok(spine.getObjectByName('maple-accessory-mount'));
+});

@@ -6,6 +6,30 @@
 
 export const APPEARANCE_SLOTS = [
   {
+    id: 'outfit',
+    name: 'Outfit',
+    kind: 'chip',
+    options: [
+      { id: 'casual', name: 'Casual Jacket', color: '#4a90d9' },
+      { id: 'workwear', name: 'Town Clerk', color: '#3b6a5a' },
+      { id: 'street', name: 'Relaxed Tee', color: '#7a5c46' },
+      { id: 'cozy', name: 'Cozy Sweater', color: '#9c5c4e' },
+      { id: 'classic', name: 'Classic Coat', color: '#58526e' }
+    ]
+  },
+  {
+    id: 'accessory',
+    name: 'Accessory',
+    kind: 'chip',
+    options: [
+      { id: 'none', name: 'None', color: '#4b5563' },
+      { id: 'cap', name: 'Baseball Cap', color: '#3b6998' },
+      { id: 'beanie', name: 'Knit Beanie', color: '#9c4c3c' },
+      { id: 'glasses', name: 'Glasses', color: '#272a30' },
+      { id: 'backpack', name: 'Daypack', color: '#5b6d48' }
+    ]
+  },
+  {
     id: 'skin',
     name: 'Skin',
     options: [
@@ -75,6 +99,8 @@ export const APPEARANCE_SLOTS = [
 ];
 
 export const DEFAULT_APPEARANCE = {
+  outfit: 'casual',
+  accessory: 'none',
   skin: 'light',
   shirt: 'sky',
   pants: 'navy',

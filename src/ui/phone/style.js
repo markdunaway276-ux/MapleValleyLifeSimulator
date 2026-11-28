@@ -4,12 +4,15 @@
  * sleek Material You colour swatches driven by APPEARANCE_SLOTS.
  */
 
+import * as THREE from 'three';
 import {
   APPEARANCE_SLOTS,
   getOption,
   getOptionColor,
   normalizeAppearance
 } from '../../data/appearance.js';
+import { createCharacterModel } from '../../world/characterModel.js';
+import { applyAppearanceToModel, attachAccessories, outfitToBody } from '../../world/characterAccessories.js';
 
 const STYLE_ID = 'maple-phone-style-css';
 export const STYLE_PREVIEW_WIDTH = 260;
@@ -41,20 +44,55 @@ const CSS = `
 .phone-style-shuffle:hover { background: rgba(255, 255, 255, 0.16); }
 
 .phone-style-preview {
+  position: relative;
   align-self: center;
-  width: 186px;
-  height: 228px;
+  width: 210px;
+  height: 252px;
   border-radius: 20px;
   overflow: hidden;
-  background: radial-gradient(circle at 50% 34%, #2c374d 0%, #192030 72%, #131824 100%);
-  border: 1px solid rgba(255, 255, 255, 0.10);
-  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.36);
+  background: radial-gradient(circle at 50% 34%, #2e3b52 0%, #192132 72%, #111622 100%);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: 0 10px 26px rgba(0, 0, 0, 0.42);
+  cursor: grab;
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: pan-y;
 }
+.phone-style-preview:active { cursor: grabbing; }
 .phone-style-preview canvas {
   display: block;
   width: 100%;
   height: 100%;
 }
+.phone-style-preview-bar {
+  position: absolute;
+  left: 8px;
+  right: 8px;
+  bottom: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  pointer-events: none;
+}
+.phone-style-hint {
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: rgba(12, 16, 24, 0.68);
+  color: rgba(232, 239, 250, 0.8);
+  font: 600 10px/1.2 system-ui, sans-serif;
+  letter-spacing: 0.03em;
+}
+.phone-style-pose-btn {
+  pointer-events: auto;
+  padding: 4px 9px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: rgba(22, 29, 44, 0.84);
+  color: #eef3fb;
+  font: 600 10.5px/1.1 system-ui, sans-serif;
+  cursor: pointer;
+}
+.phone-style-pose-btn:hover { background: rgba(45, 60, 90, 0.92); }
 .phone-style-slot {
   background: rgba(255, 255, 255, 0.045);
   border: 1px solid rgba(255, 255, 255, 0.07);
@@ -80,6 +118,24 @@ const CSS = `
   display: flex;
   flex-wrap: wrap;
   gap: 7px;
+}
+.phone-style-chip {
+  padding: 6px 11px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  background: rgba(255, 255, 255, 0.07);
+  color: rgba(242, 246, 252, 0.88);
+  font: 600 11.5px/1.1 system-ui, sans-serif;
+  cursor: pointer;
+  touch-action: manipulation;
+  transition: transform 0.12s ease, background 0.12s ease, border-color 0.12s ease;
+}
+.phone-style-chip:hover { background: rgba(255, 255, 255, 0.14); transform: translateY(-1px); }
+.phone-style-chip.is-selected {
+  background: linear-gradient(135deg, #4b82db 0%, #3462b8 100%);
+  border-color: rgba(214, 232, 255, 0.72);
+  color: #ffffff;
+  box-shadow: 0 4px 12px rgba(56, 108, 204, 0.42);
 }
 .phone-style-swatch {
   position: relative;
@@ -501,6 +557,165 @@ function readAppearance(ctx) {
   return ctx && ctx.appearance ? ctx.appearance : {};
 }
 
+function createLive3dViewer(container, initialState, slots) {
+  if (typeof window === 'undefined' || typeof WebGLRenderingContext === 'undefined') return null;
+  let renderer = null;
+  const glCanvas = document.createElement('canvas');
+  glCanvas.width = STYLE_PREVIEW_WIDTH;
+  glCanvas.height = STYLE_PREVIEW_HEIGHT;
+  glCanvas.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;display:block;opacity:0;transition:opacity 0.25s ease;';
+  try {
+    renderer = new THREE.WebGLRenderer({ canvas: glCanvas, alpha: true, antialias: true, powerPreference: 'low-power' });
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+    renderer.setSize(STYLE_PREVIEW_WIDTH, STYLE_PREVIEW_HEIGHT, false);
+    renderer.outputColorSpace = THREE.SRGBColorSpace;
+  } catch {
+    return null;
+  }
+
+  const scene = new THREE.Scene();
+  const camera = new THREE.PerspectiveCamera(34, STYLE_PREVIEW_WIDTH / STYLE_PREVIEW_HEIGHT, 0.1, 20);
+  camera.position.set(0, 1.05, 3.35);
+  camera.lookAt(0, 0.92, 0);
+
+  // Warm studio 3-point lighting + subtle pedestal disc
+  scene.add(new THREE.HemisphereLight(0xdfe8ff, 0x2a2434, 1.15));
+  const key = new THREE.DirectionalLight(0xfff1dc, 1.8);
+  key.position.set(2.2, 3.2, 2.8);
+  scene.add(key);
+  const rim = new THREE.DirectionalLight(0x9bc4ff, 0.95);
+  rim.position.set(-2.4, 2.2, -2.0);
+  scene.add(rim);
+
+  const stage = new THREE.Group();
+  scene.add(stage);
+
+  const disc = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.58, 0.64, 0.06, 32),
+    new THREE.MeshStandardMaterial({ color: 0x263147, roughness: 0.55, metalness: 0.25 })
+  );
+  disc.position.y = -0.03;
+  const ring = new THREE.Mesh(
+    new THREE.RingGeometry(0.55, 0.59, 32),
+    new THREE.MeshBasicMaterial({ color: 0x76a8f5, transparent: true, opacity: 0.45, side: THREE.DoubleSide })
+  );
+  ring.rotation.x = -Math.PI / 2;
+  ring.position.y = 0.002;
+  stage.add(disc, ring);
+
+  container.appendChild(glCanvas);
+
+  let disposed = false;
+  let currentModel = null;
+  let activeBody = null;
+  let loadSeq = 0;
+  let look = normalizeAppearance(initialState, slots);
+  let pose = 'idle';
+  let yaw = 0.28;
+  let dragging = false;
+  let lastX = 0;
+  let rafId = 0;
+  let lastTime = performance.now();
+
+  const onDown = (e) => {
+    dragging = true;
+    lastX = e.clientX;
+    e.stopPropagation();
+  };
+  const onMove = (e) => {
+    if (!dragging) return;
+    const dx = e.clientX - lastX;
+    lastX = e.clientX;
+    yaw += dx * 0.014;
+  };
+  const onUp = () => { dragging = false; };
+  container.addEventListener('pointerdown', onDown);
+  window.addEventListener('pointermove', onMove);
+  window.addEventListener('pointerup', onUp);
+
+  function applyLook() {
+    if (!currentModel) return;
+    applyAppearanceToModel(currentModel.root, look);
+    attachAccessories(currentModel.root, look.accessory, {
+      shirtColor: getOptionColor('shirt', look.shirt, slots),
+      shadows: false
+    });
+  }
+
+  function loadBody(bodyKey) {
+    if (bodyKey === activeBody && currentModel) {
+      applyLook();
+      return;
+    }
+    activeBody = bodyKey;
+    const mySeq = ++loadSeq;
+    createCharacterModel({
+      body: bodyKey,
+      hair: 'simpleparted',
+      hairColor: getOptionColor('hair', look.hair, slots),
+      shadows: false,
+      outfit: {
+        shirt: getOptionColor('shirt', look.shirt, slots),
+        pants: getOptionColor('pants', look.pants, slots),
+        skin: getOptionColor('skin', look.skin, slots),
+        shoes: getOptionColor('shoes', look.shoes, slots)
+      }
+    }).then((loaded) => {
+      if (!loaded) return;
+      if (disposed || mySeq !== loadSeq) { loaded.dispose(); return; }
+      if (currentModel) {
+        currentModel.object.removeFromParent();
+        currentModel.dispose();
+      }
+      currentModel = loaded;
+      // Rotate model to face the preview camera (+Z)
+      currentModel.object.rotation.y = Math.PI;
+      stage.add(currentModel.object);
+      applyLook();
+      currentModel.play(pose === 'walk' && currentModel.has('walk') ? 'walk' : 'idle', { fade: 0.1 });
+      glCanvas.style.opacity = '1';
+    }).catch(() => {});
+  }
+
+  function tick(now) {
+    if (disposed) return;
+    rafId = requestAnimationFrame(tick);
+    const dt = Math.min(0.05, Math.max(0.001, (now - lastTime) / 1000));
+    lastTime = now;
+    if (!dragging) yaw += dt * 0.35;
+    stage.rotation.y = yaw;
+    if (currentModel) currentModel.update(dt);
+    renderer.render(scene, camera);
+  }
+
+  loadBody(outfitToBody(look.outfit));
+  rafId = requestAnimationFrame(tick);
+
+  return {
+    update(state) {
+      look = normalizeAppearance(state, slots);
+      loadBody(outfitToBody(look.outfit));
+    },
+    togglePose() {
+      pose = pose === 'idle' ? 'walk' : 'idle';
+      if (currentModel) {
+        currentModel.play(pose === 'walk' && currentModel.has('walk') ? 'walk' : 'idle', { fade: 0.22 });
+      }
+      return pose;
+    },
+    dispose() {
+      disposed = true;
+      cancelAnimationFrame(rafId);
+      container.removeEventListener('pointerdown', onDown);
+      window.removeEventListener('pointermove', onMove);
+      window.removeEventListener('pointerup', onUp);
+      if (currentModel) { currentModel.object.removeFromParent(); currentModel.dispose(); currentModel = null; }
+      renderer.dispose();
+      glCanvas.remove();
+    }
+  };
+}
+
 export function renderStyleApp(screen, ctx = {}) {
   ensureStyles();
   const slots = (ctx && ctx.slots) || APPEARANCE_SLOTS;
@@ -510,7 +725,7 @@ export function renderStyleApp(screen, ctx = {}) {
   const title = document.createElement('h3');
   title.className = 'phone-app-title';
   title.style.margin = '0';
-  title.textContent = 'Style';
+  title.textContent = 'Style & Wardrobe';
   const shuffleBtn = document.createElement('button');
   shuffleBtn.type = 'button';
   shuffleBtn.className = 'phone-style-shuffle';
@@ -529,12 +744,34 @@ export function renderStyleApp(screen, ctx = {}) {
   canvas.setAttribute('aria-label', 'Appearance preview');
   previewWrap.appendChild(canvas);
 
+  const viewer3d = createLive3dViewer(previewWrap, readAppearance(ctx), slots);
+  if (viewer3d) {
+    const bar = document.createElement('div');
+    bar.className = 'phone-style-preview-bar';
+    const hint = document.createElement('span');
+    hint.className = 'phone-style-hint';
+    hint.textContent = '↻ Drag to spin';
+    const poseBtn = document.createElement('button');
+    poseBtn.type = 'button';
+    poseBtn.className = 'phone-style-pose-btn';
+    poseBtn.textContent = 'Pose: Idle';
+    poseBtn.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      const nextPose = viewer3d.togglePose();
+      poseBtn.textContent = nextPose === 'walk' ? 'Pose: Walk' : 'Pose: Idle';
+    });
+    bar.append(hint, poseBtn);
+    previewWrap.appendChild(bar);
+  }
+
   const swatchButtons = [];
   const valueBadges = new Map();
 
   function paint(state) {
     const current = normalizeAppearance(state || readAppearance(ctx), slots);
     drawStylePreview(canvas, current, slots);
+    if (viewer3d) viewer3d.update(current);
     for (let i = 0; i < swatchButtons.length; i++) {
       const btn = swatchButtons[i];
       const on = current[btn.dataset.slot] === btn.dataset.option;
@@ -581,15 +818,20 @@ export function renderStyleApp(screen, ctx = {}) {
 
     const row = document.createElement('div');
     row.className = 'phone-style-swatches';
+    const isChip = slot.kind === 'chip';
     for (let j = 0; j < slot.options.length; j++) {
       const option = slot.options[j];
       if (!option) continue;
       const btn = document.createElement('button');
       btn.type = 'button';
-      btn.className = 'phone-style-swatch';
+      btn.className = isChip ? 'phone-style-chip' : 'phone-style-swatch';
       btn.dataset.slot = slot.id;
       btn.dataset.option = option.id;
-      btn.style.background = option.color || '#888';
+      if (isChip) {
+        btn.textContent = option.name || option.id;
+      } else {
+        btn.style.background = option.color || '#888';
+      }
       btn.setAttribute('aria-label', (slot.name || slot.id) + ': ' + (option.name || option.id));
       btn.title = option.name || option.id;
       btn.addEventListener('click', (e) => {
@@ -613,5 +855,8 @@ export function renderStyleApp(screen, ctx = {}) {
     ? ctx.onAppearanceChange((state) => paint(state))
     : null;
 
-  return () => { if (typeof off === 'function') off(); };
+  return () => {
+    if (typeof off === 'function') off();
+    if (viewer3d) viewer3d.dispose();
+  };
 }

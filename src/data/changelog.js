@@ -8,6 +8,16 @@
 
 export const CHANGELOG = [
   {
+    version: '0.13',
+    date: '2026-11-28',
+    title: '3D Wardrobe & Style Viewer',
+    notes: [
+      'Upgraded the Phone Style app with a live interactive 3D turntable character viewer—drag to spin 360° and toggle Idle/Walk poses.',
+      'Added 5 switchable 3D Outfits (Casual Jacket, Town Clerk, Relaxed Tee, Cozy Sweater, Classic Coat) and 4 wearable 3D Accessories (Baseball Cap, Knit Beanie, Glasses, Daypack).',
+      'Shirt, Pants, Hair, and Shoes color swatches now recolor your rigged 3D character live, with smoother walk/run animation blending.'
+    ]
+  },
+  {
     version: '0.12',
     date: '2026-11-28',
     title: 'First-Person Rigged Body & Smooth Boot',
