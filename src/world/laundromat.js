@@ -71,35 +71,73 @@ const BENCHES = [
   { id: 'laundromat-bench-out', x: -1.9, z: 0.35, w: 1.8, facing: 1 }
 ];
 
-function drumTexture(soapy = false) {
+function drumTexture(mode = 'idle') {
   if (typeof document === 'undefined') return null;
   const c = document.createElement('canvas');
-  c.width = c.height = 128;
+  c.width = c.height = 256;
   const ctx = c.getContext('2d');
-  const g = ctx.createRadialGradient(64, 64, 8, 64, 64, 64);
-  g.addColorStop(0, soapy ? '#6d9cb8' : '#5b7894');
-  g.addColorStop(1, soapy ? '#1f3b4d' : '#1d2a38');
-  ctx.fillStyle = g;
-  ctx.fillRect(0, 0, 128, 128);
-  const colors = ['#c94f4f', '#e8e2d0', '#4a7fb8', '#d9b443', '#6c9a5a', '#9a6cc0'];
-  for (let i = 0; i < 16; i++) {
-    const a = (i / 16) * Math.PI * 2;
-    const rr = 26 + (i % 3) * 10;
-    ctx.fillStyle = colors[i % colors.length];
-    ctx.beginPath();
-    ctx.ellipse(64 + Math.cos(a) * rr, 64 + Math.sin(a) * rr, 14, 8, a, 0, Math.PI * 2);
-    ctx.fill();
+  const cx = 128;
+  const cy = 128;
+  // Brushed stainless steel inner drum base.
+  const g = ctx.createRadialGradient(cx, cy, 14, cx, cy, 128);
+  if (mode === 'wash') {
+    g.addColorStop(0, '#7eb4cf');
+    g.addColorStop(0.7, '#345870');
+    g.addColorStop(1, '#1a2c3a');
+  } else if (mode === 'dry') {
+    g.addColorStop(0, '#8d9aa6');
+    g.addColorStop(0.7, '#434d58');
+    g.addColorStop(1, '#1e242b');
+  } else {
+    g.addColorStop(0, '#c6d0d9');
+    g.addColorStop(0.52, '#8b96a1');
+    g.addColorStop(0.84, '#4e5863');
+    g.addColorStop(1, '#262d35');
   }
-  if (soapy) {
-    // Frothy white & icy-blue soap suds around the tumbling clothes.
-    for (let i = 0; i < 22; i++) {
-      const a = (i / 22) * Math.PI * 2 + (i % 2) * 0.14;
-      const rr = 14 + (i % 4) * 13;
-      const rad = 4 + (i % 3) * 2.5;
-      ctx.fillStyle = i % 3 === 0 ? 'rgba(215, 245, 255, 0.78)' : 'rgba(255, 255, 255, 0.72)';
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, 256, 256);
+
+  // Subtle concentric drum ribs & stainless perforations.
+  ctx.strokeStyle = 'rgba(255, 255, 255, 0.14)';
+  ctx.lineWidth = 2;
+  for (const r of [38, 66, 94, 114]) {
+    ctx.beginPath();
+    ctx.arc(cx, cy, r, 0, Math.PI * 2);
+    ctx.stroke();
+  }
+  ctx.fillStyle = 'rgba(20, 26, 32, 0.35)';
+  for (let ring = 0; ring < 3; ring++) {
+    const rr = 48 + ring * 26;
+    const count = 14 + ring * 6;
+    for (let i = 0; i < count; i++) {
+      const a = (i / count) * Math.PI * 2 + ring * 0.2;
       ctx.beginPath();
-      ctx.arc(64 + Math.cos(a) * rr, 64 + Math.sin(a) * rr, rad, 0, Math.PI * 2);
+      ctx.arc(cx + Math.cos(a) * rr, cy + Math.sin(a) * rr, 2.4, 0, Math.PI * 2);
       ctx.fill();
+    }
+  }
+
+  if (mode !== 'idle') {
+    const colors = ['#cf5550', '#ece6d6', '#4a85c2', '#dfb848', '#6ca05c', '#9c6ec4'];
+    for (let i = 0; i < 18; i++) {
+      const a = (i / 18) * Math.PI * 2;
+      const rr = 42 + (i % 3) * 22;
+      ctx.fillStyle = colors[i % colors.length];
+      ctx.beginPath();
+      ctx.ellipse(cx + Math.cos(a) * rr, cy + Math.sin(a) * rr, 26, 15, a, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    if (mode === 'wash') {
+      // Frothy white & icy-blue soap suds around the tumbling clothes.
+      for (let i = 0; i < 30; i++) {
+        const a = (i / 30) * Math.PI * 2 + (i % 2) * 0.14;
+        const rr = 26 + (i % 4) * 24;
+        const rad = 7 + (i % 3) * 4.5;
+        ctx.fillStyle = i % 3 === 0 ? 'rgba(218, 246, 255, 0.80)' : 'rgba(255, 255, 255, 0.76)';
+        ctx.beginPath();
+        ctx.arc(cx + Math.cos(a) * rr, cy + Math.sin(a) * rr, rad, 0, Math.PI * 2);
+        ctx.fill();
+      }
     }
   }
   const tex = new THREE.CanvasTexture(c);
@@ -447,25 +485,79 @@ export function buildLaundromat(scene, quality) {
     return object;
   }
 
-  // Washers and dryers: an animated drum over the model's door plus a status light (and steam for dryers).
-  const washerDrumTex = drumTexture(true);
-  const dryerDrumTex = drumTexture(false);
+  // Washers and dryers: smooth 48-segment brushed stainless porthole doors, curved glass domes,
+  // sleek dark-acrylic control strips with rotary dials, and subtle rising steam on dryers.
+  const idleDrumTex = drumTexture('idle');
+  const washerDrumTex = drumTexture('wash');
+  const dryerDrumTex = drumTexture('dry');
   const steamGeo = new THREE.SphereGeometry(0.085, 8, 6);
+  const steelMat = new THREE.MeshStandardMaterial({ color: 0xd6dfe6, metalness: 0.85, roughness: 0.22 });
+  const trimSteelMat = new THREE.MeshStandardMaterial({ color: 0xbfc9d2, metalness: 0.82, roughness: 0.26 });
+  const gasketMat = new THREE.MeshStandardMaterial({ color: 0x242a30, roughness: 0.65, metalness: 0.1 });
+  const acrylicMat = new THREE.MeshStandardMaterial({ color: 0x161b21, roughness: 0.14, metalness: 0.25 });
+  const glassDomeMat = new THREE.MeshStandardMaterial({
+    color: 0xeef6ff, transparent: true, opacity: 0.24, roughness: 0.06, metalness: 0.18, depthWrite: false
+  });
+  const dialGeo = new THREE.CylinderGeometry(0.032, 0.036, 0.024, 24);
+  dialGeo.rotateX(Math.PI / 2);
+  const handleGeo = new THREE.CylinderGeometry(0.011, 0.011, 0.11, 14);
+  const hingeGeo = new THREE.BoxGeometry(0.028, 0.075, 0.024);
+
   const drums = [];
   for (const m of [...WASHERS, ...DRYERS]) {
     const isWasher = m.id.startsWith('washer');
-    const drum = new THREE.Mesh(
-      new THREE.CircleGeometry(m.r, 20),
-      new THREE.MeshBasicMaterial({ map: isWasher ? washerDrumTex : dryerDrumTex, transparent: true, opacity: 0.92 })
+    const activeTex = isWasher ? washerDrumTex : dryerDrumTex;
+    const front = new THREE.Group();
+    front.position.set(m.x, m.y, m.z + 0.008);
+
+    // Always-visible recessed 48-segment stainless drum (swaps to tumbling clothes when active).
+    const drumMat = new THREE.MeshStandardMaterial({
+      map: idleDrumTex, roughness: 0.35, metalness: 0.45, emissive: 0x000000, emissiveIntensity: 0
+    });
+    const drum = new THREE.Mesh(new THREE.CircleGeometry(m.r - 0.01, 48), drumMat);
+    drum.position.z = 0.002;
+    front.add(drum);
+
+    // Smooth brushed-stainless porthole bezel + inner rubber gasket.
+    const bezel = new THREE.Mesh(new THREE.TorusGeometry(m.r + 0.018, 0.03, 16, 48), steelMat);
+    bezel.position.z = 0.022;
+    const gasket = new THREE.Mesh(new THREE.TorusGeometry(m.r - 0.012, 0.013, 12, 40), gasketMat);
+    gasket.position.z = 0.01;
+    front.add(bezel, gasket);
+
+    // Chrome door handle (right) & steel hinge (left).
+    const handle = new THREE.Mesh(handleGeo, steelMat);
+    handle.position.set(m.r + 0.024, 0, 0.046);
+    const hinge = new THREE.Mesh(hingeGeo, trimSteelMat);
+    hinge.position.set(-(m.r + 0.026), 0, 0.024);
+    front.add(handle, hinge);
+
+    // Curved translucent glass dome catching smooth specular highlights.
+    const dome = new THREE.Mesh(
+      new THREE.SphereGeometry(m.r - 0.006, 32, 14, 0, Math.PI * 2, 0, Math.PI * 0.38),
+      glassDomeMat
     );
-    drum.position.set(m.x, m.y, m.z + 0.012);
-    drum.visible = false;
+    dome.rotation.x = Math.PI / 2;
+    dome.scale.set(1, 1, 0.24);
+    dome.position.z = 0.006;
+    front.add(dome);
+
+    // Sleek dark-acrylic control strip + brushed steel rotary dial + glowing status bar.
+    const panelY = m.r + 0.135;
+    const panelBack = new THREE.Mesh(new THREE.BoxGeometry(isWasher ? 0.64 : 0.72, 0.105, 0.022), trimSteelMat);
+    panelBack.position.set(0, panelY, 0.014);
+    const acrylic = new THREE.Mesh(new THREE.BoxGeometry(isWasher ? 0.34 : 0.40, 0.068, 0.012), acrylicMat);
+    acrylic.position.set(0.06, panelY, 0.024);
+    const dial = new THREE.Mesh(dialGeo, steelMat);
+    dial.position.set(isWasher ? -0.20 : -0.24, panelY, 0.028);
     const led = new THREE.Mesh(
-      new THREE.BoxGeometry(0.05, 0.03, 0.01),
+      new THREE.BoxGeometry(0.11, 0.022, 0.014),
       new THREE.MeshBasicMaterial({ color: 0x38bdf8 })
     );
-    led.position.set(m.x + m.r * 0.9, m.y + m.r + 0.12, m.z + 0.012);
-    group.add(drum, led);
+    led.position.set(isWasher ? 0.14 : 0.17, panelY, 0.028);
+    front.add(panelBack, acrylic, dial, led);
+    group.add(front);
+
     const puffs = [];
     if (!isWasher) {
       for (let k = 0; k < 3; k++) {
@@ -477,8 +569,20 @@ export function buildLaundromat(scene, quality) {
         puffs.push({ mesh: puff, mat, phase: k * 2.1, baseX: m.x + (k - 1) * 0.14, baseZ: m.z - 0.15 });
       }
     }
-    drums.push({ ...m, drum, led, puffs });
+    drums.push({ ...m, drum, drumMat, idleDrumTex, activeTex, led, puffs });
     spot('laundromat-' + m.id, m.x, 1.25, m.z + (isWasher ? 0.28 : 0.32), isWasher ? 1.65 : 1.8, () => laundry()?.machineOption(m.id) || null);
+  }
+
+  // Overhead warm-white interior strip lights so the brushed stainless steel & glass domes gleam.
+  const lightPool = ud && ud.lightPool;
+  for (const [lx, lz] of [[3.2, -1.6], [3.2, -5.6], [-0.3, -3.8]]) {
+    if (lightPool) {
+      lightPool.addPoint({ x: LAUNDROMAT.x + lx, y: 3.2, z: LAUNDROMAT.z + lz, color: 0xfff1dc, intensity: 16, distance: 9, decay: 2 });
+    } else {
+      const lamp = new THREE.PointLight(0xfff1dc, 16, 9, 2);
+      lamp.position.set(lx, 3.2, lz);
+      group.add(lamp);
+    }
   }
 
   // Overhead sign above the 5 center-island self-serve washers.
@@ -599,6 +703,7 @@ export function buildLaundromat(scene, quality) {
 
   const signMats = [];
   const windowMats = new Set();
+  const stainlessTint = new THREE.Color(0xdbe3ea);
   loadGltf(URL, (gltf) => {
     const model = gltf.scene;
     model.traverse((o) => {
@@ -609,16 +714,35 @@ export function buildLaundromat(scene, quality) {
       o.receiveShadow = !!quality.shadows;
       if (!m) return;
       m.shadowSide = THREE.DoubleSide;
-      if (/^(BrickSmallPainted|Roof_tiles|RooftilesMetal)/.test(m.name) && m.map) {
+      if (/^(BrickSmallPainted|Roof_tiles|RooftilesMetal|Laundry|Metal|TilesPlain)/.test(m.name) && m.map) {
         m.map.anisotropy = Math.max(m.map.anisotropy, quality.shadows ? 8 : 4);
         m.map.needsUpdate = true;
+      }
+      // Modern brushed stainless steel PBR pass on all washer/dryer bodies & metal trim.
+      if (/^Laundry($|_01|_S)/.test(m.name)) {
+        m.roughness = 0.24;
+        m.metalness = 0.68;
+        if ('envMapIntensity' in m) m.envMapIntensity = 1.15;
+        if (m.color) m.color.lerp(stainlessTint, 0.35);
+      } else if (/^Metal$/.test(m.name)) {
+        m.roughness = 0.22;
+        m.metalness = 0.78;
+        if ('envMapIntensity' in m) m.envMapIntensity = 1.2;
+      } else if (/^TilesPlain$/.test(m.name)) {
+        m.roughness = 0.34;
+        m.metalness = 0.05;
+      } else if (/^Glass/.test(m.name)) {
+        m.roughness = 0.07;
+        m.metalness = 0.12;
       }
       if (/^Glass/.test(m.name) && m.emissive) windowMats.add(m);
       if (/^Emissor/.test(m.name) && !signMats.includes(m)) signMats.push(m);
       if (m.map && !OUTSIDE.test(m.name) && !m.userData.stripLit) {
+        const isAppliance = /^Laundry($|_01|_S)|^Metal$/.test(m.name);
         m.emissiveMap = m.map;
         m.emissive.setRGB(1, 0.98, 0.94);
-        m.emissiveIntensity = STRIP_LIGHT;
+        // Keep brushed stainless appliances less self-lit so real specular highlights pop.
+        m.emissiveIntensity = isAppliance ? 0.14 : STRIP_LIGHT;
         m.userData.stripLit = true;
       }
     });
@@ -631,10 +755,20 @@ export function buildLaundromat(scene, quality) {
     spin += delta;
     for (const d of drums) {
       const s = l ? l.machineState(d.id) : null;
-      d.drum.visible = !!(s && (s.running || s.finished));
+      const active = !!(s && (s.running || s.finished));
+      const wantMap = active ? d.activeTex : d.idleDrumTex;
+      if (d.drumMat.map !== wantMap) {
+        d.drumMat.map = wantMap;
+        d.drumMat.needsUpdate = true;
+      }
       if (s && s.running) {
-        // Washers slosh back and forth; dryers tumble one way.
+        // Washers slosh back and forth; dryers tumble one way with a soft warm drum light.
         d.drum.rotation.z = d.id.startsWith('washer') ? Math.sin(spin * 2.4) * 2.2 : -spin * 3.2;
+        d.drumMat.emissive.setHex(d.id.startsWith('washer') ? 0x1e3a4c : 0x4a351c);
+        d.drumMat.emissiveIntensity = 0.38;
+      } else {
+        d.drumMat.emissive.setHex(0x000000);
+        d.drumMat.emissiveIntensity = 0;
       }
       if (d.puffs && d.puffs.length) {
         const steaming = !!(s && s.running);

@@ -8,6 +8,16 @@
 
 export const CHANGELOG = [
   {
+    version: '0.22',
+    date: '2026-11-28',
+    title: 'Modern Brushed Stainless Washers & Dryers',
+    notes: [
+      'Upgraded all laundromat washers and dryers to a sleek modern brushed stainless steel finish with smooth 48-segment chrome porthole bezels, dark rubber gaskets, door handles, and curved specular glass domes.',
+      'Added always-visible 256×256 perforated stainless-steel inner drums with soft interior lighting while running, plus sleek dark-acrylic control strips with rotary cycle dials and glowing status bars.',
+      'Added warm-white overhead interior strip lights and a freshly-mopped sheen to the laundromat floor tiles so the stainless steel and curved glass gleam.'
+    ]
+  },
+  {
     version: '0.21',
     date: '2026-11-28',
     title: 'Cozy Laundromat Experience',
