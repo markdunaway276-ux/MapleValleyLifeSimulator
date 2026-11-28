@@ -18,7 +18,7 @@ export const SAM_PATROL = {
   z: -3.5,
   x0: -5.5,
   x1: 5.5,
-  startX: 0.8,
+  startX: -4.8,
   speed: 0.8,
   idle: 2.5
 };
@@ -272,7 +272,7 @@ export const STORY_NPCS = [
     radius: NPC_RADIUS,
     noticeRange: 3.6,
     talkRange: NPC_TALK_RANGE,
-    patrol: { z: -3.25, x0: 0.95, x1: 0.95, startX: 0.95, speed: 0 },
+    patrol: { z: -4.45, x0: 1.35, x1: 1.35, startX: 1.35, speed: 0 },
     stationary: { yaw: Math.PI },
     locationHint: 'Waiting by your front path.'
   }

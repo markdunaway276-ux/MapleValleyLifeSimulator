@@ -257,6 +257,17 @@ export const ACTIONS = {
       { t: 0.65, R: P(0.16, -0.1, -0.38, 0.45, 0, -0.2) },
       { t: 1, R: REST }
     ]
+  },
+  exitCar: {
+    // Reach for the door latch, push the truck door open, and step down onto the street.
+    clip: 'Opening Door Inwards', duration: 0.95,
+    keys: [
+      { t: 0, R: P(0.24, -0.45, -0.34, 0.15, 0, 0), L: P(-0.24, -0.32, -0.36, 0.1, 0.2, 0.35), dip: -0.34 },
+      { t: 0.26, R: P(0.26, -0.48, -0.32, 0.1, 0, 0), L: P(-0.28, -0.24, -0.54, 0.12, 0.35, 0.2), dip: -0.30 },
+      { t: 0.54, R: P(0.24, -0.54, -0.30, 0.15, 0, 0), L: P(-0.34, -0.28, -0.60, 0.08, 0.45, 0.1), dip: -0.42 },
+      { t: 0.78, R: REST, L: P(-0.26, -0.42, -0.40, 0.15, 0.15, 0), dip: -0.10 },
+      { t: 1, R: REST, dip: 0 }
+    ]
   }
 };
 
@@ -305,19 +316,80 @@ function lerpPose(a, b, k) {
 function buildArm(sleeveMat, skinMat, side) {
   const arm = new THREE.Group();
   arm.name = 'fp-arm-' + side;
-  // Rounded palms, thumbs and cuffs share the existing pose rig.
-  const hand = new THREE.Mesh(bevelBox(0.075, 0.03, 0.095, { radius: 0.012, segments: 2 }), skinMat);
-  const thumb = new THREE.Mesh(bevelBox(0.022, 0.022, 0.05, { radius: 0.009, segments: 2 }), skinMat);
-  thumb.position.set(side === 'R' ? -0.045 : 0.045, 0.004, -0.008);
-  const wrist = new THREE.Mesh(bevelBox(0.055, 0.05, 0.06, { radius: 0.01, segments: 2 }), skinMat);
-  wrist.position.set(0, -0.004, 0.07);
-  // The sleeve is not rigid with the hand: each frame it is laid from the wrist
-  // back toward the shoulder (see layForearm), so a raised or tilted hand never
-  // swings the forearm up through the camera.
-  const sleeve = new THREE.Mesh(bevelBox(0.075, 0.075, SLEEVE_LENGTH, { radius: 0.018, segments: 2 }), sleeveMat);
+  const dir = side === 'R' ? 1 : -1;
+
+  // Sculpted organic palm (tapered rounded palm + heel + knuckle ridge).
+  const palm = new THREE.Mesh(new THREE.SphereGeometry(0.044, 12, 10), skinMat);
+  palm.scale.set(0.92, 0.36, 1.05);
+  palm.position.set(0, 0, 0.005);
+
+  const heel = new THREE.Mesh(new THREE.SphereGeometry(0.032, 10, 8), skinMat);
+  heel.scale.set(0.95, 0.52, 0.9);
+  heel.position.set(dir * 0.004, -0.004, 0.034);
+
+  const knuckles = new THREE.Mesh(new THREE.CapsuleGeometry(0.013, 0.056, 6, 10), skinMat);
+  knuckles.rotation.z = Math.PI / 2;
+  knuckles.position.set(0, 0.003, -0.036);
+
+  arm.add(palm, heel, knuckles);
+
+  // Four individually sculpted fingers (index, middle, ring, pinky) with gentle natural curl.
+  const fingerSpecs = [
+    { x: -dir * 0.027, len: 0.034, rad: 0.0085, curl: 0.24, splay: -dir * 0.06 },
+    { x: -dir * 0.009, len: 0.039, rad: 0.0088, curl: 0.28, splay: -dir * 0.015 },
+    { x:  dir * 0.010, len: 0.035, rad: 0.0082, curl: 0.32, splay:  dir * 0.03 },
+    { x:  dir * 0.027, len: 0.027, rad: 0.0072, curl: 0.36, splay:  dir * 0.08 }
+  ];
+  for (const f of fingerSpecs) {
+    const base = new THREE.Group();
+    base.position.set(f.x, 0.002, -0.04);
+    base.rotation.set(f.curl, f.splay, 0);
+    const prox = new THREE.Mesh(new THREE.CapsuleGeometry(f.rad, f.len * 0.55, 6, 8), skinMat);
+    prox.rotation.x = Math.PI / 2;
+    prox.position.z = -f.len * 0.38;
+    const tipPivot = new THREE.Group();
+    tipPivot.position.set(0, 0, -f.len * 0.72);
+    tipPivot.rotation.x = f.curl * 1.15;
+    const dist = new THREE.Mesh(new THREE.CapsuleGeometry(f.rad * 0.86, f.len * 0.42, 6, 8), skinMat);
+    dist.rotation.x = Math.PI / 2;
+    dist.position.z = -f.len * 0.32;
+    tipPivot.add(dist);
+    base.add(prox, tipPivot);
+    arm.add(base);
+  }
+
+  // Opposable two-segment thumb angled naturally at the side of the palm.
+  const thumbBase = new THREE.Group();
+  thumbBase.position.set(-dir * 0.034, -0.004, 0.014);
+  thumbBase.rotation.set(0.18, -dir * 0.58, dir * 0.32);
+  const thumbProx = new THREE.Mesh(new THREE.CapsuleGeometry(0.011, 0.024, 6, 8), skinMat);
+  thumbProx.rotation.x = Math.PI / 2;
+  thumbProx.position.z = -0.018;
+  const thumbTip = new THREE.Mesh(new THREE.CapsuleGeometry(0.0095, 0.020, 6, 8), skinMat);
+  thumbTip.rotation.x = Math.PI / 2 + 0.22;
+  thumbTip.position.set(0, -0.004, -0.042);
+  thumbBase.add(thumbProx, thumbTip);
+  arm.add(thumbBase);
+
+  // Smooth tapered wrist leading into the forearm cuff.
+  const wrist = new THREE.Mesh(new THREE.CylinderGeometry(0.027, 0.031, 0.068, 12), skinMat);
+  wrist.rotation.x = Math.PI / 2;
+  wrist.scale.set(1.06, 1, 0.82);
+  wrist.position.set(0, -0.004, 0.072);
+  arm.add(wrist);
+
+  // Tapered cylindrical forearm sleeve with a folded cuff ring (no boxy slab).
+  const sleeve = new THREE.Group();
   sleeve.name = 'fp-sleeve-' + side;
-  for (const m of [hand, thumb, wrist, sleeve]) { m.castShadow = false; m.receiveShadow = false; m.frustumCulled = false; }
-  arm.add(hand, thumb, wrist);
+  const forearm = new THREE.Mesh(new THREE.CylinderGeometry(0.038, 0.049, SLEEVE_LENGTH, 14), sleeveMat);
+  forearm.rotation.x = Math.PI / 2;
+  const cuff = new THREE.Mesh(new THREE.CylinderGeometry(0.041, 0.040, 0.048, 14), sleeveMat);
+  cuff.rotation.x = Math.PI / 2;
+  cuff.position.z = -SLEEVE_LENGTH / 2 + 0.024;
+  sleeve.add(forearm, cuff);
+
+  arm.traverse((m) => { if (m.isMesh) { m.castShadow = false; m.receiveShadow = false; m.frustumCulled = false; } });
+  sleeve.traverse((m) => { if (m.isMesh) { m.castShadow = false; m.receiveShadow = false; m.frustumCulled = false; } });
   arm.userData.sleeve = sleeve;
   arm.userData.shoulder = new THREE.Vector3(side === 'R' ? SHOULDER[0] : -SHOULDER[0], SHOULDER[1], SHOULDER[2]);
   return arm;
@@ -449,8 +521,8 @@ function buildSpatula() {
 }
 
 export function createPlayerActions({ camera, appearance = null } = {}) {
-  const sleeveMat = new THREE.MeshLambertMaterial({ color: 0x4a90d9 });
-  const skinMat = new THREE.MeshLambertMaterial({ color: 0xe0b896 });
+  const sleeveMat = new THREE.MeshStandardMaterial({ color: 0x4a90d9, roughness: 0.88, metalness: 0 });
+  const skinMat = new THREE.MeshStandardMaterial({ color: 0xe0b896, roughness: 0.65, metalness: 0 });
   const rig = new THREE.Group();
   rig.name = 'fp-arms';
   const armR = buildArm(sleeveMat, skinMat, 'R');

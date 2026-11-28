@@ -218,6 +218,21 @@ export function createCutscene({
 
   function beginExit() {
     if (state === 'idle' || state === 'exit') return;
+    // Keep the player facing the NPC they just talked to instead of turning away.
+    if (activeNpc && activeNpc.position && player && player.position) {
+      const dx = activeNpc.position.x - player.position.x;
+      const dz = activeNpc.position.z - player.position.z;
+      if (Math.hypot(dx, dz) > 0.05) {
+        const faceYaw = Math.atan2(-dx, -dz);
+        if (player.rotation) {
+          player.rotation.y = faceYaw;
+          player.rotation.x = 0;
+          fromQuat.setFromEuler(player.rotation);
+        } else {
+          fromQuat.setFromEuler(new THREE.Euler(0, faceYaw, 0, 'YXZ'));
+        }
+      }
+    }
     state = 'exit';
     elapsed = 0;
     setCard(false);
@@ -234,6 +249,8 @@ export function createCutscene({
     if (camera && player) {
       camera.position.copy(player.position);
       camera.quaternion.copy(fromQuat);
+      if ('mouseX' in player) player.mouseX = 0;
+      if ('mouseY' in player) player.mouseY = 0;
     }
     if (typeof cb === 'function') cb();
   }

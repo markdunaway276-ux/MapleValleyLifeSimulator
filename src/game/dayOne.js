@@ -464,7 +464,7 @@ export function createDayOne(g, saveData, beginPlay) {
 
   // --- minimap guidance ------------------------------------------------------------
   const guides = {
-    rita: { id: 'day-one-rita', name: 'Rita', position: () => (rita ? { x: rita.position.x, z: rita.position.z } : { x: 0.95, z: -3.25 }) },
+    rita: { id: 'day-one-rita', name: 'Rita', position: () => (rita ? { x: rita.position.x, z: rita.position.z } : { x: 1.35, z: -4.45 }) },
     trunk: { id: 'day-one-trunk', name: 'Your pickup', position: () => { const p = trunkPoint(); return { x: p.x, z: p.z }; } },
     home: { id: 'day-one-home', name: 'Your front door', position: () => ({ x: 0, z: -5.2 }) }
   };
@@ -544,8 +544,8 @@ export function createDayOne(g, saveData, beginPlay) {
         showChapterBanner();
         // Gently face across the street toward Rita and your new house.
         if (player?.rotation) {
-          const dx = 0.95 - player.position.x;
-          const dz = -3.25 - player.position.z;
+          const dx = 1.35 - player.position.x;
+          const dz = -4.45 - player.position.z;
           player.rotation.y = Math.atan2(-dx, -dz);
         }
         renderTask();

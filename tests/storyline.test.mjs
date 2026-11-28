@@ -115,3 +115,54 @@ test('storyQuest (The Last Tenant) advances hidden -> walt -> vince -> done and 
   assert.equal(q.pageFor('vince'), null);
   assert.equal(saves, 3);
 });
+
+test('exitCar action exists and Sam and Rita spawn well separated off each other', () => {
+  assert.ok(ACTIONS.exitCar, 'expected exitCar action');
+  assert.ok(ACTIONS.exitCar.duration > 0.5, 'expected noticeable step-out duration');
+  const sam = getNpc('sam');
+  const rita = getNpc('rita');
+  assert.ok(sam && rita);
+  const dist = Math.hypot(sam.patrol.startX - rita.patrol.startX, sam.patrol.z - rita.patrol.z);
+  assert.ok(dist > 2.5, `expected Sam and Rita to start >2.5m apart, got ${dist.toFixed(2)}m`);
+  assert.ok(Math.abs(sam.patrol.z - rita.patrol.z) >= 0.8, 'expected Rita off Sam sidewalk z-lane');
+});
+
+test('cutscene exit keeps player oriented toward the NPC instead of turning away', () => {
+  const camera = new THREE.PerspectiveCamera();
+  camera.position.set(1.35, 1.6, -2.0);
+  const player = {
+    position: new THREE.Vector3(1.35, 1.6, -2.0),
+    rotation: new THREE.Euler(0, Math.PI, 0, 'YXZ'), // originally facing away (+Z)
+    mouseX: 12,
+    mouseY: -5
+  };
+  const rita = { id: 'rita', position: new THREE.Vector3(1.35, 0, -4.45), wave() {} };
+  let dialogueOpen = false;
+  const dialogue = {
+    open() { dialogueOpen = true; return true; },
+    isOpen: () => dialogueOpen
+  };
+  const cs = createCutscene({
+    camera,
+    player,
+    npcs: { list: [rita] },
+    dialogue,
+    hasSeenIntro: () => false,
+    onIntroSeen: () => {}
+  });
+
+  cs.talkWithIntro('rita');
+  cs.update(1.9);
+  assert.equal(cs.state, 'dialogue');
+  dialogueOpen = false;
+  cs.update(0.05);
+  assert.equal(cs.state, 'exit');
+  cs.update(0.6);
+  assert.equal(cs.state, 'idle');
+
+  // Rita is due -Z from the player, so facing her means yaw ~ 0 (not PI).
+  assert.ok(Math.abs(player.rotation.y) < 0.05, `expected yaw near 0 facing Rita, got ${player.rotation.y}`);
+  assert.equal(player.rotation.x, 0);
+  assert.equal(player.mouseX, 0);
+  assert.equal(player.mouseY, 0);
+});

@@ -136,7 +136,7 @@ export function createRoadTrip(g, onFinish, wave) {
       const signLook = (smooth(at,25,27)-smooth(at,28.4,31.5))*0.25;
       const arrivalLook = smooth(at,49,52)*0.55;
       forward.set(1,-0.05,signLook).applyQuaternion(car.quaternion);
-      forward.lerp(target.set(0.95,1.5,-3.25).sub(camera.position).normalize(), arrivalLook * 0.8);
+      forward.lerp(target.set(1.35,1.5,-4.45).sub(camera.position).normalize(), arrivalLook * 0.8);
       camera.lookAt(target.copy(camera.position).add(forward));
       g.actions.drive(g.cabin.grips);
     } else {
