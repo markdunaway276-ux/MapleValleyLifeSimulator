@@ -121,7 +121,7 @@ const _candidates = [];
 const _reach = new Map();
 const _point = new THREE.Vector3();
 
-export function nearestActionTarget(scene, position, range = INTERACT_RANGE, { development = false } = {}) {
+export function nearestActionTarget(scene, position, range = INTERACT_RANGE, { development = false, yaw = null, pitch = 0 } = {}) {
   if (!scene || !position) return null;
   _candidates.length = 0;
   _reach.clear();
@@ -142,17 +142,39 @@ export function nearestActionTarget(scene, position, range = INTERACT_RANGE, { d
     }
   }
   const world = ud && ud.colliders;
+  const useAim = yaw != null && Number.isFinite(yaw);
+  const p = Number.isFinite(pitch) ? pitch : 0;
+  const cosP = useAim ? Math.cos(p) : 1;
+  const fx = useAim ? -Math.sin(yaw) * cosP : 0;
+  const fy = useAim ? Math.sin(p) : 0;
+  const fz = useAim ? -Math.cos(yaw) * cosP : -1;
+  const px = position.x || 0;
+  const py = position.y || 0;
+  const pz = position.z || 0;
+
   let best = null;
-  let bestD = range;
+  let bestScore = Infinity;
   for (let i = 0; i < _candidates.length; i++) {
     const cand = _candidates[i];
     const tp = targetInteractPoint(cand, _point);
-    const dist = typeof position.distanceTo === 'function'
-      ? position.distanceTo(tp)
-      : Math.hypot((position.x || 0) - tp.x, (position.y || 0) - tp.y, (position.z || 0) - tp.z);
-    if (dist < bestD && dist <= (_reach.get(cand) ?? range) && hasLineOfReach(world, position, tp)) {
+    const dx = tp.x - px;
+    const dy = tp.y - py;
+    const dz = tp.z - pz;
+    const dist = Math.hypot(dx, dy, dz);
+    const maxReach = _reach.get(cand) ?? range;
+    if (dist >= maxReach || !hasLineOfReach(world, position, tp)) continue;
+    let score = dist;
+    if (useAim) {
+      const inv = dist > 1e-4 ? 1 / dist : 0;
+      const dot = (dx * fx + dy * fy + dz * fz) * inv;
+      // Ignore triggers behind your back unless you are practically standing on them.
+      if (dot < -0.15 && dist > 0.75) continue;
+      const isNpc = !!(cand.userData && (cand.userData.isNpc || cand.userData.kind === 'npc'));
+      score = dist - dot * 1.05 - (dot > 0.85 ? 0.25 : 0) - (isNpc && dot > 0.7 ? 0.25 : 0);
+    }
+    if (score < bestScore) {
       best = cand;
-      bestD = dist;
+      bestScore = score;
     }
   }
   _candidates.length = 0;

@@ -165,7 +165,7 @@ export function registerCookInteractable(scene) {
   if (!cook) return null;
   const list = scene.userData.interactables || (scene.userData.interactables = []);
   if (!list.some((e) => e && (e.id === 'cook' || e.object === cook))) {
-    list.push({ id: 'cook', kind: 'cook', object: cook });
+    list.push({ id: 'cook', kind: 'cook', object: cook, range: 2.0 });
   }
   return cook;
 }

@@ -219,7 +219,8 @@ export function buildMainHouse(scene, quality) {
       scene.userData.interactables.push({
         id: 'snack',
         kind: 'pickup',
-        object: snack
+        object: snack,
+        range: 1.75
       });
       scene.userData.snack = snack;
 
@@ -232,7 +233,8 @@ export function buildMainHouse(scene, quality) {
       scene.userData.interactables.push({
         id: 'bed',
         kind: 'sleep',
-        object: bed
+        object: bed,
+        range: 2.1
       });
       scene.userData.bed = bed;
 
@@ -243,7 +245,8 @@ export function buildMainHouse(scene, quality) {
       scene.userData.interactables.push({
         id: 'desk',
         kind: 'work',
-        object: desk
+        object: desk,
+        range: 1.9
       });
       scene.userData.desk = desk;
 

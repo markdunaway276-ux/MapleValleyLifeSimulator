@@ -272,7 +272,7 @@ export const STORY_NPCS = [
     radius: NPC_RADIUS,
     noticeRange: 3.6,
     talkRange: NPC_TALK_RANGE,
-    patrol: { z: -4.45, x0: 1.35, x1: 1.35, startX: 1.35, speed: 0 },
+    patrol: { z: -4.45, x0: -1.35, x1: -1.35, startX: -1.35, speed: 0 },
     stationary: { yaw: Math.PI },
     locationHint: 'Waiting by your front path.'
   }

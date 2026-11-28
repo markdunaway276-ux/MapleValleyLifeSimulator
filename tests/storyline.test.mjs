@@ -208,3 +208,28 @@ test('Android phone UI provides Material vector SVG icons for every installed ap
   assert.ok(ANDROID_STATUS_ICONS_SVG.includes('<svg'));
   assert.ok(FINGERPRINT_SVG.includes('<svg'));
 });
+
+test('nearestActionTarget prefers the looked-at target over closer side/behind triggers and Rita is clear of the mailbox', async () => {
+  const { nearestActionTarget } = await import('../src/systems/interactables.js');
+  const { MAILBOX_SPAWN } = await import('../src/world/pickups.js');
+  const ritaDef = getNpc('rita');
+  const ritaToMailbox = Math.hypot(ritaDef.patrol.startX - MAILBOX_SPAWN.x, ritaDef.patrol.z - MAILBOX_SPAWN.z);
+  assert.ok(ritaToMailbox > 2.5, `expected Rita >2.5m clear of mailbox, got ${ritaToMailbox.toFixed(2)}m`);
+
+  const ritaObj = { isObject3D: true, visible: true, position: new THREE.Vector3(0, 1.5, -1.9), userData: { isNpc: true, kind: 'npc' } };
+  const mailboxObj = { isObject3D: true, visible: true, position: new THREE.Vector3(1.2, 1.2, 0.4), userData: { kind: 'mailbox' } };
+  const scene = {
+    userData: {
+      interactables: [
+        { id: 'mailbox', kind: 'mailbox', object: mailboxObj, range: 2.0 },
+        { id: 'rita', kind: 'npc', object: ritaObj, range: 2.5 }
+      ]
+    }
+  };
+  const eye = new THREE.Vector3(0, 1.6, 0);
+  // Looking straight along -Z (yaw = 0) at Rita: Rita wins even though mailbox is closer (1.33m vs 1.9m).
+  assert.equal(nearestActionTarget(scene, eye, 3, { yaw: 0, pitch: 0 }), ritaObj);
+  // Turning to face the mailbox (+X/+Z): mailbox wins.
+  const yawToMailbox = Math.atan2(-1.2, -0.4);
+  assert.equal(nearestActionTarget(scene, eye, 3, { yaw: yawToMailbox, pitch: 0 }), mailboxObj);
+});

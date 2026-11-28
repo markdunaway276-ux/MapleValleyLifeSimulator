@@ -215,7 +215,7 @@ export function registerTvInteractable(scene) {
   if (!tv) return null;
   const list = scene.userData.interactables || (scene.userData.interactables = []);
   if (!list.some((e) => e && (e.id === 'tv' || e.object === tv))) {
-    list.push({ id: 'tv', kind: 'tv', object: tv });
+    list.push({ id: 'tv', kind: 'tv', object: tv, range: 2.1 });
   }
   return tv;
 }

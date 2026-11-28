@@ -347,7 +347,7 @@ export function createDayOne(g, saveData, beginPlay) {
     { id: 'day-one-trunk', kind: 'trunk', object: trunkSpot, range: 2.4,
       getPoint: () => trunkTarget(),
       enabled: () => stage === 'unload' && trunk > 0 && carrying() !== 'box' && !g.mode.driving() && behindCar() },
-    { id: 'day-one-pile', kind: 'boxes', object: pileSpot, range: 2.6,
+    { id: 'day-one-pile', kind: 'boxes', object: pileSpot, range: 2.0,
       enabled: () => (stage === 'unload' && carrying() === 'box') || (stage === 'unpack' && pile > 0) }
   );
 
@@ -490,7 +490,7 @@ export function createDayOne(g, saveData, beginPlay) {
 
   // --- minimap guidance ------------------------------------------------------------
   const guides = {
-    rita: { id: 'day-one-rita', name: 'Rita', position: () => (rita ? { x: rita.position.x, z: rita.position.z } : { x: 1.35, z: -4.45 }) },
+    rita: { id: 'day-one-rita', name: 'Rita', position: () => (rita ? { x: rita.position.x, z: rita.position.z } : { x: -1.35, z: -4.45 }) },
     trunk: { id: 'day-one-trunk', name: 'Your pickup', position: () => { const p = trunkPoint(); return { x: p.x, z: p.z }; } },
     home: { id: 'day-one-home', name: 'Your front door', position: () => ({ x: 0, z: -5.2 }) }
   };
@@ -590,7 +590,7 @@ export function createDayOne(g, saveData, beginPlay) {
         showChapterBanner();
         // Gently face across the street toward Rita and your new house.
         if (player?.rotation) {
-          const dx = 1.35 - player.position.x;
+          const dx = -1.35 - player.position.x;
           const dz = -4.45 - player.position.z;
           player.rotation.y = Math.atan2(-dx, -dz);
         }

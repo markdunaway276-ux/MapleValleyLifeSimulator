@@ -95,7 +95,7 @@ export function registerLightSwitchInteractable(scene) {
   if (!sw) return null;
   const list = scene.userData.interactables || (scene.userData.interactables = []);
   if (!list.some((e) => e && (e.id === 'light-switch' || e.object === sw))) {
-    list.push({ id: 'light-switch', kind: 'light-switch', object: sw });
+    list.push({ id: 'light-switch', kind: 'light-switch', object: sw, range: 1.8 });
   }
   return sw;
 }

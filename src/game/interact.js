@@ -15,9 +15,10 @@ export function setupInteract(g) {
   function currentTarget() {
     if (mode.driving()) return g.car.object;
     if (mode.sitting()) return g.sitter.object();
-    return nearestActionTarget(scene, player.position, INTERACT_RANGE)
+    const aim = player && player.rotation ? { yaw: player.rotation.y, pitch: player.rotation.x || 0 } : {};
+    return nearestActionTarget(scene, player.position, INTERACT_RANGE, aim)
       ?? (g.needs.isDevelopmentMode()
-        ? nearestActionTarget(scene, player.position, 12, { development: true })
+        ? nearestActionTarget(scene, player.position, 12, { development: true, ...aim })
         : null);
   }
 
