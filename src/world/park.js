@@ -177,24 +177,91 @@ function buildPond(park, colliders, quality) {
   shore.receiveShadow = quality.shadows;
   park.add(shore);
 
-  const waterMaterial = new THREE.MeshStandardMaterial({ color: 0x406d69, roughness: 0.34, metalness: 0.15 });
-  waterMaterial.onBeforeCompile = shader => {
-    shader.vertexShader = shader.vertexShader
-      .replace('#include <common>', '#include <common>\nvarying vec2 vPondPosition;')
-      .replace('#include <begin_vertex>', '#include <begin_vertex>\nvPondPosition = position.xy;');
-    shader.fragmentShader = shader.fragmentShader
-      .replace('#include <common>', '#include <common>\nvarying vec2 vPondPosition;')
-      .replace('#include <color_fragment>', `#include <color_fragment>
-        vec2 pondPoint = vPondPosition;
-        float ripples = sin(pondPoint.y * 74.0 + sin(pondPoint.x * 23.0) * 2.0);
-        float rim = smoothstep(0.62, 1.0, length(pondPoint));
-        diffuseColor.rgb *= 0.88 + rim * 0.34 + ripples * 0.07;`);
+  const waterUniforms = {
+    uTime: { value: 0 },
+    uSkyTop: { value: new THREE.Color(0x4a7ea4) },
+    uSkyBottom: { value: new THREE.Color(0xc2d2dc) },
+    uSunColor: { value: new THREE.Color(0xffe4bc) },
+    uSunDir: { value: new THREE.Vector3(22, 32, 16).normalize() }
   };
+  const waterMaterial = new THREE.ShaderMaterial({
+    uniforms: waterUniforms,
+    vertexShader: /* glsl */`
+      varying vec2 vPondUv;
+      varying vec3 vWorldPos;
+      void main() {
+        vPondUv = position.xy;
+        vec4 wp = modelMatrix * vec4(position, 1.0);
+        vWorldPos = wp.xyz;
+        gl_Position = projectionMatrix * viewMatrix * wp;
+      }
+    `,
+    fragmentShader: /* glsl */`
+      uniform float uTime;
+      uniform vec3 uSkyTop;
+      uniform vec3 uSkyBottom;
+      uniform vec3 uSunColor;
+      uniform vec3 uSunDir;
+      varying vec2 vPondUv;
+      varying vec3 vWorldPos;
+
+      float wave(vec2 p, float t) {
+        float w = 0.0;
+        w += sin(p.x * 2.4 + t * 1.15 + sin(p.y * 1.6 - t * 0.6)) * 0.45;
+        w += sin(p.y * 3.1 - t * 0.92 + cos(p.x * 2.1 + t * 0.7)) * 0.35;
+        w += sin((p.x + p.y) * 5.2 + t * 1.6) * 0.20;
+        return w;
+      }
+
+      void main() {
+        vec2 wp = vWorldPos.xz;
+        float e = 0.08;
+        float h0 = wave(wp, uTime);
+        float hx = wave(wp + vec2(e, 0.0), uTime);
+        float hz = wave(wp + vec2(0.0, e), uTime);
+        vec3 n = normalize(vec3((h0 - hx) * 0.16, 1.0, (h0 - hz) * 0.16));
+
+        vec3 viewDir = normalize(cameraPosition - vWorldPos);
+        float ndv = max(dot(n, viewDir), 0.02);
+        float fresnel = 0.08 + 0.82 * pow(1.0 - ndv, 3.2);
+
+        // Reflect sky gradient along perturbed water normal.
+        vec3 refl = reflect(-viewDir, n);
+        float skyH = clamp(refl.y * 0.85 + 0.15, 0.0, 1.0);
+        vec3 skyRefl = mix(uSkyBottom, uSkyTop, pow(skyH, 0.75));
+
+        // Shallow turquoise-sage rim vs deep mossy-teal pond center.
+        float radial = length(vPondUv);
+        float shallow = smoothstep(0.58, 0.98, radial);
+        vec3 deepCol = vec3(0.09, 0.20, 0.21);
+        vec3 shallowCol = vec3(0.24, 0.38, 0.34);
+        vec3 waterBody = mix(deepCol, shallowCol, shallow);
+        // Subtle sunlit caustic shimmer in the shallows.
+        waterBody += vec3(0.05, 0.08, 0.06) * shallow * (0.5 + 0.5 * h0);
+
+        vec3 col = mix(waterBody, skyRefl, fresnel * 0.78);
+
+        // Crisp sun/moon sparkle glint across the wavelets.
+        vec3 sunD = normalize(uSunDir);
+        vec3 halfV = normalize(sunD + viewDir);
+        float spec = pow(max(dot(n, halfV), 0.0), 96.0) * 1.15 + pow(max(dot(n, halfV), 0.0), 18.0) * 0.14;
+        col += uSunColor * spec * smoothstep(-0.05, 0.22, sunD.y);
+
+        // Soft animated foam ring right along the grassy shoreline.
+        float foamWave = sin(radial * 28.0 - uTime * 1.8 + h0 * 2.2) * 0.5 + 0.5;
+        float foam = smoothstep(0.91, 0.995, radial) * (0.35 + 0.45 * foamWave);
+        col = mix(col, mix(uSkyBottom, vec3(0.92, 0.96, 0.97), 0.5), foam * 0.55);
+
+        gl_FragColor = vec4(col, 1.0);
+      }
+    `
+  });
   const water = new THREE.Mesh(new THREE.CircleGeometry(1, 64), waterMaterial);
   water.name = 'park-pond-water';
+  water.userData.waterUniforms = waterUniforms;
   water.rotation.x = -Math.PI / 2;
   water.scale.set(radiusX - 0.43, radiusZ - 0.47, 1);
-  water.position.set(centerX, 0.012, centerZ);
+  water.position.set(centerX, 0.014, centerZ);
   park.add(water);
 
   const parts = new Parts(true);
@@ -433,10 +500,22 @@ function buildActivityArea(park, colliders, quality, scene) {
   const fixtures = new THREE.Mesh(parts.merge(), new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.86 }));
   fixtures.castShadow = fixtures.receiveShadow = !!quality.shadows;
   park.add(fixtures);
+  const pondWater = park.getObjectByName('park-pond-water');
   let swayClock = 0;
   return {
-    update(minutes) {
-      swayClock += 0.016;
+    update(minutes, delta = 0.016, sample = null) {
+      const dt = Math.max(0, Math.min(0.1, Number(delta) || 0.016));
+      swayClock += dt;
+      if (pondWater?.userData?.waterUniforms) {
+        const wu = pondWater.userData.waterUniforms;
+        wu.uTime.value = swayClock;
+        if (sample) {
+          wu.uSkyTop.value.setHex(sample.skyTop ?? 0x4a7ea4);
+          wu.uSkyBottom.value.setHex(sample.skyBottom ?? 0xc2d2dc);
+          wu.uSunColor.value.setHex(sample.sun ?? 0xffe4bc);
+          if (sample.sunPos) wu.uSunDir.value.set(sample.sunPos[0], sample.sunPos[1], sample.sunPos[2]).normalize();
+        }
+      }
       const dusk = THREE.MathUtils.smoothstep(minutes, 1100, 1160);
       const dawn = 1 - THREE.MathUtils.smoothstep(minutes, 335, 395);
       for (const [index, light] of lights.entries()) light.intensity = (index === 2 ? 12 : 20) * (dusk + dawn);

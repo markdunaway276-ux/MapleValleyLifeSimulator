@@ -17,6 +17,7 @@ import { createCarInterior } from './world/carInterior.js';
  *   src/core/mode.js       what the player is doing and which menus are open
  */
 import { createScene } from './world/scene.js';
+import { createSkyEnvMap } from './world/envMap.js';
 import { createHomeDecor } from './world/homeDecor.js';
 import { createParcelDelivery } from './systems/parcelDelivery.js';
 import { createMysteryChapter2 } from './systems/mysteryChapter2.js';
@@ -122,6 +123,8 @@ if (saveData.weather) weather.apply(saveData);
 else weather.roll({ immediate: true, time: clock.getTime() });
 const dayNight = createDayNight({ scene, quality, modulate: (sample) => weather.modulate(sample) });
 dayNight.apply(clock.getTime());
+scene.userData.skyEnvMap = createSkyEnvMap(renderer, scene, quality);
+scene.userData.skyEnvMap.update(dayNight.lastSample, 0);
 weather.applyFog(scene, quality);
 const rain = createRain({ scene, isMobile });
 clock.on('newDay', (e) => window.dispatchEvent(new CustomEvent('maple-new-day', { detail: e })));

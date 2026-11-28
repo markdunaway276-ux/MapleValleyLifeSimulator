@@ -162,16 +162,20 @@ export function updateWetSurfaces(scene, rainAmount) {
   for (const name of ['road', 'country-asphalt']) {
     const road = scene?.getObjectByName?.(name);
     if (road?.material) {
-      road.material.roughness = 0.90 - wet * 0.64;
-      const c = 1 - wet * 0.28;
-      road.material.color.setRGB(c, c, c * (1 + wet * 0.04));
+      road.material.roughness = 0.90 - wet * 0.72;
+      road.material.envMapIntensity = 0.45 + wet * 1.45;
+      const c = 1 - wet * 0.30;
+      road.material.color.setRGB(c, c, c * (1 + wet * 0.05));
     }
   }
-  const walk = scene?.getObjectByName?.('sidewalk-north');
-  if (walk?.material) {
-    walk.material.roughness = 0.90 - wet * 0.52;
-    const c = 1 - wet * 0.20;
-    walk.material.color.setRGB(c, c, c * (1 + wet * 0.03));
+  for (const name of ['sidewalk-north', 'sidewalk-south']) {
+    const walk = scene?.getObjectByName?.(name);
+    if (walk?.material) {
+      walk.material.roughness = 0.90 - wet * 0.58;
+      walk.material.envMapIntensity = 0.35 + wet * 1.05;
+      const c = 1 - wet * 0.22;
+      walk.material.color.setRGB(c, c, c * (1 + wet * 0.04));
+    }
   }
 }
 

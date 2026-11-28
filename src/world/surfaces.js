@@ -83,13 +83,64 @@ float gritNoise(vec3 p) {
     const colorInject = `#include <color_fragment>
 float gritBaseRough = ${roughExpr};
 float gritMask = smoothstep(0.32, 0.72, gritBaseRough) * ${s};
-// Crisp high-frequency surface grain (no blobby mid-frequency waves on walls).
+// Crisp high-frequency surface grain + distance-faded architectural detail.
+float gritDist = smoothstep(46.0, 12.0, length(vGritWorldPos - cameraPosition));
 float gritFine = gritNoise(vGritWorldPos * 18.0);
 float gritMicro = gritHash(floor(vGritWorldPos * 42.0));
 float gritAge = gritNoise(vGritWorldPos * 0.35);
 float gritVertical = 1.0 - smoothstep(0.45, 0.85, abs(vGritWorldNormal.y));
 float gritSplash = gritVertical * (1.0 - smoothstep(0.0, 0.85, max(vGritWorldPos.y, 0.0))) * (0.65 + 0.35 * gritFine);
 float gritTone = 1.0 + ((gritAge - 0.5) * 0.07 + (gritFine - 0.5) * 0.08 + (gritMicro - 0.5) * 0.06) * gritMask;
+
+// Triplanar horizontal coordinate along walls/roofs.
+float gritHoriz = abs(vGritWorldNormal.x) > abs(vGritWorldNormal.z) ? vGritWorldPos.z : vGritWorldPos.x;
+
+// 1) Roof shingles on sloped roof planes (roughness ~0.82).
+float roofSlope = smoothstep(0.28, 0.52, abs(vGritWorldNormal.y)) * (1.0 - smoothstep(0.92, 0.99, abs(vGritWorldNormal.y)));
+float roofMatMask = roofSlope * smoothstep(0.76, 0.80, gritBaseRough) * (1.0 - smoothstep(0.84, 0.88, gritBaseRough)) * gritDist * ${s};
+if (roofMatMask > 0.01) {
+  float course = vGritWorldPos.y * 5.6 + (abs(vGritWorldNormal.x) > abs(vGritWorldNormal.z) ? vGritWorldPos.x : vGritWorldPos.z) * 1.4;
+  float rowIdx = floor(course);
+  float rowF = fract(course);
+  float tabU = fract(gritHoriz * 2.8 + mod(rowIdx, 2.0) * 0.5);
+  float lapShadow = smoothstep(0.0, 0.14, rowF);
+  float tabSeam = smoothstep(0.0, 0.05, tabU) * smoothstep(0.0, 0.05, 1.0 - tabU);
+  float tileVar = gritHash(vec3(floor(gritHoriz * 2.8 + mod(rowIdx, 2.0) * 0.5), rowIdx, 3.0)) - 0.5;
+  gritTone *= mix(1.0, (0.86 + 0.14 * lapShadow) * (0.91 + 0.09 * tabSeam) + tileVar * 0.08, roofMatMask * 0.82);
+}
+
+// 2) Weathered running-bond brick on rough masonry walls (roughness >= 0.955).
+float brickMask = gritVertical * smoothstep(0.952, 0.968, gritBaseRough) * gritDist * ${s};
+if (brickMask > 0.01) {
+  float bRow = vGritWorldPos.y * 11.5;
+  float bRowI = floor(bRow);
+  float bRowF = fract(bRow);
+  float bCol = gritHoriz * 4.4 + mod(bRowI, 2.0) * 0.5;
+  float bColI = floor(bCol);
+  float bColF = fract(bCol);
+  float mortar = 1.0 - smoothstep(0.0, 0.09, bRowF) * smoothstep(0.0, 0.06, bColF);
+  float bVar = (gritHash(vec3(bColI, bRowI, 7.0)) - 0.5) * 0.12;
+  gritTone *= 1.0 + bVar * brickMask;
+  diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.62, 0.60, 0.56), mortar * brickMask * 0.34);
+}
+
+// 3) Clapboard lap siding on exterior plaster/siding walls (roughness ~0.915..0.952).
+float sidingMask = gritVertical * smoothstep(0.915, 0.932, gritBaseRough) * (1.0 - smoothstep(0.948, 0.958, gritBaseRough)) * gritDist * ${s};
+if (sidingMask > 0.01) {
+  float plankY = fract(vGritWorldPos.y * 5.4);
+  float lap = smoothstep(0.0, 0.13, plankY);
+  float highlight = smoothstep(0.75, 0.96, plankY) * 0.05;
+  gritTone *= mix(1.0, 0.87 + 0.13 * lap + highlight, sidingMask * 0.85);
+}
+
+// 4) Warm wood grain on timber / doors / fences (roughness ~0.68..0.88).
+float woodMask = smoothstep(0.68, 0.72, gritBaseRough) * (1.0 - smoothstep(0.86, 0.90, gritBaseRough)) * (1.0 - roofSlope) * gritDist * ${s};
+if (woodMask > 0.01) {
+  float grain = gritNoise(vec3(gritHoriz * 14.0, vGritWorldPos.y * 3.2, vGritWorldPos.z * 14.0));
+  float plankSeam = smoothstep(0.0, 0.06, fract(gritHoriz * 4.2));
+  gritTone *= mix(1.0, (0.92 + grain * 0.14) * (0.93 + 0.07 * plankSeam), woodMask * 0.75);
+}
+
 gritTone *= 1.0 - gritSplash * ${g} * gritMask;
 diffuseColor.rgb *= gritTone;
 diffuseColor.rgb = mix(diffuseColor.rgb, diffuseColor.rgb * vec3(0.86, 0.84, 0.78), gritSplash * 0.40 * gritMask);`;
@@ -114,7 +165,7 @@ diffuseColor.rgb = mix(diffuseColor.rgb, diffuseColor.rgb * vec3(0.86, 0.84, 0.7
   };
 
   const prevKey = material.customProgramCacheKey ? material.customProgramCacheKey() : '';
-  material.customProgramCacheKey = () => `${prevKey}|world-grit-v2:${s}:${g}:${useVertexRough ? 1 : 0}`;
+  material.customProgramCacheKey = () => `${prevKey}|world-grit-v3:${s}:${g}:${useVertexRough ? 1 : 0}`;
   material.userData.worldGrit = true;
   return material;
 }
@@ -131,19 +182,33 @@ export function createVertexMaterial({ metalness = 0.04, emissive = null, grit =
 /**
  * Makes a vertex-coloured material's emissive follow the vertex colour, so
  * one merged glass mesh can carry a tint gradient and still never go black
- * at night. The emissive colour/intensity set on the material is the ceiling.
+ * at night. Adds subtle world-space interior curtain folds and warm room
+ * ceiling falloff so lit windows feel lived-in rather than flat rectangles.
  */
 export function useVertexEmissive(material) {
   const prev = material.onBeforeCompile;
   material.onBeforeCompile = (shader, renderer) => {
     if (prev) prev(shader, renderer);
+    if (!shader.vertexShader.includes('vWinWorldPos')) {
+      shader.vertexShader = shader.vertexShader
+        .replace('#include <common>', '#include <common>\nvarying vec3 vWinWorldPos;')
+        .replace('#include <begin_vertex>', '#include <begin_vertex>\nvWinWorldPos = (modelMatrix * vec4(transformed, 1.0)).xyz;');
+      shader.fragmentShader = shader.fragmentShader
+        .replace('#include <common>', '#include <common>\nvarying vec3 vWinWorldPos;');
+    }
     shader.fragmentShader = shader.fragmentShader.replace(
       '#include <emissivemap_fragment>',
-      '#include <emissivemap_fragment>\n#ifdef USE_COLOR\n totalEmissiveRadiance *= vColor.rgb;\n#endif'
+      `#include <emissivemap_fragment>
+#ifdef USE_COLOR
+  totalEmissiveRadiance *= vColor.rgb;
+  float curtainFold = 0.84 + 0.16 * sin((vWinWorldPos.x + vWinWorldPos.z) * 16.0);
+  float roomGrad = 0.78 + 0.28 * fract(vWinWorldPos.y * 0.72);
+  totalEmissiveRadiance *= curtainFold * roomGrad;
+#endif`
     );
   };
   const key = material.customProgramCacheKey ? material.customProgramCacheKey() : '';
-  material.customProgramCacheKey = () => `${key}|vertex-emissive-v1`;
+  material.customProgramCacheKey = () => `${key}|vertex-emissive-v2`;
   material.userData.vertexEmissive = true;
   return material;
 }
