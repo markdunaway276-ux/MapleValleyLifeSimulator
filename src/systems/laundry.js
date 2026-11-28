@@ -579,7 +579,12 @@ export function createLaundry({
     machineState: (id) => {
       const m = machine(id);
       if (!m) return null;
-      return { running: running(m), finished: finished(m), owner: m.load ? m.load.owner : null };
+      return {
+        running: running(m),
+        finished: finished(m),
+        minutesLeft: running(m) ? minutesLeft(m) : 0,
+        owner: m.load ? m.load.owner : null
+      };
     },
     waitingCount: () => orders.filter((o) => !o.taken).length,
     get carry() { return carry; },

@@ -8,6 +8,17 @@
 
 export const CHANGELOG = [
   {
+    version: '0.23',
+    date: '2026-11-28',
+    title: 'Laundromat Doors, Timers & Cozy Waiting Nook',
+    notes: [
+      'Hinged chrome porthole doors now swing open smoothly when loading or unloading a washer/dryer and crack ajar when a cycle finishes.',
+      'Added live digital LED countdown displays (RDY / minutes left / DONE) on every washer and dryer control strip.',
+      'Dressed the interior with rolling chrome wire laundry carts, a warm counter desk lamp, potted plant, folded pastel towels, 3D ceiling light fixtures, and a glowing "OPEN 24 HOURS" neon window sign.',
+      'Added a cozy waiting nook with a retro red $1 Gumball Machine (+5 Energy) and a $2 Hot Coffee & Tea Station (+15 Energy).'
+    ]
+  },
+  {
     version: '0.22',
     date: '2026-11-28',
     title: 'Modern Brushed Stainless Washers & Dryers',
