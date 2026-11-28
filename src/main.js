@@ -20,6 +20,7 @@ import { createScene } from './world/scene.js';
 import { createHomeDecor } from './world/homeDecor.js';
 import { createParcelDelivery } from './systems/parcelDelivery.js';
 import { createMysteryChapter2 } from './systems/mysteryChapter2.js';
+import { createFriendship } from './systems/friendship.js';
 import { createPlayer } from './core/player.js';
 import { setupInput } from './core/input.js';
 import { isMobileDevice } from './core/device.js';
@@ -372,6 +373,15 @@ needs.onChange((snap) => {
 const neighbourFavour = createNeighbourFavour({ savedStage: saveData.neighbourFavour, money, save });
 const snackFavour = createSnackFavour({ savedStage: saveData.snackFavour, inventory, money, save });
 const storyQuest = createStoryQuest({ savedStage: saveData.storyQuest, money, save, toast: (msg) => g.hud?.toast?.(msg) });
+const friendship = createFriendship({
+  saved: saveData.friendship,
+  inbox,
+  save,
+  toast: (msg) => g.hud?.toast?.(msg)
+});
+window.addEventListener('maple-new-day', (e) => {
+  friendship.onNewDay(e.detail?.day ?? clock.getTime().day);
+});
 const mysteryChapter2 = createMysteryChapter2({
   savedStage: saveData.mysteryChapter2,
   money,
@@ -474,10 +484,13 @@ const phone = createPhone({
   getHomeDecor: () => homeDecor.getOwned(),
   buyHomeDecor: (id) => homeDecor.buy(id, { money, sfx, toast: (msg) => g.hud?.toast?.(msg), save }),
   onHomeDecorChange: (fn) => homeDecor.onChange(fn),
+  getFriendship: (id) => friendship.get(id),
+  onTextSent: (id, name) => friendship.add(id, 5, name),
   playNotification: () => sfx.play('phone-notification')
 });
 const dialogue = createDialogue({
   getExtraPages: (id) => {
+    friendship.add(id, 8, getNpc(id)?.name);
     if (storyQuest.stage === 'done' && mysteryChapter2.stage === 'locked') mysteryChapter2.unlock();
     return [...(g.dayOne?.pagesFor(id) ?? []), mysteryChapter2.pageFor(id), parcelDelivery.pageFor(id), storyQuest.pageFor(id), neighbourFavour.pageFor(id), snackFavour.pageFor(id), dottiePage(id), dirtyPage(id)].filter(Boolean);
   },
@@ -504,7 +517,7 @@ const cutscene = createCutscene({
   onIntroSeen: (id) => g.dayOne?.markIntroSeen?.(id)
 });
 mode.attach({ phone, dialogue });
-Object.assign(g, { phone, dialogue, cutscene, parcelDelivery, storyQuest, mysteryChapter2, neighbourFavour, snackFavour, getPinnedTask });
+Object.assign(g, { phone, dialogue, cutscene, friendship, parcelDelivery, storyQuest, mysteryChapter2, neighbourFavour, snackFavour, getPinnedTask });
 setupInput(player, isMobile, { isInventoryOpen: () => mode.uiBlocked() || cutscene.isActive() });
 
 // --- HUD, mail, interact, start, loop -------------------------------------

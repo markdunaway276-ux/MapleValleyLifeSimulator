@@ -408,6 +408,38 @@ test('Phase 4: Chapter 2 (PO Box #14) progresses locked -> hank -> maya -> walt 
   assert.equal(msgs.length, 3);
 });
 
+test('Phase 3: Friendship tiers grow & send proactive daily texts, and Maple Lane Park has sittable swings + pond ducks', async () => {
+  const { createFriendship } = await import('../src/systems/friendship.js');
+  const texts = [];
+  const toasts = [];
+  const fr = createFriendship({
+    inbox: { add: (m) => texts.push(m) },
+    toast: (msg) => toasts.push(msg)
+  });
+  assert.equal(fr.get('sam').hearts, 1);
+  fr.add('sam', 22, 'Sam');
+  assert.equal(fr.get('sam').hearts, 2);
+  assert.equal(fr.get('sam').label, 'Friendly');
+  assert.ok(toasts.some((t) => /Sam/.test(t) && /Friendly/.test(t)));
+
+  assert.equal(fr.onNewDay(2), true);
+  assert.equal(texts.length, 1);
+  assert.equal(texts[0].threadId, 'sam');
+
+  const { buildPark } = await import('../src/world/park.js');
+  const scene = new THREE.Scene();
+  scene.userData = { colliders: { addHouse() {}, addTree() {} } };
+  const mat = new THREE.MeshBasicMaterial();
+  const parkApi = buildPark(scene, { shadows: false }, { road: mat, walk: mat, curb: mat });
+  assert.ok(Array.isArray(scene.userData.seats) && scene.userData.seats.length >= 2);
+  let duckCount = 0;
+  scene.traverse((o) => { if (o.name === 'park-pond-duck') duckCount++; });
+  assert.equal(duckCount, 2);
+  assert.equal(typeof parkApi.update, 'function');
+  parkApi.update(720);
+});
+
+
 
 
 
