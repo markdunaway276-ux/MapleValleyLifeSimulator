@@ -150,9 +150,18 @@ export function createDayOne(g, saveData, beginPlay) {
   }
 
   // --- Rita ------------------------------------------------------------------
+  const RITA_SIDE_SPOT = { x: -2.65, z: -4.15, yaw: 0.55 };
   function spawnRita() {
     if (rita) return;
-    rita = createNpc(STORY_NPCS.find(n => n.id === 'rita'), { scene, shadows: !!g.quality?.shadows });
+    const baseDef = STORY_NPCS.find(n => n.id === 'rita');
+    const ritaDef = stage === 'unload' && baseDef
+      ? {
+        ...baseDef,
+        patrol: { ...baseDef.patrol, x0: RITA_SIDE_SPOT.x, x1: RITA_SIDE_SPOT.x, startX: RITA_SIDE_SPOT.x, z: RITA_SIDE_SPOT.z },
+        stationary: { ...(baseDef.stationary || {}), yaw: RITA_SIDE_SPOT.yaw }
+      }
+      : baseDef;
+    rita = createNpc(ritaDef, { scene, shadows: !!g.quality?.shadows });
     g.npcs.list.push(rita);
   }
   function ritaLeaves() {
@@ -169,6 +178,8 @@ export function createDayOne(g, saveData, beginPlay) {
     g.actions?.play('takeKeys');
     g.sfx?.play?.('pickup');
     stage = 'unload';
+    // Once dialogue closes, Rita walks off the front walkway to the side so the door is wide open.
+    rita?.walkTo?.(RITA_SIDE_SPOT.x, RITA_SIDE_SPOT.z, { speed: 1.05, endYaw: RITA_SIDE_SPOT.yaw });
     syncLock();
     renderTask();
     g.save();

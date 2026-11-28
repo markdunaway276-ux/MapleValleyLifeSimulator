@@ -14,10 +14,10 @@ import { Parts } from './parts.js';
 import { createVertexMaterial } from './surfaces.js';
 
 /**
- * Same sidewalk as the mailbox (z ≈ -4.4), but west of the front-door path.
- * South face lines up with the mailbox so the porch walking gap stays ≥ 0.9 m.
+ * South sidewalk west of the main house (x = -6.8, z = -4.29), completely
+ * clear of the front door, front walkway, and Rita's move-in spot.
  */
-export const VENDING_SPAWN = { x: -2, z: -4.29 };
+export const VENDING_SPAWN = { x: -6.8, z: -4.29 };
 export const VENDING_SIZE = { width: 0.7, depth: 0.52, height: 1.82 };
 
 const _tmp = new THREE.Vector3();
