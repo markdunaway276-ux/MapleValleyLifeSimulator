@@ -8,6 +8,17 @@
 
 export const CHANGELOG = [
   {
+    version: '0.21',
+    date: '2026-11-28',
+    title: 'Cozy Laundromat Experience',
+    notes: [
+      'New Magazine Rack by the indoor benches: read Maple Valley Monthly while your washer or dryer runs to pass time straight to completion (+5 Energy).',
+      'Warm clothes refresh & Fabric Softener ($2): pulling your clothes fresh out of the dryer restores +8 Energy (+15 Energy with lavender Fabric Softener from the new island dispenser).',
+      'Richer Laundromat Shifts: live Drop-Off Order Board, color-coded customer bags with deadline timers, +$5 bonus for every 3 on-time orders in a row, and Dottie Friendship rewards.',
+      'Lucky finds & sensory polish: chance to find $1–$3 in stray quarters when unloading machines, soapy suds in running washers, warm rising steam above running dryers, and an overhead Self-Serve Washers sign.'
+    ]
+  },
+  {
     version: '0.20',
     date: '2026-11-28',
     title: 'Laundromat & Soap Overhaul',

@@ -47,6 +47,14 @@ export const ITEM_DEFS = {
     color: '#3f7fb8',
     stackable: true
   },
+  softener: {
+    id: 'softener',
+    name: 'Fabric Softener',
+    icon: '🌸',
+    description: 'Lavender-scented fabric softener. Automatically used in a dryer for an extra cozy refresh.',
+    color: '#a6a0c7',
+    stackable: true
+  },
   apple: {
     id: 'apple',
     name: 'Apple',
