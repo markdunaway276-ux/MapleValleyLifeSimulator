@@ -1,10 +1,14 @@
 import * as THREE from 'three';
 import { CAR_SPAWN, poseCarWheels } from '../world/props.js';
+import { FUEL } from '../systems/fuel.js';
 import { STREET } from '../world/street.js';
 import { setOpeningDeerBeat } from '../world/scenery.js';
 import { warmOpening } from './loadingGate.js';
 
 const LENGTH = 52;
+const ARRIVAL = 49;
+const SKIP_HOLD_MS = 950;
+const SEEN_KEY = 'mapleValleyLife_roadTripSeen';
 const ROUTE = [[0,-279],[7,-244],[17,-185],[24,-145],[32,-65],[44,-8],[49,6.8],[52,6.8]];
 const INSIDE = at => (at >= 7 && at < 17) || (at >= 24 && at < 32) || at >= 44;
 const smooth = THREE.MathUtils.smoothstep;
@@ -27,6 +31,7 @@ const STORY_BEATS = [
 export function createRoadTrip(g, onFinish, wave) {
   const {camera,scene,renderer} = g;
   const car = g.car.object;
+  const welcome = scene.getObjectByName('maple-lane-welcome-sign');
   const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
   const eye = new THREE.Vector3();
   const rotation = new THREE.Quaternion();
@@ -37,24 +42,29 @@ export function createRoadTrip(g, onFinish, wave) {
   let fastForward = false;
   let music;
   let shutDown = false;
+  let seen = false;
+  try { seen = localStorage.getItem(SEEN_KEY) === '1'; } catch { /* Storage is optional. */ }
+  let hold = null;
 
   const overlay = document.createElement('section');
   overlay.className = 'road-trip';
   overlay.hidden = true;
   overlay.innerHTML = `
     <div class="road-trip-bar top"></div><div class="road-trip-bar bottom"></div>
-    <div class="road-trip-title"><strong>MAPLE LANE</strong><span>a small-town life</span></div>
+    <div class="road-trip-title road-trip-credit">A Maple Lane story</div>
+    <div class="road-trip-title road-trip-name"><strong>MAPLE LANE</strong><span>a small-town life</span></div>
     <div class="road-trip-caption">Route 9 · 8:12 AM</div>
     <div class="road-trip-notice">Rita · Keys are ready! See you at 8:30.</div>
     <div class="road-trip-story" aria-live="polite"></div>
     <div class="road-trip-loading"><div>Getting Maple Lane ready…</div><progress aria-label="Loading Maple Lane" max="1" value="0"></progress></div>
     <button type="button" class="road-trip-ff">2× Hold</button>
-    <button type="button" class="road-trip-skip">Skip intro</button>`;
+    <button type="button" class="road-trip-skip" hidden>Hold to skip</button>`;
   document.body.append(overlay);
   const button = overlay.querySelector('.road-trip-skip');
   const ffButton = overlay.querySelector('.road-trip-ff');
   const progress = overlay.querySelector('progress');
-  const title = overlay.querySelector('.road-trip-title');
+  const credit = overlay.querySelector('.road-trip-credit');
+  const title = overlay.querySelector('.road-trip-name');
   const caption = overlay.querySelector('.road-trip-caption');
   const notice = overlay.querySelector('.road-trip-notice');
   const story = overlay.querySelector('.road-trip-story');
@@ -65,21 +75,42 @@ export function createRoadTrip(g, onFinish, wave) {
   }
   for (const ev of ['pointerdown', 'touchstart']) ffButton.addEventListener(ev, () => setFast(true));
   for (const ev of ['pointerup', 'pointerleave', 'pointercancel', 'touchend', 'touchcancel']) ffButton.addEventListener(ev, () => setFast(false));
-  button.addEventListener('click', () => finish());
-  overlay.addEventListener('keydown', event => {
-    if (event.code === 'Escape' || event.code === 'KeyX') {
-      event.preventDefault();
-      event.stopPropagation();
-      finish();
-    }
+  if (!g.isMobile) button.textContent = 'Hold to skip [X]';
+
+  function beginHold(input) {
+    if (!button.hidden && !hold) hold = { input, from: performance.now() };
+  }
+
+  function clearHold() {
+    hold = null;
+    button.style.removeProperty('--held');
+  }
+
+  button.addEventListener('pointerdown', event => {
+    if (event.button !== 0) return;
+    event.preventDefault();
+    button.setPointerCapture(event.pointerId);
+    beginHold(event.pointerId);
   });
+  for (const type of ['pointerup', 'pointercancel', 'lostpointercapture']) {
+    button.addEventListener(type, event => {
+      if (hold?.input === event.pointerId) clearHold();
+    });
+  }
+  window.addEventListener('blur', clearHold);
+  function skipKey(event) {
+    return event.code === 'KeyX' || event.code === 'Escape' ||
+      (event.target === button && ['Space', 'Enter'].includes(event.code));
+  }
   window.addEventListener('keydown', event => {
-    if (phase === 'playing' && event.code === 'Space') setFast(true);
-    if ((phase === 'loading' || phase === 'playing') && (event.code === 'Escape' || event.code === 'KeyX')) {
-      event.preventDefault();
-      event.stopImmediatePropagation();
-      finish();
-    }
+    if (phase === 'playing' && event.code === 'Space' && event.target !== button) setFast(true);
+    if (phase !== 'playing' || button.hidden || !skipKey(event)) return;
+    event.preventDefault();
+    event.stopImmediatePropagation();
+    if (!event.repeat) beginHold(event.code);
+  });
+  window.addEventListener('keyup', event => {
+    if (hold?.input === event.code) clearHold();
   });
   window.addEventListener('keyup', event => {
     if (event.code === 'Space') setFast(false);
@@ -95,6 +126,8 @@ export function createRoadTrip(g, onFinish, wave) {
   function finish() {
     if (phase==='idle' || phase==='finished') return;
     phase='finished';
+    clearHold();
+    try { localStorage.setItem(SEEN_KEY, '1'); } catch { /* Storage is optional. */ }
     overlay.classList.remove('playing','loading');
     overlay.classList.add('finished');
     overlay.inert = true;
@@ -105,20 +138,19 @@ export function createRoadTrip(g, onFinish, wave) {
     setOpeningDeerBeat(null);
     park();
     wave(0,time);
-    g.clock.setTime(8*60+30);
     onFinish();
   }
 
   function paint(at, render) {
     const inside = INSIDE(at);
     const oldFov = camera.fov;
-    const frameAt = !reduced ? at : at < 7 ? 3 : at < 17 ? 12 : at < 24 ? 20 : at < 32 ? 30 : at < 44 ? 40 : 52;
+    const frameAt = !reduced ? at : at < 7 ? 3 : at < 17 ? 12 : at < 24 ? 20 : at < 32 ? 30 : at < 44 ? 35 : LENGTH;
     setOpeningDeerBeat(frameAt);
     const x = distanceAt(frameAt);
     const turn = smooth(frameAt,44,49);
     const lane = STREET.roadCenterZ + 1.32;
     const z = THREE.MathUtils.lerp(lane,CAR_SPAWN.z,turn);
-    const steer = (reduced ? 0 : Math.sin(at*1.9)*0.045) + Math.sin(turn*Math.PI)*0.18;
+    const steer = (reduced || at >= ARRIVAL ? 0 : Math.sin(at*1.9)*0.045) + Math.sin(turn*Math.PI)*0.18;
     const speed = at<24 ? 17.9 : at<44 ? THREE.MathUtils.lerp(17.9,11.2,smooth(at,24,32)) : 8*(1-smooth(at,44,49));
     eye.copy(camera.position);
     rotation.copy(camera.quaternion);
@@ -126,22 +158,23 @@ export function createRoadTrip(g, onFinish, wave) {
     car.rotation.y=-Math.sin(turn*Math.PI)*0.28;
     poseCarWheels(car, steer, x - ROUTE[0][1]);
     car.updateMatrixWorld(true);
-    g.cabin.update({visible:inside,speed,steer,opening:true,notice:at>=12&&at<17,
-      shade:0.91+0.17*Math.sin(x*2.3)*Math.cos(x*0.46)});
-    wave(at >= 49 ? smooth(at,49,49.45) : 0, at);
+    const handoff = smooth(at, ARRIVAL + 1, LENGTH);
+    g.cabin.update({visible:inside,speed,steer,opening:at<ARRIVAL,boxes:true,notice:at>=12&&at<17,
+      clock:at>=ARRIVAL?'08:30':'',fuel:g.car.fuel.get()/FUEL.TANK,
+      shade:THREE.MathUtils.lerp(0.91+0.17*Math.sin(x*2.3)*Math.cos(x*0.46),1,handoff)});
+    wave(smooth(at,ARRIVAL,ARRIVAL+0.45)*(1-handoff), at);
     if (inside) {
       if (g.isMobile && camera.aspect < 1) {
-        camera.fov = Math.max(camera.fov, 83);
+        camera.fov = THREE.MathUtils.lerp(Math.max(oldFov, 83), oldFov, handoff);
         camera.updateProjectionMatrix();
       }
       const seat = car.userData.seat;
       camera.position.copy(car.localToWorld(target.set(seat.x, seat.y, seat.z)));
-      const signLook = (smooth(at,25,27)-smooth(at,28.4,31.5))*0.25;
-      const arrivalLook = smooth(at,49,52)*0.55;
+      const arrivalLook = reduced ? 0 : 0.48 * smooth(at, 48.3, 49.65) * (1 - handoff);
       // Driver glances over toward the roadside deer before the camera cuts to focus on it.
       const deerGlance = smooth(at, 14.5, 15.8) * (1 - smooth(at, 17.4, 17.8));
       const glanceBack = smooth(at, 23.6, 24.4) * (1 - smooth(at, 24.4, 25.3));
-      forward.set(1,-0.05,signLook).applyQuaternion(car.quaternion);
+      forward.set(1,-0.05*(1-handoff),0).applyQuaternion(car.quaternion);
       if (deerGlance > 0.001) {
         const deerTarget = target.set(-170.0, 1.0, STREET.roadCenterZ + 10.5).sub(camera.position).normalize();
         forward.lerp(deerTarget, deerGlance * 0.72);
@@ -149,7 +182,7 @@ export function createRoadTrip(g, onFinish, wave) {
         const deerTarget = target.set(-170.0, 1.0, STREET.roadCenterZ + 10.5).sub(camera.position).normalize();
         forward.lerp(deerTarget, glanceBack * 0.35);
       }
-      forward.lerp(target.set(0.0,1.5,-4.40).sub(camera.position).normalize(), arrivalLook * 0.8);
+      forward.lerp(target.set(0.0,1.5,-4.40).sub(camera.position).normalize(), arrivalLook);
       camera.lookAt(target.copy(camera.position).add(forward));
       g.actions.drive(g.cabin.grips);
     } else {
@@ -179,11 +212,19 @@ export function createRoadTrip(g, onFinish, wave) {
       } else {
         const k=smooth(at,32,44);
         camera.position.set(x-12+10*k,5+12*Math.sin(Math.PI*k),z-7+3*k);
-        camera.lookAt(x+15,0.9,z);
+        target.set(x+15,0.9,z);
+        if (welcome) {
+          const signFocus = smooth(at,32,34.4) * (1-smooth(at,35,38));
+          target.lerp(forward.set(welcome.position.x,2,welcome.position.z), signFocus * 0.8);
+        }
+        camera.lookAt(target);
       }
       if(reduced) {
         if(at<7) { camera.position.set(-266,18,-2); camera.lookAt(-249,0,lane); }
-        else if(at>=32) { camera.position.set(-35,14,-9); camera.lookAt(18,2,lane); }
+        else if(at>=32) {
+          camera.position.set(-65,5,lane-4);
+          camera.lookAt(-44,1.2,lane+4);
+        }
       }
     }
     const sky = scene.getObjectByName('sky');
@@ -210,7 +251,6 @@ export function createRoadTrip(g, onFinish, wave) {
       overlay.hidden=false;
       document.body.classList.add('intro-active');
       overlay.classList.add('loading');
-      button.focus();
       music = g.sfx.openingMusic();
       try {
         await warmOpening({renderer,scene,camera,paint,active:()=>phase==='loading',
@@ -222,15 +262,24 @@ export function createRoadTrip(g, onFinish, wave) {
       phase='playing';
       overlay.classList.remove('loading');
       overlay.classList.add('playing');
+      button.hidden = !seen;
       music?.start();
     },
     draw(delta,render) {
       if(phase==='loading') return true;
       if(phase!=='playing') return false;
-      const at=time;
-      time+=Math.min(delta,0.075)*(fastForward?2.2:1);
-      if(time>=LENGTH) { finish(); return true; }
-      const endShot=at>=49;
+      if (hold) {
+        const held = Math.min(1, (performance.now() - hold.from) / SKIP_HOLD_MS);
+        button.style.setProperty('--held', String(held));
+        if (held >= 1) {
+          clearHold();
+          button.hidden = true;
+          time = Math.max(time, ARRIVAL);
+        }
+      }
+      const at = Math.min(time, LENGTH);
+      time += Math.min(delta,0.075)*(fastForward?2.2:1);
+      const endShot=at>=ARRIVAL;
       music?.radio(INSIDE(at));
       if(endShot&&!shutDown) {
         shutDown=true;
@@ -238,7 +287,14 @@ export function createRoadTrip(g, onFinish, wave) {
         g.sfx.setCar(false);
         g.sfx.play('car');
         g.sfx.play('bird-chirp');
+        g.clock.setTime(8*60+30);
       } else if(!endShot) g.sfx.setCar(true,at<32?0.63:0.38);
+      if (at >= ARRIVAL + 1) {
+        overlay.classList.add('leaving');
+        button.hidden = true;
+        clearHold();
+      }
+      credit.style.opacity=String(smooth(at,1,2.1)-smooth(at,4.9,6.6));
       title.style.opacity=String(smooth(at,26,27.6)-smooth(at,30.8,32));
       caption.style.opacity=String(smooth(at,0.6,1.4)-smooth(at,5.1,6.4));
 
@@ -274,6 +330,7 @@ export function createRoadTrip(g, onFinish, wave) {
         overlay.style.background=cut? `rgba(0,0,0,${(1-Math.abs(cut-at)/0.36)*0.52})` : '';
       }
       paint(at,render);
+      if (at === LENGTH) finish();
       return true;
     }
   };

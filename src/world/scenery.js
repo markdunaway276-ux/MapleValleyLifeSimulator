@@ -297,7 +297,8 @@ function addForest(root, quality) {
 function welcomeSign(root, z) {
   const wood = new THREE.MeshStandardMaterial({color: 0x694932});
   const board = new THREE.Group();
-  board.position.set(-75, 0, z);
+  board.name = 'maple-lane-welcome-sign';
+  board.position.set(ROUTE_9.maxX, 0, z);
   board.rotation.y = -Math.PI / 2;
   for (const x of [-1.6, 1.6]) {
     const post = new THREE.Mesh(new THREE.BoxGeometry(0.18, 2.6, 0.18), wood);
@@ -339,6 +340,7 @@ function welcomeSign(root, z) {
   for (let i = 0; i < 15; i++) blooms.setMatrixAt(i, new THREE.Matrix4().makeTranslation(-1.65 + i * 0.235, 0.19, 0.28 + Math.sin(i * 4) * 0.13));
   board.add(blooms);
   root.add(board);
+  return board;
 }
 
 export function buildApproachRoad(scene, quality, roadMaterial = null) {
@@ -393,7 +395,11 @@ export function buildApproachRoad(scene, quality, roadMaterial = null) {
   const surface = SURFACE_Y.road;
   ribbon('gravel-shoulders', 0x625d53, x => [-routeHalfWidth(x)-0.85, routeHalfWidth(x)+0.85], surface-0.007, spans, { roughness: 0.96, grit: 1.05 });
   ribbon('country-asphalt', townAsphaltHex, x => [-routeHalfWidth(x), routeHalfWidth(x)], surface, spans, { roughness: 0.90, grit: 0.95, material: roadMaterial });
-  welcomeSign(root,center+8);
+  const welcome = welcomeSign(root, center + STREET.roadWidth / 2 + STREET.sidewalkWidth + 2.3);
+  scene.userData.colliders.addHouse({
+    id: welcome.name, x: welcome.position.x, z: welcome.position.z,
+    width: 3.8, depth: 0.9, rotY: welcome.rotation.y
+  });
   addForest(root, quality);
   loadGltf(directory+'road-signs.glb').then(({scene:model})=>{
     for(const [name,x] of [['narrow-road',-260],['speed-limit',-230],['two-way',-200],['slow-down',-90],['pedestrian-ahead',-60]]) {

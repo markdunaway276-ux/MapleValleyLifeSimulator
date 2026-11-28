@@ -8,6 +8,16 @@
 
 export const CHANGELOG = [
   {
+    version: '0.5',
+    date: '2026-11-27',
+    title: 'A Maple Lane story',
+    notes: [
+      'The title screen now looks out over Maple Lane with the pickup parked out front, lit to match your device\'s clock.',
+      'The Route 9 opening has new titles, a "Welcome to Maple Lane" sign at the town entrance, and a smooth hand-off to the driver\'s seat.',
+      'After watching the intro once, hold the skip button (or X) on later viewings to jump to the arrival.'
+    ]
+  },
+  {
     version: '0.4',
     date: '2026-11-27',
     title: 'Weather & Main Menu',
