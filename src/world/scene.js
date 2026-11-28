@@ -27,6 +27,7 @@ import { useWorldGrit } from './surfaces.js';
 import { buildValleyHorizon, buildStreetDetails, createAmbientParticles } from './atmosphere.js';
 import { buildGroundFoliage } from './foliage.js';
 import { buildLivingWorld } from './livingWorld.js';
+import { buildValleyGraphics } from './valleyGraphics.js';
 
 export { STREET, gradeMainHouse };
 
@@ -670,6 +671,7 @@ export function createScene(quality) {
   scene.userData.ambientParticles = createAmbientParticles(scene, quality);
   scene.userData.groundFoliage = buildGroundFoliage(scene, quality);
   scene.userData.livingWorld = buildLivingWorld(scene, quality);
+  scene.userData.valleyGraphics = buildValleyGraphics(scene, quality);
 
   return scene;
 }

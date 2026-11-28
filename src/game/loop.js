@@ -129,6 +129,7 @@ export function startLoop(g) {
       driving: mode.driving(),
       tvOn: !!g.tvSet?.isOn?.()
     });
+    scene.userData.valleyGraphics?.update(delta, { playerPos: player.position, minutes: time.minutes, rain });
     g.car?.object?.userData?.updateHeadlights?.(time.minutes, rain, mode.driving());
     scene.userData.frontYard?.update(time.totalMinutes);
     scene.userData.streetlights.update(time.minutes, rain);

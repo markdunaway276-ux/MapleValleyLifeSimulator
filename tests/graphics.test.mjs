@@ -186,3 +186,38 @@ test('living world bundle and live Look Presets work cleanly across time, rain, 
   lw.update(0.05, { minutes: 12 * 60, rain: 0, car: { object: carMesh }, driving: true, tvOn: false });
   assert.equal(lw.group.getObjectByName('pickup-exhaust').visible, true);
 });
+
+test('valley graphics upgrades: normal relief, 3D mountains, night porch spills, waving flags, tree sway, and storm effects', async () => {
+  const { buildValleyGraphics } = await import('../src/world/valleyGraphics.js');
+
+  // Verify analytical normal relief in surfaces.js (with zero dFdx calls).
+  const mat = createVertexMaterial();
+  const sh = fakeShader();
+  mat.onBeforeCompile(sh);
+  assert.match(sh.fragmentShader, /reliefDist/);
+  assert.doesNotMatch(sh.fragmentShader, /dFdx\(/);
+
+  const scene = new THREE.Scene();
+  const tree = new THREE.Group();
+  tree.name = 'tree';
+  scene.add(tree);
+
+  const vg = buildValleyGraphics(scene, { shadows: true });
+  assert.ok(vg.group.getObjectByName('valley-mountains-3d'));
+  assert.ok(vg.group.getObjectByName('valley-pine-ridge'));
+  assert.ok(vg.group.getObjectByName('night-porch-spills'));
+  assert.ok(vg.group.getObjectByName('valley-flags'));
+  assert.ok(vg.group.getObjectByName('rain-splashes'));
+  assert.ok(vg.group.getObjectByName('storm-lightning'));
+
+  // Midday dry: porch spills & rain splashes hidden, tree gently sways.
+  vg.update(0.1, { playerPos: { x: 0, z: 0 }, minutes: 12 * 60, rain: 0 });
+  assert.equal(vg.group.getObjectByName('night-porch-spills').visible, false);
+  assert.equal(vg.group.getObjectByName('rain-splashes').visible, false);
+  assert.notEqual(tree.rotation.z, 0);
+
+  // Night storm: porch spills & rain splashes visible.
+  vg.update(0.1, { playerPos: { x: 0, z: 0 }, minutes: 21 * 60, rain: 0.85 });
+  assert.equal(vg.group.getObjectByName('night-porch-spills').visible, true);
+  assert.equal(vg.group.getObjectByName('rain-splashes').visible, true);
+});

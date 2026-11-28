@@ -127,6 +127,14 @@ export function paintClothes(material, { shirt, pants, shoes, skin = null, longS
         c = mix(c, cPants * (0.97 + n), pants);
         c = mix(c, cShoes, shoes);
         diffuseColor.rgb = c;
+      }`)
+      .replace('#include <emissivemap_fragment>', `#include <emissivemap_fragment>
+      {
+        // Subtle warm sunlit Fresnel rim-light so characters separate cleanly from shaded streets.
+        vec3 rimV = normalize(vViewPosition);
+        vec3 rimN = normalize(normal);
+        float rim = pow(1.0 - max(dot(rimN, rimV), 0.0), 3.2) * smoothstep(-0.2, 0.7, rimN.y);
+        totalEmissiveRadiance += vec3(0.20, 0.17, 0.12) * rim;
       }`);
   };
   // Distinct cache key per outfit so three does not reuse another outfit's program.

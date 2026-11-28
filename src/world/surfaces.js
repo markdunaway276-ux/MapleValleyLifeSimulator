@@ -147,9 +147,51 @@ diffuseColor.rgb = mix(diffuseColor.rgb, diffuseColor.rgb * vec3(0.86, 0.84, 0.7
 
     const roughMod = `roughnessFactor = clamp(roughnessFactor + ((gritFine - 0.5) * 0.10 + (gritMicro - 0.5) * 0.08 + gritSplash * 0.10) * gritMask, 0.08, 1.0);`;
 
+    const normalRelief = `#include <normal_fragment_maps>
+{
+  // Analytical 3D lighting relief along siding laps, roof shingle lips, and brick mortar (no dFdx).
+  float reliefDist = smoothstep(38.0, 10.0, length(vGritWorldPos - cameraPosition)) * ${s};
+  if (reliefDist > 0.01) {
+    float rBase = ${roughExpr};
+    float rVert = 1.0 - smoothstep(0.45, 0.85, abs(vGritWorldNormal.y));
+    float rSlope = smoothstep(0.28, 0.52, abs(vGritWorldNormal.y)) * (1.0 - smoothstep(0.92, 0.99, abs(vGritWorldNormal.y)));
+    float rHoriz = abs(vGritWorldNormal.x) > abs(vGritWorldNormal.z) ? vGritWorldPos.z : vGritWorldPos.x;
+    vec3 vUp = normalize((viewMatrix * vec4(0.0, 1.0, 0.0, 0.0)).xyz);
+    vec3 vSide = normalize(cross(vUp, normal) + vec3(1e-4));
+    float dUp = 0.0;
+    float dSide = 0.0;
+
+    // Clapboard siding bevel lip
+    float sMask = rVert * smoothstep(0.915, 0.932, rBase) * (1.0 - smoothstep(0.948, 0.958, rBase));
+    if (sMask > 0.01) {
+      float py = fract(vGritWorldPos.y * 5.4);
+      dUp += (py < 0.13 ? -0.34 : 0.06) * sMask;
+    }
+    // Roof shingle course step
+    float rfMask = rSlope * smoothstep(0.76, 0.80, rBase) * (1.0 - smoothstep(0.84, 0.88, rBase));
+    if (rfMask > 0.01) {
+      float course = vGritWorldPos.y * 5.6 + (abs(vGritWorldNormal.x) > abs(vGritWorldNormal.z) ? vGritWorldPos.x : vGritWorldPos.z) * 1.4;
+      float rf = fract(course);
+      dUp += (rf < 0.15 ? -0.30 : 0.04) * rfMask;
+    }
+    // Brick horizontal & vertical mortar recess
+    float bMask = rVert * smoothstep(0.952, 0.968, rBase);
+    if (bMask > 0.01) {
+      float br = fract(vGritWorldPos.y * 11.5);
+      float bc = fract(rHoriz * 4.4 + mod(floor(vGritWorldPos.y * 11.5), 2.0) * 0.5);
+      dUp += (br < 0.09 ? -0.26 : (br > 0.92 ? 0.18 : 0.0)) * bMask;
+      dSide += (bc < 0.06 ? -0.20 : (bc > 0.94 ? 0.16 : 0.0)) * bMask;
+    }
+    if (abs(dUp) + abs(dSide) > 0.001) {
+      normal = normalize(normal + (vUp * dUp + vSide * dSide) * reliefDist);
+    }
+  }
+}`;
+
     shader.fragmentShader = shader.fragmentShader
       .replace('#include <common>', gritHelpers)
-      .replace('#include <color_fragment>', colorInject);
+      .replace('#include <color_fragment>', colorInject)
+      .replace('#include <normal_fragment_maps>', normalRelief);
 
     if (shader.fragmentShader.includes('#include <roughnessmap_fragment>')) {
       shader.fragmentShader = shader.fragmentShader.replace(
