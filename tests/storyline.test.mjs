@@ -334,4 +334,39 @@ test('Phase 1: Hair & Shoes style slots, Grocery home cooking, and 3D Home Decor
   assert.deepEqual(decor.serialize(), ['living-rug']);
 });
 
+test('Phase 2: Hank Post Office Parcel Delivery shift runs 3 stops, pays tips + route bonus, and tracks completed routes', async () => {
+  const { createParcelDelivery, DELIVERY_STOPS, ROUTE_BONUS } = await import('../src/systems/parcelDelivery.js');
+  const scene = new THREE.Scene();
+  scene.userData = { interactables: [] };
+  let earned = 0;
+  let carried = null;
+  const delivery = createParcelDelivery({
+    scene,
+    money: { add: (amt) => { earned += amt; } },
+    actions: { get carrying() { return carried; }, setCarry: (v) => { carried = v; }, play() {} },
+    isDayOneUnloadActive: () => false
+  });
+  const hankOffer = delivery.pageFor('hank');
+  assert.ok(hankOffer && hankOffer.action);
+  assert.equal(hankOffer.action.run(), true);
+  assert.equal(delivery.active, true);
+  assert.equal(delivery.task().npcId, DELIVERY_STOPS[0].id);
+
+  // Deliver all 3 parcels by grabbing each from the pickup bed and handing to the recipient.
+  const bedEntry = scene.userData.interactables.find((e) => e.id === 'pickup-bed-utility');
+  assert.ok(bedEntry);
+  for (let i = 0; i < DELIVERY_STOPS.length; i++) {
+    const action = bedEntry.object.userData.interact({});
+    assert.ok(action === 'openTruckBed' || action === 'reachTruckBox');
+    const recipientPage = delivery.pageFor(DELIVERY_STOPS[i].id);
+    assert.ok(recipientPage && recipientPage.action);
+    assert.equal(recipientPage.action.run(), true);
+  }
+  const expectedPay = DELIVERY_STOPS.reduce((sum, s) => sum + s.pay + s.tip, 0) + ROUTE_BONUS;
+  assert.equal(earned, expectedPay);
+  assert.equal(delivery.active, false);
+  assert.equal(delivery.completedRoutes, 1);
+});
+
+
 

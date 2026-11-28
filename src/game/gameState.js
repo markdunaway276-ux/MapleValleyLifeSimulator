@@ -33,6 +33,7 @@ export function gameState(g) {
     snackFavour: g.snackFavour.serialize(),
     storyQuest: g.storyQuest ? g.storyQuest.serialize() : undefined,
     homeDecor: g.homeDecor ? g.homeDecor.serialize() : undefined,
+    parcelDelivery: g.parcelDelivery ? g.parcelDelivery.serialize() : undefined,
     pinnedTaskId: g.getPinnedTask()?.id ?? null,
     dayOne: g.dayOne?.serialize(),
     savedAt: Date.now()

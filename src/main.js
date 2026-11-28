@@ -18,6 +18,7 @@ import { createCarInterior } from './world/carInterior.js';
  */
 import { createScene } from './world/scene.js';
 import { createHomeDecor } from './world/homeDecor.js';
+import { createParcelDelivery } from './systems/parcelDelivery.js';
 import { createPlayer } from './core/player.js';
 import { setupInput } from './core/input.js';
 import { isMobileDevice } from './core/device.js';
@@ -172,10 +173,20 @@ const actions = createPlayerActions({ camera, appearance });
 Object.assign(g, { money, inbox, appearance, playerBody, npcs, actions });
 window.addEventListener('maple-sat', () => actions.play('sit'));
 window.addEventListener('maple-stood', () => actions.play('stand'));
-window.addEventListener('car-enter', () => actions.play('openDoor'));
+window.addEventListener('car-enter', () => {
+  actions.play('openDoor');
+  car?.object?.userData?.animateDriverDoor?.(1, 0, 280);
+  window.setTimeout(() => {
+    car?.object?.userData?.animateDriverDoor?.(0, 0, 320);
+  }, 380);
+});
 window.addEventListener('car-exit', () => {
   actions.play('exitCar');
   sfx.play('click');
+  car?.object?.userData?.animateDriverDoor?.(1, 60, 560);
+  window.setTimeout(() => {
+    car?.object?.userData?.animateDriverDoor?.(0, 0, 340);
+  }, 1260);
   window.setTimeout(() => sfx.play('click'), 1580);
 });
 window.addEventListener('work-start', (e) => {
@@ -360,7 +371,23 @@ needs.onChange((snap) => {
 const neighbourFavour = createNeighbourFavour({ savedStage: saveData.neighbourFavour, money, save });
 const snackFavour = createSnackFavour({ savedStage: saveData.snackFavour, inventory, money, save });
 const storyQuest = createStoryQuest({ savedStage: saveData.storyQuest, money, save, toast: (msg) => g.hud?.toast?.(msg) });
-const getTasks = () => [storyQuest.task(), neighbourFavour.task(), snackFavour.task(), ...laundry.tasks()].filter(Boolean);
+const parcelDelivery = createParcelDelivery({
+  scene,
+  player,
+  car,
+  npcs,
+  actions,
+  money,
+  sfx,
+  toast: (msg) => g.hud?.toast?.(msg),
+  minimap,
+  mode,
+  isMobile,
+  isDayOneUnloadActive: () => g.dayOne?.stage === 'unload',
+  save,
+  saved: saveData.parcelDelivery
+});
+const getTasks = () => [parcelDelivery.task(), storyQuest.task(), neighbourFavour.task(), snackFavour.task(), ...laundry.tasks()].filter(Boolean);
 let pinnedTaskId = saveData.pinnedTaskId ?? null;
 const getPinnedTask = () => pinnedTaskId
   ? getTasks().find((task) => task.id === pinnedTaskId && !task.complete)
@@ -435,7 +462,7 @@ const phone = createPhone({
   playNotification: () => sfx.play('phone-notification')
 });
 const dialogue = createDialogue({
-  getExtraPages: (id) => [...(g.dayOne?.pagesFor(id) ?? []), storyQuest.pageFor(id), neighbourFavour.pageFor(id), snackFavour.pageFor(id), dottiePage(id), dirtyPage(id)].filter(Boolean),
+  getExtraPages: (id) => [...(g.dayOne?.pagesFor(id) ?? []), parcelDelivery.pageFor(id), storyQuest.pageFor(id), neighbourFavour.pageFor(id), snackFavour.pageFor(id), dottiePage(id), dirtyPage(id)].filter(Boolean),
   canvas: renderer.domElement,
   isMobile,
   isStarted: () => mode.started(),
@@ -459,7 +486,7 @@ const cutscene = createCutscene({
   onIntroSeen: (id) => g.dayOne?.markIntroSeen?.(id)
 });
 mode.attach({ phone, dialogue });
-Object.assign(g, { phone, dialogue, cutscene, storyQuest, neighbourFavour, snackFavour, getPinnedTask });
+Object.assign(g, { phone, dialogue, cutscene, parcelDelivery, storyQuest, neighbourFavour, snackFavour, getPinnedTask });
 setupInput(player, isMobile, { isInventoryOpen: () => mode.uiBlocked() || cutscene.isActive() });
 
 // --- HUD, mail, interact, start, loop -------------------------------------
