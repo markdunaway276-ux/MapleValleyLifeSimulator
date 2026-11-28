@@ -22,6 +22,11 @@ const BUTTON_CSS = `
   background: rgba(0,0,0,0.55); color: #fff; font: 800 15px system-ui, sans-serif; letter-spacing: 1px; cursor: pointer;
 }
 #pause-button.is-visible { display: flex; }
+body.mobile #pause-button {
+  top: calc(max(10px, env(safe-area-inset-top)) + 92px);
+  right: max(10px, env(safe-area-inset-right));
+  width: 40px; height: 40px;
+}
 `;
 
 const money = (n) => '$' + (Math.round(Number(n) || 0)).toLocaleString();

@@ -13,7 +13,7 @@ export const SAVE_EVENT = 'maple-saved';
 
 /** CSS `top` is `max(12px, safe-top) + TOP_EXTRA`. Kept in one place so tests can check overlap. */
 export const SAVE_HUD_LAYOUT = {
-  topExtra: 196,
+  topExtra: 232,
   left: 10,
   maxWidth: 110,
   height: 28,
@@ -47,6 +47,10 @@ const CSS = `
 }
 #hud-save.is-visible { display: block; }
 #hud-save.is-flash { opacity: 0.95; }
+body.mobile #hud-save { top: calc(max(10px, env(safe-area-inset-top)) + 114px); }
+@media (max-width: 540px) {
+  body.mobile #hud-save { top: calc(max(8px, env(safe-area-inset-top)) + 216px); }
+}
 `;
 
 function ensureStyles() {

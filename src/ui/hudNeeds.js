@@ -29,6 +29,17 @@ const CSS = `
   opacity: 0.9;
 }
 #hud-needs.is-visible { display: block; }
+body.mobile #hud-needs {
+  top: max(10px, env(safe-area-inset-top));
+  width: 134px;
+  padding: 5px 7px 6px;
+}
+@media (max-width: 540px) {
+  body.mobile #hud-needs {
+    top: calc(max(8px, env(safe-area-inset-top)) + 104px);
+    width: 128px;
+  }
+}
 #hud-needs .hud-need {
   display: grid;
   grid-template-columns: 48px 1fr 24px;

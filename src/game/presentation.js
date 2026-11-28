@@ -113,6 +113,12 @@ export function createPresentation({ camera, scene, mode, playerBody, actionRig 
   font: 600 13px system-ui, sans-serif; touch-action: manipulation; cursor: pointer;
 }
 #hud-camera-view[aria-pressed="true"] { background: #34534d; }
+body.mobile #hud-camera-view {
+  top: calc(max(10px, env(safe-area-inset-top)) + 138px);
+  right: max(10px, env(safe-area-inset-right));
+  width: 40px; height: 40px;
+  font-size: 12px;
+}
 `;
   document.head.append(style);
   const toggle = document.createElement('button');

@@ -29,7 +29,17 @@ const CSS = `
   touch-action: manipulation;
   pointer-events: auto;
 }
-body.mobile #inventory-toggle.is-visible { display: block; }
+body.mobile #inventory-toggle.is-visible {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  top: max(10px, env(safe-area-inset-top));
+  right: max(10px, env(safe-area-inset-right));
+  min-width: 40px;
+  height: 40px;
+  padding: 0 8px;
+  font-size: 12px;
+}
 #inventory-toggle:hover, #inventory-toggle:focus {
   background: rgba(0, 0, 0, 0.85);
   outline: none;

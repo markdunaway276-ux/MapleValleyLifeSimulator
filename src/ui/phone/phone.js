@@ -54,15 +54,18 @@ const CSS = `
 }
 #hud-phone.is-visible { display: flex; }
 #hud-phone:hover, #hud-phone:focus { opacity: 1; background: rgba(0, 0, 0, 0.85); outline: none; }
-/* Stack under mute, in the camera column (left of Bag on a phone). */
+/* Single neat right-hand column on mobile (directly under Bag). */
 body.mobile #hud-phone {
-  right: calc(max(12px, env(safe-area-inset-right)) + 76px);
+  top: calc(max(10px, env(safe-area-inset-top)) + 46px);
+  right: max(10px, env(safe-area-inset-right));
+  width: 40px; height: 40px; min-width: 40px; min-height: 40px;
+  font-size: 19px;
 }
 
 #hud-phone-alert {
   position: fixed; z-index: 38; left: 50%; transform: translateX(-50%);
-  top: calc(max(12px, env(safe-area-inset-top)) + 34px);
-  width: min(58vw, 310px); min-height: 48px; padding: 7px 10px;
+  top: calc(max(12px, env(safe-area-inset-top)) + 104px);
+  width: min(58vw, 310px); min-height: 44px; padding: 7px 10px;
   border-radius: 13px; border: 1px solid #769aab; background: #202e3af5;
   color: #fff; text-align: left; font: 13px/1.3 system-ui, sans-serif;
   cursor: pointer; touch-action: manipulation;

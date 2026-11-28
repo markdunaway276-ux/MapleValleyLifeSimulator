@@ -34,9 +34,12 @@ const CSS = `
 }
 #hud-screenshot.is-visible { display: flex; }
 #hud-screenshot:hover, #hud-screenshot:focus { opacity: 1; background: rgba(0, 0, 0, 0.85); outline: none; }
-/* Leave a gap to the left of the Bag button (top-right, ~60 px wide). */
+/* Single neat right-hand column on mobile (under Bag / Phone / Pause / View / Mute). */
 body.mobile #hud-screenshot {
-  right: calc(max(12px, env(safe-area-inset-right)) + 76px);
+  top: calc(max(10px, env(safe-area-inset-top)) + 230px);
+  right: max(10px, env(safe-area-inset-right));
+  width: 40px; height: 40px; min-width: 40px; min-height: 40px;
+  font-size: 19px;
 }
 `;
 

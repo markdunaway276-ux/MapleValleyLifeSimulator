@@ -33,9 +33,12 @@ const CSS = `
 }
 #hud-mute.is-visible { display: flex; }
 #hud-mute:hover, #hud-mute:focus { opacity: 1; background: rgba(0, 0, 0, 0.85); outline: none; }
-/* Align with the camera button, which sits to the left of Bag on a phone. */
+/* Single neat right-hand column on mobile (under Bag / Phone / Pause / View). */
 body.mobile #hud-mute {
-  right: calc(max(12px, env(safe-area-inset-right)) + 76px);
+  top: calc(max(10px, env(safe-area-inset-top)) + 184px);
+  right: max(10px, env(safe-area-inset-right));
+  width: 40px; height: 40px; min-width: 40px; min-height: 40px;
+  font-size: 18px;
 }
 `;
 
