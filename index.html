@@ -37,7 +37,7 @@
     .day-one-cinematic h2 { font: 600 clamp(22px, 4vw, 34px) Georgia, serif; }
     .road-trip { --bar: max(9vh, calc((100vh - 100vw / 2.35) / 2)); position: fixed; inset: 0; z-index: 200; color: #f4e7ce; font-family: Georgia, serif; overflow: hidden; }
     #info, #joystick, #crosshair, .hud-ui { transition: opacity .45s ease; }
-    .intro-active :is(#info, #joystick, #crosshair, .hud-ui) { opacity: 0 !important; pointer-events: none !important; }
+    .intro-active :is(#info, #joystick, #crosshair, .hud-ui:not(#hud-fullscreen)) { opacity: 0 !important; pointer-events: none !important; }
     .road-trip[hidden] { display: none; }
     .road-trip.finished { pointer-events: none; background: transparent !important; }
     .road-trip-bar { background: #090807; position: absolute; left: 0; right: 0; height: var(--bar); transition: transform .6s ease; }

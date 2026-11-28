@@ -12,6 +12,7 @@
  */
 
 import { ensureMenuStyles, el, button, heading, renderSettings } from './menuKit.js';
+import { isFullscreenActive, toggleFullscreen } from './hudFullscreen.js';
 import { SLOT_COUNT, getGameSlot, setActiveSlot, readSlot, clearSlot, freezeSaves } from '../systems/save.js';
 
 const READY_FLAG = 'mapleValleyLife_slotReady';
@@ -103,6 +104,11 @@ export function createTitleScreen({
     panel.append(button('New game', () => go('new')));
     panel.append(button('Load game', () => go('load')));
     panel.append(button('Settings', () => go('settings')));
+    const fsBtn = button(isFullscreenActive() ? 'Exit fullscreen' : 'Fullscreen', async () => {
+      await toggleFullscreen();
+      fsBtn.textContent = isFullscreenActive() ? 'Exit fullscreen' : 'Fullscreen';
+    });
+    panel.append(fsBtn);
   }
 
   function renderSlots(kind) {

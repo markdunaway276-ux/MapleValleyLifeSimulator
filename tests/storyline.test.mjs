@@ -250,3 +250,19 @@ test('Maple Lane Post Office builds with walkable door, PO Box #14, curbside dro
   const dlg = getDialogue('hank');
   assert.ok(dlg.pages.length >= 2);
 });
+
+test('fullscreen toggle enters and exits fullscreen cleanly across standard and webkit APIs', async () => {
+  const { isFullscreenActive, toggleFullscreen } = await import('../src/ui/hudFullscreen.js');
+  const mockDoc = {
+    fullscreenElement: null,
+    documentElement: {
+      async requestFullscreen() { mockDoc.fullscreenElement = mockDoc.documentElement; }
+    },
+    async exitFullscreen() { mockDoc.fullscreenElement = null; }
+  };
+  assert.equal(isFullscreenActive(mockDoc), false);
+  assert.equal(await toggleFullscreen(mockDoc), true);
+  assert.equal(isFullscreenActive(mockDoc), true);
+  assert.equal(await toggleFullscreen(mockDoc), false);
+  assert.equal(isFullscreenActive(mockDoc), false);
+});

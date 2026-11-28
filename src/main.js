@@ -58,6 +58,7 @@ import { createRenderer, createView } from './game/rendering.js';
 import { createDisplay } from './systems/display.js';
 import { createPauseMenu } from './ui/pauseMenu.js';
 import { createTitleScreen } from './ui/titleScreen.js';
+import { createHudFullscreen } from './ui/hudFullscreen.js';
 import { createSettings } from './systems/settings.js';
 import { createStats } from './systems/stats.js';
 import { getNpc } from './data/npcs.js';
@@ -583,6 +584,10 @@ g.title = createTitleScreen({
   getSettings: () => settings,
   getSfx: () => sfx,
   applyLive
+});
+
+g.fullscreen = createHudFullscreen({
+  onUnsupported: () => g.hud?.toast?.('Fullscreen is not supported by this browser.')
 });
 
 g.presentation = createPresentation({ camera, scene, mode, playerBody, actionRig: actions.rig });
