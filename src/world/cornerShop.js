@@ -197,7 +197,8 @@ export function buildCornerShop(scene, quality) {
     { x: 6.0, z: 10.4 },   // sandwich
     { x: -5.4, z: 4.8 },   // tomato-seeds
     { x: -5.4, z: 6.2 },   // herb-seeds
-    { x: -5.4, z: 7.6 }    // pumpkin-seeds
+    { x: -5.4, z: 7.6 },   // pumpkin-seeds
+    { x: 5.55, z: 5.6 }    // detergent (household aisle)
   ];
   getShop('corner-shop').stock.forEach((offer, i) => {
     const stand = MARKET_STANDS[i] ?? { x: 6.0, z: 10.4 + i * 0.4 };

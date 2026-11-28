@@ -106,6 +106,67 @@ function bagMesh() {
   return g;
 }
 
+function signPlate(title, subtitle, width, height, { bg = '#1c4d5c', accent = '#f6d57a' } = {}) {
+  let mat;
+  if (typeof document !== 'undefined') {
+    const c = document.createElement('canvas');
+    c.width = 512;
+    c.height = 192;
+    const ctx = c.getContext('2d');
+    ctx.fillStyle = bg;
+    ctx.fillRect(0, 0, c.width, c.height);
+    ctx.strokeStyle = accent;
+    ctx.lineWidth = 10;
+    ctx.strokeRect(10, 10, c.width - 20, c.height - 20);
+    ctx.fillStyle = '#ffffff';
+    ctx.font = 'bold 54px system-ui, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(title, c.width / 2, subtitle ? 76 : 96, c.width - 48);
+    if (subtitle) {
+      ctx.fillStyle = accent;
+      ctx.font = 'bold 38px system-ui, sans-serif';
+      ctx.fillText(subtitle, c.width / 2, 136, c.width - 48);
+    }
+    const tex = new THREE.CanvasTexture(c);
+    tex.colorSpace = THREE.SRGBColorSpace;
+    mat = new THREE.MeshBasicMaterial({ map: tex });
+  } else {
+    mat = new THREE.MeshBasicMaterial({ color: 0x1c4d5c });
+  }
+  return new THREE.Mesh(new THREE.PlaneGeometry(width, height), mat);
+}
+
+/** Wall-mounted indoor Soap & Detergent dispenser facing the center-island washers. */
+function buildSoapDispenser() {
+  const g = new THREE.Group();
+  g.name = 'laundromat-soap-dispenser-mesh';
+  const body = new THREE.Mesh(
+    new THREE.BoxGeometry(0.18, 0.62, 0.44),
+    new THREE.MeshStandardMaterial({ color: 0xdfecec, roughness: 0.45, metalness: 0.25 })
+  );
+  const trim = new THREE.Mesh(
+    new THREE.BoxGeometry(0.19, 0.08, 0.46),
+    new THREE.MeshStandardMaterial({ color: 0x1e5a6b, roughness: 0.4, metalness: 0.2 })
+  );
+  trim.position.y = 0.28;
+  const chute = new THREE.Mesh(
+    new THREE.BoxGeometry(0.04, 0.14, 0.26),
+    new THREE.MeshStandardMaterial({ color: 0x2a3136, roughness: 0.6, metalness: 0.5 })
+  );
+  chute.position.set(0.085, -0.18, 0);
+  const coinSlot = new THREE.Mesh(
+    new THREE.BoxGeometry(0.02, 0.09, 0.06),
+    new THREE.MeshStandardMaterial({ color: 0xbec5ca, roughness: 0.3, metalness: 0.8 })
+  );
+  coinSlot.position.set(0.092, -0.02, 0.14);
+  const plate = signPlate('SOAP & DETERGENT', '$2 · PRESS E', 0.38, 0.16);
+  plate.rotation.y = Math.PI / 2;
+  plate.position.set(0.094, 0.11, 0);
+  g.add(body, trim, chute, coinSlot, plate);
+  return g;
+}
+
 function buildEntrance(group, quality) {
   const parts = new Parts(true);
   parts.surface('metal');
@@ -220,17 +281,26 @@ export function buildLaundromat(scene, quality) {
     drum.visible = false;
     const led = new THREE.Mesh(
       new THREE.BoxGeometry(0.05, 0.03, 0.01),
-      new THREE.MeshBasicMaterial({ color: 0x3a3a3a })
+      new THREE.MeshBasicMaterial({ color: 0x38bdf8 })
     );
     led.position.set(m.x + m.r * 0.9, m.y + m.r + 0.12, m.z + 0.012);
     group.add(drum, led);
     drums.push({ ...m, drum, led });
     const isWasher = m.id.startsWith('washer');
-    spot('laundromat-' + m.id, m.x, 0.95, m.z + (isWasher ? 0.25 : 0.3), isWasher ? 1.05 : 1.25, () => laundry()?.machineOption(m.id) || null);
+    spot('laundromat-' + m.id, m.x, 1.25, m.z + (isWasher ? 0.28 : 0.32), isWasher ? 1.65 : 1.8, () => laundry()?.machineOption(m.id) || null);
   }
 
-  spot('laundromat-table', TABLE_SPOT.x, 1.1, TABLE_SPOT.z, 1.25, () => laundry()?.tableOption() || null);
-  spot('laundromat-counter', COUNTER_SPOT.x, 1.1, COUNTER_SPOT.z, 1.35, () => laundry()?.counterOption() || null);
+  // East-wall washers are decorative commercial units — point players to the 5 center-island washers.
+  spot('laundromat-wall-washers', 6.85, 1.25, -2.8, 1.4, () => ({
+    prompt: 'check wall washers',
+    run: (ctx) => {
+      ctx?.toast?.('Staff-only machines — use the 5 self-serve washers on the center island!');
+      return false;
+    }
+  }));
+
+  spot('laundromat-table', TABLE_SPOT.x, 1.1, TABLE_SPOT.z, 1.5, () => laundry()?.tableOption() || null);
+  spot('laundromat-counter', COUNTER_SPOT.x, 1.1, COUNTER_SPOT.z, 1.55, () => laundry()?.counterOption() || null);
 
   const bags = BAG_SPOTS.map(([x, z]) => {
     const b = bagMesh();
@@ -246,12 +316,27 @@ export function buildLaundromat(scene, quality) {
   const clockScreen = new THREE.Mesh(new THREE.BoxGeometry(0.01, 0.08, 0.16), new THREE.MeshBasicMaterial({ color: 0x2a4a2a }));
   clockScreen.position.set(CLOCK.x + 0.035, CLOCK.y + 0.08, CLOCK.z);
   group.add(clockBody, clockScreen);
-  spot('laundromat-timeclock', CLOCK.x + 0.15, CLOCK.y, CLOCK.z, 1.5, () => laundry()?.clockOption() || null);
+  spot('laundromat-timeclock', CLOCK.x + 0.15, CLOCK.y, CLOCK.z, 1.65, () => laundry()?.clockOption() || null);
+
+  // Indoor Soap & Detergent dispenser mounted right beside the washers.
+  const vend = getShop('laundromat-vending');
+  const soapOffer = vend?.stock?.find((o) => o.item === 'detergent') || vend?.stock?.[0];
+  const soapDispenser = buildSoapDispenser();
+  soapDispenser.position.set(-1.16, 1.35, -3.75);
+  group.add(soapDispenser);
+  if (soapOffer) {
+    spot('laundromat-soap-dispenser', -0.95, 1.35, -3.75, 1.85, () => ({
+      prompt: `buy ${soapOffer.name} ($${soapOffer.price})`,
+      run: (ctx) => (buyFromShop(vend, ctx, soapOffer) ? 'press' : false)
+    }));
+  }
 
   // Vending machine out front: detergent on the left button, snacks on the right.
-  const vend = getShop('laundromat-vending');
+  const vendSign = signPlate('SOAP $2 · SNACKS $5', 'LAUNDRY VENDING', 1.05, 0.34);
+  vendSign.position.set(-5.55, 1.92, 0.87);
+  group.add(vendSign);
   vend.stock.forEach((offer, i) => {
-    spot('laundromat-vend-' + offer.item, -5.85 + i * 0.6, 1.2, 1.15, 0.95, () => ({
+    spot('laundromat-vend-' + offer.item, -5.85 + i * 0.6, 1.35, 1.15, 1.8, () => ({
       prompt: `buy ${offer.name} ($${offer.price})`,
       run: (ctx) => (buyFromShop(vend, ctx, offer) ? 'press' : false)
     }));
@@ -330,7 +415,7 @@ export function buildLaundromat(scene, quality) {
         // Washers slosh back and forth; dryers tumble one way.
         d.drum.rotation.z = d.id.startsWith('washer') ? Math.sin(spin * 2.4) * 2.2 : -spin * 3.2;
       }
-      const color = !s || (!s.running && !s.finished) ? 0x3a3a3a
+      const color = !s || (!s.running && !s.finished) ? 0x38bdf8
         : s.running ? 0xffa020 : (Math.floor(spin * 2) % 2 ? 0x30ff60 : 0x0c4018);
       d.led.material.color.setHex(color);
     }

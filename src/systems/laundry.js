@@ -19,6 +19,7 @@
 export const WASH_MINUTES = 20;
 export const DRY_MINUTES = 15;
 export const WASH_PRICE = 3;
+export const DETERGENT_PRICE = 2;
 export const DRY_PRICE = 2;
 export const ORDER_BASE_PAY = 8;
 export const ORDER_LATE_PAY = 5;
@@ -173,23 +174,54 @@ export function createLaundry({
       };
     }
     if (isWasher) {
+      const hasSoap = detergentIndex() >= 0;
+      const total = hasSoap ? WASH_PRICE : WASH_PRICE + DETERGENT_PRICE;
       return {
-        prompt: `wash your clothes ($${WASH_PRICE} + detergent)`, action: 'load',
+        prompt: hasSoap
+          ? `wash your clothes ($${WASH_PRICE} + detergent)`
+          : `wash your clothes ($${total} incl. soap)`,
+        action: 'load',
         run: () => {
           const idx = detergentIndex();
-          if (idx < 0) { toast('You need Detergent — the vending machine out front sells it.'); return false; }
-          if (!spend(WASH_PRICE, 'Laundromat washer')) return false;
-          inventory.consume(idx, 1);
+          if (idx >= 0) {
+            if (!spend(WASH_PRICE, 'Laundromat washer')) return false;
+            inventory.consume(idx, 1);
+            m.load = { owner: 'you' };
+            m.doneAt = now() + washMinutes();
+            if (sfx && typeof sfx.play === 'function') sfx.play('washer-start');
+            toast(`Washing your clothes — ${washMinutes()} min.`);
+            changed();
+            return 'load';
+          }
+          const combo = WASH_PRICE + DETERGENT_PRICE;
+          if (!money || typeof money.spend !== 'function' || !money.spend(combo, { category: 'Purchase', label: 'Laundromat washer + soap' })) {
+            toast(`Not enough cash — need $${combo} with soap, or grab $${DETERGENT_PRICE} Detergent from the soap dispenser.`);
+            return false;
+          }
           m.load = { owner: 'you' };
           m.doneAt = now() + washMinutes();
           if (sfx && typeof sfx.play === 'function') sfx.play('washer-start');
-          toast(`Washing your clothes — ${washMinutes()} min.`);
+          toast(`Washing your clothes (soap included) — ${washMinutes()} min.`);
           changed();
           return 'load';
         }
       };
     }
-    return { prompt: 'use the dryer', action: null, run: () => { toast('Wash something first, then dry it here.'); return false; } };
+    const ownWash = machines.find((x) => x.kind === 'washer' && x.load && x.load.owner === 'you');
+    return {
+      prompt: 'use the dryer',
+      action: null,
+      run: () => {
+        if (ownWash && running(ownWash)) {
+          toast(`Your clothes are still washing — ${minutesLeft(ownWash)} min left.`);
+        } else if (ownWash && finished(ownWash)) {
+          toast('Your wash is done! Grab your wet clothes from the washer first.');
+        } else {
+          toast('Wash your clothes at a center-island washer first, then dry them here.');
+        }
+        return false;
+      }
+    };
   }
 
   // -------------------------------------------------------------- shift work
@@ -278,7 +310,21 @@ export function createLaundry({
 
   function tableOption() {
     if (folding) return null;
-    if (!carry) return { prompt: 'use the folding table', action: null, run: () => { toast(shift.on ? 'Bring dry laundry here to fold it.' : 'Clock in at the back to work a shift.'); return false; } };
+    if (!carry) {
+      const ownBusy = machines.some((m) => m.load && m.load.owner === 'you');
+      return {
+        prompt: 'use the folding table',
+        action: null,
+        run: () => {
+          toast(
+            shift.on ? 'Bring dry customer laundry here to fold it.'
+              : ownBusy ? 'Your own clothes are ready to wear straight out of the dryer — no folding needed!'
+                : 'Clock in at the back (or ask Dottie) to work a shift.'
+          );
+          return false;
+        }
+      };
+    }
     if (carry.stage !== 'dry') return { prompt: 'use the folding table', action: null, run: () => { toast('Only dry laundry gets folded.'); return false; } };
     return {
       prompt: `fold ${possessive(ownerName(carry.owner))} laundry`, action: null,

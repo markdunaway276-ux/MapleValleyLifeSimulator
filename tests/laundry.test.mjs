@@ -42,11 +42,34 @@ test('washing and drying your own clothes refills Clean and costs $5 plus deterg
   assert.equal(laundry.carry, null);
 });
 
-test('no detergent, no wash', () => {
-  const { state, laundry } = rig({ detergent: 0 });
-  assert.equal(laundry.machineOption('washer-1').run(), false);
-  assert.match(state.toasts.at(-1), /Detergent/);
-  assert.equal(state.cash, 50);
+import { getShop } from '../src/data/shops.js';
+
+test('washing without detergent offers one-step wash + soap ($5) and fails cleanly if short on cash', () => {
+  const { state, laundry } = rig({ detergent: 0, cash: 50 });
+  const opt = laundry.machineOption('washer-1');
+  assert.match(opt.prompt, /\$5 incl\. soap/);
+  assert.equal(opt.run(), 'load');
+  assert.equal(state.cash, 45);
+  assert.match(state.toasts.at(-1), /soap included/);
+
+  // Empty dryer and folding table give helpful guidance while your own clothes wash.
+  assert.equal(laundry.machineOption('dryer-1').run(), false);
+  assert.match(state.toasts.at(-1), /still washing/);
+  assert.equal(laundry.tableOption().run(), false);
+  assert.match(state.toasts.at(-1), /no folding needed/);
+
+  // Short on cash ($4) without detergent cannot start the $5 soap-included wash.
+  const broke = rig({ detergent: 0, cash: 4 });
+  assert.equal(broke.laundry.machineOption('washer-1').run(), false);
+  assert.match(broke.state.toasts.at(-1), /Detergent/);
+  assert.equal(broke.state.cash, 4);
+});
+
+test('detergent is stocked at both laundromat-vending and corner-shop', () => {
+  const vend = getShop('laundromat-vending');
+  const market = getShop('corner-shop');
+  assert.ok(vend.stock.some((o) => o.item === 'detergent' && o.price === 2));
+  assert.ok(market.stock.some((o) => o.item === 'detergent' && o.price === 2));
 });
 
 test('a shift order goes counter → washer → dryer → table → counter and pays a tip when on time', () => {

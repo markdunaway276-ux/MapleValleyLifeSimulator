@@ -88,6 +88,7 @@ import { createSaver } from './game/gameState.js';
 import { createHud } from './game/hud.js';
 import { createPlayerActions } from './systems/playerActions.js';
 import { createLaundry, FOLD_JOB } from './systems/laundry.js';
+import { buyFromShop, getShop } from './systems/shop.js';
 import { LOW_THRESHOLD } from './systems/needs.js';
 import { setupDailyMail } from './game/dailyMail.js';
 import { setupInteract } from './game/interact.js';
@@ -635,13 +636,28 @@ function dottiePage(id) {
     ? { lines: [laundry.nextStep() || 'You are doing fine, hon.'], action: { label: 'Clock me out', run: () => !!option.run() }, response: ['Thanks for the help. See you next time.'] }
     : { lines: ['Want to work a shift?'], action: { label: 'Clock me in', run: () => !!option.run() }, response: ['Bags are on the counter. Wash, dry, fold, hand it back.'] };
 }
+/** Dottie also sells detergent directly across the counter. */
+function dottieSoapPage(id) {
+  if (id !== 'dottie') return null;
+  const vend = getShop('laundromat-vending');
+  const offer = vend?.stock?.find((o) => o.item === 'detergent');
+  if (!offer) return null;
+  return {
+    lines: ['Need laundry soap? I keep single-load detergent right behind the counter too.'],
+    action: {
+      label: `Buy Detergent ($${offer.price})`,
+      run: () => !!buyFromShop(vend, { money, inventory, sfx, toast: (msg) => g.hud?.toast?.(msg) }, offer)
+    },
+    response: ['Here you go, hon! Any of the center-island washers will take it.']
+  };
+}
 /** Neighbours notice when your clothes need a wash. */
 function dirtyPage(id) {
   if (needs.get('clean') > LOW_THRESHOLD) return null;
   const lines = {
     sam: ['No offence, but you might want to swing by the laundromat.'],
     june: ['Is that shirt from last week? The laundromat is down at the east end.'],
-    dottie: ["Hon, those clothes need a wash. Grab detergent from the machine out front."]
+    dottie: ["Hon, those clothes need a wash. Grab soap from the wall dispenser inside, or pay $5 right at any washer."]
   };
   return lines[id] ? { lines: lines[id] } : null;
 }
@@ -723,6 +739,7 @@ const dialogue = createDialogue({
       neighbourFavour.pageFor(id),
       snackFavour.pageFor(id),
       dottiePage(id),
+      dottieSoapPage(id),
       dirtyPage(id)
     ].filter(Boolean);
   },

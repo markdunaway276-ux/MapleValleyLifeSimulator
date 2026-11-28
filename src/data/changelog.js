@@ -8,6 +8,16 @@
 
 export const CHANGELOG = [
   {
+    version: '0.20',
+    date: '2026-11-28',
+    title: 'Laundromat & Soap Overhaul',
+    notes: [
+      'Added a clearly labeled indoor Soap & Detergent Dispenser ($2) mounted right beside the center-island washers, plus Dottie now sells Detergent directly across the counter and Maple Lane Market stocks it in the household aisle.',
+      'One-step washing: if you walk up to a washer without detergent in your bag, you can now start a wash directly for $5 (wash + soap included).',
+      'Made washers, dryers, and the outdoor vending machine much easier to reach and trigger, added glowing blue Ready LEDs on usable machines, and added clearer signage and status hints.'
+    ]
+  },
+  {
     version: '0.19',
     date: '2026-11-28',
     title: 'Mystery Chapter 3: The East Creek Signal (Phase B Complete)',
