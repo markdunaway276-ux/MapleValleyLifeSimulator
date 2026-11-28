@@ -59,3 +59,18 @@ test('all 6 CC0 outdoor prop GLBs exist with valid glTF binary headers', () => {
     assert.equal(head, 'glTF', `invalid GLB header for ${name}.glb`);
   }
 });
+
+test('all CC0 traffic vehicle GLBs and mallard duck GLB exist with valid glTF binary headers', () => {
+  const files = [
+    ['vehicles', 'traffic-sedan.glb'],
+    ['vehicles', 'traffic-suv.glb'],
+    ['vehicles', 'traffic-coupe.glb'],
+    ['scenery', 'mallard-duck.glb']
+  ];
+  for (const [dir, name] of files) {
+    const file = path.join(ROOT, 'assets', 'models', dir, name);
+    assert.ok(fs.existsSync(file), `missing GLB: ${file}`);
+    const head = fs.readFileSync(file).subarray(0, 4).toString('ascii');
+    assert.equal(head, 'glTF', `invalid GLB header for ${dir}/${name}`);
+  }
+});

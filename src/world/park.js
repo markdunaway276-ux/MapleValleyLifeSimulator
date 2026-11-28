@@ -494,6 +494,7 @@ function buildActivityArea(park, colliders, quality, scene) {
 
   function makeDuck(isDrake) {
     const g = new THREE.Group();
+    const fallback = new THREE.Group();
     const bodyMat = new THREE.MeshStandardMaterial({ color: isDrake ? 0x6f5a47 : 0x7d654d, roughness: 0.85 });
     const headMat = new THREE.MeshStandardMaterial({ color: isDrake ? 0x1d5c43 : 0x6d5640, roughness: 0.72 });
     const billMat = new THREE.MeshStandardMaterial({ color: 0xe2a028, roughness: 0.6 });
@@ -508,7 +509,16 @@ function buildActivityArea(park, colliders, quality, scene) {
     const tail = new THREE.Mesh(new THREE.ConeGeometry(0.055, 0.12, 6), bodyMat);
     tail.rotation.x = -0.9;
     tail.position.set(0, 0.13, -0.21);
-    g.add(body, head, bill, tail);
+    fallback.add(body, head, bill, tail);
+    g.add(fallback);
+    placeGltfProp(g, './assets/models/scenery/mallard-duck.glb', {
+      name: isDrake ? 'pond-mallard-drake-glb' : 'pond-mallard-hen-glb',
+      y: -0.05,
+      rotY: 0,
+      targetHeight: isDrake ? 0.38 : 0.34,
+      shadows: !!quality.shadows,
+      hideOnLoad: fallback
+    });
     return g;
   }
 

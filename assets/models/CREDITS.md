@@ -96,5 +96,12 @@
 - **License:** Creative Commons Zero (CC0 1.0), https://creativecommons.org/publicdomain/zero/1.0/
 - **Changes:** Downloaded 1K glTF models and packed each into a self-contained `.glb` with embedded `EXT_texture_webp` textures resized to max 512 px.
 
+## vehicles/traffic-sedan.glb, vehicles/traffic-suv.glb, vehicles/traffic-coupe.glb, scenery/mallard-duck.glb
+
+- **Source:** [Mint Free 3D Models](https://mint.gg/free-3d-models) (`silver-sedan-car`, `black-suv`, `red-sports-car`, `mallard-duck`)
+- **License:** Creative Commons Zero (CC0 1.0 Universal), https://creativecommons.org/publicdomain/zero/1.0/
+- **Changes:** Unbranded CC0 realistic models; embedded textures resized to max 512 px and re-encoded as `EXT_texture_webp` (~670–840 KB per GLB).
+
+
 
 

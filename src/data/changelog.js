@@ -8,6 +8,15 @@
 
 export const CHANGELOG = [
   {
+    version: '0.10',
+    date: '2026-11-28',
+    title: 'Realism Pass 4: Town Traffic & Pond Ducks',
+    notes: [
+      'Upgraded passing AI traffic on Maple Lane & Route 9 with 3 realistic 3D vehicles (Silver Sedan, Black SUV, Red Coupe) while keeping dusk/night headlights, brake lights, and yielding.',
+      'Upgraded Maple Lane Park\'s pond ducks with a realistic 3D Mallard Duck model.'
+    ]
+  },
+  {
     version: '0.9',
     date: '2026-11-28',
     title: 'Realism Pass 3: Street, Yard & Park Props',

@@ -14,10 +14,10 @@ All committed assets must be **CC0** or **CC-BY** (credited in `assets/models/CR
   - Replaced procedural living room, bedroom, kitchen, and decor items (`src/world/interior.js`, `src/world/homeDecor.js`) — sofa, coffee table, reading armchair, dining table & chairs, desk chair, laptop, nightstand, potted houseplant, and wooden bookshelf — with 9 optimized CC0 Poly Haven `.glb` models while preserving all sitting anchors and colliders.
 - [x] **Batch 3 — Street, Front Yard & Park Props**
   - Upgraded Maple Lane Park, front yard, and street props (`src/world/park.js`, `src/world/frontYard.js`, `src/world/atmosphere.js`) with 6 CC0 Poly Haven `.glb` models: wooden park benches, picnic tables, galvanized trash cans, planter boxes, front-yard rocking chair, and plaza patio set.
-- [ ] **Batch 4 — Realistic AI Traffic Vehicles**
-  - Replace boxy passing cars in `src/world/traffic.js` with 2–3 optimized, unbranded CC0/CC-BY vehicles (sedan, SUV/hatchback, van) with spinning wheels, headlights, and brake lights to match `pickup.glb`.
+- [x] **Batch 4 — Realistic AI Traffic Vehicles**
+  - Replaced boxy passing cars in `src/world/traffic.js` with 3 optimized, unbranded CC0 realistic vehicles (`traffic-sedan.glb`, `traffic-suv.glb`, `traffic-coupe.glb`) while preserving dusk/night headlights, beams, brake lights, and polite yielding.
 - [ ] **Batch 5 — Wildlife (Pond Ducks & Park Squirrels)**
-  - Swap procedural ducks and squirrels for realistic low-poly CC0/CC-BY `.glb` models to match `assets/models/scenery/deer.glb`.
+  - Upgraded Maple Lane Park pond ducks with realistic CC0 `mallard-duck.glb` (`src/world/park.js`). Park squirrels still ready for a lightweight CC0 squirrel GLB when available.
 
 ---
 

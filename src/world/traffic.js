@@ -1,10 +1,11 @@
 import * as THREE from 'three';
 import { STREET, SURFACE_Y } from './street.js';
+import { placeGltfProp } from './modelProps.js';
 
 /**
  * Passing AI town traffic along Maple Lane & Route 9:
- * - 3 stylized vehicles (sedan, wagon, compact) with glossy envMap paint,
- *   tinted glass, spinning wheels, dusk/night headlights, and brake lights.
+ * - 3 realistic CC0 vehicles (sedan, SUV, coupe) with procedural fallbacks,
+ *   dusk/night headlights, volumetric beams, and brake lights.
  * - Drives in the centre travel lanes (well clear of parked curb vehicles).
  * - Smoothly brakes and yields whenever the player or the player's pickup
  *   is ahead in the same lane.
@@ -12,14 +13,18 @@ import { STREET, SURFACE_Y } from './street.js';
  */
 
 const TRAFFIC_DEFS = [
-  { id: 'traffic-sedan', dir: 1, startX: -62, speed: 6.4, color: 0x7c3638, length: 4.1, roofLen: 2.0, roofOff: -0.15 },
-  { id: 'traffic-wagon', dir: -1, startX: 46, speed: 5.8, color: 0x3b586e, length: 4.35, roofLen: 2.55, roofOff: -0.35 },
-  { id: 'traffic-compact', dir: 1, startX: 16, speed: 6.1, color: 0xb68a3c, length: 3.65, roofLen: 1.85, roofOff: -0.1 }
+  { id: 'traffic-sedan', dir: 1, startX: -62, speed: 6.4, color: 0x7c3638, length: 4.35, roofLen: 2.0, roofOff: -0.15, glb: './assets/models/vehicles/traffic-sedan.glb', fitSize: [1.96, 1.56, 4.45] },
+  { id: 'traffic-wagon', dir: -1, startX: 46, speed: 5.8, color: 0x3b586e, length: 4.55, roofLen: 2.55, roofOff: -0.35, glb: './assets/models/vehicles/traffic-suv.glb', fitSize: [2.06, 1.88, 4.60] },
+  { id: 'traffic-compact', dir: 1, startX: 16, speed: 6.1, color: 0xb68a3c, length: 4.10, roofLen: 1.85, roofOff: -0.1, glb: './assets/models/vehicles/traffic-coupe.glb', fitSize: [1.92, 1.38, 4.18] }
 ];
 
 function createTrafficCar(def, shadows) {
   const g = new THREE.Group();
   g.name = def.id;
+
+  const fallback = new THREE.Group();
+  fallback.name = def.id + '-fallback';
+  g.add(fallback);
 
   const paintMat = new THREE.MeshStandardMaterial({
     color: def.color,
@@ -53,25 +58,25 @@ function createTrafficCar(def, shadows) {
   const body = new THREE.Mesh(new THREE.BoxGeometry(w, 0.58, 1.72), paintMat);
   body.position.set(0, 0.60, 0);
   body.castShadow = body.receiveShadow = shadows;
-  g.add(body);
+  fallback.add(body);
 
   const cabin = new THREE.Mesh(new THREE.BoxGeometry(def.roofLen, 0.52, 1.48), paintMat);
   cabin.position.set(def.roofOff, 1.12, 0);
   cabin.castShadow = cabin.receiveShadow = shadows;
-  g.add(cabin);
+  fallback.add(cabin);
 
   const glass = new THREE.Mesh(new THREE.BoxGeometry(def.roofLen + 0.05, 0.36, 1.52), glassMat);
   glass.position.set(def.roofOff, 1.12, 0);
-  g.add(glass);
+  fallback.add(glass);
 
   // Bumpers
   const frontBumper = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.20, 1.76), trimMat);
   frontBumper.position.set(w / 2 + 0.03, 0.42, 0);
   const rearBumper = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.20, 1.76), trimMat);
   rearBumper.position.set(-w / 2 - 0.03, 0.42, 0);
-  g.add(frontBumper, rearBumper);
+  fallback.add(frontBumper, rearBumper);
 
-  // Headlights (+X) & Brake lights (-X)
+  // Headlights (+X) & Brake lights (-X) stay active on both fallback and GLB vehicles
   for (const zOff of [-0.58, 0.58]) {
     const hl = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.14, 0.28), headMat);
     hl.position.set(w / 2 + 0.01, 0.64, zOff);
@@ -80,7 +85,7 @@ function createTrafficCar(def, shadows) {
     g.add(hl, bl);
   }
 
-  // 4 spinning wheels
+  // 4 spinning wheels (visible on fallback)
   const wheels = [];
   const tireGeo = new THREE.CylinderGeometry(0.32, 0.32, 0.22, 12);
   tireGeo.rotateX(Math.PI / 2);
@@ -92,9 +97,20 @@ function createTrafficCar(def, shadows) {
       const wg = new THREE.Group();
       wg.position.set(wx, 0.32, wz);
       wg.add(new THREE.Mesh(tireGeo, tireMat), new THREE.Mesh(rimGeo, rimMat));
-      g.add(wg);
+      fallback.add(wg);
       wheels.push(wg);
     }
+  }
+
+  // Load realistic CC0 vehicle GLB (front = +Z in GLB -> rotY = PI/2 aligns nose with +X)
+  if (def.glb) {
+    placeGltfProp(g, def.glb, {
+      name: def.id + '-glb',
+      rotY: Math.PI / 2,
+      fitSize: def.fitSize,
+      shadows,
+      hideOnLoad: fallback
+    });
   }
 
   // Soft volumetric headlight cones at dusk/night
