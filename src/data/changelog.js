@@ -8,6 +8,16 @@
 
 export const CHANGELOG = [
   {
+    version: '0.16',
+    date: '2026-11-28',
+    title: 'Photo Gigs, Framed Home Photos & Seasonal Odd Jobs',
+    notes: [
+      'Notice Board Photo Gigs: pick up 3 new photography commissions at the Post Office (Park Wildlife Snap with Camera Zoom for Sam, Golden-Hour Maple Lane with Warm/Golden filter for June, and Vintage Valley Portrait in Cozy B&W for Dottie).',
+      'Framed Gallery Photos at Home: 3 wooden picture frames mounted in your Living Room, Kitchen, and Bedroom — tap "Hang at home" on any photo in your Phone Gallery or press E on a wall frame to cycle your photos.',
+      'Weather-Reactive Seasonal Odd Jobs: help neighbours with Snow Shoveling during cold/snowy spells (Sam & June), Yard Cleanup in mild weather (Walt & June), and Supply Haul Runs (Vince & Dottie) for daily cash, Fitness XP, and Friendship.'
+    ]
+  },
+  {
     version: '0.15.2',
     date: '2026-11-28',
     title: 'Sleek Phone Style & Wardrobe Layout',

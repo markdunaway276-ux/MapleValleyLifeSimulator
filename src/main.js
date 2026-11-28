@@ -24,6 +24,8 @@ import { createCooking } from './systems/cooking.js';
 import { createCookingMenu } from './ui/cookingMenu.js';
 import { createGardening } from './systems/gardening.js';
 import { buildBackyardGarden } from './world/garden.js';
+import { createFramedPhotos } from './world/framedPhotos.js';
+import { createOddJobs } from './systems/oddJobs.js';
 import { createQuestBoard } from './systems/questBoard.js';
 import { createHomeDecor } from './world/homeDecor.js';
 import { createParcelDelivery } from './systems/parcelDelivery.js';
@@ -433,6 +435,12 @@ const parcelDelivery = createParcelDelivery({
   save,
   saved: saveData.parcelDelivery
 });
+const readStoredPhotos = () => {
+  try {
+    const raw = JSON.parse(localStorage.getItem('mapleValleyLife_phonePhotos') || '[]');
+    return Array.isArray(raw) ? raw.filter((p) => p && typeof p.id === 'string') : [];
+  } catch { return []; }
+};
 const questBoard = createQuestBoard({
   inventory,
   money,
@@ -441,12 +449,8 @@ const questBoard = createQuestBoard({
   toast: (msg) => g.hud?.toast?.(msg),
   save,
   friendship,
-  getPhotoIds: () => {
-    try {
-      const raw = JSON.parse(localStorage.getItem('mapleValleyLife_phonePhotos') || '[]');
-      return Array.isArray(raw) ? raw.map((p) => p && p.id).filter(Boolean) : [];
-    } catch { return []; }
-  }
+  getPhotoIds: () => readStoredPhotos().map((p) => p.id),
+  getPhotos: readStoredPhotos
 });
 questBoard.apply(saveData);
 scene.userData.questBoard = questBoard;
@@ -513,7 +517,32 @@ const cookingMenu = createCookingMenu({
   }
 });
 mode.attach({ cooking: cookingMenu });
-Object.assign(g, { fishing, cooking, cookingMenu, gardening, questBoard });
+
+const framedPhotos = createFramedPhotos({
+  scene,
+  shadows: quality.shadows,
+  saved: saveData.framedPhotos,
+  getPhotos: readStoredPhotos,
+  sfx,
+  toast: (msg) => g.hud?.toast?.(msg),
+  save
+});
+
+const oddJobs = createOddJobs({
+  clock,
+  weather,
+  needs,
+  money,
+  skills,
+  friendship,
+  sfx,
+  toast: (msg) => g.hud?.toast?.(msg),
+  save
+});
+oddJobs.apply(saveData);
+scene.userData.oddJobs = oddJobs;
+
+Object.assign(g, { fishing, cooking, cookingMenu, gardening, framedPhotos, oddJobs, questBoard });
 
 const getTasks = () => {
   if (storyQuest.stage === 'done' && mysteryChapter2.stage === 'locked') mysteryChapter2.unlock();
@@ -584,6 +613,8 @@ const phone = createPhone({
   getWaypointId: minimap.getWaypointId,
   setWaypoint: minimap.setWaypoint,
   capturePhoto: (aim) => g.presentation.capture(view.draw, renderer.domElement, aim),
+  getPhotoContext: () => ({ hour: ((clock.getTime().minutes / 60) % 24 + 24) % 24 }),
+  hangPhoto: (photoId, slotId) => framedPhotos.hangPhoto(photoId, slotId),
   getAppearance: () => appearance.get(),
   setAppearance: (slot, id) => appearance.set(slot, id),
   onAppearanceChange: (fn) => appearance.onChange(fn),
@@ -615,6 +646,7 @@ const dialogue = createDialogue({
       fishing.pageFor(id),
       gardening.pageFor(id),
       cooking.pageFor(id, getNpc(id)?.name),
+      oddJobs.pageFor(id),
       storyQuest.pageFor(id),
       neighbourFavour.pageFor(id),
       snackFavour.pageFor(id),

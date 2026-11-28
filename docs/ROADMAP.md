@@ -26,10 +26,10 @@ All committed assets must be **CC0** or **CC-BY** (credited in `assets/models/CR
 - [x] **1. Home Cooking & Backyard Gardening**
   - Cook real meals at your kitchen stove using Market groceries, backyard produce, and pond-caught fish (Home Meal, Morning Pancakes, Garden Salad, Fresh Tomato Soup, Pan-Seared Trout, Hearty Harvest Stew, Warm Cocoa) for stronger hunger/energy buffs and neighbour gifts.
   - Added 4 cedar raised garden beds in the backyard: buy seeds at Vince's Market, plant & water them (rain counts automatically), grow crops over game days, and harvest produce to cook or sell to Vince.
-- [ ] **2. Photo Gigs, Framed Gallery Photos & Seasonal Odd Jobs**
-  - Notice Board photo commissions using the Phone Camera's zoom & filters (ducks, squirrels, golden-hour Maple Lane, neighbours).
-  - Hang photos from your Phone Gallery in picture frames inside your house.
-  - Weather-reactive odd jobs for neighbours (snow shoveling during cold spells, yard cleanup, pickup haul runs).
+- [x] **2. Photo Gigs, Framed Gallery Photos & Seasonal Odd Jobs**
+  - Notice Board photo commissions using the Phone Camera's zoom & filters (Park Wildlife Snap for Sam, Golden-Hour Maple Lane for June, Vintage Valley Portrait for Dottie).
+  - Hang photos from your Phone Gallery in 3 wooden picture frames inside your house (Living Room, Kitchen, Bedroom), or press E on any frame to cycle photos.
+  - Weather-reactive daily odd jobs for neighbours (Snow Shoveling during snowy/cold spells, Yard Cleanup in mild weather, and Supply Haul Runs).
 - [ ] **3. Weekly Town Events (Live Calendar)**
   - Saturday Park Farmers' Market / Yard Sale with pop-up stalls, rotating decor/treats, and mingling neighbours.
   - Sunday Pond Fishing Derby with a friendly leaderboard and a trophy for your house.
