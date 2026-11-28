@@ -167,6 +167,81 @@ export function buildFrontYard(door, quality, lightPool = null) {
     shadows: !!quality.shadows
   });
 
+  // Brass house number plaque beside the front door.
+  const plaqueGroup = new THREE.Group();
+  plaqueGroup.name = 'front-yard-house-number';
+  plaqueGroup.position.set(door.x + 0.86, 1.62, door.z + 0.06);
+  const plaqueBack = new THREE.Mesh(
+    new THREE.BoxGeometry(0.32, 0.14, 0.02),
+    new THREE.MeshStandardMaterial({ color: 0x26211d, roughness: 0.45, metalness: 0.35 })
+  );
+  let plaqueMat;
+  if (typeof document !== 'undefined') {
+    const c = document.createElement('canvas');
+    c.width = 256;
+    c.height = 112;
+    const ctx = c.getContext('2d');
+    ctx.fillStyle = '#241e19';
+    ctx.fillRect(0, 0, 256, 112);
+    ctx.strokeStyle = '#d4af5a';
+    ctx.lineWidth = 8;
+    ctx.strokeRect(8, 8, 240, 96);
+    ctx.fillStyle = '#f3d485';
+    ctx.font = 'bold 54px Georgia, serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('14', 128, 46);
+    ctx.font = 'bold 20px system-ui, sans-serif';
+    ctx.fillText('MAPLE LANE', 128, 84);
+    const tex = new THREE.CanvasTexture(c);
+    tex.colorSpace = THREE.SRGBColorSpace;
+    plaqueMat = new THREE.MeshStandardMaterial({ map: tex, roughness: 0.35, metalness: 0.55 });
+  } else {
+    plaqueMat = new THREE.MeshStandardMaterial({ color: 0xd4af5a, roughness: 0.35, metalness: 0.55 });
+  }
+  const plaqueFace = new THREE.Mesh(new THREE.PlaneGeometry(0.29, 0.115), plaqueMat);
+  plaqueFace.position.z = 0.012;
+  plaqueGroup.add(plaqueBack, plaqueFace);
+  group.add(plaqueGroup);
+
+  // Cozy woven welcome mat on the front stoop.
+  const matMesh = new THREE.Mesh(
+    new THREE.BoxGeometry(0.86, 0.016, 0.48),
+    new THREE.MeshStandardMaterial({ color: 0x8f6b47, roughness: 0.96 })
+  );
+  matMesh.position.set(door.x, 0.054, door.z + 0.34);
+  const matBorder = new THREE.Mesh(
+    new THREE.BoxGeometry(0.76, 0.018, 0.38),
+    new THREE.MeshStandardMaterial({ color: 0x5c422c, roughness: 0.96 })
+  );
+  matBorder.position.set(door.x, 0.055, door.z + 0.34);
+  group.add(matMesh, matBorder);
+
+  // 6 warm solar pathway lights lining both sides of the stone front walkway.
+  const solarLenses = [];
+  const stakeMat = new THREE.MeshStandardMaterial({ color: 0x26292d, roughness: 0.5, metalness: 0.65 });
+  const capMat = new THREE.MeshStandardMaterial({ color: 0xc29b4a, roughness: 0.3, metalness: 0.78 });
+  const stakeGeo = new THREE.CylinderGeometry(0.014, 0.016, 0.28, 8);
+  const capGeo = new THREE.ConeGeometry(0.068, 0.05, 10);
+  const lensGeo = new THREE.CylinderGeometry(0.042, 0.038, 0.075, 10);
+  for (let i = 0; i < 3; i++) {
+    const pz = door.z + 0.95 + ((length - 1.3) * i) / 2;
+    for (const side of [-1, 1]) {
+      const px = door.x + side * 0.78;
+      const stake = new THREE.Mesh(stakeGeo, stakeMat);
+      stake.position.set(px, 0.14, pz);
+      const lensMat = new THREE.MeshStandardMaterial({
+        color: 0xf7e8c4, emissive: 0xffb85c, emissiveIntensity: 0, roughness: 0.25
+      });
+      const lens = new THREE.Mesh(lensGeo, lensMat);
+      lens.position.set(px, 0.31, pz);
+      const cap = new THREE.Mesh(capGeo, capMat);
+      cap.position.set(px, 0.37, pz);
+      group.add(stake, lens, cap);
+      solarLenses.push(lensMat);
+    }
+  }
+
   return {
     group,
     update(totalMinutes) {
@@ -176,6 +251,7 @@ export function buildFrontYard(door, quality, lightPool = null) {
       const brightness = 1 - daylight;
       glass.material.emissiveIntensity = brightness * 1.45;
       porchLight.intensity = brightness * 13;
+      for (const lm of solarLenses) lm.emissiveIntensity = brightness * 1.65;
     }
   };
 }

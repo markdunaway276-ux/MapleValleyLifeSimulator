@@ -28,6 +28,13 @@ export const ORDER_DUE_MINUTES = 150;
 export const ORDER_EVERY_MINUTES = 45;
 export const MAX_OPEN_ORDERS = 3;
 export const SHIFT_MIN_ENERGY = 10;
+export const STREAK_STEP = 3;
+export const STREAK_BONUS = 5;
+export const COIN_FIND_CHANCE = 0.25;
+export const WARM_ENERGY_BOOST = 8;
+export const SOFTENER_ENERGY_BOOST = 15;
+export const MAGAZINE_ENERGY_BOOST = 5;
+export const BAG_COLORS = [0xc95b4e, 0x4b7fa8, 0xd4a441, 0x5c8f66, 0x8e6bb5, 0xc47b52];
 
 export const WASHER_IDS = ['washer-1', 'washer-2', 'washer-3', 'washer-4', 'washer-5'];
 export const DRYER_IDS = ['dryer-1', 'dryer-2', 'dryer-3', 'dryer-4'];
@@ -52,6 +59,7 @@ const possessive = (name) => (name === 'you' ? 'your' : name.endsWith('s') ? nam
 
 export function createLaundry({
   getMinutes = () => 0,
+  advanceMinutes = null,
   money = null,
   needs = null,
   inventory = null,
@@ -59,6 +67,8 @@ export function createLaundry({
   save = () => {},
   sfx = null,
   startWork = null,
+  onOrderComplete = null,
+  random = Math.random,
   saved = null
 } = {}) {
   const machines = [
@@ -66,8 +76,9 @@ export function createLaundry({
     ...DRYER_IDS.map((id) => ({ id, kind: 'dryer', load: null, doneAt: 0 }))
   ];
   let carry = null;   // { owner: 'you' | orderId, stage: 'dirty' | 'wet' | 'dry' | 'folded' }
-  let orders = [];    // { id, name, due, taken }
-  let shift = { on: false, done: 0, earned: 0, nextOrderAt: 0 };
+  let orders = [];    // { id, name, due, taken, color }
+  let shift = { on: false, done: 0, earned: 0, streak: 0, nextOrderAt: 0 };
+  let totalOrders = 0;
   let nextId = 1;
   let folding = null; // order id while the fold job runs
   let fast = false;   // development: machines take 1 game minute, bags every 5
@@ -84,6 +95,7 @@ export function createLaundry({
     if (saved.carry && saved.carry.owner) carry = { ...saved.carry };
     if (Array.isArray(saved.orders)) orders = saved.orders.map((o) => ({ ...o }));
     if (saved.shift) shift = { ...shift, ...saved.shift };
+    totalOrders = Number(saved.totalOrders) || 0;
     nextId = Number(saved.nextId) || 1;
   }
 
@@ -94,11 +106,25 @@ export function createLaundry({
   const running = (m) => !!(m && m.load && now() < m.doneAt);
   const finished = (m) => !!(m && m.load && now() >= m.doneAt);
   const minutesLeft = (m) => Math.max(1, Math.ceil(m.doneAt - now()));
+  const dueLeft = (o) => (o ? Math.max(0, Math.ceil(o.due - now())) : 0);
   const changed = () => { for (const fn of listeners) fn(); save(); };
 
-  function detergentIndex() {
+  function itemIndex(itemId) {
     const list = inventory && typeof inventory.serialize === 'function' ? inventory.serialize() : [];
-    return list.findIndex((item) => item && item.id === 'detergent');
+    return list.findIndex((item) => item && item.id === itemId);
+  }
+  const detergentIndex = () => itemIndex('detergent');
+  const softenerIndex = () => itemIndex('softener');
+
+  function maybeFindCoins(noun) {
+    if (typeof random !== 'function' || random() >= COIN_FIND_CHANCE) return 0;
+    const found = 1 + Math.floor(Math.min(0.9999, Math.max(0, random())) * 3);
+    if (money && typeof money.add === 'function') {
+      money.add(found, { category: 'Found', label: 'Stray quarters in laundromat' });
+    }
+    if (sfx && typeof sfx.play === 'function') sfx.play('cash');
+    toast(`Lucky find! Found $${found} in stray quarters in the ${noun}.`);
+    return found;
   }
 
   function pay(amount) {
@@ -121,18 +147,36 @@ export function createLaundry({
     const isWasher = m.kind === 'washer';
     const noun = isWasher ? 'washer' : 'dryer';
     if (running(m)) {
-      return { prompt: `check the ${noun} (${minutesLeft(m)} min left)`, action: 'press', run: () => { toast(`${isWasher ? 'Washing' : 'Drying'} ${possessive(ownerName(m.load.owner))} laundry — ${minutesLeft(m)} min left.`); return true; } };
+      const o = m.load.owner !== 'you' ? order(m.load.owner) : null;
+      const dueNote = o ? (dueLeft(o) > 0 ? ` · due in ${dueLeft(o)} min` : ' · LATE') : '';
+      return {
+        prompt: `check the ${noun} (${minutesLeft(m)} min left${dueNote})`,
+        action: 'press',
+        run: () => {
+          toast(`${isWasher ? 'Washing' : 'Drying'} ${possessive(ownerName(m.load.owner))} laundry — ${minutesLeft(m)} min left${dueNote}.`);
+          return true;
+        }
+      };
     }
     if (finished(m)) {
       if (carry) return { prompt: `take out the laundry (hands full)`, action: null, run: () => { toast('Your hands are full.'); return false; } };
       const whose = possessive(ownerName(m.load.owner));
       if (!isWasher && m.load.owner === 'you') {
+        const softened = !!m.load.softened;
         return {
           prompt: 'take out your clean clothes', action: 'unload',
           run: () => {
             m.load = null;
             if (needs && typeof needs.refill === 'function') needs.refill('clean');
-            toast('Fresh, clean clothes!');
+            const boost = softened ? SOFTENER_ENERGY_BOOST : WARM_ENERGY_BOOST;
+            if (needs && typeof needs.add === 'function') {
+              needs.add('energy', boost);
+              needs.add('mood', softened ? 18 : 10);
+            }
+            toast(softened
+              ? `Warm, lavender-fresh clothes! (+${boost} Energy)`
+              : `Fresh, warm clothes straight from the dryer! (+${boost} Energy)`);
+            maybeFindCoins(noun);
             changed();
             return 'pickUp';
           }
@@ -143,6 +187,7 @@ export function createLaundry({
         run: () => {
           carry = { owner: m.load.owner, stage: isWasher ? 'wet' : 'dry' };
           m.load = null;
+          maybeFindCoins(noun);
           changed();
           return 'unload';
         }
@@ -160,11 +205,20 @@ export function createLaundry({
       }
       const own = carry.owner === 'you';
       const price = own ? (isWasher ? WASH_PRICE : DRY_PRICE) : 0;
+      const useSoftener = own && !isWasher && softenerIndex() >= 0;
       return {
-        prompt: `load ${possessive(ownerName(carry.owner))} laundry${price ? ` ($${price})` : ''}`, action: 'load',
+        prompt: `load ${possessive(ownerName(carry.owner))} laundry${price ? ` ($${price}${useSoftener ? ' + softener' : ''})` : ''}`, action: 'load',
         run: () => {
           if (price && !spend(price, 'Laundromat ' + noun)) return false;
-          m.load = { owner: carry.owner };
+          let softened = false;
+          if (own && !isWasher) {
+            const sIdx = softenerIndex();
+            if (sIdx >= 0 && inventory && typeof inventory.consume === 'function') {
+              inventory.consume(sIdx, 1);
+              softened = true;
+            }
+          }
+          m.load = softened ? { owner: carry.owner, softened: true } : { owner: carry.owner };
           m.doneAt = now() + (isWasher ? washMinutes() : dryMinutes());
           carry = null;
           if (sfx && typeof sfx.play === 'function') sfx.play('washer-start');
@@ -227,8 +281,10 @@ export function createLaundry({
   // -------------------------------------------------------------- shift work
 
   function spawnOrder() {
-    const name = CUSTOMERS[(nextId - 1) % CUSTOMERS.length];
-    const o = { id: 'order-' + nextId++, name, due: now() + ORDER_DUE_MINUTES, taken: false };
+    const idx = nextId - 1;
+    const name = CUSTOMERS[idx % CUSTOMERS.length];
+    const color = BAG_COLORS[idx % BAG_COLORS.length];
+    const o = { id: 'order-' + nextId++, name, due: now() + ORDER_DUE_MINUTES, taken: false, color };
     orders.push(o);
     return o;
   }
@@ -250,7 +306,7 @@ export function createLaundry({
       run: () => {
         const energy = needs && typeof needs.get === 'function' ? Number(needs.get('energy')) : 100;
         if (energy < SHIFT_MIN_ENERGY) { toast('Too tired for a shift.'); return false; }
-        shift = { on: true, done: 0, earned: 0, nextOrderAt: now() + orderEvery() };
+        shift = { on: true, done: 0, earned: 0, streak: 0, nextOrderAt: now() + orderEvery() };
         spawnOrder();
         spawnOrder();
         toast('Clocked in. Customer bags are on the counter.');
@@ -261,7 +317,7 @@ export function createLaundry({
   }
 
   function endShift() {
-    shift = { ...shift, on: false };
+    shift = { ...shift, on: false, streak: 0 };
     const open = new Set(orders.map((o) => o.id));
     for (const m of machines) if (m.load && open.has(m.load.owner)) m.load = null;
     if (carry && open.has(carry.owner)) carry = null;
@@ -283,11 +339,26 @@ export function createLaundry({
           const base = late ? ORDER_LATE_PAY : ORDER_BASE_PAY;
           pay(base + tip);
           shift.done += 1;
-          shift.earned += base + tip;
+          totalOrders += 1;
+          shift.streak = late ? 0 : (shift.streak || 0) + 1;
+          let bonus = 0;
+          if (!late && shift.streak > 0 && shift.streak % STREAK_STEP === 0) {
+            bonus = STREAK_BONUS;
+            if (money && typeof money.add === 'function') {
+              money.add(bonus, { category: 'Bonus', label: 'Laundromat on-time streak bonus' });
+            }
+          }
+          shift.earned += base + tip + bonus;
           if (sfx && typeof sfx.play === 'function') sfx.play('cash');
-          toast(late ? `+$${base} — ${o ? o.name : 'They'} wanted it sooner.` : `+$${base} and a $${tip} tip from ${o.name}!`);
+          const baseMsg = late
+            ? `+$${base} — ${o ? o.name : 'They'} wanted it sooner.`
+            : `+$${base} and a $${tip} tip from ${o.name}!`;
+          toast(bonus ? `${baseMsg} ${shift.streak}-in-a-row streak bonus (+$${bonus})!` : baseMsg);
           orders = orders.filter((x) => x !== o);
           carry = null;
+          if (typeof onOrderComplete === 'function') {
+            onOrderComplete({ onTime: !late, streak: shift.streak, totalOrders, customer: o?.name || '' });
+          }
           changed();
           return 'handOver';
         }
@@ -296,14 +367,53 @@ export function createLaundry({
     if (!shift.on) return null;
     const o = waitingOrder();
     if (!o) return { prompt: 'check the counter', action: null, run: () => { toast('No bags waiting right now.'); return false; } };
+    const left = dueLeft(o);
+    const dueLabel = left > 0 ? `${left} min left` : 'LATE';
     if (carry) return { prompt: `pick up ${possessive(o.name)} bag (hands full)`, action: null, run: () => { toast('Your hands are full.'); return false; } };
     return {
-      prompt: `pick up ${possessive(o.name)} bag`, action: 'pickUp',
+      prompt: `pick up ${possessive(o.name)} bag (${dueLabel})`, action: 'pickUp',
       run: () => {
         o.taken = true;
         carry = { owner: o.id, stage: 'dirty' };
         changed();
         return 'pickUp';
+      }
+    };
+  }
+
+  /** Magazine rack: pass time smoothly until the soonest running machine finishes. */
+  function waitOption() {
+    const busy = machines.filter(running);
+    if (!busy.length) {
+      return {
+        prompt: 'browse the magazine rack',
+        action: 'press',
+        run: () => {
+          toast('Maple Valley Monthly — start a wash or dry cycle to pass the time here.');
+          return false;
+        }
+      };
+    }
+    busy.sort((a, b) => a.doneAt - b.doneAt);
+    const soonest = busy[0];
+    const waitMins = minutesLeft(soonest);
+    return {
+      prompt: `read a magazine while waiting (${waitMins} min)`,
+      action: 'press',
+      run: () => {
+        if (typeof advanceMinutes !== 'function') {
+          toast(`${soonest.kind === 'washer' ? 'Washer' : 'Dryer'} has ${waitMins} min left.`);
+          return false;
+        }
+        advanceMinutes(waitMins);
+        if (needs && typeof needs.add === 'function') {
+          needs.add('energy', MAGAZINE_ENERGY_BOOST);
+          needs.add('mood', 6);
+        }
+        update();
+        toast(`Flipped through Maple Valley Monthly (${waitMins} min) — ${soonest.kind} is ready!`);
+        changed();
+        return 'press';
       }
     };
   }
@@ -422,7 +532,34 @@ export function createLaundry({
       carry,
       orders,
       shift,
+      totalOrders,
       nextId
+    };
+  }
+
+  function waitingOrders() {
+    return orders.filter((o) => !o.taken).map((o) => ({
+      id: o.id,
+      name: o.name,
+      color: o.color ?? BAG_COLORS[0],
+      dueLeft: dueLeft(o)
+    }));
+  }
+
+  function boardSummary() {
+    return {
+      onShift: shift.on,
+      streak: shift.streak || 0,
+      done: shift.done || 0,
+      earned: shift.earned || 0,
+      totalOrders,
+      orders: orders.map((o) => ({
+        id: o.id,
+        name: o.name,
+        taken: !!o.taken,
+        color: o.color ?? BAG_COLORS[0],
+        dueLeft: dueLeft(o)
+      }))
     };
   }
 
@@ -431,21 +568,31 @@ export function createLaundry({
     clockOption,
     counterOption,
     tableOption,
+    waitOption,
     finishFold,
     update,
     nextStep,
     tasks,
     runningCount,
     serialize,
+    waitingOrders,
+    boardSummary,
     onChange: (fn) => { listeners.push(fn); return () => listeners.splice(listeners.indexOf(fn), 1); },
     machineState: (id) => {
       const m = machine(id);
       if (!m) return null;
-      return { running: running(m), finished: finished(m), owner: m.load ? m.load.owner : null };
+      return {
+        running: running(m),
+        finished: finished(m),
+        minutesLeft: running(m) ? minutesLeft(m) : 0,
+        owner: m.load ? m.load.owner : null
+      };
     },
     waitingCount: () => orders.filter((o) => !o.taken).length,
     get carry() { return carry; },
     get onShift() { return shift.on; },
+    get streak() { return shift.streak || 0; },
+    get totalOrders() { return totalOrders; },
     get orders() { return orders.slice(); },
     get folding() { return folding; },
     get fast() { return fast; },

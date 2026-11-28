@@ -152,11 +152,13 @@ export function startLoop(g) {
     });
     g.car?.object?.userData?.updateHeadlights?.(lightingMinutes, rain, mode.driving());
     scene.userData.frontYard?.update(time.totalMinutes);
+    scene.userData.houseUpgrades?.update?.(delta);
     scene.userData.streetlights.update(lightingMinutes, rain);
     scene.userData.park.update(lightingMinutes, delta, g.dayNight.lastSample);
     scene.userData.cornerShop?.userData.updateFrontage?.(lightingMinutes);
     scene.userData.clinic?.userData.updateLighting?.(lightingMinutes);
     scene.userData.gasStation?.userData.updateLighting?.(lightingMinutes);
+    scene.userData.gasStation?.userData.update?.(delta);
     scene.userData.lightPool?.update(player.position);
     g.prompt.update();
     g.minimap.update(delta);

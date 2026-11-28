@@ -20,7 +20,8 @@ export const SHOP_DEFS = [
     name: 'Laundromat vending machine',
     stock: [
       { item: 'detergent', name: 'Detergent', price: 2, sfx: 'vending' },
-      { item: 'snack', name: 'Snack', price: 5, sfx: 'vending' }
+      { item: 'snack', name: 'Snack', price: 5, sfx: 'vending' },
+      { item: 'softener', name: 'Fabric Softener', price: 2, sfx: 'vending' }
     ]
   },
   {
