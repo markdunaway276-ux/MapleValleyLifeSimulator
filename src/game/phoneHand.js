@@ -15,9 +15,9 @@ import { loadFpHands, makeHand, skinTint } from '../systems/fpHands.js';
 // the fingers run up-left across the back (palm toward the case), and the
 // thumb lies along the right edge.
 export const PHONE_HAND = {
-  wrist: new THREE.Vector3(0.062, -0.1, -0.02),
-  fingers: new THREE.Vector3(-1, 0.85, 0),
-  roll: -0.3 // turns the thumb side out past the right edge so the thumb can reach the glass
+  wrist: new THREE.Vector3(0.064, -0.104, -0.028),
+  fingers: new THREE.Vector3(-1, 0.70, -0.06),
+  roll: -0.20 // turns the thumb side out past the right edge so the thumb can reach the glass
 };
 const WRIST_IN_HAND = 0.084; // HAND_WRIST.z: wrist sits this far behind the palm origin
 
@@ -34,7 +34,7 @@ function placeMount(mount) {
   mount.matrix.copy(m);
   mount.matrixWorldNeedsUpdate = true;
 }
-export const PHONE_GRIP = { index: 0.42, middle: 0.46, ring: 0.5, pinky: 0.52, thumb: 0.2, spread: -0.1 };
+export const PHONE_GRIP = { index: 0.24, middle: 0.28, ring: 0.32, pinky: 0.36, thumb: 0.18, spread: -0.06 };
 
 export function attachPhoneHand(phone, { load, hide = [] } = {}) {
   let hand = null;
@@ -53,9 +53,9 @@ export function attachPhoneHand(phone, { load, hide = [] } = {}) {
     last = key;
     hand.setPose(PHONE_GRIP);
     // Same reach limits as the simple grip: thumb rests low on the right of the screen.
-    const endX = 0.03 + Math.max(-0.05, Math.min(0, x));
-    const endY = -0.035 + Math.max(-0.015, Math.min(0.06, y));
-    target.set(endX, endY, pressing ? 0.0085 : 0.014);
+    const endX = 0.028 + Math.max(-0.048, Math.min(0, x));
+    const endY = -0.036 + Math.max(-0.015, Math.min(0.055, y));
+    target.set(endX, endY, pressing ? 0.009 : 0.0125);
     phone.updateMatrixWorld(true);
     hand.thumbTo(phone.localToWorld(target));
   }

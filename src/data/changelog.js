@@ -8,6 +8,15 @@
 
 export const CHANGELOG = [
   {
+    version: '0.15.1',
+    date: '2026-11-28',
+    title: 'Phone Hand Alignment & Mesh Fix',
+    notes: [
+      'Fixed the duplicate floating hand in front of the camera when opening your phone in first-person.',
+      'Fixed missing wrist/palm triangles on the realistic first-person hand mesh and reseated the fingers behind the phone case so they wrap cleanly around the edge without poking through the screen.'
+    ]
+  },
+  {
     version: '0.15',
     date: '2026-11-28',
     title: 'Home Cooking & Backyard Gardening',
