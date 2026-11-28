@@ -17,6 +17,7 @@ import { createCarInterior } from './world/carInterior.js';
  *   src/core/mode.js       what the player is doing and which menus are open
  */
 import { createScene } from './world/scene.js';
+import { createHomeDecor } from './world/homeDecor.js';
 import { createPlayer } from './core/player.js';
 import { setupInput } from './core/input.js';
 import { isMobileDevice } from './core/device.js';
@@ -134,7 +135,8 @@ const lights = createInteriorLights({ scene, dayNight, getTime: () => clock.getT
 if (saveData.interiorLights != null) lights.apply(saveData);
 const tvSet = createTvSet({ scene, sfx, save, getPosition: () => player.position });
 if (saveData.tv != null) tvSet.apply(saveData);
-Object.assign(g, { needs, skills, lights, tvSet });
+const homeDecor = createHomeDecor({ scene, shadows: quality.shadows, saved: saveData.homeDecor });
+Object.assign(g, { needs, skills, lights, tvSet, homeDecor });
 
 // The interior is built when the house model has loaded; this may run again then.
 function installInteriorInteractables(s) {
@@ -427,6 +429,9 @@ const phone = createPhone({
   addInboxMessage: (msg) => { const added = inbox.add(msg); save(); return added; },
   markInboxRead: (key) => { inbox.markRead(key); save(); },
   onInboxChange: (fn) => inbox.onChange(fn),
+  getHomeDecor: () => homeDecor.getOwned(),
+  buyHomeDecor: (id) => homeDecor.buy(id, { money, sfx, toast: (msg) => g.hud?.toast?.(msg), save }),
+  onHomeDecorChange: (fn) => homeDecor.onChange(fn),
   playNotification: () => sfx.play('phone-notification')
 });
 const dialogue = createDialogue({

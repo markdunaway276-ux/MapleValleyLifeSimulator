@@ -98,6 +98,23 @@ export const ITEM_DEFS = {
     description: 'A letter from your mailbox.',
     color: '#e8e0c8',
     stackable: true
+  },
+  groceries: {
+    id: 'groceries',
+    name: 'Groceries',
+    icon: '🥕',
+    description: 'Fresh ingredients from Maple Lane Market. Cook at your kitchen stove for a hearty meal.',
+    color: '#4f8f4b',
+    stackable: true
+  },
+  'home-meal': {
+    id: 'home-meal',
+    name: 'Home Meal',
+    icon: '🍲',
+    description: 'A hot home-cooked meal straight off your stove. Restores lots of hunger.',
+    color: '#c97b36',
+    stackable: true,
+    use: { action: 'eat', label: 'Eat', need: 'hunger', amount: 75, sfx: 'eat' }
   }
 };
 

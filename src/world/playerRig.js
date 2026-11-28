@@ -124,19 +124,24 @@ export function attachPlayerRig(body, { shadows, appearance }) {
 
   function applyPalette() {
     model?.root.traverse(mesh => {
-      const colors = mesh.isMesh && mesh.material.userData?.clothes;
-      if (!colors) return;
-      colors.cShirt.value.set(getOptionColor('shirt', look.shirt));
-      colors.cPants.value.set(getOptionColor('pants', look.pants));
-      colors.cSkin.value.set(getOptionColor('skin', look.skin));
+      if (!mesh.isMesh) return;
+      const colors = mesh.material.userData?.clothes;
+      if (colors) {
+        colors.cShirt.value.set(getOptionColor('shirt', look.shirt));
+        colors.cPants.value.set(getOptionColor('pants', look.pants));
+        colors.cSkin.value.set(getOptionColor('skin', look.skin));
+        if (colors.cShoes) colors.cShoes.value.set(getOptionColor('shoes', look.shoes));
+      } else if (/hair/i.test(mesh.name || mesh.material?.name || '')) {
+        mesh.material.color?.set(getOptionColor('hair', look.hair));
+      }
     });
   }
 
-  createCharacterModel({ body: PLAYER_BODY, hair: 'simpleparted', hairColor: 0x3b3027, shadows, mixamo: ACTION_FILES, outfit: {
+  createCharacterModel({ body: PLAYER_BODY, hair: 'simpleparted', hairColor: getOptionColor('hair', look.hair), shadows, mixamo: ACTION_FILES, outfit: {
     shirt: getOptionColor('shirt', look.shirt),
     pants: getOptionColor('pants', look.pants),
     skin: getOptionColor('skin', look.skin),
-    shoes: 0x272c31
+    shoes: getOptionColor('shoes', look.shoes)
   } }).then(loaded => {
     if (!loaded) return;
     const upper = loaded.root.getObjectByName('upperarm_r');
