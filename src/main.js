@@ -402,7 +402,7 @@ const phone = createPhone({
   apps: INSTALLED_APPS,
   bindKey: !isMobile,
   onBeforeOpen: () => { if (inventory.isOpen()) inventory.close(); },
-  attachMap: (el, onRoute) => minimap.attachPhone(el, undefined, onRoute),
+  attachMap: (el, onRoute, onPickPin) => minimap.attachPhone(el, undefined, onRoute, onPickPin),
   getDestinations: () => [
     ...minimap.destinations(),
     ...getTasks().filter(task => !task.complete && npcs.get(task.npcId)).map(task => ({
@@ -424,6 +424,8 @@ const phone = createPhone({
   getSkills: () => skills.get(),
   onSkillsChange: (fn) => skills.onChange(fn),
   getInbox: () => inbox.get(),
+  addInboxMessage: (msg) => { const added = inbox.add(msg); save(); return added; },
+  markInboxRead: (key) => { inbox.markRead(key); save(); },
   onInboxChange: (fn) => inbox.onChange(fn),
   playNotification: () => sfx.play('phone-notification')
 });

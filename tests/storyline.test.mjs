@@ -270,3 +270,25 @@ test('fullscreen toggle enters and exits fullscreen cleanly across standard and 
   assert.equal(await toggleFullscreen(mockDoc), false);
   assert.equal(isFullscreenActive(mockDoc), false);
 });
+
+test('phone Messages, Style, and Map apps support two-way threads, smooth HiDPI preview, and daylight nav cartography', async () => {
+  const { createInbox } = await import('../src/data/mail.js');
+  const inbox = createInbox();
+  inbox.add({ id: 'r1', threadId: 'rita', from: 'Rita', sender: 'them', body: 'Welcome to Maple Lane!', day: 1, time: '8:30 AM' });
+  inbox.add({ id: 'r2', threadId: 'rita', from: 'Rita', sender: 'me', body: 'Thanks for the keys!', day: 1, time: '8:31 AM', read: true });
+  assert.equal(inbox.get().length, 2);
+  assert.equal(inbox.get()[0].sender, 'me');
+  assert.equal(inbox.get()[1].read, undefined);
+  inbox.markRead('rita');
+  assert.equal(inbox.get().every((m) => m.read === true), true);
+
+  const { STYLE_PREVIEW_WIDTH, STYLE_PREVIEW_HEIGHT } = await import('../src/ui/phone/style.js');
+  assert.ok(STYLE_PREVIEW_WIDTH >= 240 && STYLE_PREVIEW_HEIGHT >= 300);
+
+  const { NAV_MAP_COLORS } = await import('../src/ui/minimap.js');
+  const { renderMapApp } = await import('../src/ui/phone/mapApp.js');
+  assert.equal(typeof renderMapApp, 'function');
+  assert.equal(NAV_MAP_COLORS.road, '#ffffff');
+  assert.equal(NAV_MAP_COLORS.player, '#1a73e8');
+});
+

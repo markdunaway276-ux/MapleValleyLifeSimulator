@@ -56,6 +56,43 @@ export const MINIMAP_COLORS = {
   frame: 'rgba(0,0,0,0.45)'
 };
 
+export const NAV_MAP_COLORS = {
+  grass: '#eef1ec',
+  grid: 'rgba(0, 0, 0, 0)',
+  park: '#cce8c7',
+  pond: '#a4d3f6',
+  pondRim: '#7ab4e6',
+  road: '#ffffff',
+  route9: '#fde293',
+  route9Edge: '#e0bd59',
+  roadEdge: '#cdd4dc',
+  roadLine: '#e1e6ec',
+  sidewalk: '#e3e6e2',
+  gravel: '#e6dfd3',
+  crossing: 'rgba(206, 212, 220, 0.75)',
+  house: '#dce1e7',
+  houseStroke: '#bfc7d1',
+  houseShadow: 'rgba(28, 40, 56, 0.14)',
+  mainHouse: '#f7e5be',
+  mainHouseStroke: '#d4a246',
+  tree: 'rgba(116, 186, 118, 0.45)',
+  treeCore: 'rgba(84, 158, 88, 0.56)',
+  mailbox: '#d97706',
+  vending: '#dc2626',
+  market: '#1e8e3e',
+  laundromat: '#1a73e8',
+  desk: '#1a73e8',
+  car: '#5f6b7a',
+  carActive: '#1a73e8',
+  carNose: '#ffffff',
+  player: '#1a73e8',
+  playerStroke: '#ffffff',
+  npc: '#e37400',
+  npcStroke: '#ffffff',
+  north: '#3c4043',
+  frame: 'rgba(0,0,0,0.12)'
+};
+
 const STYLE_ID = 'hud-minimap-styles';
 
 const CSS = `
@@ -167,8 +204,8 @@ body.mobile #hud-minimap-toggle {
   min-height: 180px;
   border-radius: 16px;
   overflow: hidden;
-  background: #17201a;
-  border: 1px solid rgba(214, 182, 114, 0.35);
+  background: #eef1ec;
+  border: 1px solid rgba(255, 255, 255, 0.12);
   position: relative;
 }
 .phone-map canvas {
@@ -388,8 +425,53 @@ function fillRectWorld(ctx, view, minX, maxX, minZ, maxZ) {
   ctx.fillRect(a.x, a.y, c.x - a.x, c.y - a.y);
 }
 
-export function drawStaticLayer(ctx, world, view) {
-  const C = MINIMAP_COLORS;
+function drawHaloLabel(ctx, text, x, y, { font = '600 10px system-ui, sans-serif', color = '#3c4043', halo = 'rgba(255,255,255,0.92)', align = 'center' } = {}) {
+  ctx.save();
+  ctx.font = font;
+  ctx.textAlign = align;
+  ctx.textBaseline = 'middle';
+  ctx.lineJoin = 'round';
+  ctx.strokeStyle = halo;
+  ctx.lineWidth = 3;
+  ctx.strokeText(text, x, y);
+  ctx.fillStyle = color;
+  ctx.fillText(text, x, y);
+  ctx.restore();
+}
+
+function drawNavPin(ctx, x, y, color, radius = 6.5, label = null) {
+  ctx.save();
+  ctx.translate(x, y);
+  // Subtle pin ground shadow
+  ctx.fillStyle = 'rgba(0, 0, 0, 0.22)';
+  ctx.beginPath();
+  ctx.ellipse(0, 1, radius * 0.65, radius * 0.28, 0, 0, Math.PI * 2);
+  ctx.fill();
+  // Teardrop pin body
+  ctx.beginPath();
+  ctx.moveTo(0, 0);
+  ctx.bezierCurveTo(-radius * 1.05, -radius * 0.9, -radius * 1.15, -radius * 2.25, 0, -radius * 2.35);
+  ctx.bezierCurveTo(radius * 1.15, -radius * 2.25, radius * 1.05, -radius * 0.9, 0, 0);
+  ctx.closePath();
+  ctx.fillStyle = color;
+  ctx.fill();
+  ctx.strokeStyle = '#ffffff';
+  ctx.lineWidth = 1.6;
+  ctx.stroke();
+  // Crisp white center dot
+  ctx.fillStyle = '#ffffff';
+  ctx.beginPath();
+  ctx.arc(0, -radius * 1.42, radius * 0.36, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+  if (label) {
+    drawHaloLabel(ctx, label, x, y + 8, { font: '600 9.5px system-ui, sans-serif', color: '#202124' });
+  }
+}
+
+export function drawStaticLayer(ctx, world, view, { theme = 'hud', pins = [] } = {}) {
+  const isNav = theme === 'nav';
+  const C = isNav ? NAV_MAP_COLORS : MINIMAP_COLORS;
   const s = (world && world.street) || STREET;
   const half = (s.length || STREET.length) / 2;
   const roadHalf = (s.roadWidth || STREET.roadWidth) / 2;
@@ -399,28 +481,35 @@ export function drawStaticLayer(ctx, world, view) {
   ctx.fillStyle = C.grass;
   ctx.fillRect(0, 0, view.width, view.height);
 
-  // Subtle tactical coordinate grid for spatial depth.
-  const gridStep = Math.max(18, Math.round(view.width / 8));
-  ctx.strokeStyle = C.grid;
-  ctx.lineWidth = 1;
-  ctx.beginPath();
-  for (let gx = gridStep; gx < view.width; gx += gridStep) {
-    ctx.moveTo(gx + 0.5, 0);
-    ctx.lineTo(gx + 0.5, view.height);
+  if (!isNav) {
+    // Subtle tactical coordinate grid for spatial depth on the dark HUD minimap.
+    const gridStep = Math.max(18, Math.round(view.width / 8));
+    ctx.strokeStyle = C.grid;
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    for (let gx = gridStep; gx < view.width; gx += gridStep) {
+      ctx.moveTo(gx + 0.5, 0);
+      ctx.lineTo(gx + 0.5, view.height);
+    }
+    for (let gy = gridStep; gy < view.height; gy += gridStep) {
+      ctx.moveTo(0, gy + 0.5);
+      ctx.lineTo(view.width, gy + 0.5);
+    }
+    ctx.stroke();
   }
-  for (let gy = gridStep; gy < view.height; gy += gridStep) {
-    ctx.moveTo(0, gy + 0.5);
-    ctx.lineTo(view.width, gy + 0.5);
-  }
-  ctx.stroke();
 
-  ctx.fillStyle = C.road;
+  ctx.fillStyle = isNav ? C.route9 : C.road;
   ctx.beginPath();
   const roadPoints = [[ROUTE_9.minX, -4], [ROUTE_9.taper, -4], [-half, -routeHalfWidth(-half)],
     [-half, routeHalfWidth(-half)], [ROUTE_9.taper, 4], [ROUTE_9.minX, 4]];
   for (const [x, z] of roadPoints) { const point = toMap(view, x, cz + z); ctx.lineTo(point.x, point.y); }
   ctx.closePath();
   ctx.fill();
+  if (isNav) {
+    ctx.strokeStyle = C.route9Edge;
+    ctx.lineWidth = 1.2;
+    ctx.stroke();
+  }
 
   const expansion = s.expansion;
   if (expansion) {
@@ -463,7 +552,7 @@ export function drawStaticLayer(ctx, world, view) {
   fillRectWorld(ctx, view, -half, half, cz - roadHalf, cz - roadHalf + edgeW);
   fillRectWorld(ctx, view, -half, half, cz + roadHalf - edgeW, cz + roadHalf);
 
-  // Dashed amber centre line along Maple Lane.
+  // Dashed centre line along Maple Lane.
   const cLeft = toMap(view, -half, cz);
   const cRight = toMap(view, half, cz);
   ctx.save();
@@ -476,7 +565,7 @@ export function drawStaticLayer(ctx, world, view) {
   ctx.stroke();
   ctx.restore();
 
-  if (s.parkingLaneWidth) {
+  if (s.parkingLaneWidth && !isNav) {
     ctx.fillStyle = 'rgba(180, 186, 194, 0.35)';
     const stripe = Math.max(0.08, 0.5 / view.scale);
     const parkingEdge = roadHalf - s.parkingLaneWidth;
@@ -521,26 +610,47 @@ export function drawStaticLayer(ctx, world, view) {
     ctx.fill();
   }
 
-  const markers = (world && world.markers) || [];
-  for (let i = 0; i < markers.length; i++) {
-    if (markers[i].live) continue; // drawn each redraw (the drivable car)
-    drawMarker(ctx, view, markers[i]);
+  if (isNav) {
+    // Street & park labels with clean white halos.
+    const midStreet = toMap(view, 4, cz);
+    drawHaloLabel(ctx, 'Maple Ln', midStreet.x, midStreet.y, {
+      font: '700 10.5px system-ui, sans-serif', color: '#5f6368'
+    });
+    if (expansion?.park) {
+      const pk = expansion.park;
+      const pkPt = toMap(view, (pk.minX + pk.maxX) / 2, (pk.minZ + pk.maxZ) / 2);
+      drawHaloLabel(ctx, 'Maple Park', pkPt.x, pkPt.y, {
+        font: '600 9.5px system-ui, sans-serif', color: '#1e6e36'
+      });
+    }
+    // Draw clean teardrop POI pins for major Maple Lane landmarks.
+    for (let i = 0; i < pins.length; i++) {
+      const pin = pins[i];
+      if (!pin || pin.x == null || pin.z == null) continue;
+      const pt = toMap(view, pin.x, pin.z);
+      drawNavPin(ctx, pt.x, pt.y, pin.color || '#1a73e8', 5.5, pin.label);
+    }
+  } else {
+    const markers = (world && world.markers) || [];
+    for (let i = 0; i < markers.length; i++) {
+      if (markers[i].live) continue; // drawn each redraw (the drivable car)
+      drawMarker(ctx, view, markers[i]);
+    }
+    // Sleek dark compass pill at top-center (HUD minimap only).
+    ctx.fillStyle = 'rgba(10, 13, 16, 0.78)';
+    ctx.beginPath();
+    ctx.arc(view.width / 2, 9, 7, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = C.north;
+    ctx.font = '700 9px system-ui, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('N', view.width / 2, 9.5);
   }
-
-  // Sleek dark compass pill at top-center.
-  ctx.fillStyle = 'rgba(10, 13, 16, 0.78)';
-  ctx.beginPath();
-  ctx.arc(view.width / 2, 9, 7, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.fillStyle = C.north;
-  ctx.font = '700 9px system-ui, sans-serif';
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-  ctx.fillText('N', view.width / 2, 9.5);
 }
 
-function drawMarker(ctx, view, m) {
-  const C = MINIMAP_COLORS;
+function drawMarker(ctx, view, m, palette = MINIMAP_COLORS) {
+  const C = palette;
   const p = toMap(view, m.x, m.z);
   if (m.kind === 'car') {
     const w = (m.width || 4) * view.scale;
@@ -592,6 +702,42 @@ export function drawPlayerArrow(ctx, player, view) {
   ctx.restore();
 }
 
+function drawNavPlayerDot(ctx, player, view) {
+  if (!player || !player.position) return;
+  const p = toMap(view, player.position.x, player.position.z);
+  const fwd = playerForward(player);
+  const angle = Math.atan2(fwd.x, fwd.z);
+  ctx.save();
+  ctx.translate(p.x, p.y);
+  // Translucent blue directional heading cone
+  ctx.save();
+  ctx.rotate(angle);
+  const coneGrad = ctx.createRadialGradient(0, 0, 2, 0, 0, 26);
+  coneGrad.addColorStop(0, 'rgba(26, 115, 232, 0.38)');
+  coneGrad.addColorStop(1, 'rgba(26, 115, 232, 0)');
+  ctx.fillStyle = coneGrad;
+  ctx.beginPath();
+  ctx.moveTo(0, 0);
+  ctx.arc(0, 0, 26, -Math.PI * 0.5 - 0.55, -Math.PI * 0.5 + 0.55);
+  ctx.closePath();
+  ctx.fill();
+  ctx.restore();
+  // Soft accuracy halo
+  ctx.fillStyle = 'rgba(26, 115, 232, 0.18)';
+  ctx.beginPath();
+  ctx.arc(0, 0, 12, 0, Math.PI * 2);
+  ctx.fill();
+  // Crisp white border + vivid blue GPS dot
+  ctx.fillStyle = '#1a73e8';
+  ctx.strokeStyle = '#ffffff';
+  ctx.lineWidth = 2.5;
+  ctx.beginPath();
+  ctx.arc(0, 0, 6, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.stroke();
+  ctx.restore();
+}
+
 export function drawVehicles(ctx, vehicles, view) {
   const list = Array.isArray(vehicles) ? vehicles : [];
   if (!view) return;
@@ -636,10 +782,14 @@ export function createMinimapSurface({
   getNpcs = null,
   getVehicles = null,
   getRoute = null,
+  getPins = null,
+  theme = 'hud',
   cssWidth,
   cssHeight,
   pixelRatio = 1
 } = {}) {
+  const isNav = theme === 'nav';
+  const palette = isNav ? NAV_MAP_COLORS : MINIMAP_COLORS;
   const dest = canvas || ((typeof document !== 'undefined') ? document.createElement('canvas') : null);
   let cssW = Math.max(1, cssWidth || (dest && dest.width) || HUD_MINIMAP_SIZE);
   let cssH = Math.max(1, cssHeight || (dest && dest.height) || HUD_MINIMAP_SIZE);
@@ -665,12 +815,13 @@ export function createMinimapSurface({
 
   function rebuild() {
     world = typeof getWorld === 'function' ? getWorld() : getWorld;
+    const pins = typeof getPins === 'function' ? getPins() : (Array.isArray(getPins) ? getPins : []);
     const pw = dest ? dest.width : Math.max(1, Math.round(cssW * dpr));
     const ph = dest ? dest.height : Math.max(1, Math.round(cssH * dpr));
     staticCanvas = makeOffscreen(pw, ph);
     view = makeMinimapView(worldBounds(world || {}), pw, ph, Math.max(6, 8 * dpr));
     const sctx = staticCanvas.getContext && staticCanvas.getContext('2d');
-    if (sctx) drawStaticLayer(sctx, world, view);
+    if (sctx) drawStaticLayer(sctx, world, view, { theme, pins });
     staticPaints++;
     redraw();
   }
@@ -685,8 +836,27 @@ export function createMinimapSurface({
     const player = typeof getPlayer === 'function' ? getPlayer() : getPlayer;
     const npcs = typeof getNpcs === 'function' ? getNpcs() : getNpcs;
     const vehicles = typeof getVehicles === 'function' ? getVehicles() : getVehicles;
-    drawVehicles(ctx, vehicles, view);
-    drawNpcDots(ctx, npcs, view);
+    if (Array.isArray(vehicles)) {
+      for (let i = 0; i < vehicles.length; i++) {
+        if (vehicles[i]) drawMarker(ctx, view, { ...vehicles[i], kind: 'car' }, palette);
+      }
+    }
+    if (Array.isArray(npcs) && npcs.length) {
+      for (let i = 0; i < npcs.length; i++) {
+        const n = npcs[i];
+        const pos = n && (n.position || n);
+        if (!pos || pos.x == null || pos.z == null) continue;
+        const p = toMap(view, pos.x, pos.z);
+        const r = isNav ? 3.8 : Math.max(2.6, 2.2 * (view.scale / 4) + 1.2);
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, r, 0, Math.PI * 2);
+        ctx.fillStyle = palette.npc;
+        ctx.strokeStyle = palette.npcStroke;
+        ctx.lineWidth = isNav ? 1.5 : 1;
+        ctx.fill();
+        ctx.stroke();
+      }
+    }
     const route = getRoute?.();
     if (route) {
       const goal = toMap(view, route.goal.x, route.goal.z);
@@ -698,22 +868,29 @@ export function createMinimapSurface({
           if (i === 0) ctx.moveTo(point.x, point.y);
           else ctx.lineTo(point.x, point.y);
         }
-        ctx.strokeStyle = '#15323a';
-        ctx.lineWidth = 4;
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+        ctx.strokeStyle = isNav ? '#1557b0' : '#15323a';
+        ctx.lineWidth = isNav ? 6.5 : 4;
         ctx.stroke();
-        ctx.strokeStyle = '#6de8f1';
-        ctx.lineWidth = 2;
+        ctx.strokeStyle = isNav ? '#4285f4' : '#6de8f1';
+        ctx.lineWidth = isNav ? 4 : 2;
         ctx.stroke();
       }
-      ctx.beginPath();
-      ctx.arc(goal.x, goal.y, 4, 0, Math.PI * 2);
-      ctx.fillStyle = route.arrived ? '#a8f0a2' : '#6de8f1';
-      ctx.fill();
-      ctx.strokeStyle = '#15323a';
-      ctx.stroke();
+      if (isNav) {
+        drawNavPin(ctx, goal.x, goal.y, route.arrived ? '#1e8e3e' : '#ea4335', 7.5);
+      } else {
+        ctx.beginPath();
+        ctx.arc(goal.x, goal.y, 4, 0, Math.PI * 2);
+        ctx.fillStyle = route.arrived ? '#a8f0a2' : '#6de8f1';
+        ctx.fill();
+        ctx.strokeStyle = '#15323a';
+        ctx.stroke();
+      }
       ctx.restore();
     }
-    drawPlayerArrow(ctx, player, view);
+    if (isNav) drawNavPlayerDot(ctx, player, view);
+    else drawPlayerArrow(ctx, player, view);
     paints++;
   }
 
@@ -874,7 +1051,69 @@ export function createHudMinimap({
     if (phoneSurface) phoneSurface.redraw();
   }
 
-  function attachPhone(parent, size, onRoute = null) {
+  function getNavPins() {
+    const pinColors = {
+      mailbox: '#d97706',
+      market: '#1e8e3e',
+      laundromat: '#1a73e8',
+      'post-office': '#1967d2',
+      'trailer-park': '#8e44ad',
+      park: '#1e8e3e',
+      'gas-station': '#ea4335'
+    };
+    const shortLabels = {
+      mailbox: 'Home',
+      market: 'Market',
+      laundromat: 'Laundry',
+      'post-office': 'Post',
+      'trailer-park': 'Trailers',
+      park: 'Park',
+      'gas-station': 'Fuel'
+    };
+    const dests = buildDestinations();
+    const pins = [];
+    for (let i = 0; i < dests.length; i++) {
+      const d = dests[i];
+      if (!shortLabels[d.id]) continue;
+      const p = typeof d.position === 'function' ? d.position() : d.position;
+      if (!p || p.x == null || p.z == null) continue;
+      pins.push({ id: d.id, label: shortLabels[d.id], name: d.name, x: p.x, z: p.z, color: pinColors[d.id] || '#1a73e8' });
+    }
+    return pins;
+  }
+
+  function buildDestinations() {
+    const names = { mailbox: 'Home', market: 'Corner Market', desk: 'Home office' };
+    const list = getWorld().markers.filter(marker => Object.hasOwn(names, marker.id)).map(marker => ({
+      id: marker.id, name: names[marker.id], position: () => marker
+    }));
+    // Buildings at the street ends: route to the sidewalk in front of them, not inside.
+    const ud = scene?.userData || {};
+    if (ud.laundromat) {
+      const p = ud.laundromat.position;
+      list.push({ id: 'laundromat', name: 'Laundromat', position: () => ({ x: p.x, z: p.z + 2.0 }) });
+    }
+    if (ud.postOffice) {
+      const p = ud.postOffice.position;
+      list.push({ id: 'post-office', name: 'Post Office', position: () => ({ x: p.x, z: p.z + 2.0 }) });
+    }
+    if (ud.trailerPark) list.push({ id: 'trailer-park', name: 'Trailer Park', position: () => ({ x: -30.5, z: -4.3 }) });
+    if (ud.street?.expansion?.park || STREET.expansion?.park) {
+      const pk = (ud.street?.expansion || STREET.expansion).park;
+      list.push({
+        id: 'park',
+        name: 'Maple Lane Park',
+        position: () => ({ x: (pk.minX + pk.maxX) / 2, z: (pk.minZ + pk.maxZ) / 2 })
+      });
+    }
+    if (ud.gasStation?.position) {
+      const p = ud.gasStation.position;
+      list.push({ id: 'gas-station', name: 'Fuel & Go', position: () => ({ x: p.x, z: p.z }) });
+    }
+    return list;
+  }
+
+  function attachPhone(parent, size, onRoute = null, onPickPin = null) {
     if (!parent) return () => {};
     ensureStyles();
     parent.classList.add('phone-map');
@@ -890,6 +1129,8 @@ export function createHudMinimap({
       getNpcs,
       getVehicles,
       getRoute,
+      getPins: getNavPins,
+      theme: 'nav',
       cssWidth: fallbackW,
       cssHeight: fallbackH,
       pixelRatio
@@ -897,6 +1138,26 @@ export function createHudMinimap({
     phoneSurface = surface;
     showPhoneRoute = onRoute;
     refreshRoute();
+
+    const onCanvasClick = (e) => {
+      if (typeof onPickPin !== 'function') return;
+      const v = surface.getView();
+      if (!v) return;
+      const rect = canvas.getBoundingClientRect();
+      if (!rect.width || !rect.height) return;
+      const cx = (e.clientX - rect.left) * (canvas.width / rect.width);
+      const cy = (e.clientY - rect.top) * (canvas.height / rect.height);
+      const pins = getNavPins();
+      let best = null;
+      let bestD = 34 * (canvas.width / Math.max(1, rect.width));
+      for (let i = 0; i < pins.length; i++) {
+        const pt = toMap(v, pins[i].x, pins[i].z);
+        const d = Math.hypot(pt.x - cx, (pt.y - 6) - cy);
+        if (d < bestD) { bestD = d; best = pins[i]; }
+      }
+      if (best) onPickPin(best.id);
+    };
+    canvas.addEventListener('click', onCanvasClick);
 
     function fit() {
       const w = Math.max(parent.clientWidth || 0, fallbackW);
@@ -912,6 +1173,7 @@ export function createHudMinimap({
     surface.redraw();
 
     return () => {
+      canvas.removeEventListener('click', onCanvasClick);
       if (ro) ro.disconnect();
       if (phoneSurface === surface) {
         phoneSurface = null;
@@ -979,24 +1241,7 @@ export function createHudMinimap({
     setHudVisible,
     update,
     attachPhone,
-    destinations() {
-      const names = { mailbox: 'Home', market: 'Corner Market', desk: 'Home office' };
-      const list = getWorld().markers.filter(marker => Object.hasOwn(names, marker.id)).map(marker => ({
-        id: marker.id, name: names[marker.id], position: () => marker
-      }));
-      // Buildings at the street ends: route to the sidewalk in front of them, not inside.
-      const ud = scene?.userData || {};
-      if (ud.laundromat) {
-        const p = ud.laundromat.position;
-        list.push({ id: 'laundromat', name: 'Laundromat', position: () => ({ x: p.x, z: p.z + 2.0 }) });
-      }
-      if (ud.postOffice) {
-        const p = ud.postOffice.position;
-        list.push({ id: 'post-office', name: 'Post Office', position: () => ({ x: p.x, z: p.z + 2.0 }) });
-      }
-      if (ud.trailerPark) list.push({ id: 'trailer-park', name: 'Trailer Park', position: () => ({ x: -30.5, z: -4.3 }) });
-      return list;
-    },
+    destinations: buildDestinations,
     getWaypointId: () => waypoint?.id ?? '',
     setWaypoint(next) {
       waypoint = next ?? null;

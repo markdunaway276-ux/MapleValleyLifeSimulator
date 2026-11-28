@@ -142,13 +142,18 @@ export function createInbox({ messages = [] } = {}) {
 
   function copyMessage(raw) {
     if (!raw || typeof raw !== 'object') return null;
-    return {
+    const msg = {
       id: raw.id || ((raw.day || 0) + ':' + (raw.messageId || raw.from || 'mail')),
       from: raw.from || 'Mail',
       body: raw.body || '',
       day: raw.day != null ? raw.day | 0 : undefined,
       messageId: raw.messageId
     };
+    if (raw.sender === 'me' || raw.sender === 'them') msg.sender = raw.sender;
+    if (raw.threadId) msg.threadId = String(raw.threadId);
+    if (raw.time) msg.time = String(raw.time);
+    if (typeof raw.read === 'boolean') msg.read = raw.read;
+    return msg;
   }
 
   function emit() {
@@ -169,6 +174,21 @@ export function createInbox({ messages = [] } = {}) {
     list = [msg, ...list.filter((m) => m && m.id !== msg.id)];
     emit();
     return msg;
+  }
+
+  function markRead(key) {
+    if (!key) return;
+    let changed = false;
+    list = list.map((m) => {
+      if (!m) return m;
+      const match = (m.threadId && m.threadId === key) || m.from === key || m.id === key;
+      if (match && !m.read) {
+        changed = true;
+        return { ...m, read: true };
+      }
+      return m;
+    });
+    if (changed) emit();
   }
 
   function serialize() {
@@ -195,5 +215,5 @@ export function createInbox({ messages = [] } = {}) {
     };
   }
 
-  return { get, add, serialize, apply, onChange };
+  return { get, add, markRead, serialize, apply, onChange };
 }

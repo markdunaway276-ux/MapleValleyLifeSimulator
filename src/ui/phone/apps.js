@@ -8,6 +8,7 @@ import { renderCalendarApp } from './calendar.js';
 import { renderSkillsApp } from './skills.js';
 import { renderMessagesApp } from './messages.js';
 import { renderTasksApp } from './tasks.js';
+import { renderMapApp } from './mapApp.js';
 import { CAMERA_APP, GALLERY_APP } from './photos.js';
 
 export const PHONE_APPS = [
@@ -29,37 +30,7 @@ export const PHONE_APPS = [
     name: 'Map',
     icon: '🗺️',
     render(screen, ctx) {
-      const title = document.createElement('h3');
-      title.className = 'phone-app-title';
-      title.textContent = 'Map';
-      const wrap = document.createElement('div');
-      wrap.className = 'phone-map';
-      screen.append(title);
-      if (ctx.getDestinations) {
-        const select = document.createElement('select');
-        select.className = 'phone-map-destination';
-        select.setAttribute('aria-label', 'Map destination');
-        const destinations = ctx.getDestinations();
-        for (const { id, name } of [{ id: '', name: 'Choose a destination' }, ...destinations]) {
-          const option = document.createElement('option');
-          option.value = id;
-          option.textContent = name;
-          select.append(option);
-        }
-        select.value = ctx.getWaypointId();
-        if (select.selectedIndex < 0) select.value = '';
-        select.addEventListener('change', () => ctx.setWaypoint(destinations.find(item => item.id === select.value)));
-        screen.append(select);
-      }
-      const remaining = document.createElement('p');
-      remaining.className = 'phone-route-status';
-      remaining.hidden = true;
-      screen.append(remaining, wrap);
-      if (ctx && typeof ctx.attachMap === 'function') return ctx.attachMap(wrap, (label) => {
-        remaining.hidden = !label;
-        if (remaining.textContent !== label) remaining.textContent = label;
-      });
-      return null;
+      return renderMapApp(screen, ctx);
     }
   },
   {
