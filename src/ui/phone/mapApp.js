@@ -567,9 +567,16 @@ export function renderMapApp(screen, ctx = {}) {
     renderSheet();
   });
 
-  // Floating right-side zoom (+ / −) & recenter-on-me controls
+  // Floating right-side 3D toggle, zoom (+ / −), & recenter-on-me controls
   const controls = document.createElement('div');
   controls.className = 'nmap-controls';
+  const tiltBtn = document.createElement('button');
+  tiltBtn.type = 'button';
+  tiltBtn.className = 'nmap-ctrl-btn is-recenter';
+  tiltBtn.style.fontSize = '11px';
+  tiltBtn.textContent = '3D';
+  tiltBtn.title = 'Toggle 3D buildings view';
+  tiltBtn.setAttribute('aria-label', 'Toggle 3D map view');
   const zoomInBtn = document.createElement('button');
   zoomInBtn.type = 'button';
   zoomInBtn.className = 'nmap-ctrl-btn';
@@ -588,7 +595,7 @@ export function renderMapApp(screen, ctx = {}) {
   recenterBtn.textContent = '◎';
   recenterBtn.title = 'Center on my location';
   recenterBtn.setAttribute('aria-label', 'Center on my location');
-  controls.append(zoomInBtn, zoomOutBtn, recenterBtn);
+  controls.append(tiltBtn, zoomInBtn, zoomOutBtn, recenterBtn);
 
   root.append(srSelect, mapWrap, topOverlay, controls, sheet);
   screen.appendChild(root);
@@ -608,6 +615,10 @@ export function renderMapApp(screen, ctx = {}) {
         if (found) selectPlace(found, false);
       }
     );
+    tiltBtn.addEventListener('click', () => {
+      const on = detach?.toggle3D?.();
+      tiltBtn.textContent = on ? '3D' : '2D';
+    });
     zoomInBtn.addEventListener('click', () => detach?.zoomIn?.());
     zoomOutBtn.addEventListener('click', () => detach?.zoomOut?.());
     recenterBtn.addEventListener('click', () => detach?.recenter?.());

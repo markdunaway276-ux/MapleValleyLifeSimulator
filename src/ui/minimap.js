@@ -488,7 +488,7 @@ function drawNavPin(ctx, x, y, color, radius = 6.5, label = null) {
   }
 }
 
-export function drawStaticLayer(ctx, world, view, { theme = 'hud', pins = [] } = {}) {
+export function drawStaticLayer(ctx, world, view, { theme = 'hud', pins = [], tilt3D = false } = {}) {
   const isNav = theme === 'nav';
   const C = isNav ? NAV_MAP_COLORS : MINIMAP_COLORS;
   const s = (world && world.street) || STREET;
@@ -596,37 +596,86 @@ export function drawStaticLayer(ctx, world, view, { theme = 'hud', pins = [] } =
   ctx.fillStyle = C.crossing;
   for (const x of s.crossings ?? []) fillRectWorld(ctx, view, x - 1.1, x + 1.1, cz - roadHalf, cz + roadHalf);
 
-  // Buildings with soft drop shadow and crisp roof outline.
-  const houses = (world && world.houses) || [];
+  // Buildings: 3D extruded blocks with shaded walls & raised roofs in 3D map mode,
+  // or crisp 2D roof footprints with drop shadows on the HUD minimap.
+  const houses = ((world && world.houses) || []).slice();
+  if (tilt3D) houses.sort((a, b) => (b.minZ || 0) - (a.minZ || 0));
   for (let i = 0; i < houses.length; i++) {
     const h = houses[i];
     const a = toMap(view, h.minX, h.maxZ);
     const c = toMap(view, h.maxX, h.minZ);
     const w = Math.max(2, c.x - a.x);
     const ht = Math.max(2, c.y - a.y);
-    ctx.fillStyle = C.houseShadow;
-    ctx.fillRect(a.x + 1.5, a.y + 2, w, ht);
-    ctx.fillStyle = h.main ? C.mainHouse : C.house;
-    ctx.fillRect(a.x, a.y, w, ht);
-    ctx.strokeStyle = h.main ? C.mainHouseStroke : C.houseStroke;
-    ctx.lineWidth = h.main ? 1.4 : 1;
-    ctx.strokeRect(a.x + 0.5, a.y + 0.5, Math.max(1, w - 1), Math.max(1, ht - 1));
+    if (tilt3D) {
+      const ext = Math.max(5, Math.min(18, (h.main ? 2.4 : 2.0) * view.scale));
+      // Soft ground shadow
+      ctx.fillStyle = 'rgba(24, 34, 48, 0.18)';
+      ctx.fillRect(a.x + ext * 0.42, a.y + ext * 0.28, w, ht);
+      // South-facing extruded front wall
+      ctx.fillStyle = h.main ? '#cfa24e' : '#b4beca';
+      ctx.fillRect(a.x, a.y + ht - ext, w, ext);
+      // Subtle right-side depth bevel
+      ctx.fillStyle = h.main ? '#dfba6e' : '#c6cfd9';
+      ctx.beginPath();
+      ctx.moveTo(a.x + w, a.y - ext);
+      ctx.lineTo(a.x + w + ext * 0.22, a.y - ext * 0.72);
+      ctx.lineTo(a.x + w + ext * 0.22, a.y + ht);
+      ctx.lineTo(a.x + w, a.y + ht);
+      ctx.closePath();
+      ctx.fill();
+      // Raised 3D roof face
+      ctx.fillStyle = h.main ? '#fae9c5' : '#e6ebf0';
+      ctx.fillRect(a.x, a.y - ext, w, ht);
+      ctx.strokeStyle = h.main ? '#c9973b' : '#aeb8c4';
+      ctx.lineWidth = h.main ? 1.5 : 1.1;
+      ctx.strokeRect(a.x + 0.5, a.y - ext + 0.5, Math.max(1, w - 1), Math.max(1, ht - 1));
+      // Subtle gable roof ridge line
+      ctx.strokeStyle = h.main ? 'rgba(184, 134, 42, 0.45)' : 'rgba(120, 134, 150, 0.35)';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(a.x + 3, a.y - ext + ht * 0.5);
+      ctx.lineTo(a.x + w - 3, a.y - ext + ht * 0.5);
+      ctx.stroke();
+    } else {
+      ctx.fillStyle = C.houseShadow;
+      ctx.fillRect(a.x + 1.5, a.y + 2, w, ht);
+      ctx.fillStyle = h.main ? C.mainHouse : C.house;
+      ctx.fillRect(a.x, a.y, w, ht);
+      ctx.strokeStyle = h.main ? C.mainHouseStroke : C.houseStroke;
+      ctx.lineWidth = h.main ? 1.4 : 1;
+      ctx.strokeRect(a.x + 0.5, a.y + 0.5, Math.max(1, w - 1), Math.max(1, ht - 1));
+    }
   }
 
-  // Layered translucent tree canopies.
+  // Layered translucent tree canopies (with 3D lifted dome + ground shadow in 3D mode).
   const trees = (world && world.trees) || [];
   for (let i = 0; i < trees.length; i++) {
     const t = trees[i];
     const p = toMap(view, t.x, t.z);
     const r = Math.max(2.2, (t.radius || 1.2) * view.scale);
-    ctx.fillStyle = C.tree;
-    ctx.beginPath();
-    ctx.arc(p.x, p.y, r, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.fillStyle = C.treeCore;
-    ctx.beginPath();
-    ctx.arc(p.x, p.y, r * 0.48, 0, Math.PI * 2);
-    ctx.fill();
+    if (tilt3D) {
+      ctx.fillStyle = 'rgba(24, 44, 28, 0.16)';
+      ctx.beginPath();
+      ctx.ellipse(p.x + 2.2, p.y + 2.2, r * 0.95, r * 0.65, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = C.tree;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y - 3, r, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = C.treeCore;
+      ctx.beginPath();
+      ctx.arc(p.x - r * 0.18, p.y - 3 - r * 0.18, r * 0.55, 0, Math.PI * 2);
+      ctx.fill();
+    } else {
+      ctx.fillStyle = C.tree;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, r, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = C.treeCore;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, r * 0.48, 0, Math.PI * 2);
+      ctx.fill();
+    }
   }
 
   if (isNav) {
@@ -849,8 +898,9 @@ export function createMinimapSurface({
   let staticCanvas = makeOffscreen(1, 1);
   let view = null;
   let world = null;
-  let zoom = isNav ? 1.25 : 1.0;
-  let customCenter = null; // { x, z } when user recenters or zooms in on phone map
+  let zoom = isNav ? 1.35 : 1.0;
+  let tilt3D = isNav;
+  let customCenter = null; // { x, z } when user pans or recenters on phone map
   let paints = 0;
   let staticPaints = 0;
 
@@ -892,7 +942,7 @@ export function createMinimapSurface({
     staticCanvas = makeOffscreen(pw, ph);
     view = makeMinimapView(activeBounds(), pw, ph, followPlayer ? 2 : Math.max(6, 8 * dpr));
     const sctx = staticCanvas.getContext && staticCanvas.getContext('2d');
-    if (sctx && !followPlayer) drawStaticLayer(sctx, world, view, { theme, pins });
+    if (sctx && !followPlayer) drawStaticLayer(sctx, world, view, { theme, pins, tilt3D });
     staticPaints++;
     redraw();
   }
@@ -978,11 +1028,27 @@ export function createMinimapSurface({
   }
 
   function setZoom(next) {
-    zoom = Math.max(0.85, Math.min(3.2, Number(next) || 1));
+    zoom = Math.max(0.85, Math.min(3.6, Number(next) || 1));
     rebuild();
   }
   function zoomIn() { setZoom(zoom * 1.35); }
   function zoomOut() { setZoom(zoom / 1.35); }
+  function panBy(dxCanvasPx, dyCanvasPx) {
+    if (!view || !view.scale) return;
+    const base = townBounds(world || {});
+    if (!customCenter) {
+      const b = activeBounds();
+      customCenter = { x: (b.minX + b.maxX) * 0.5, z: (b.minZ + b.maxZ) * 0.5 };
+    }
+    customCenter.x = Math.max(base.minX - 18, Math.min(base.maxX + 18, customCenter.x - dxCanvasPx / view.scale));
+    customCenter.z = Math.max(base.minZ - 14, Math.min(base.maxZ + 14, customCenter.z + dyCanvasPx / view.scale));
+    rebuild();
+  }
+  function toggle3D() {
+    tilt3D = !tilt3D;
+    rebuild();
+    return tilt3D;
+  }
   function recenterOnPlayer() {
     const player = typeof getPlayer === 'function' ? getPlayer() : getPlayer;
     if (player?.position) {
@@ -1002,6 +1068,9 @@ export function createMinimapSurface({
     setZoom,
     zoomIn,
     zoomOut,
+    panBy,
+    toggle3D,
+    is3D: () => tilt3D,
     recenterOnPlayer,
     getZoom: () => zoom,
     getView: () => view,
@@ -1244,17 +1313,25 @@ export function createHudMinimap({
     showPhoneRoute = onRoute;
     refreshRoute();
 
-    const onCanvasClick = (e) => {
+    canvas.style.touchAction = 'none';
+    canvas.style.cursor = 'grab';
+
+    const pointers = new Map();
+    let dragDist = 0;
+    let lastPinchDist = 0;
+    let lastPos = null;
+
+    const pickPinAt = (clientX, clientY) => {
       if (typeof onPickPin !== 'function') return;
       const v = surface.getView();
       if (!v) return;
       const rect = canvas.getBoundingClientRect();
       if (!rect.width || !rect.height) return;
-      const cx = (e.clientX - rect.left) * (canvas.width / rect.width);
-      const cy = (e.clientY - rect.top) * (canvas.height / rect.height);
+      const cx = (clientX - rect.left) * (canvas.width / rect.width);
+      const cy = (clientY - rect.top) * (canvas.height / rect.height);
       const pins = getNavPins();
       let best = null;
-      let bestD = 34 * (canvas.width / Math.max(1, rect.width));
+      let bestD = 36 * (canvas.width / Math.max(1, rect.width));
       for (let i = 0; i < pins.length; i++) {
         const pt = toMap(v, pins[i].x, pins[i].z);
         const d = Math.hypot(pt.x - cx, (pt.y - 6) - cy);
@@ -1262,7 +1339,76 @@ export function createHudMinimap({
       }
       if (best) onPickPin(best.id);
     };
-    canvas.addEventListener('click', onCanvasClick);
+
+    const onPointerDown = (e) => {
+      e.stopPropagation();
+      pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      if (typeof canvas.setPointerCapture === 'function') {
+        try { canvas.setPointerCapture(e.pointerId); } catch {}
+      }
+      if (pointers.size === 1) {
+        dragDist = 0;
+        lastPos = { x: e.clientX, y: e.clientY };
+        canvas.style.cursor = 'grabbing';
+      } else if (pointers.size === 2) {
+        const pts = [...pointers.values()];
+        lastPinchDist = Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y);
+        dragDist = 99;
+      }
+    };
+
+    const onPointerMove = (e) => {
+      if (!pointers.has(e.pointerId)) return;
+      e.stopPropagation();
+      pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      if (pointers.size === 2) {
+        const pts = [...pointers.values()];
+        const dist = Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y);
+        if (lastPinchDist > 8 && dist > 8) {
+          surface.setZoom(surface.getZoom() * (dist / lastPinchDist));
+        }
+        lastPinchDist = dist;
+        return;
+      }
+      if (pointers.size === 1 && lastPos) {
+        const dx = e.clientX - lastPos.x;
+        const dy = e.clientY - lastPos.y;
+        dragDist += Math.hypot(dx, dy);
+        lastPos = { x: e.clientX, y: e.clientY };
+        const rect = canvas.getBoundingClientRect();
+        const sx = rect.width ? (canvas.width / rect.width) : 1;
+        const sy = rect.height ? (canvas.height / rect.height) : 1;
+        surface.panBy(dx * sx, dy * sy);
+      }
+    };
+
+    const onPointerUp = (e) => {
+      const wasSingle = pointers.size === 1;
+      pointers.delete(e.pointerId);
+      if (pointers.size === 0) {
+        canvas.style.cursor = 'grab';
+        lastPos = null;
+        lastPinchDist = 0;
+        if (wasSingle && dragDist < 8) pickPinAt(e.clientX, e.clientY);
+      } else if (pointers.size === 1) {
+        const [remaining] = pointers.values();
+        lastPos = { x: remaining.x, y: remaining.y };
+        lastPinchDist = 0;
+      }
+    };
+
+    const onWheel = (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      const factor = e.deltaY < 0 ? 1.15 : 1 / 1.15;
+      surface.setZoom(surface.getZoom() * factor);
+    };
+
+    canvas.addEventListener('pointerdown', onPointerDown);
+    canvas.addEventListener('pointermove', onPointerMove);
+    canvas.addEventListener('pointerup', onPointerUp);
+    canvas.addEventListener('pointercancel', onPointerUp);
+    canvas.addEventListener('wheel', onWheel, { passive: false });
 
     function fit() {
       const w = Math.max(parent.clientWidth || 0, fallbackW);
@@ -1278,7 +1424,11 @@ export function createHudMinimap({
     surface.redraw();
 
     const cleanup = () => {
-      canvas.removeEventListener('click', onCanvasClick);
+      canvas.removeEventListener('pointerdown', onPointerDown);
+      canvas.removeEventListener('pointermove', onPointerMove);
+      canvas.removeEventListener('pointerup', onPointerUp);
+      canvas.removeEventListener('pointercancel', onPointerUp);
+      canvas.removeEventListener('wheel', onWheel);
       if (ro) ro.disconnect();
       if (phoneSurface === surface) {
         phoneSurface = null;
@@ -1289,6 +1439,8 @@ export function createHudMinimap({
     cleanup.zoomIn = () => surface.zoomIn();
     cleanup.zoomOut = () => surface.zoomOut();
     cleanup.recenter = () => surface.recenterOnPlayer();
+    cleanup.toggle3D = () => surface.toggle3D();
+    cleanup.is3D = () => surface.is3D();
     return cleanup;
   }
 
