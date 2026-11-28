@@ -31,6 +31,7 @@ export function gameState(g) {
     stats: g.stats ? g.stats.serialize() : undefined,
     neighbourFavour: g.neighbourFavour.serialize(),
     snackFavour: g.snackFavour.serialize(),
+    storyQuest: g.storyQuest ? g.storyQuest.serialize() : undefined,
     pinnedTaskId: g.getPinnedTask()?.id ?? null,
     dayOne: g.dayOne?.serialize(),
     savedAt: Date.now()

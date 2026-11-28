@@ -16,6 +16,13 @@ function distanceAt(t) {
   return THREE.MathUtils.lerp(x,y,i===6 ? 1-(1-k)**2 : k);
 }
 
+const STORY_BEATS = [
+  { from: 2.0, to: 6.8, text: 'Last $50 in the glovebox.' },
+  { from: 17.5, to: 23.4, text: 'A cheap lease on Maple Lane — no questions asked.' },
+  { from: 33.2, to: 38.8, text: 'Bills come due at the end of the week.' },
+  { from: 40.5, to: 46.2, text: 'Time to start over.' }
+];
+
 export function createRoadTrip(g, onFinish, wave) {
   const {camera,scene,renderer} = g;
   const car = g.car.object;
@@ -26,6 +33,7 @@ export function createRoadTrip(g, onFinish, wave) {
   const forward = new THREE.Vector3();
   let phase = 'idle';
   let time = 0;
+  let fastForward = false;
   let music;
   let shutDown = false;
 
@@ -37,14 +45,25 @@ export function createRoadTrip(g, onFinish, wave) {
     <div class="road-trip-title"><strong>MAPLE LANE</strong><span>a small-town life</span></div>
     <div class="road-trip-caption">Route 9 · 8:12 AM</div>
     <div class="road-trip-notice">Rita · Keys are ready! See you at 8:30.</div>
+    <div class="road-trip-story" aria-live="polite"></div>
     <div class="road-trip-loading"><div>Getting Maple Lane ready…</div><progress aria-label="Loading Maple Lane" max="1" value="0"></progress></div>
+    <button type="button" class="road-trip-ff">2× Hold</button>
     <button type="button" class="road-trip-skip">Skip intro</button>`;
   document.body.append(overlay);
-  const button = overlay.querySelector('button');
+  const button = overlay.querySelector('.road-trip-skip');
+  const ffButton = overlay.querySelector('.road-trip-ff');
   const progress = overlay.querySelector('progress');
   const title = overlay.querySelector('.road-trip-title');
   const caption = overlay.querySelector('.road-trip-caption');
   const notice = overlay.querySelector('.road-trip-notice');
+  const story = overlay.querySelector('.road-trip-story');
+
+  function setFast(on) {
+    fastForward = !!on;
+    ffButton.classList.toggle('is-fast', fastForward);
+  }
+  for (const ev of ['pointerdown', 'touchstart']) ffButton.addEventListener(ev, () => setFast(true));
+  for (const ev of ['pointerup', 'pointerleave', 'pointercancel', 'touchend', 'touchcancel']) ffButton.addEventListener(ev, () => setFast(false));
   button.addEventListener('click', () => finish());
   overlay.addEventListener('keydown', event => {
     if (event.code === 'Escape' || event.code === 'KeyX') {
@@ -54,11 +73,15 @@ export function createRoadTrip(g, onFinish, wave) {
     }
   });
   window.addEventListener('keydown', event => {
+    if (phase === 'playing' && event.code === 'Space') setFast(true);
     if ((phase === 'loading' || phase === 'playing') && (event.code === 'Escape' || event.code === 'KeyX')) {
       event.preventDefault();
       event.stopImmediatePropagation();
       finish();
     }
+  });
+  window.addEventListener('keyup', event => {
+    if (event.code === 'Space') setFast(false);
   });
 
   function park() {
@@ -175,7 +198,7 @@ export function createRoadTrip(g, onFinish, wave) {
       if(phase==='loading') return true;
       if(phase!=='playing') return false;
       const at=time;
-      time+=Math.min(delta,0.075);
+      time+=Math.min(delta,0.075)*(fastForward?2.2:1);
       if(time>=LENGTH) { finish(); return true; }
       const endShot=at>=49;
       music?.radio(INSIDE(at));
@@ -188,7 +211,34 @@ export function createRoadTrip(g, onFinish, wave) {
       } else if(!endShot) g.sfx.setCar(true,at<32?0.63:0.38);
       title.style.opacity=String(smooth(at,26,27.6)-smooth(at,30.8,32));
       caption.style.opacity=String(smooth(at,0.6,1.4)-smooth(at,5.1,6.4));
-      notice.style.opacity=String(smooth(at,12,12.4)-smooth(at,15.6,16.4));
+
+      // Two timed texts from Rita during the drive.
+      const notice1 = smooth(at,12,12.4)-smooth(at,15.6,16.4);
+      const notice2 = smooth(at,35.2,35.6)-smooth(at,39.8,40.6);
+      if (notice2 > 0.01) {
+        if (notice.dataset.n !== '2') {
+          notice.dataset.n = '2';
+          notice.textContent = "Rita · Don't mind the porch — last tenant left in a hurry.";
+        }
+        notice.style.opacity = String(notice2);
+      } else {
+        if (notice.dataset.n !== '1') {
+          notice.dataset.n = '1';
+          notice.textContent = 'Rita · Keys are ready! See you at 8:30.';
+        }
+        notice.style.opacity = String(notice1);
+      }
+
+      // Timed inner-monologue story captions.
+      const beat = STORY_BEATS.find(b => at >= b.from && at <= b.to);
+      if (beat) {
+        if (story.textContent !== beat.text) story.textContent = beat.text;
+        const fade = smooth(at, beat.from, beat.from + 0.65) - smooth(at, beat.to - 0.75, beat.to);
+        story.style.opacity = String(Math.max(0, fade));
+      } else {
+        story.style.opacity = '0';
+      }
+
       if(reduced) {
         const cut=[7,17,24,32,44].find(value=>Math.abs(value-at)<0.36);
         overlay.style.background=cut? `rgba(0,0,0,${(1-Math.abs(cut-at)/0.36)*0.52})` : '';

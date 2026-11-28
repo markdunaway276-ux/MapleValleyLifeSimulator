@@ -10,6 +10,7 @@ const { NPC_DEFS, getNpc } = await import('../src/data/npcs.js');
 const { getDialogue } = await import('../src/data/dialogue.js');
 const { createCutscene, computeIntroShot } = await import('../src/systems/cutscene.js');
 const { ACTIONS, actionForTarget } = await import('../src/systems/playerActions.js');
+const { createStoryQuest, STORY_QUEST_REWARD } = await import('../src/systems/storyQuest.js');
 
 test('new Maple Lane characters (Vince, Walt, Dr. Maya, Marcus) are registered with taglines and dialogue', () => {
   for (const id of ['vince', 'walt', 'maya', 'marcus']) {
@@ -84,4 +85,33 @@ test('action animations include unlockDoor, cook, drink, wave, and visible held 
   assert.equal(ACTIONS.cook.prop.name, 'spatula');
   assert.ok(ACTIONS.wave);
   assert.equal(actionForTarget({ userData: { kind: 'cook' } }), 'cook');
+});
+
+test('storyQuest (The Last Tenant) advances hidden -> walt -> vince -> done and pays welcome credit once', () => {
+  let balance = 50;
+  let saves = 0;
+  const money = { add(n) { balance += n; } };
+  const q = createStoryQuest({ money, save: () => { saves += 1; } });
+
+  assert.equal(q.stage, 'hidden');
+  assert.equal(q.task(), null);
+
+  assert.equal(q.onNoteFound(), true);
+  assert.equal(q.stage, 'walt');
+  assert.equal(q.task().npcId, 'walt');
+
+  const waltPage = q.pageFor('walt');
+  assert.ok(waltPage && waltPage.action);
+  assert.equal(waltPage.action.run(), true);
+  assert.equal(q.stage, 'vince');
+  assert.equal(q.task().npcId, 'vince');
+
+  const vincePage = q.pageFor('vince');
+  assert.ok(vincePage && vincePage.action);
+  assert.equal(vincePage.action.run(), true);
+  assert.equal(q.stage, 'done');
+  assert.equal(q.task().complete, true);
+  assert.equal(balance, 50 + STORY_QUEST_REWARD);
+  assert.equal(q.pageFor('vince'), null);
+  assert.equal(saves, 3);
 });

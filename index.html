@@ -49,11 +49,19 @@
     .road-trip-title span { font-size: clamp(14px, 2vw, 27px); letter-spacing: .16em; }
     .road-trip-caption, .road-trip-notice { position: absolute; opacity: 0; bottom: calc(var(--bar) + 14px); left: 5%; padding: 6px 10px; background: #211d16b0; font-size: 15px; }
     .road-trip-notice { left: auto; right: 5%; bottom: calc(var(--bar) + 28px); }
+    .road-trip-story { position: absolute; left: 50%; bottom: calc(var(--bar) + 16px); transform: translateX(-50%); max-width: min(86vw, 520px); padding: 7px 14px; border-left: 3px solid #d4943a; background: rgba(14, 15, 17, 0.78); color: #f6eedc; font: italic 16px/1.35 Georgia, serif; text-align: center; opacity: 0; pointer-events: none; }
     .road-trip-loading { position: absolute; inset: 0; display: grid; place-content: center; justify-items: center; gap: 16px; background: #0e0d0a; font-size: clamp(18px, 4vw, 28px); transition: opacity .9s ease; pointer-events: none; }
     .road-trip:not(.loading) .road-trip-loading { opacity: 0; }
     .road-trip-loading progress { width: min(58vw, 250px); height: 5px; accent-color: #cfad75; }
-    .road-trip-skip { position: absolute; right: max(14px, env(safe-area-inset-right)); bottom: max(12px, env(safe-area-inset-bottom)); border: 1px solid #ae9674; border-radius: 6px; background: #231f19; color: inherit; font-size: 14px; }
-    .road-trip.finished .road-trip-skip, .road-trip.finished .road-trip-title, .road-trip.finished .road-trip-caption, .road-trip.finished .road-trip-notice { visibility: hidden; }
+    .road-trip-skip, .road-trip-ff { position: absolute; bottom: max(12px, env(safe-area-inset-bottom)); border: 1px solid #ae9674; border-radius: 6px; background: #231f19; color: inherit; font-size: 14px; padding: 7px 12px; margin: 0; touch-action: manipulation; user-select: none; -webkit-user-select: none; }
+    .road-trip-skip { right: max(14px, env(safe-area-inset-right)); }
+    .road-trip-ff { right: calc(max(14px, env(safe-area-inset-right)) + 104px); }
+    .road-trip-ff.is-fast { background: #4a3a22; border-color: #e6bf78; }
+    .road-trip.finished .road-trip-skip, .road-trip.finished .road-trip-ff, .road-trip.finished .road-trip-title, .road-trip.finished .road-trip-caption, .road-trip.finished .road-trip-notice, .road-trip.finished .road-trip-story { visibility: hidden; }
+    .day-one-chapter { position: fixed; z-index: 44; top: 22vh; left: 50%; transform: translate(-50%, -8px); text-align: center; pointer-events: none; opacity: 0; transition: opacity 0.55s ease, transform 0.65s ease; }
+    .day-one-chapter.is-visible { opacity: 1; transform: translate(-50%, 0); }
+    .day-one-chapter strong { display: block; font: 800 clamp(22px, 4.5vw, 38px)/1.05 system-ui, sans-serif; letter-spacing: 0.22em; text-transform: uppercase; color: #f6efe0; text-shadow: 0 3px 16px rgba(0, 0, 0, 0.78); }
+    .day-one-chapter span { display: inline-block; margin-top: 6px; padding-top: 5px; border-top: 2px solid #d4943a; font: 600 clamp(11px, 1.8vw, 14px)/1.2 system-ui, sans-serif; letter-spacing: 0.24em; text-transform: uppercase; color: #dfbe84; text-shadow: 0 2px 10px rgba(0, 0, 0, 0.75); }
     @media (prefers-reduced-motion: reduce) { .road-trip-bar { transition-duration: .2s; } }
   </style>
 </head>

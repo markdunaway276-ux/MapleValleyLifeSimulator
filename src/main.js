@@ -47,6 +47,7 @@ import { createCutscene } from './systems/cutscene.js';
 import { createDialogue } from './ui/dialogue.js';
 import { createNeighbourFavour } from './systems/neighbourFavour.js';
 import { createSnackFavour } from './systems/snackFavour.js';
+import { createStoryQuest } from './systems/storyQuest.js';
 import { createHudSave } from './ui/hudSave.js';
 import { createCar } from './systems/car.js';
 import { createSkills, registerCookInteractable } from './systems/skills.js';
@@ -350,7 +351,8 @@ needs.onChange((snap) => {
 // --- phone and dialogue ---------------------------------------------------
 const neighbourFavour = createNeighbourFavour({ savedStage: saveData.neighbourFavour, money, save });
 const snackFavour = createSnackFavour({ savedStage: saveData.snackFavour, inventory, money, save });
-const getTasks = () => [neighbourFavour.task(), snackFavour.task(), ...laundry.tasks()].filter(Boolean);
+const storyQuest = createStoryQuest({ savedStage: saveData.storyQuest, money, save, toast: (msg) => g.hud?.toast?.(msg) });
+const getTasks = () => [storyQuest.task(), neighbourFavour.task(), snackFavour.task(), ...laundry.tasks()].filter(Boolean);
 let pinnedTaskId = saveData.pinnedTaskId ?? null;
 const getPinnedTask = () => pinnedTaskId
   ? getTasks().find((task) => task.id === pinnedTaskId && !task.complete)
@@ -420,7 +422,7 @@ const phone = createPhone({
   playNotification: () => sfx.play('phone-notification')
 });
 const dialogue = createDialogue({
-  getExtraPages: (id) => [...(g.dayOne?.pagesFor(id) ?? []), neighbourFavour.pageFor(id), snackFavour.pageFor(id), dottiePage(id), dirtyPage(id)].filter(Boolean),
+  getExtraPages: (id) => [...(g.dayOne?.pagesFor(id) ?? []), storyQuest.pageFor(id), neighbourFavour.pageFor(id), snackFavour.pageFor(id), dottiePage(id), dirtyPage(id)].filter(Boolean),
   canvas: renderer.domElement,
   isMobile,
   isStarted: () => mode.started(),
@@ -444,7 +446,7 @@ const cutscene = createCutscene({
   onIntroSeen: (id) => g.dayOne?.markIntroSeen?.(id)
 });
 mode.attach({ phone, dialogue });
-Object.assign(g, { phone, dialogue, cutscene, neighbourFavour, snackFavour, getPinnedTask });
+Object.assign(g, { phone, dialogue, cutscene, storyQuest, neighbourFavour, snackFavour, getPinnedTask });
 setupInput(player, isMobile, { isInventoryOpen: () => mode.uiBlocked() || cutscene.isActive() });
 
 // --- HUD, mail, interact, start, loop -------------------------------------

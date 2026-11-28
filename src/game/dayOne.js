@@ -180,6 +180,53 @@ export function createDayOne(g, saveData, beginPlay) {
   pileGroup.position.set(PILE.x, 0.02, PILE.z);
   scene.add(pileGroup);
   const PILE_SLOTS = [[0, 0, 0, 0.05], [0.55, 0, 0.02, -0.08], [0.26, 0.38, 0.01, 0.12]];
+  // --- unpacked personal items that bring the house to life ------------------
+  const keepsakes = new THREE.Group();
+  keepsakes.name = 'day-one-keepsakes';
+  scene.add(keepsakes);
+
+  // Box 1: crate of books + compact radio by the living room wall.
+  const box1Props = new THREE.Group();
+  box1Props.position.set(PILE.x + 0.12, 0.02, PILE.z);
+  const crate = new THREE.Mesh(new THREE.BoxGeometry(0.46, 0.24, 0.34), new THREE.MeshStandardMaterial({ color: 0x6f5136, roughness: 0.88 }));
+  crate.position.y = 0.12;
+  const book1 = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.04, 0.24), new THREE.MeshStandardMaterial({ color: 0x3b5848, roughness: 0.85 }));
+  book1.position.set(-0.08, 0.26, 0.01);
+  book1.rotation.y = 0.12;
+  const book2 = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.035, 0.22), new THREE.MeshStandardMaterial({ color: 0x8a3a2f, roughness: 0.85 }));
+  book2.position.set(-0.07, 0.298, 0);
+  book2.rotation.y = -0.08;
+  const radio = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.13, 0.11), new THREE.MeshStandardMaterial({ color: 0x2c3035, roughness: 0.55, metalness: 0.2 }));
+  radio.position.set(0.11, 0.305, -0.02);
+  box1Props.add(crate, book1, book2, radio);
+
+  // Box 2: framed photo, mug, and notebook on top of the home desk.
+  const box2Props = new THREE.Group();
+  box2Props.position.set(1.153, 0.74, -8.58);
+  const frame = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.17, 0.14), new THREE.MeshStandardMaterial({ color: 0x4b3523, roughness: 0.75 }));
+  frame.position.set(0.08, 0.085, -0.18);
+  frame.rotation.y = -0.25;
+  const mug = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.036, 0.095, 10), new THREE.MeshStandardMaterial({ color: 0xd9cbb2, roughness: 0.55 }));
+  mug.position.set(-0.06, 0.048, 0.18);
+  const notebook = new THREE.Mesh(new THREE.BoxGeometry(0.19, 0.018, 0.24), new THREE.MeshStandardMaterial({ color: 0x384d62, roughness: 0.85 }));
+  notebook.position.set(-0.04, 0.009, -0.02);
+  notebook.rotation.y = 0.18;
+  box2Props.add(frame, mug, notebook);
+
+  // Box 3: Kyle's folded yellowed note left on the living room floor.
+  const box3Props = new THREE.Group();
+  box3Props.position.set(PILE.x + 0.52, 0.026, PILE.z + 0.10);
+  const notePaper = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.005, 0.12), new THREE.MeshStandardMaterial({ color: 0xe6d6a8, roughness: 0.9 }));
+  notePaper.rotation.y = 0.42;
+  box3Props.add(notePaper);
+
+  keepsakes.add(box1Props, box2Props, box3Props);
+  function syncKeepsakes() {
+    box1Props.visible = unpacked >= 1;
+    box2Props.visible = unpacked >= 2;
+    box3Props.visible = unpacked >= 3;
+  }
+
   function syncPile() {
     while (pileGroup.children.length > pile) pileGroup.remove(pileGroup.children[pileGroup.children.length - 1]);
     while (pileGroup.children.length < pile) {
@@ -190,12 +237,26 @@ export function createDayOne(g, saveData, beginPlay) {
       box.rotation.y = r;
       pileGroup.add(box);
     }
+    syncKeepsakes();
     const world = scene.userData.colliders;
     if (world?.addHouse && pile > 0) {
       world.addHouse({ id: 'day-one-boxes', minX: PILE.x - 0.3, maxX: PILE.x + 0.85, minZ: PILE.z - 0.25, maxZ: PILE.z + 0.25 });
     } else world?.remove?.('day-one-boxes');
   }
   syncPile();
+
+  // --- Day 1 arrival chapter banner ("DAY 1 / MAPLE LANE") -------------------
+  const chapterEl = document.createElement('div');
+  chapterEl.className = 'day-one-chapter';
+  chapterEl.innerHTML = '<strong>DAY 1</strong><span>MAPLE LANE</span>';
+  document.body.appendChild(chapterEl);
+  let chapterShown = false;
+  function showChapterBanner() {
+    if (chapterShown) return;
+    chapterShown = true;
+    chapterEl.classList.add('is-visible');
+    window.setTimeout(() => chapterEl.classList.remove('is-visible'), 2600);
+  }
 
   const cargo = carObject().userData.pickupCargo;
   if (cargo) {
@@ -264,17 +325,39 @@ export function createDayOne(g, saveData, beginPlay) {
       enabled: () => (stage === 'unload' && carrying() === 'box') || (stage === 'unpack' && pile > 0) }
   );
 
+  function triggerSamDoorKnock() {
+    // Rhythmic knock-knock-knock at the front door, and position Sam on your front walk.
+    const sam = g.npcs?.list?.find?.((n) => n && n.id === 'sam');
+    if (sam && sam.position) {
+      sam.position.x = 0.0;
+      sam.position.z = -3.7;
+    }
+    g.sfx?.play?.('click');
+    window.setTimeout(() => g.sfx?.play?.('click'), 220);
+    window.setTimeout(() => g.sfx?.play?.('click'), 440);
+    window.setTimeout(() => {
+      g.hud?.toast?.("Knock, knock… Sam is waiting out by your front path!");
+    }, 520);
+  }
+
   function finishUnpacking() {
     unpacking = null;
     pile -= 1;
     unpacked += 1;
     syncPile();
     g.sfx?.play?.('pickup');
+    if (unpacked === 1) {
+      g.hud?.toast?.('Unpacked your books & radio.');
+    } else if (unpacked === 2) {
+      g.hud?.toast?.('Set up your desk.');
+    }
     if (pile === 0) {
       stage = 'phone';
       g.inbox?.add({ id: 'rita-welcome', from: 'Rita (Maple Lane Realty)', body: RITA_TEXT });
       g.inbox?.add({ id: 'last-tenant-note', from: 'Folded Note (Under Floorboard)', body: TENANT_NOTE });
-      g.hud?.toast?.('Found a folded note tucked in the house — check your Phone!');
+      g.storyQuest?.onNoteFound?.();
+      g.hud?.toast?.('Found a folded note under the floorboards — check your Phone!');
+      window.setTimeout(triggerSamDoorKnock, 2400);
     }
     renderTask();
     g.prompt?.update();
@@ -284,7 +367,7 @@ export function createDayOne(g, saveData, beginPlay) {
   // --- conversations -----------------------------------------------------------
   const WELCOME = {
     sam: ["Hang on, you're the one who just moved in? Welcome to Maple Lane!",
-      "Heard the last guy left in a rush — hope the place treats you better. I'm out walking most days if you need a hand."],
+      "Brought you a snack for the first day — heard Kyle left in a rush. Ask Walt by the Trailer Park if you want the full story."],
     june: ['Oh, you must be our new neighbour! I saw your pickup roll in off Route 9.',
       "Stop by the Market and say hi to Vince. And try the coffee at Fuel & Go — Danny keeps it strong."],
     vince: ["New face on Maple Lane, huh? I'm Vince — I run the Market.",
@@ -312,6 +395,10 @@ export function createDayOne(g, saveData, beginPlay) {
     }
     if (WELCOME[id] && !greeted.has(id) && stage !== 'realtor') {
       greeted.add(id);
+      if (id === 'sam') {
+        g.inventory?.add?.({ id: 'snack', count: 1 });
+        g.hud?.toast?.('Sam gave you a housewarming snack!');
+      }
       return [{ lines: WELCOME[id] }];
     }
     return [];
@@ -454,6 +541,13 @@ export function createDayOne(g, saveData, beginPlay) {
       if (!g.mode.started() || stage === 'done') return;
       if (arriving && !g.mode.driving()) {
         arriving = false;
+        showChapterBanner();
+        // Gently face across the street toward Rita and your new house.
+        if (player?.rotation) {
+          const dx = 0.95 - player.position.x;
+          const dz = -3.25 - player.position.z;
+          player.rotation.y = Math.atan2(-dx, -dz);
+        }
         renderTask();
       }
       const phoneOpen = g.phone.isOpen();
