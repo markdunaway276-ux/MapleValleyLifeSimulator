@@ -8,6 +8,15 @@
 
 export const CHANGELOG = [
   {
+    version: '0.11',
+    date: '2026-11-28',
+    title: 'Welcoming Title Screen Overhaul',
+    notes: [
+      'Replaced the plain boot box with a warm golden-hour Maple Lane welcome splash and hid the controls box and crosshair while on the title screen.',
+      'Redesigned the live 3D title screen with drifting autumn maple leaves, a glowing frosted-glass hero card, a live time-of-day postcard pill, a shimmering "Enter Maple Lane" button, and a clean 2-column menu.'
+    ]
+  },
+  {
     version: '0.10',
     date: '2026-11-28',
     title: 'Realism Pass 4: Town Traffic & Pond Ducks',
