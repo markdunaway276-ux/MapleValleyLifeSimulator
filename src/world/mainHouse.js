@@ -17,6 +17,7 @@ import { createHingedDoor } from '../systems/doors.js';
 import { MAIN_HOUSE, PROPS } from './palette.js';
 import { buildMainHouseDetails, findGlassPanes, tintGlassPanes } from './details.js';
 import { buildFrontYard, textureHouseExterior } from './frontYard.js';
+import { buildHouseInteriorUpgrades } from './houseUpgrades.js';
 import { useWorldGrit } from './surfaces.js';
 
 const HOUSE_URL = './assets/models/house_type02.glb'; // relative to the page, so it works under the Pages subpath
@@ -279,6 +280,14 @@ export function buildMainHouse(scene, quality) {
       scene.userData.seats = [...(scene.userData.seats || []), ...seats];
       // Cook and seats are registered as interactables from main.js (the same
       // way the car is) so older highlighter counts stay stable.
+      const upgrades = buildHouseInteriorUpgrades(quality, scene.userData.lightPool);
+      pickups.add(upgrades.group);
+      scene.userData.houseUpgrades = upgrades;
+      for (const entry of upgrades.interactables) {
+        scene.userData.interactables = (scene.userData.interactables || []).filter((e) => e.id !== entry.id);
+        scene.userData.interactables.push(entry);
+      }
+
       if (typeof scene.userData.onInteriorReady === 'function') scene.userData.onInteriorReady(scene);
 
       if (scene.userData.world) scene.userData.world.apply({ pickups: { ...scene.userData.world.taken } });

@@ -8,6 +8,18 @@
 
 export const CHANGELOG = [
   {
+    version: '0.26',
+    date: '2026-11-28',
+    title: 'Cozy Home Interior & Curb Appeal Overhaul',
+    notes: [
+      'Added crisp white baseboards, crown moulding, doorway casings, wooden window sills, brass curtain rods, and soft sage-linen curtains across the living room, bedroom, and kitchen.',
+      'Built a cozy interactive brick hearth fireplace in the living room with flickering embers and warm light (press E to light/extinguish for +8 Energy).',
+      'Upgraded the kitchen with upper wall cabinets, a stainless steel sink & gooseneck faucet, hanging copper/steel cookware rack, and warm under-cabinet glow.',
+      'Polished the bedroom and bathroom with an interactive standing full-length mirror, glowing bedside lamp & alarm clock, backlit bathroom vanity mirror, chrome rain showerhead, and folded towel rack.',
+      'Upgraded the front yard with a brass "14 MAPLE LANE" house plaque, woven welcome mat, and 6 warm glowing solar pathway lights along the stone walkway.'
+    ]
+  },
+  {
     version: '0.25',
     date: '2026-11-28',
     title: 'Gas Station Hoses, Canopy Glow & Store Details',
