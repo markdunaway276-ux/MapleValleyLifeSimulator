@@ -102,6 +102,13 @@
 - **License:** Creative Commons Zero (CC0 1.0 Universal), https://creativecommons.org/publicdomain/zero/1.0/
 - **Changes:** Unbranded CC0 realistic models; embedded textures resized to max 512 px and re-encoded as `EXT_texture_webp` (~670–840 KB per GLB).
 
+## scenery/squirrel.glb
+
+- **Source:** [Innerscene 3D Parts Library — Tree squirrel](https://www.innerscene.com/tools/library/3d-parts/tree-squirrel-6499352e)
+- **License:** Creative Commons Zero (CC0 1.0 Universal), https://creativecommons.org/publicdomain/zero/1.0/
+- **Changes:** Embedded texture re-encoded as `EXT_texture_webp` (max 512 px, ~856 KB GLB).
+
+
 
 
 

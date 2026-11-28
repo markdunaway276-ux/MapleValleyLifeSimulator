@@ -4,7 +4,7 @@ A running list of planned visual upgrades and future gameplay builds for Maple L
 
 ---
 
-## Phase A — 3D Assets & Visual Realism (In Progress)
+## Phase A — 3D Assets & Visual Realism (Complete)
 
 All committed assets must be **CC0** or **CC-BY** (credited in `assets/models/CREDITS.md` / `CREDITS.md`), with real brand logos removed and textures compressed (256–512 px WebP) for fast browser loading.
 
@@ -16,8 +16,8 @@ All committed assets must be **CC0** or **CC-BY** (credited in `assets/models/CR
   - Upgraded Maple Lane Park, front yard, and street props (`src/world/park.js`, `src/world/frontYard.js`, `src/world/atmosphere.js`) with 6 CC0 Poly Haven `.glb` models: wooden park benches, picnic tables, galvanized trash cans, planter boxes, front-yard rocking chair, and plaza patio set.
 - [x] **Batch 4 — Realistic AI Traffic Vehicles**
   - Replaced boxy passing cars in `src/world/traffic.js` with 3 optimized, unbranded CC0 realistic vehicles (`traffic-sedan.glb`, `traffic-suv.glb`, `traffic-coupe.glb`) while preserving dusk/night headlights, beams, brake lights, and polite yielding.
-- [ ] **Batch 5 — Wildlife (Pond Ducks & Park Squirrels)**
-  - Upgraded Maple Lane Park pond ducks with realistic CC0 `mallard-duck.glb` (`src/world/park.js`). Park squirrels still ready for a lightweight CC0 squirrel GLB when available.
+- [x] **Batch 5 — Wildlife (Pond Ducks & Park Squirrels)**
+  - Upgraded Maple Lane Park pond ducks (`mallard-duck.glb` in `src/world/park.js`) and park squirrels (`squirrel.glb` in `src/world/livingWorld.js`) with realistic CC0 `.glb` models to match `assets/models/scenery/deer.glb`.
 
 ---
 

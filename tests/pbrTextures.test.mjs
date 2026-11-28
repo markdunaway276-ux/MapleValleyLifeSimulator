@@ -65,7 +65,8 @@ test('all CC0 traffic vehicle GLBs and mallard duck GLB exist with valid glTF bi
     ['vehicles', 'traffic-sedan.glb'],
     ['vehicles', 'traffic-suv.glb'],
     ['vehicles', 'traffic-coupe.glb'],
-    ['scenery', 'mallard-duck.glb']
+    ['scenery', 'mallard-duck.glb'],
+    ['scenery', 'squirrel.glb']
   ];
   for (const [dir, name] of files) {
     const file = path.join(ROOT, 'assets', 'models', dir, name);

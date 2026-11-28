@@ -8,6 +8,14 @@
 
 export const CHANGELOG = [
   {
+    version: '0.14',
+    date: '2026-11-28',
+    title: 'Realism Pass 5: Park Squirrels (Phase A Complete)',
+    notes: [
+      'Upgraded Maple Lane Park\'s scurrying squirrels with a realistic 3D tree squirrel model, completing the Phase A 3D realism pass alongside the pond mallard ducks and roadside deer.'
+    ]
+  },
+  {
     version: '0.13',
     date: '2026-11-28',
     title: '3D Wardrobe & Style Viewer',

@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { STREET, SURFACE_Y } from './street.js';
+import { placeGltfProp } from './modelProps.js';
 import { TV_CENTER } from './interior.js';
 
 /**
@@ -182,6 +183,7 @@ export function buildLivingWorld(scene, quality = {}) {
   squirrelGroup.name = 'park-squirrels';
   function makeSquirrel(coatHex) {
     const g = new THREE.Group();
+    const fallback = new THREE.Group();
     const furMat = new THREE.MeshStandardMaterial({ color: coatHex, roughness: 0.88 });
     const body = new THREE.Mesh(new THREE.SphereGeometry(0.095, 8, 6), furMat);
     body.scale.set(0.82, 0.82, 1.38);
@@ -192,7 +194,15 @@ export function buildLivingWorld(scene, quality = {}) {
     tail.scale.set(0.75, 1.75, 0.9);
     tail.position.set(0, 0.17, -0.13);
     tail.rotation.x = -0.35;
-    g.add(body, head, tail);
+    fallback.add(body, head, tail);
+    g.add(fallback);
+    placeGltfProp(g, './assets/models/scenery/squirrel.glb', {
+      name: 'park-squirrel-glb',
+      rotY: -Math.PI / 2,
+      targetHeight: 0.30,
+      shadows: !!quality.shadows,
+      hideOnLoad: fallback
+    });
     g.userData.tail = tail;
     return g;
   }
