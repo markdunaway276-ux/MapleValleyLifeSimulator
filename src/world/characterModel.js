@@ -52,12 +52,12 @@ export const BODY_ZONES = Object.freeze({
  * (retargeted in world space), including their own walk.
  */
 export const CUSTOM_BODIES = Object.freeze({
-  surviver: { file: 'surviver.glb', walk: 'actions/walk.json' },
-  // Neighbours, made with the same MakeHuman rig (tools/convert_makehuman.py, own heights).
-  sam: { file: 'npc-sam.glb', walk: 'actions/walk.json' },
-  june: { file: 'npc-june.glb', walk: 'actions/walk.json' },
-  dottie: { file: 'npc-dottie.glb', walk: 'actions/walk.json' },
-  clerk: { file: 'npc-clerk.glb', walk: 'actions/walk.json' }
+  surviver: { file: 'surviver.glb', walk: 'actions/walk.json', scale: 1.08 },
+  // Neighbours, made with the same MakeHuman rig (tools/convert_makehuman.py, scaled to realistic proportions).
+  sam: { file: 'npc-sam.glb', walk: 'actions/walk.json', scale: 1.04 },
+  june: { file: 'npc-june.glb', walk: 'actions/walk.json', scale: 1.07 },
+  dottie: { file: 'npc-dottie.glb', walk: 'actions/walk.json', scale: 1.12 },
+  clerk: { file: 'npc-clerk.glb', walk: 'actions/walk.json', scale: 1.05 }
 });
 
 /** Mixamo run (in place), used by the custom bodies. */
@@ -203,6 +203,8 @@ export async function createCharacterModel(look = {}) {
     const holder = new THREE.Group();
     holder.name = 'character';
     root.rotation.y = Math.PI;
+    const bodyScale = Number(look.scale) > 0 ? Number(look.scale) : (custom?.scale || 1);
+    if (bodyScale !== 1) holder.scale.setScalar(bodyScale);
     holder.add(root);
 
     // Retarget the relaxed idle while the clone is still in its bind pose.

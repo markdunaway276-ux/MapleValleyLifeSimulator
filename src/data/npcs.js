@@ -283,6 +283,7 @@ export const STORY_NPCS = [
     appearance: { skin: 'light', shirt: 'navy', pants: 'charcoal' },
     look: {
       body: 'dottie',
+      scale: 1.16,
       suitTint: 0xb04e60,
       hairTint: 0x3b261c
     },
