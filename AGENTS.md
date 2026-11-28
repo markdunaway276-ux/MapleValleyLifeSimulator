@@ -30,6 +30,8 @@ These instructions apply only to Google Gemini tools. Codex and Claude follow th
 
 - Plain ES modules and Three.js from `vendor/three/`; no build step, no new npm packages.
 - Run the unit tests with `node --test` before pushing.
+- Before calling an existing system (inventory, needs, money, clock, friendship, phone, etc.), open its file and use the exact function names it exports — e.g. `inventory.addItem(id, count)` (not `add`), `needs.add(id, delta)` (not `change`). Don't guess an API.
+- Test stand-ins (mocks) must copy the real module's function names and behaviour, so a test fails if the game code calls something that doesn't exist. Prefer using the real module when it runs in Node.
 - Only CC0 or CC-BY assets may be committed (credit CC-BY ones in CREDITS.md). No real brand logos.
 - Add a short entry at the top of `src/data/changelog.js` (bump the version) for each player-visible update so it shows in the title screen's What's New.
 - The very wide Maple Lane road is deliberate; don't change it.
