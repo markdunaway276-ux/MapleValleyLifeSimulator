@@ -180,6 +180,16 @@ export function createPost({ renderer, scene, camera, enabled }) {
     },
     setGrain(on) {
       grade.uniforms.grain.value = on ? G.grain : 0;
+    },
+    setPreset(cfg) {
+      if (!cfg) return;
+      if (cfg.gain != null) grade.uniforms.gain.value = cfg.gain;
+      if (cfg.curve != null) grade.uniforms.curve.value = cfg.curve;
+      if (cfg.saturation != null) grade.uniforms.saturation.value = cfg.saturation;
+      if (cfg.shadowTint) grade.uniforms.shadowTint.value.set(...cfg.shadowTint);
+      if (cfg.highlightTint) grade.uniforms.highlightTint.value.set(...cfg.highlightTint);
+      if (cfg.vignette != null) grade.uniforms.vignette.value = cfg.vignette;
+      if (cfg.bloom != null) grade.uniforms.bloom.value = cfg.bloom;
     }
   };
 }

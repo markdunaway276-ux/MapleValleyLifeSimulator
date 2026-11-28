@@ -122,6 +122,13 @@ export function startLoop(g) {
     updateHouseWindows(time.minutes);
     scene.userData.ambientParticles?.update(delta, { playerPos: player.position, minutes: time.minutes, rain });
     scene.userData.groundFoliage?.update(delta, { playerPos: player.position, rain });
+    scene.userData.livingWorld?.update(delta, {
+      minutes: time.minutes,
+      rain,
+      car: scene.userData.car,
+      driving: mode.driving(),
+      tvOn: !!g.tvSet?.isOn?.()
+    });
     scene.userData.car?.userData?.updateHeadlights?.(time.minutes, rain, mode.driving());
     scene.userData.frontYard?.update(time.totalMinutes);
     scene.userData.streetlights.update(time.minutes, rain);

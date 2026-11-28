@@ -134,3 +134,48 @@ test('graphics overhaul: 3D instanced foliage, headless sky envMap guard, and pi
   car.userData.updateHeadlights(21 * 60, 0, true);
   assert.equal(headlights.visible, true);
 });
+
+test('living world bundle and live Look Presets work cleanly across time, rain, driving, and TV state', async () => {
+  const { buildLivingWorld } = await import('../src/world/livingWorld.js');
+  const { createDisplay, LOOK_PRESETS } = await import('../src/systems/display.js');
+
+  const applied = { preset: null, strength: null, grain: null };
+  const renderer = { toneMappingExposure: 1 };
+  const post = {
+    setPreset(p) { applied.preset = p; },
+    setGradeStrength(v) { applied.strength = v; },
+    setGrain(on) { applied.grain = on; }
+  };
+  const display = createDisplay({ renderer, post, storage: null });
+  assert.equal(display.get().preset, 'classic');
+  display.setPreset('autumn');
+  assert.equal(display.get().preset, 'autumn');
+  assert.equal(applied.preset, LOOK_PRESETS.autumn);
+  assert.ok(renderer.toneMappingExposure > 1.08);
+  display.setPreset('unknown-id');
+  assert.equal(display.get().preset, 'classic');
+
+  const scene = new THREE.Scene();
+  const lw = buildLivingWorld(scene, { shadows: true });
+  assert.ok(lw.group.getObjectByName('chimney-smoke'));
+  assert.ok(lw.group.getObjectByName('pickup-exhaust'));
+  assert.ok(lw.group.getObjectByName('rain-puddles'));
+  assert.ok(lw.group.getObjectByName('sky-birds'));
+  assert.ok(lw.group.getObjectByName('powerline-crows'));
+  assert.ok(lw.group.getObjectByName('interior-sunbeams'));
+  assert.ok(lw.group.getObjectByName('tv-wall-glow'));
+
+  // Clear morning: chimney smoke, birds, and sunbeams visible; puddles hidden; TV off.
+  lw.update(0.05, { minutes: 8 * 60 + 30, rain: 0, driving: false, tvOn: false });
+  assert.equal(lw.group.getObjectByName('chimney-smoke').visible, true);
+  assert.equal(lw.group.getObjectByName('sky-birds').visible, true);
+  assert.equal(lw.group.getObjectByName('interior-sunbeams').visible, true);
+  assert.equal(lw.group.getObjectByName('rain-puddles').visible, false);
+  assert.equal(lw.group.getObjectByName('tv-wall-glow').intensity, 0);
+
+  // Rainy night with TV on: puddles visible, birds hidden, TV bounce light active.
+  lw.update(0.05, { minutes: 21 * 60, rain: 0.85, driving: false, tvOn: true });
+  assert.equal(lw.group.getObjectByName('rain-puddles').visible, true);
+  assert.equal(lw.group.getObjectByName('sky-birds').visible, false);
+  assert.ok(lw.group.getObjectByName('tv-wall-glow').intensity > 2);
+});
