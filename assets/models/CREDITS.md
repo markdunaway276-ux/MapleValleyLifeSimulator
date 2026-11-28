@@ -77,3 +77,17 @@
 - **Author:** [Pasha](https://sketchfab.com/Pasha-)
 - **License:** [Creative Commons Attribution 4.0 International (CC BY 4.0)](https://creativecommons.org/licenses/by/4.0/)
 - **Changes:** Cut out the grab-and-go deli case with its stock, removed hidden helper geometry, scaled it up 1.8x, and re-encoded textures as WebP (max 512 px). Repainted the packaging that showed real brands (meat and cheese packs, chicken bags, soup cups, deli stickers) with original Maple Lane labels.
+
+## textures/pbr/*.webp (grass, asphalt, concrete, gravel, wood_floor)
+
+- **Source:** [Poly Haven](https://polyhaven.com/textures) (`grass_ground`, `asphalt_02`, `concrete_pavement`, `gravel_road`, `old_wood_floor`)
+- **License:** Creative Commons Zero (CC0 1.0), https://creativecommons.org/publicdomain/zero/1.0/
+- **Changes:** Downloaded 1K diffuse, OpenGL normal (`nor_gl`), and roughness maps, resized to 512 px, and re-encoded as WebP for fast browser loading.
+
+## interior/*.glb (sofa, coffee-table, armchair, dining-chair, dining-table, nightstand, laptop, potted-plant, bookshelf)
+
+- **Source:** [Poly Haven](https://polyhaven.com/models) (`sofa_02`, `modern_coffee_table_01`, `mid_century_lounge_chair`, `WoodenChair_01`, `WoodenTable_01`, `ClassicNightstand_01`, `classic_laptop`, `potted_plant_04`, `wooden_bookshelf_worn`)
+- **License:** Creative Commons Zero (CC0 1.0), https://creativecommons.org/publicdomain/zero/1.0/
+- **Changes:** Downloaded 1K glTF models and packed each into a self-contained `.glb` with embedded `EXT_texture_webp` textures resized to max 512 px.
+
+

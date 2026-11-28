@@ -699,6 +699,7 @@ export function createPhone({
     setWaypoint,
     capturePhoto,
     photos,
+    radio: opts.radio || null,
     openApp,
     getPhonePrefs: () => ({ ...prefs }),
     setPhonePrefs(patch) {

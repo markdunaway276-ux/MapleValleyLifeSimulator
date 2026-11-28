@@ -26,6 +26,12 @@ export function renderTasksApp(screen, ctx) {
         name.textContent = task.title;
         const item = document.createElement('p');
         item.append(name);
+        if (task.sourceLabel) {
+          const badge = document.createElement('span');
+          badge.textContent = ` · ${task.sourceLabel}`;
+          badge.style.cssText = 'font-size:11px;opacity:0.72;font-weight:600;';
+          item.append(badge);
+        }
         if (!complete) {
           const step = document.createElement('span');
           step.textContent = task.step;

@@ -497,6 +497,38 @@ function buildActivityArea(park, colliders, quality, scene) {
     swingSeats.push(seat);
   }
 
+  // --- Interactive Pond Fishing Spot (tackle crate + leaned bamboo rod on the pond footbridge) ---
+  const fishingSpot = new THREE.Group();
+  fishingSpot.name = 'park-fishing-spot';
+  const fx = pondCx - 0.85;
+  const fz = pondCz - 0.95;
+  fishingSpot.position.set(fx, SURFACE_Y.walk, fz);
+  const crateMat = new THREE.MeshStandardMaterial({ color: 0x8a5e3b, roughness: 0.86 });
+  const rodMat = new THREE.MeshStandardMaterial({ color: 0xb68d4c, roughness: 0.62 });
+  const bobMat = new THREE.MeshStandardMaterial({ color: 0xd9382c, roughness: 0.35 });
+  const crate = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.28, 0.30), crateMat);
+  crate.position.set(0, 0.14, 0);
+  const rod = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.02, 1.85, 6), rodMat);
+  rod.position.set(0.18, 0.82, 0.06);
+  rod.rotation.set(0.28, 0, -0.22);
+  const bobber = new THREE.Mesh(new THREE.SphereGeometry(0.048, 8, 6), bobMat);
+  bobber.position.set(0.32, 0.22, -0.14);
+  fishingSpot.add(crate, rod, bobber);
+  fishingSpot.userData.prompt = 'cast fishing line';
+  fishingSpot.userData.interact = (ctx) => {
+    if (ctx?.scene?.userData?.fishing?.cast) return !!ctx.scene.userData.fishing.cast();
+    ctx?.toast?.('You cast a line into Maple Lane Pond.');
+    return true;
+  };
+  park.add(fishingSpot);
+  scene.userData.interactables?.push({
+    id: 'park-fishing-spot',
+    kind: 'fishing',
+    object: fishingSpot,
+    range: 2.8,
+    getPoint: () => ({ x: fx, y: SURFACE_Y.walk + 0.8, z: fz })
+  });
+
   const fixtures = new THREE.Mesh(parts.merge(), new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.86 }));
   fixtures.castShadow = fixtures.receiveShadow = !!quality.shadows;
   park.add(fixtures);

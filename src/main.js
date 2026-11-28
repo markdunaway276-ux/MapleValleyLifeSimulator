@@ -18,6 +18,9 @@ import { createCarInterior } from './world/carInterior.js';
  */
 import { createScene } from './world/scene.js';
 import { createSkyEnvMap } from './world/envMap.js';
+import { createRadio } from './systems/radio.js';
+import { createFishing } from './systems/fishing.js';
+import { createQuestBoard } from './systems/questBoard.js';
 import { createHomeDecor } from './world/homeDecor.js';
 import { createParcelDelivery } from './systems/parcelDelivery.js';
 import { createMysteryChapter2 } from './systems/mysteryChapter2.js';
@@ -131,7 +134,15 @@ const rain = createRain({ scene, isMobile });
 const snow = createSnow({ scene, isMobile });
 clock.on('newDay', (e) => window.dispatchEvent(new CustomEvent('maple-new-day', { detail: e })));
 const sfx = createSfx({ getTime: () => clock.getTime(), getScene: () => scene });
-Object.assign(g, { clock, weather, dayNight, rain, snow, sfx });
+const radio = createRadio({ isMuted: () => sfx.isMuted() });
+window.addEventListener('keydown', (e) => {
+  if (e.code === 'KeyR' && !e.repeat && !e.ctrlKey && !e.metaKey && !e.altKey && mode.driving() && !mode.uiBlocked() &&
+      !e.target?.closest?.('input, textarea, [contenteditable]')) {
+    const next = radio.cycleStation();
+    g.hud?.toast?.(next.playing ? `📻 ${next.station.name} (${next.station.freq})` : '📻 Radio off');
+  }
+});
+Object.assign(g, { clock, weather, dayNight, rain, snow, sfx, radio });
 
 // --- needs, skills, the house interior -----------------------------------
 const needs = createNeeds();
@@ -414,9 +425,51 @@ const parcelDelivery = createParcelDelivery({
   save,
   saved: saveData.parcelDelivery
 });
+const questBoard = createQuestBoard({
+  inventory,
+  money,
+  needs,
+  sfx,
+  toast: (msg) => g.hud?.toast?.(msg),
+  save,
+  friendship,
+  getPhotoIds: () => {
+    try {
+      const raw = JSON.parse(localStorage.getItem('mapleValleyLife_phonePhotos') || '[]');
+      return Array.isArray(raw) ? raw.map((p) => p && p.id).filter(Boolean) : [];
+    } catch { return []; }
+  }
+});
+questBoard.apply(saveData);
+scene.userData.questBoard = questBoard;
+
+const fishing = createFishing({
+  clock,
+  needs,
+  inventory,
+  money,
+  sfx,
+  toast: (msg) => g.hud?.toast?.(msg),
+  save,
+  onCatch: (c) => {
+    if (c?.id === 'old-locket') questBoard.accept('pond-locket-lead');
+  }
+});
+fishing.apply(saveData);
+scene.userData.fishing = fishing;
+Object.assign(g, { fishing, questBoard });
+
 const getTasks = () => {
   if (storyQuest.stage === 'done' && mysteryChapter2.stage === 'locked') mysteryChapter2.unlock();
-  return [parcelDelivery.task(), mysteryChapter2.task(), storyQuest.task(), neighbourFavour.task(), snackFavour.task(), ...laundry.tasks()].filter(Boolean);
+  return [
+    parcelDelivery.task(),
+    mysteryChapter2.task(),
+    storyQuest.task(),
+    ...questBoard.getTasks(),
+    neighbourFavour.task(),
+    snackFavour.task(),
+    ...laundry.tasks()
+  ].filter(Boolean);
 };
 let pinnedTaskId = saveData.pinnedTaskId ?? null;
 const getPinnedTask = () => pinnedTaskId
@@ -491,13 +544,14 @@ const phone = createPhone({
   onHomeDecorChange: (fn) => homeDecor.onChange(fn),
   getFriendship: (id) => friendship.get(id),
   onTextSent: (id, name) => friendship.add(id, 5, name),
+  radio,
   playNotification: () => sfx.play('phone-notification')
 });
 const dialogue = createDialogue({
   getExtraPages: (id) => {
     friendship.add(id, 8, getNpc(id)?.name);
     if (storyQuest.stage === 'done' && mysteryChapter2.stage === 'locked') mysteryChapter2.unlock();
-    return [...(g.dayOne?.pagesFor(id) ?? []), mysteryChapter2.pageFor(id), parcelDelivery.pageFor(id), storyQuest.pageFor(id), neighbourFavour.pageFor(id), snackFavour.pageFor(id), dottiePage(id), dirtyPage(id)].filter(Boolean);
+    return [...(g.dayOne?.pagesFor(id) ?? []), mysteryChapter2.pageFor(id), parcelDelivery.pageFor(id), questBoard.pageFor(id), fishing.pageFor(id), storyQuest.pageFor(id), neighbourFavour.pageFor(id), snackFavour.pageFor(id), dottiePage(id), dirtyPage(id)].filter(Boolean);
   },
   canvas: renderer.domElement,
   isMobile,

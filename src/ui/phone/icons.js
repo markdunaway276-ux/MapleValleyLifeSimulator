@@ -63,6 +63,11 @@ export const APP_ICON_META = Object.freeze({
     fg: '#fff5ee',
     svg: `${SVG_OPEN}<path d="M3 10.5L12 3l9 7.5"/><path d="M5 9.5V20h14V9.5"/><path d="M9.5 20v-6h5v6"/>${SVG_CLOSE}`
   },
+  radio: {
+    bg: 'linear-gradient(145deg, #b35274, #732a47)',
+    fg: '#fff2f7',
+    svg: `${SVG_OPEN}<rect x="3" y="8" width="18" height="12" rx="2.5"/><path d="M6.5 8L16 3.5"/><circle cx="8.5" cy="14" r="2.2"/><line x1="14" y1="12" x2="18" y2="12"/><line x1="14" y1="15.5" x2="18" y2="15.5"/>${SVG_CLOSE}`
+  },
   calendar: {
     bg: 'linear-gradient(145deg, #3e61ad, #253d75)',
     fg: '#eef4ff',

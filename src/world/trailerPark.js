@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { loadGltf } from './gltf.js';
+import { applyPbrSurface } from './pbrTextures.js';
 
 /**
  * Maple Lane Trailer Park — three mobile homes from Elbolilloduro's
@@ -94,9 +95,16 @@ export function buildTrailerPark(scene, quality) {
   ud.trailerPark = park;
   ud.mapBuildings = ud.mapBuildings || [];
 
+  const gravelMat = new THREE.MeshStandardMaterial({ map: gravelTexture(quality), roughness: 0.97 });
+  applyPbrSurface(gravelMat, 'gravel', {
+    repeat: [8, 8],
+    anisotropy: quality.shadows ? 4 : 1,
+    normalScale: 0.72,
+    tint: 0xd0c9bc
+  });
   const gravel = new THREE.Mesh(
     new THREE.PlaneGeometry(LOT.maxX - LOT.minX, LOT.maxZ - LOT.minZ),
-    new THREE.MeshStandardMaterial({ map: gravelTexture(quality), roughness: 0.97 })
+    gravelMat
   );
   gravel.rotation.x = -Math.PI / 2;
   gravel.position.set((LOT.minX + LOT.maxX) / 2, 0.006, (LOT.minZ + LOT.maxZ) / 2);

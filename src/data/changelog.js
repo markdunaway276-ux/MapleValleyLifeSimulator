@@ -8,6 +8,48 @@
 
 export const CHANGELOG = [
   {
+    version: '0.8.1',
+    date: '2026-11-28',
+    title: 'Fishing & Town Fixes',
+    notes: [
+      'Fish you catch now actually go in your bag (and fishing costs energy and lifts your mood), so you can sell them to Vince and finish the chowder and locket quests.',
+      'Quest mood rewards now apply, and the postcard quest needs a new photo taken after you accept it.',
+      'Passing cars are solid, drive the whole road from Route 9 to the park, and never pop in or out where you can see.',
+      'House furniture swaps to the new models piece by piece, so pieces never double up.',
+      'The radio remembers your station and volume, and the pond & breeze sounds play from the start.'
+    ]
+  },
+  {
+    version: '0.8',
+    date: '2026-11-28',
+    title: 'Realism Pass 2: Cozy Home Furniture',
+    notes: [
+      'Upgraded your house interior with realistic 3D furniture: sofa, coffee table, mid-century reading armchair, wooden kitchen dining set, desk chair, classic laptop, and bedroom nightstand.',
+      'Upgraded the Home Decor Potted Plant and Walnut Bookshelf with realistic 3D models.'
+    ]
+  },
+  {
+    version: '0.7',
+    date: '2026-11-28',
+    title: 'Realism Pass 1: PBR Surfaces',
+    notes: [
+      'Upgraded Maple Lane\'s lawns, asphalt road, concrete sidewalks, driveway, trailer park gravel, and your house\'s hardwood floors with real CC0 photographic PBR textures (diffuse, normal, and roughness maps).'
+    ]
+  },
+  {
+    version: '0.6',
+    date: '2026-11-28',
+    title: 'Living Valley, Camera & Maple FM',
+    notes: [
+      'Passing AI traffic now cruises Maple Lane & Route 9 with headlights, brake lights, and polite yielding for you and your pickup.',
+      'Neighbours pop open colorful umbrellas when it rains, and playful squirrels scurry around Maple Lane Park.',
+      'Phone Camera now supports 1×/1.5×/2× zoom, live film filters (Warm Film, Golden, Cozy B&W), and a 12-photo Gallery.',
+      'New Maple FM Radio phone app with 3 cozy procedural stations (press R while driving to cycle stations) plus pond & breeze ambience.',
+      'Pond Fishing at Maple Lane Park: cast from the footbridge for valley fish (sellable to Vince) or rare clues, plus an interactive Community Notice Board inside the Post Office with open-ended multi-source quests.',
+      'Major graphics polish: sky reflections, 3D lighting relief on siding/brick/roofs, 3D grass & leaves, Fresnel pond water, 3D parallax mountains, and live Look Presets in Settings.'
+    ]
+  },
+  {
     version: '0.5',
     date: '2026-11-27',
     title: 'A Maple Lane story',

@@ -10,6 +10,7 @@ import { renderMessagesApp } from './messages.js';
 import { renderTasksApp } from './tasks.js';
 import { renderMapApp } from './mapApp.js';
 import { renderHomeApp } from './homeApp.js';
+import { renderRadioApp } from './radioApp.js';
 import { CAMERA_APP, GALLERY_APP } from './photos.js';
 
 export const PHONE_APPS = [
@@ -150,6 +151,8 @@ export const INSTALLED_APPS = PHONE_APPS.concat(SKILLS_APP, PHONE_SETTINGS_APP, 
   id: 'tasks', name: 'Tasks', icon: '📋', render: renderTasksApp
 }, {
   id: 'home', name: 'Home', icon: '🏠', render: renderHomeApp
+}, {
+  id: 'radio', name: 'Radio', icon: '📻', render: renderRadioApp
 }, CALENDAR_APP);
 
 export function getPhoneApp(id, apps = INSTALLED_APPS) {

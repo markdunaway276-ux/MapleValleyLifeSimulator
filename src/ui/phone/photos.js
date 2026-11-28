@@ -1,6 +1,13 @@
 const PHOTO_KEY = 'mapleValleyLife_phonePhotos';
-const MAX_PHOTOS = 8;
+const MAX_PHOTOS = 12;
 const JPEG_DATA = /^data:image\/jpeg;base64,[A-Za-z0-9+/]+=*$/;
+
+export const CAMERA_FILTERS = Object.freeze([
+  { id: 'none', label: 'Natural', css: 'none' },
+  { id: 'warm', label: 'Warm Film', css: 'sepia(0.24) saturate(1.18) contrast(1.06)' },
+  { id: 'golden', label: 'Golden', css: 'sepia(0.18) saturate(1.28) brightness(1.05) contrast(1.04)' },
+  { id: 'bw', label: 'Cozy B&W', css: 'grayscale(1) contrast(1.16) brightness(1.02)' }
+]);
 
 export function readPhotos(storage) {
   try {
@@ -66,7 +73,8 @@ export const CAMERA_APP = {
     preview.draggable = false;
     const status = document.createElement('p');
     status.setAttribute('role', 'status');
-    const aim = { yaw: 0, pitch: 0 };
+    const aim = { yaw: 0, pitch: 0, zoom: 1, filter: 'none' };
+    let filterIdx = 0;
     let drag = null;
 
     function frame() {
@@ -95,6 +103,30 @@ export const CAMERA_APP = {
     });
     preview.addEventListener('pointercancel', () => { drag = null; });
 
+    // Zoom & film filter toolbar
+    const controls = document.createElement('div');
+    controls.style.cssText = 'display:flex;gap:5px;flex-wrap:wrap;margin:6px 0;';
+    const zoomBtn = button('Zoom: 1×', () => {
+      const levels = [1, 1.5, 2];
+      const next = levels[(levels.indexOf(aim.zoom) + 1) % levels.length];
+      aim.zoom = next;
+      zoomBtn.textContent = `Zoom: ${next}×`;
+      frame();
+    });
+    const filterBtn = button('Filter: Natural', () => {
+      filterIdx = (filterIdx + 1) % CAMERA_FILTERS.length;
+      const f = CAMERA_FILTERS[filterIdx];
+      aim.filter = f.css;
+      filterBtn.textContent = `Filter: ${f.label}`;
+      frame();
+    });
+    const resetBtn = button('Center', () => {
+      aim.yaw = 0;
+      aim.pitch = 0;
+      frame();
+    });
+    controls.append(zoomBtn, filterBtn, resetBtn);
+
     const take = button('Take photo', () => {
       if (ctx.photos.list().length >= ctx.photos.limit) {
         status.textContent = 'Gallery full. Delete a photo to make room.';
@@ -102,9 +134,11 @@ export const CAMERA_APP = {
       }
       const image = frame();
       if (!image) return;
-      status.textContent = ctx.photos.add(image) ? 'Saved to Gallery.' : 'Could not save the photo in this browser.';
+      status.textContent = ctx.photos.add(image)
+        ? `Saved (${ctx.photos.list().length}/${ctx.photos.limit}) to Gallery.`
+        : 'Could not save the photo in this browser.';
     });
-    screen.append(heading('Camera'), preview, take, button('Gallery', () => ctx.openApp('gallery')), status);
+    screen.append(heading('Camera'), preview, controls, take, button(`Gallery (${ctx.photos.list().length}/${ctx.photos.limit})`, () => ctx.openApp('gallery')), status);
     frame();
   }
 };

@@ -123,6 +123,38 @@ export const ITEM_DEFS = {
     description: 'Unclaimed registered parcel from PO Box #14 containing a Maple Lane Clinic stamp and cedar key tag.',
     color: '#9c7853',
     stackable: false
+  },
+  bluegill: {
+    id: 'bluegill',
+    name: 'Pond Bluegill',
+    icon: '🐟',
+    description: 'A fresh bluegill caught in Maple Lane Pond. Vince at the Market buys fresh fish.',
+    color: '#4e8ca8',
+    stackable: true
+  },
+  trout: {
+    id: 'trout',
+    name: 'Maple Trout',
+    icon: '🐠',
+    description: 'A speckled valley trout from Maple Lane Pond. Worth a good price at Vince’s Market.',
+    color: '#c97b54',
+    stackable: true
+  },
+  bass: {
+    id: 'bass',
+    name: 'Valley Bass',
+    icon: '🐡',
+    description: 'A hefty largemouth bass from the deep middle of Maple Lane Pond.',
+    color: '#4f7a52',
+    stackable: true
+  },
+  'old-locket': {
+    id: 'old-locket',
+    name: 'Tarnished Locket',
+    icon: '📿',
+    description: 'Engraved "K.M. — Route 9" on the back. Walt at the Trailer Park might know who it belongs to.',
+    color: '#b89448',
+    stackable: false
   }
 };
 

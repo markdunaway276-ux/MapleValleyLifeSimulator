@@ -63,6 +63,7 @@ export function startLoop(g) {
     g.rain.update(delta, { position: player.position, intensity: rain, indoor });
     g.snow?.update(delta, { position: player.position, intensity: snowfall, indoor });
     if (typeof g.sfx.setRain === 'function') g.sfx.setRain(rain, { indoor });
+    g.radio?.update?.(delta, { playerPos: player.position, rain, indoor, opening: g.title.isOpen() || !!g.dayOne?.opening });
     const shop = scene.userData.laundromat;
     if (g.laundry) {
       g.laundry.update();
@@ -135,6 +136,13 @@ export function startLoop(g) {
       tvOn: !!g.tvSet?.isOn?.()
     });
     scene.userData.valleyGraphics?.update(delta, { playerPos: player.position, minutes: lightingMinutes, rain });
+    scene.userData.traffic?.update(delta, {
+      minutes: lightingMinutes,
+      rain,
+      playerPos: player.position,
+      playerCar: g.car?.object || null,
+      opening: titleOpen || !!g.dayOne?.opening
+    });
     g.car?.object?.userData?.updateHeadlights?.(lightingMinutes, rain, mode.driving());
     scene.userData.frontYard?.update(time.totalMinutes);
     scene.userData.streetlights.update(lightingMinutes, rain);
