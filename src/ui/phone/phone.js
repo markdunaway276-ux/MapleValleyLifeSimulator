@@ -317,6 +317,13 @@ body.mobile #hud-phone {
   font: 600 18px/1.2 Roboto, system-ui, sans-serif;
   text-align: center;
 }
+.phone-weather-detail {
+  margin: 6px 0 0;
+  font: 400 13px/1.3 Roboto, system-ui, sans-serif;
+  text-align: center;
+  opacity: 0.72;
+}
+.phone-weather-detail:empty { display: none; }
 .phone-close {
   box-sizing: border-box;
   width: 34px; height: 34px; min-width: 34px; min-height: 34px;

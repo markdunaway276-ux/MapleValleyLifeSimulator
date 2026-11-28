@@ -42,6 +42,7 @@ import { createPresentation } from './game/presentation.js';
 import { createPlayerBody } from './world/playerBody.js';
 import { createWeather } from './systems/weather.js';
 import { createRain, isInsideMainHouse } from './world/rain.js';
+import { createSnow } from './world/snow.js';
 import { createNpcs } from './world/npc.js';
 import { createCutscene } from './systems/cutscene.js';
 import { createDialogue } from './ui/dialogue.js';
@@ -115,14 +116,15 @@ const clock = createClock();
 if (saveData.time) clock.apply(saveData);
 const weather = createWeather({ clock });
 if (saveData.weather) weather.apply(saveData);
-else weather.roll({ immediate: true, time: clock.getTime() });
+else weather.start({ time: clock.getTime() });
 const dayNight = createDayNight({ scene, quality, modulate: (sample) => weather.modulate(sample) });
 dayNight.apply(clock.getTime());
 weather.applyFog(scene, quality);
 const rain = createRain({ scene, isMobile });
+const snow = createSnow({ scene, isMobile });
 clock.on('newDay', (e) => window.dispatchEvent(new CustomEvent('maple-new-day', { detail: e })));
 const sfx = createSfx({ getTime: () => clock.getTime(), getScene: () => scene });
-Object.assign(g, { clock, weather, dayNight, rain, sfx });
+Object.assign(g, { clock, weather, dayNight, rain, snow, sfx });
 
 // --- needs, skills, the house interior -----------------------------------
 const needs = createNeeds();

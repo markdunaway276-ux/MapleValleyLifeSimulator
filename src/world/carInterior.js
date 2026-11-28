@@ -243,7 +243,7 @@ export function createCarInterior(car) {
       const label = opening ? 'radio' : clock;
       if (lastScreen !== label) {
         lastScreen = label;
-        display(screen,opening ? ['WMPL 98.1 · Maple Lane Radio','Carefree'] : ['MAPLE LANE',clock,'Local route']);
+        display(screen,opening ? ['WMPL 98.1 · Maple Lane Radio','Heartwarming'] : ['MAPLE LANE',clock,'Local route']);
       }
       if (lastPhone !== notice) {
         lastPhone = notice;

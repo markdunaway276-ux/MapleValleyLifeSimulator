@@ -1,0 +1,90 @@
+/**
+ * "What's New" patch notes shown from the title screen.
+ *
+ * Whoever ships an update (Claude, ChatGPT, Gemini) adds an entry at the TOP
+ * with a higher version. The title screen shows a NEW badge until the
+ * player opens What's New for the latest version.
+ */
+
+export const CHANGELOG = [
+  {
+    version: '0.4',
+    date: '2026-11-27',
+    title: 'Weather & Main Menu',
+    notes: [
+      'Weather now changes gradually over game hours: clear → partly cloudy → overcast → drizzle → rain, and back again.',
+      'Snow! Cold spells bring flurries that build into snowfall, and snow settles on the lawns and sidewalks, then slowly melts.',
+      'The phone Weather app shows the temperature, cold spells and snow on the ground.',
+      'New, gentler opening song for the Route 9 drive ("Heartwarming" by Kevin MacLeod).',
+      'Title screen: press-start screen, What\'s New patch notes and a Credits page.'
+    ]
+  },
+  {
+    version: '0.3',
+    date: '2026-11-27',
+    title: 'Day One',
+    notes: [
+      'Route 9 now flows seamlessly into Maple Lane, with a grazing roadside deer and story captions.',
+      'Step out of the pickup, open the hinged bed cover and tailgate, and drag your boxes off.',
+      'Rita and the townsfolk are real 3D clothed characters; cutscene cameras now face whoever is talking.',
+      'Bigger house with an open living room, a walk-in Post Office (PO Box #14) and a rebuilt playground.',
+      'Phone redesign with a two-way Messages app, a Map app with search and pins, and a Fullscreen button.'
+    ]
+  },
+  {
+    version: '0.2',
+    date: '2026-11-27',
+    title: 'Road Trip',
+    notes: [
+      'A cinematic road-trip opening: drive into town in your pickup truck with the radio on.',
+      'Your own character as the player, plus new neighbours made from the same rig.',
+      'Shift to run, a gas station with fuel for the truck, and a community clinic.',
+      'The Market restocks its shelves at night.'
+    ]
+  },
+  {
+    version: '0.1',
+    date: '2026-11-26',
+    title: 'Moving In',
+    notes: [
+      'Title screen with three save slots, a pause menu and settings.',
+      'Laundromat and trailer park, animated neighbours with daily routines.',
+      'Third-person actions, a debug menu, and in-game feedback (F9).'
+    ]
+  }
+];
+
+export const LATEST_VERSION = CHANGELOG[0].version;
+
+const SEEN_KEY = 'mapleValleyLife_seenVersion';
+
+/** Compare "0.10" > "0.9" correctly. */
+export function compareVersions(a, b) {
+  const pa = String(a || '0').split('.').map((n) => parseInt(n, 10) || 0);
+  const pb = String(b || '0').split('.').map((n) => parseInt(n, 10) || 0);
+  for (let i = 0; i < Math.max(pa.length, pb.length); i++) {
+    const d = (pa[i] || 0) - (pb[i] || 0);
+    if (d) return d < 0 ? -1 : 1;
+  }
+  return 0;
+}
+
+export function hasUnseenUpdate(seenVersion, latest = LATEST_VERSION) {
+  return !seenVersion || compareVersions(latest, seenVersion) > 0;
+}
+
+export function readSeenVersion(storage = globalThis.localStorage) {
+  try { return storage ? storage.getItem(SEEN_KEY) : null; } catch { return null; }
+}
+
+export function markUpdatesSeen(storage = globalThis.localStorage, latest = LATEST_VERSION) {
+  try { storage?.setItem(SEEN_KEY, latest); } catch { /* private mode */ }
+}
+
+/** "2026-11-27" → "Nov 27, 2026" without timezone surprises. */
+export function formatNoteDate(iso) {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(iso || ''));
+  if (!m) return String(iso || '');
+  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  return `${months[Number(m[2]) - 1] || ''} ${Number(m[3])}, ${m[1]}`;
+}
