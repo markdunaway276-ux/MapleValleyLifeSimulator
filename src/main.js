@@ -171,7 +171,11 @@ Object.assign(g, { money, inbox, appearance, playerBody, npcs, actions });
 window.addEventListener('maple-sat', () => actions.play('sit'));
 window.addEventListener('maple-stood', () => actions.play('stand'));
 window.addEventListener('car-enter', () => actions.play('openDoor'));
-window.addEventListener('car-exit', () => actions.play('exitCar'));
+window.addEventListener('car-exit', () => {
+  actions.play('exitCar');
+  sfx.play('click');
+  window.setTimeout(() => sfx.play('click'), 1580);
+});
 window.addEventListener('work-start', (e) => {
   const job = e.detail && e.detail.job;
   actions.play((job && job.action) || 'typing', { duration: job && job.duration ? job.duration : undefined });

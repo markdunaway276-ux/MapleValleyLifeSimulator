@@ -45,6 +45,30 @@ export function createPlayerPickup({ shadows }) {
     bedCover.rotation.z = -clamped * 0.92;
   };
 
+  // Hinged 3D tailgate pivoted along the lower rear sill (x = -2.53, y = 0.88).
+  // Rotating positive around Z folds the tailgate down flat into a horizontal loading platform.
+  const tailgate = new THREE.Group();
+  tailgate.name = 'pickup-tailgate';
+  tailgate.position.set(-2.53, 0.88, 0);
+  tailgate.visible = false;
+  const gatePaintMat = new THREE.MeshStandardMaterial({ color: BODY_PAINT, roughness: 0.46, metalness: 0.22 });
+  const gateLinerMat = new THREE.MeshStandardMaterial({ color: 0x242629, roughness: 0.86, metalness: 0.08 });
+  const gateOuter = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.43, 1.56), gatePaintMat);
+  gateOuter.position.set(-0.02, 0.215, 0);
+  gateOuter.castShadow = gateOuter.receiveShadow = !!shadows;
+  const gateInner = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.40, 1.50), gateLinerMat);
+  gateInner.position.set(0.02, 0.215, 0);
+  gateInner.receiveShadow = !!shadows;
+  const gateHandle = new THREE.Mesh(new THREE.BoxGeometry(0.035, 0.045, 0.24), latchMat);
+  gateHandle.position.set(-0.06, 0.36, 0);
+  tailgate.add(gateOuter, gateInner, gateHandle);
+  car.add(tailgate);
+  car.userData.tailgate = tailgate;
+  car.userData.setTailgateOpen = (ratio) => {
+    const clamped = Math.max(0, Math.min(1, Number(ratio) || 0));
+    tailgate.rotation.z = clamped * (Math.PI * 0.5);
+  };
+
   loadGltf('assets/models/vehicles/pickup.glb', ({ scene: pickup }) => {
     const body = pickup.getObjectByName('truck-body');
     const interior = pickup.getObjectByName('truck-interior');
@@ -70,6 +94,7 @@ export function createPlayerPickup({ shadows }) {
     car.remove(fallback);
     cargo.visible = true;
     bedCover.visible = true;
+    tailgate.visible = true;
   }, error => {
     console.warn('Pickup model unavailable; using the fallback vehicle:', error);
   });

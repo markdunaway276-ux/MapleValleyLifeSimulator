@@ -259,40 +259,54 @@ export const ACTIONS = {
     ]
   },
   exitCar: {
-    // Reach for the door latch, push the truck door open, and step down onto the street.
-    clip: 'Opening Door Inwards', duration: 0.95,
+    // Gradually open the truck door, step down onto the street, and swing the door shut behind you.
+    clip: 'Opening Door Inwards', duration: 1.95,
     keys: [
-      { t: 0, R: P(0.24, -0.45, -0.34, 0.15, 0, 0), L: P(-0.24, -0.32, -0.36, 0.1, 0.2, 0.35), dip: -0.34 },
-      { t: 0.26, R: P(0.26, -0.48, -0.32, 0.1, 0, 0), L: P(-0.28, -0.24, -0.54, 0.12, 0.35, 0.2), dip: -0.30 },
-      { t: 0.54, R: P(0.24, -0.54, -0.30, 0.15, 0, 0), L: P(-0.34, -0.28, -0.60, 0.08, 0.45, 0.1), dip: -0.42 },
-      { t: 0.78, R: REST, L: P(-0.26, -0.42, -0.40, 0.15, 0.15, 0), dip: -0.10 },
+      // Seated inside: left hand reaches for the interior door handle.
+      { t: 0, R: P(0.24, -0.45, -0.34, 0.15, 0, 0), L: P(-0.22, -0.34, -0.34, 0.12, 0.18, 0.35), dip: -0.34 },
+      { t: 0.14, R: P(0.25, -0.46, -0.33, 0.12, 0, 0), L: P(-0.26, -0.28, -0.44, 0.14, 0.28, 0.25), dip: -0.33 },
+      // Gradually push the heavy pickup door open outward.
+      { t: 0.32, R: P(0.26, -0.48, -0.32, 0.10, 0, 0), L: P(-0.34, -0.24, -0.58, 0.10, 0.45, 0.12), dip: -0.30 },
+      // Step down out of the cab onto the asphalt (brief knee dip, then rise to standing height).
+      { t: 0.48, R: P(0.24, -0.54, -0.30, 0.15, 0, 0), L: P(-0.36, -0.30, -0.60, 0.08, 0.48, 0.08), dip: -0.44 },
+      { t: 0.64, R: P(0.22, -0.44, -0.34, 0.12, 0, 0), L: P(-0.32, -0.26, -0.52, 0.10, 0.36, 0.12), dip: -0.04 },
+      // Reach back for the door edge and pull/push it firmly shut behind you.
+      { t: 0.78, R: REST, L: P(-0.20, -0.24, -0.44, 0.16, 0.05, 0.18), dip: -0.02 },
+      { t: 0.88, R: REST, L: P(-0.14, -0.28, -0.36, 0.18, -0.08, 0.06), dip: 0 },
       { t: 1, R: REST, dip: 0 }
     ]
   },
   openTruckBed: {
-    // Unlatch the rear truck-bed cover, lift it open, reach into the bed, and pull a box into your arms.
-    clip: 'Picking Up', duration: 1.55, both: true, boxFrom: 0.66,
+    // 1. Open bed cover -> 2. Unlatch & pull tailgate down flat -> 3. Drag box toward you -> 4. Lift off tailgate.
+    clip: 'Picking Up', duration: 2.55, both: true, boxFrom: 0.78,
     keys: [
       { t: 0, R: REST, dip: 0 },
-      // Reach right hand forward to unlatch the rear cover handle.
-      { t: 0.14, R: P(0.06, -0.24, -0.54, 0.25, -0.1, -0.15), L: P(-0.22, -0.48, -0.36, 0.15, 0, 0), dip: -0.04 },
-      { t: 0.22, R: P(0.08, -0.21, -0.52, 0.15, -0.15, 0.35), L: P(-0.18, -0.30, -0.48, 0.2, 0.1, 0), dip: -0.05 },
-      // Lift the hinged bed cover up and out of the way.
-      { t: 0.42, R: P(0.18, -0.04, -0.48, -0.28, -0.05, 0.1), L: P(-0.18, -0.04, -0.48, -0.28, 0.05, -0.1), dip: 0.03 },
-      // Reach both hands forward and down into the open truck bed to grip the box.
-      { t: 0.64, R: P(0.22, -0.36, -0.66, 0.34, 0.04, 1.15), L: P(-0.22, -0.36, -0.66, 0.34, -0.04, -1.15), dip: -0.14 },
-      { t: 0.72, R: P(0.21, -0.34, -0.60, 0.28, 0.05, 1.25), L: P(-0.21, -0.34, -0.60, 0.28, -0.05, -1.25), dip: -0.12 },
-      // Pull the box out of the bed and settle into carry pose.
+      // Unlatch & lift the hinged tonneau bed cover.
+      { t: 0.09, R: P(0.06, -0.24, -0.54, 0.25, -0.1, -0.15), L: P(-0.22, -0.48, -0.36, 0.15, 0, 0), dip: -0.04 },
+      { t: 0.22, R: P(0.18, -0.02, -0.46, -0.30, -0.05, 0.10), L: P(-0.18, -0.02, -0.46, -0.30, 0.05, -0.10), dip: 0.03 },
+      // Reach down to the chrome tailgate latch, squeeze it, and pull the tailgate down flat.
+      { t: 0.32, R: P(0.05, -0.28, -0.56, 0.28, -0.08, -0.18), L: P(-0.20, -0.34, -0.46, 0.22, 0.08, 0), dip: -0.08 },
+      { t: 0.40, R: P(0.08, -0.32, -0.54, 0.20, -0.12, 0.28), L: P(-0.18, -0.34, -0.50, 0.22, 0.10, 0), dip: -0.10 },
+      { t: 0.52, R: P(0.16, -0.44, -0.42, 0.44, 0, 0.08), L: P(-0.16, -0.44, -0.42, 0.44, 0, -0.08), dip: -0.18 },
+      // Reach deep into the truck bed, grip the box, and drag it toward you onto the tailgate platform.
+      { t: 0.62, R: P(0.22, -0.36, -0.72, 0.36, 0.04, 1.12), L: P(-0.22, -0.36, -0.72, 0.36, -0.04, -1.12), dip: -0.16 },
+      { t: 0.76, R: P(0.22, -0.38, -0.52, 0.32, 0.05, 1.24), L: P(-0.22, -0.38, -0.52, 0.32, -0.05, -1.24), dip: -0.14 },
+      // Lift the box cleanly off the tailgate platform into carry pose.
+      { t: 0.88, R: P(0.21, -0.30, -0.46, 0.22, 0.04, 1.26), L: P(-0.21, -0.30, -0.46, 0.22, -0.04, -1.26), dip: -0.04 },
       { t: 1, R: BOX_CARRY, dip: 0 }
     ]
   },
   reachTruckBox: {
-    // Reach into the already-open truck bed, grip the next box, and pull it into your arms.
-    clip: 'Picking Up', duration: 1.05, both: true, boxFrom: 0.46,
+    // Reach into the open bed, drag the next box onto the lowered tailgate, and lift it into your arms.
+    clip: 'Picking Up', duration: 1.50, both: true, boxFrom: 0.58,
     keys: [
       { t: 0, R: REST, dip: 0 },
-      { t: 0.44, R: P(0.22, -0.36, -0.66, 0.34, 0.04, 1.15), dip: -0.14 },
-      { t: 0.56, R: P(0.21, -0.34, -0.58, 0.26, 0.05, 1.25), dip: -0.10 },
+      // Reach deep into the open bed to grip the box.
+      { t: 0.28, R: P(0.22, -0.36, -0.72, 0.36, 0.04, 1.12), dip: -0.16 },
+      // Drag the box smoothly toward you onto the tailgate platform.
+      { t: 0.56, R: P(0.22, -0.38, -0.52, 0.32, 0.05, 1.24), dip: -0.14 },
+      // Lift the box off the tailgate into carry pose.
+      { t: 0.78, R: P(0.21, -0.30, -0.46, 0.22, 0.04, 1.26), dip: -0.04 },
       { t: 1, R: BOX_CARRY, dip: 0 }
     ]
   }

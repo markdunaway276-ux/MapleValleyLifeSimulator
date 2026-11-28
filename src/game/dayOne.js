@@ -275,12 +275,20 @@ export function createDayOne(g, saveData, beginPlay) {
   const carrying = () => g.actions?.carrying;
 
   let bedOpen = false;
-  let bedAnim = null;       // { from, to, start, duration }
+  let bedAnim = null;        // { from, to, start, duration }
+  let tailgateOpen = false;
+  let tailgateAnim = null;   // { from, to, start, duration }
+  let dragBoxAnim = null;    // { box, fromX, fromZ, toX, toZ, start, duration }
   let pendingHideBox = null; // { box, at }
   function animateBed(to, delayMs = 0, duration = 480) {
     const cur = carObject()?.userData?.bedCover ? -carObject().userData.bedCover.rotation.z / 0.92 : (bedOpen ? 1 : 0);
     bedOpen = to > 0.5;
     bedAnim = { from: cur, to, start: performance.now() + delayMs, duration };
+  }
+  function animateTailgate(to, delayMs = 0, duration = 520) {
+    const cur = carObject()?.userData?.tailgate ? carObject().userData.tailgate.rotation.z / (Math.PI * 0.5) : (tailgateOpen ? 1 : 0);
+    tailgateOpen = to > 0.5;
+    tailgateAnim = { from: cur, to, start: performance.now() + delayMs, duration };
   }
 
   const trunkSpot = new THREE.Object3D();
@@ -288,7 +296,7 @@ export function createDayOne(g, saveData, beginPlay) {
   scene.add(trunkSpot);
   trunkSpot.getPoint = () => trunkTarget(); // the interact path reads the object's getPoint
   trunkSpot.userData.getPrompt = () => prompt(
-    bedOpen ? `reach in for a box (${trunk} left)` : `open truck bed & take box (${trunk} left)`
+    bedOpen ? `drag & lift a box (${trunk} left)` : `open truck bed & tailgate (${trunk} left)`
   );
   trunkSpot.userData.interact = (ctx) => {
     if (carrying()) { ctx?.toast?.('Your hands are full.'); return false; }
@@ -297,17 +305,36 @@ export function createDayOne(g, saveData, beginPlay) {
     trunk -= 1;
     const boxMesh = cargo ? cargo.children[grabbedIndex] : null;
     const needsOpen = !bedOpen;
+    const now = performance.now();
     if (needsOpen) {
+      // 1. Unlatch & lift the hinged bed cover.
       g.sfx?.play?.('click');
-      animateBed(1, 250, 480);
+      animateBed(1, 160, 440);
+      // 2. Unlatch the chrome tailgate handle & pull the tailgate down flat.
+      window.setTimeout(() => g.sfx?.play?.('click'), 740);
+      animateTailgate(1, 780, 520);
     }
     if (boxMesh) {
-      pendingHideBox = { box: boxMesh, at: performance.now() + (needsOpen ? 1020 : 480) };
+      // 3. Visibly drag the 3D box along the bed floor out onto the lowered tailgate platform.
+      const dragDelay = needsOpen ? 1480 : 380;
+      const dragDur = needsOpen ? 460 : 440;
+      dragBoxAnim = {
+        box: boxMesh,
+        fromX: boxMesh.position.x,
+        fromZ: boxMesh.position.z,
+        toX: -2.62,
+        toZ: 0,
+        start: now + dragDelay,
+        duration: dragDur
+      };
+      // 4. Lift the box off the tailgate platform into your arms right as boxFrom triggers.
+      pendingHideBox = { box: boxMesh, at: now + (needsOpen ? 1990 : 870) };
     }
     if (trunk === 0) {
       window.setTimeout(() => {
-        if (bedOpen && trunk === 0) animateBed(0, 0, 520);
-      }, needsOpen ? 1850 : 1350);
+        if (tailgateOpen && trunk === 0) animateTailgate(0, 0, 480);
+        if (bedOpen && trunk === 0) animateBed(0, 320, 480);
+      }, needsOpen ? 2750 : 1700);
     }
     g.actions.setCarry('box');
     renderTask();
@@ -512,8 +539,10 @@ export function createDayOne(g, saveData, beginPlay) {
     doorUnlocked = true;
     // Leave boxes already delivered to the living room in place.
     if (cargo) for (const box of cargo.children) box.visible = false;
+    dragBoxAnim = null;
     pendingHideBox = null;
-    if (bedOpen) animateBed(0, 0, 420);
+    if (tailgateOpen) animateTailgate(0, 0, 420);
+    if (bedOpen) animateBed(0, 240, 420);
     stage = 'done';
     panel.hidden = true;
     ritaLeaves();
@@ -562,13 +591,35 @@ export function createDayOne(g, saveData, beginPlay) {
           if (t >= 1) bedAnim = null;
         }
       }
+      if (tailgateAnim) {
+        const raw = (now - tailgateAnim.start) / tailgateAnim.duration;
+        if (raw >= 0) {
+          const t = Math.min(1, raw);
+          const ease = t * t * (3 - 2 * t);
+          carObject()?.userData?.setTailgateOpen?.(THREE.MathUtils.lerp(tailgateAnim.from, tailgateAnim.to, ease));
+          if (t >= 1) tailgateAnim = null;
+        }
+      }
+      if (dragBoxAnim) {
+        const raw = (now - dragBoxAnim.start) / dragBoxAnim.duration;
+        if (raw >= 0) {
+          const t = Math.min(1, raw);
+          const ease = t * t * (3 - 2 * t);
+          dragBoxAnim.box.position.x = THREE.MathUtils.lerp(dragBoxAnim.fromX, dragBoxAnim.toX, ease);
+          dragBoxAnim.box.position.z = THREE.MathUtils.lerp(dragBoxAnim.fromZ, dragBoxAnim.toZ, ease);
+          if (t >= 1) dragBoxAnim = null;
+        }
+      }
       if (pendingHideBox && now >= pendingHideBox.at) {
         pendingHideBox.box.visible = false;
         g.sfx?.play?.('pickup');
         pendingHideBox = null;
       }
+      if (tailgateOpen && g.mode.driving() && !tailgateAnim) {
+        animateTailgate(0, 0, 420);
+      }
       if (bedOpen && g.mode.driving() && !bedAnim) {
-        animateBed(0, 0, 420);
+        animateBed(0, 220, 420);
       }
       if (unpacking) {
         const progress = Math.min(1, (now - unpacking) / (UNPACK_SECONDS * 1000));

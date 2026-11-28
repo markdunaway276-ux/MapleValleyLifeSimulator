@@ -138,7 +138,17 @@ export function createRoadTrip(g, onFinish, wave) {
       camera.position.copy(car.localToWorld(target.set(seat.x, seat.y, seat.z)));
       const signLook = (smooth(at,25,27)-smooth(at,28.4,31.5))*0.25;
       const arrivalLook = smooth(at,49,52)*0.55;
+      // Driver glances over toward the roadside deer before the camera cuts to focus on it.
+      const deerGlance = smooth(at, 14.5, 15.8) * (1 - smooth(at, 17.4, 17.8));
+      const glanceBack = smooth(at, 23.6, 24.4) * (1 - smooth(at, 24.4, 25.3));
       forward.set(1,-0.05,signLook).applyQuaternion(car.quaternion);
+      if (deerGlance > 0.001) {
+        const deerTarget = target.set(-170.0, 1.0, STREET.roadCenterZ + 10.5).sub(camera.position).normalize();
+        forward.lerp(deerTarget, deerGlance * 0.72);
+      } else if (glanceBack > 0.001) {
+        const deerTarget = target.set(-170.0, 1.0, STREET.roadCenterZ + 10.5).sub(camera.position).normalize();
+        forward.lerp(deerTarget, glanceBack * 0.35);
+      }
       forward.lerp(target.set(0.0,1.5,-4.40).sub(camera.position).normalize(), arrivalLook * 0.8);
       camera.lookAt(target.copy(camera.position).add(forward));
       g.actions.drive(g.cabin.grips);
@@ -149,21 +159,21 @@ export function createRoadTrip(g, onFinish, wave) {
         camera.position.set(x-16+8*k,23-13*k,z-9);
         camera.lookAt(x+7,0.4,z);
       } else if(at<24) {
-        // Hero focus shot on the roadside deer bending down to grab & eat grass, then panning to the passing pickup.
+        // Hero focus shot on the 1.72m stag bending down to grab & eat grass, then panning to the passing pickup.
         const dolly = smooth(frameAt, 17, 24);
-        const panToTruck = smooth(frameAt, 20.0, 22.4);
+        const panToTruck = smooth(frameAt, 20.6, 22.8);
         const deerZ = STREET.roadCenterZ + 10.5;
         camera.position.set(
-          THREE.MathUtils.lerp(-166.5, -167.2, dolly),
-          THREE.MathUtils.lerp(1.06, 1.24, dolly),
-          THREE.MathUtils.lerp(deerZ + 1.55, deerZ + 0.9, dolly)
+          THREE.MathUtils.lerp(-166.1, -166.9, dolly),
+          THREE.MathUtils.lerp(1.12, 1.28, dolly),
+          THREE.MathUtils.lerp(deerZ + 1.85, deerZ + 1.15, dolly)
         );
         const deerFocusX = -170.0;
-        const deerFocusY = THREE.MathUtils.lerp(0.76, 1.04, smooth(frameAt, 18.8, 20.4));
-        const deerFocusZ = deerZ - 0.15;
+        const deerFocusY = THREE.MathUtils.lerp(0.82, 1.12, smooth(frameAt, 19.0, 20.5));
+        const deerFocusZ = deerZ - 0.1;
         camera.lookAt(
-          THREE.MathUtils.lerp(deerFocusX, x + 2.5, panToTruck),
-          THREE.MathUtils.lerp(deerFocusY, 0.85, panToTruck),
+          THREE.MathUtils.lerp(deerFocusX, x + 2.0, panToTruck),
+          THREE.MathUtils.lerp(deerFocusY, 0.90, panToTruck),
           THREE.MathUtils.lerp(deerFocusZ, z, panToTruck)
         );
       } else {

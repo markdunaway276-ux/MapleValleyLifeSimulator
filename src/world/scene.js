@@ -549,7 +549,7 @@ export function createScene(quality) {
   buildLaundromat(scene, quality);
   buildClinic(scene, quality);
   buildGasStation(scene, quality);
-  buildApproachRoad(scene, quality);
+  buildApproachRoad(scene, quality, road.material);
   scene.userData.park = buildPark(scene, quality, { road: road.material, walk: walkMat, curb: curbMat });
   buildTrailerPark(scene, quality);
   buildPostOffice(scene, quality);

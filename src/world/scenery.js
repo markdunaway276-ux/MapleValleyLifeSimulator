@@ -86,14 +86,15 @@ function updateDeer(delta, focusPos) {
   let bladeAmt = 0;
   let alert = 0;
 
-  if (openingDeerBeat != null && openingDeerBeat >= 16.5 && openingDeerBeat <= 24.5) {
-    // Choreographed focus beat during the Route 9 opening shot (at = 17..24).
+  if (openingDeerBeat != null && openingDeerBeat >= 14.0 && openingDeerBeat <= 24.5) {
+    // Choreographed beat: deer bends down & grazes as the driver glances over (14.5..17),
+    // then grabs a mouthful, lifts its head chewing during the hero focus shot (17..24).
     const t = openingDeerBeat;
-    const bendDown = THREE.MathUtils.smoothstep(t, 16.8, 17.9);
+    const bendDown = THREE.MathUtils.smoothstep(t, 14.3, 15.6);
     const liftUp = THREE.MathUtils.smoothstep(t, 19.2, 20.4);
     graze = bendDown * (1 - liftUp);
-    const inGrass = THREE.MathUtils.smoothstep(t, 17.85, 18.15) * (1 - THREE.MathUtils.smoothstep(t, 19.0, 19.3));
-    nibble = Math.sin((t - 18.0) * 10.5) * 0.055 * inGrass;
+    const inGrass = THREE.MathUtils.smoothstep(t, 15.4, 15.9) * (1 - THREE.MathUtils.smoothstep(t, 19.0, 19.3));
+    nibble = Math.sin((t - 15.5) * 10.5) * 0.055 * inGrass;
     const grabbed = THREE.MathUtils.smoothstep(t, 18.55, 18.85);
     const eaten = THREE.MathUtils.smoothstep(t, 20.9, 21.8);
     bladeAmt = grabbed * (1 - eaten);
@@ -136,9 +137,9 @@ function updateDeer(delta, focusPos) {
       const x2 = rx * cy + z1 * sy;
       const z2 = -rx * sy + z1 * cy;
       mouthBlade.position.set(
-        (DEER_PIVOT.x + x2) * DEER_SCALE,
+        (DEER_PIVOT.x + x2) * DEER_SCALE + (deerState.muzzleOffsetX || 0),
         (DEER_PIVOT.y + y1) * DEER_SCALE,
-        (DEER_PIVOT.z + z2) * DEER_SCALE
+        (DEER_PIVOT.z + z2) * DEER_SCALE + (deerState.muzzleOffsetZ || 0)
       );
       mouthBlade.scale.set(1, 0.45 + bladeAmt * 0.65, 1);
       mouthBlade.rotation.set(0.25 + Math.cos(deerState.time * 8.2) * 0.12, deerState.headYaw, Math.sin(deerState.time * 9.5) * 0.16);
@@ -283,7 +284,7 @@ function welcomeSign(root, z) {
   root.add(board);
 }
 
-export function buildApproachRoad(scene, quality) {
+export function buildApproachRoad(scene, quality, roadMaterial = null) {
   const root = new THREE.Group();
   root.name = 'route-9';
   scene.add(root);
@@ -292,32 +293,40 @@ export function buildApproachRoad(scene, quality) {
 
   // Match the town road's dark asphalt colour & gritty surface so Route 9 blends seamlessly.
   const townAsphaltHex = (GROUND.road[0] << 16) | (GROUND.road[1] << 8) | GROUND.road[2];
-  const townLineHex = (GROUND.line[0] << 16) | (GROUND.line[1] << 8) | GROUND.line[2];
 
-  function ribbon(name, color, edge, y, ranges, { roughness = 0.92, grit = 0.85 } = {}) {
+  function ribbon(name, color, edge, y, ranges, { roughness = 0.92, grit = 0.85, material = null } = {}) {
     const vertices = [];
+    const uvs = [];
     for (const [a, b] of ranges) {
       const [l, r] = edge(a);
       const [m, n] = edge(b);
       vertices.push(a,y,center+l, a,y,center+r, b,y,center+m, b,y,center+m, a,y,center+r, b,y,center+n);
+      // Match the town road's exact UV tiling phase at x = -44 (u = 0) so there is zero seam line.
+      const ua = (a + 44) / STREET.length;
+      const ub = (b + 44) / STREET.length;
+      uvs.push(ua, 1, ua, 0, ub, 1, ub, 1, ua, 0, ub, 0);
     }
     const geometry = new THREE.BufferGeometry();
-    const colors = [];
-    const base = new THREE.Color(color);
-    const verge = new THREE.Color(0x4b5642);
-    const tint = new THREE.Color();
-    for (let i = 0; i < vertices.length; i += 3) {
-      const fade = THREE.MathUtils.smoothstep(vertices[i], ROUTE_9.minX, ROUTE_9.minX + 14);
-      tint.copy(verge).lerp(base,fade);
-      colors.push(tint.r,tint.g,tint.b);
-    }
-    geometry.setAttribute('color',new THREE.Float32BufferAttribute(colors,3));
-    geometry.setAttribute('position',new THREE.Float32BufferAttribute(vertices,3));
+    geometry.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
+    geometry.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
     geometry.computeVertexNormals();
-    const mat = useWorldGrit(
-      new THREE.MeshStandardMaterial({ vertexColors: true, roughness, metalness: 0 }),
-      { strength: grit, groundGrime: 0 }
-    );
+    let mat = material;
+    if (!mat) {
+      const colors = [];
+      const base = new THREE.Color(color);
+      const verge = new THREE.Color(0x4b5642);
+      const tint = new THREE.Color();
+      for (let i = 0; i < vertices.length; i += 3) {
+        const fade = THREE.MathUtils.smoothstep(vertices[i], ROUTE_9.minX, ROUTE_9.minX + 14);
+        tint.copy(verge).lerp(base, fade);
+        colors.push(tint.r, tint.g, tint.b);
+      }
+      geometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+      mat = useWorldGrit(
+        new THREE.MeshStandardMaterial({ vertexColors: true, roughness, metalness: 0 }),
+        { strength: grit, groundGrime: 0 }
+      );
+    }
     const mesh = new THREE.Mesh(geometry, mat);
     mesh.name = name;
     mesh.receiveShadow = quality.shadows;
@@ -326,14 +335,7 @@ export function buildApproachRoad(scene, quality) {
   const spans = [[ROUTE_9.minX, ROUTE_9.minX + 14], [ROUTE_9.minX + 14, ROUTE_9.taper], [ROUTE_9.taper, ROUTE_9.maxX]];
   const surface = SURFACE_Y.road;
   ribbon('gravel-shoulders', 0x625d53, x => [-routeHalfWidth(x)-0.85, routeHalfWidth(x)+0.85], surface-0.007, spans, { roughness: 0.96, grit: 1.05 });
-  ribbon('country-asphalt', townAsphaltHex, x => [-routeHalfWidth(x), routeHalfWidth(x)], surface, spans, { roughness: 0.90, grit: 0.95 });
-  for (const side of [-1,1]) ribbon('white-edge-lines', 0xbab8aa, x => {
-    const edge = side*(routeHalfWidth(x)-0.29);
-    return [edge-0.065,edge+0.065];
-  }, surface+0.002, spans, { roughness: 0.92, grit: 0.7 });
-  const dashes = [];
-  for(let x = -297; x < -45; x += 7) dashes.push([x,Math.min(x+3,-44)]);
-  ribbon('yellow-center-line', townLineHex, ()=>[-0.075,0.075], surface+0.002, dashes, { roughness: 0.92, grit: 0.7 });
+  ribbon('country-asphalt', townAsphaltHex, x => [-routeHalfWidth(x), routeHalfWidth(x)], surface, spans, { roughness: 0.90, grit: 0.95, material: roadMaterial });
   welcomeSign(root,center+8);
   addForest(root, quality);
   loadGltf(directory+'road-signs.glb').then(({scene:model})=>{
@@ -358,7 +360,18 @@ export function buildApproachRoad(scene, quality) {
       uDeerHeadYaw: { value: 0 },
       uDeerTime: { value: 0 }
     };
-    model.scale.setScalar(DEER_SCALE);
+    // Measure actual loaded bounds (accounting for Sketchfab root node scale & offset)
+    // so the stag stands a lifelike 1.72 m tall with hooves planted squarely on y = 0.
+    model.updateMatrixWorld(true);
+    const rawBox = new THREE.Box3().setFromObject(model);
+    const rawH = Math.max(0.01, rawBox.max.y - rawBox.min.y);
+    const modelScale = 1.72 / rawH;
+    model.scale.setScalar(modelScale);
+    model.position.set(
+      -((rawBox.min.x + rawBox.max.x) / 2) * modelScale,
+      -rawBox.min.y * modelScale,
+      -((rawBox.min.z + rawBox.max.z) / 2) * modelScale
+    );
     model.traverse((o) => {
       if (!o.isMesh) return;
       o.castShadow = !!quality.shadows;
@@ -373,15 +386,15 @@ export function buildApproachRoad(scene, quality) {
     const brightBladeMat = new THREE.MeshStandardMaterial({ color: 0x769f44, roughness: 0.82, side: THREE.DoubleSide });
     const grassTuft = new THREE.Group();
     grassTuft.name = 'deer-grass-tuft';
-    grassTuft.position.set(0.12, 0, 0.96);
-    for (let i = 0; i < 11; i++) {
-      const angle = (i / 11) * Math.PI * 2 + (i % 2) * 0.2;
-      const h = 0.24 + (i % 3) * 0.08;
+    grassTuft.position.set(0.08, 0, 0.72);
+    for (let i = 0; i < 13; i++) {
+      const angle = (i / 13) * Math.PI * 2 + (i % 2) * 0.2;
+      const h = 0.26 + (i % 3) * 0.08;
       const blade = new THREE.Mesh(
-        new THREE.ConeGeometry(0.024, h, 4),
+        new THREE.ConeGeometry(0.026, h, 4),
         i % 3 === 0 ? brightBladeMat : bladeMat
       );
-      blade.position.set(Math.cos(angle) * 0.14, h * 0.45, Math.sin(angle) * 0.14);
+      blade.position.set(Math.cos(angle) * 0.16, h * 0.45, Math.sin(angle) * 0.16);
       blade.rotation.set(Math.sin(angle) * 0.32, angle, -Math.cos(angle) * 0.32);
       grassTuft.add(blade);
     }
@@ -391,8 +404,8 @@ export function buildApproachRoad(scene, quality) {
     const mouthBlade = new THREE.Group();
     mouthBlade.name = 'deer-mouth-blade';
     mouthBlade.visible = false;
-    for (const [ox, rz, len] of [[-0.014, 0.26, 0.20], [0.002, -0.08, 0.24], [0.016, -0.32, 0.18]]) {
-      const sprig = new THREE.Mesh(new THREE.ConeGeometry(0.012, len, 4), brightBladeMat);
+    for (const [ox, rz, len] of [[-0.016, 0.26, 0.22], [0.002, -0.08, 0.26], [0.018, -0.32, 0.20]]) {
+      const sprig = new THREE.Mesh(new THREE.ConeGeometry(0.014, len, 4), brightBladeMat);
       sprig.position.set(ox, -len * 0.45, 0.03);
       sprig.rotation.set(0.28, 0, rz + Math.PI);
       mouthBlade.add(sprig);
@@ -400,7 +413,12 @@ export function buildApproachRoad(scene, quality) {
     pivot.add(mouthBlade);
 
     root.add(pivot);
-    deerState = { pivot, baseYaw, mouthBlade, grassTuft, uniforms, pitch: 0, headYaw: 0, time: 0.9, alert: 0 };
+    deerState = {
+      pivot, baseYaw, mouthBlade, grassTuft, uniforms,
+      muzzleOffsetX: model.position.x,
+      muzzleOffsetZ: model.position.z,
+      pitch: 0, headYaw: 0, time: 0.9, alert: 0
+    };
   }).catch(()=>{});
   loadGltf(directory+'kenney-fence-wide.glb').then(({scene:model})=>{
     const size = new THREE.Box3().setFromObject(model).getSize(new THREE.Vector3());
