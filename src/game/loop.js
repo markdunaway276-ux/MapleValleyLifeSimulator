@@ -52,6 +52,7 @@ export function startLoop(g) {
     updateScenery(delta, rain, deerFocus);
     g.homeDecor?.update?.(delta);
     g.parcelDelivery?.update?.();
+    g.gardening?.syncWithWorld?.({ day: currentTime.day, rain });
     g.npcs.update(delta, {
       player,
       talkingId: g.dialogue.currentNpc() || g.cutscene?.currentNpc?.() || null,

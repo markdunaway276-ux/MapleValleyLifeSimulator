@@ -8,6 +8,16 @@
 
 export const CHANGELOG = [
   {
+    version: '0.15',
+    date: '2026-11-28',
+    title: 'Home Cooking & Backyard Gardening',
+    notes: [
+      'Interactive Kitchen Stove Recipe Menu: cook 7 home-cooked meals (Home Meal, Morning Pancakes, Garden Salad, Fresh Tomato Soup, Pan-Seared Trout, Hearty Harvest Stew, and Warm Cocoa) for stronger Hunger & Energy buffs.',
+      'Share any home-cooked meal with Maple Lane neighbours during conversation for a big Friendship boost.',
+      'Backyard Kitchen Garden: 4 cedar raised garden beds behind your house — buy Tomato, Herb, or Pumpkin Seeds at Vince\'s Market, water them (rain waters them automatically!), grow crops overnight, and harvest produce to cook or sell back to Vince.'
+    ]
+  },
+  {
     version: '0.14',
     date: '2026-11-28',
     title: 'Realism Pass 5: Park Squirrels (Phase A Complete)',

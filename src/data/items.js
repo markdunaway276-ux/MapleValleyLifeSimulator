@@ -114,7 +114,111 @@ export const ITEM_DEFS = {
     description: 'A hot home-cooked meal straight off your stove. Restores lots of hunger.',
     color: '#c97b36',
     stackable: true,
-    use: { action: 'eat', label: 'Eat', need: 'hunger', amount: 75, sfx: 'eat' }
+    use: { action: 'eat', label: 'Eat', need: 'hunger', amount: 75, effects: { hunger: 75, energy: 10 }, sfx: 'eat' }
+  },
+  'morning-pancakes': {
+    id: 'morning-pancakes',
+    name: 'Morning Pancakes',
+    icon: '🥞',
+    description: 'Warm apple-cinnamon pancakes cooked on your stove. Great way to start the day.',
+    color: '#d99a4e',
+    stackable: true,
+    use: { action: 'eat', label: 'Eat', need: 'hunger', amount: 70, effects: { hunger: 70, energy: 25 }, sfx: 'eat' }
+  },
+  'garden-salad': {
+    id: 'garden-salad',
+    name: 'Garden Salad',
+    icon: '🥗',
+    description: 'Crisp backyard tomatoes tossed with fresh garden herbs. Light and energizing.',
+    color: '#5a9e52',
+    stackable: true,
+    use: { action: 'eat', label: 'Eat', need: 'hunger', amount: 55, effects: { hunger: 55, energy: 20 }, sfx: 'eat' }
+  },
+  'tomato-soup': {
+    id: 'tomato-soup',
+    name: 'Fresh Tomato Soup',
+    icon: '🥣',
+    description: 'Velvety homemade soup simmered from backyard tomatoes.',
+    color: '#c84b31',
+    stackable: true,
+    use: { action: 'eat', label: 'Eat', need: 'hunger', amount: 65, effects: { hunger: 65, energy: 18 }, sfx: 'eat' }
+  },
+  'seared-trout': {
+    id: 'seared-trout',
+    name: 'Pan-Seared Trout',
+    icon: '🍽️',
+    description: 'Fresh valley fish pan-seared with backyard herbs. Huge hunger and energy boost — neighbours love it!',
+    color: '#b86b42',
+    stackable: true,
+    use: { action: 'eat', label: 'Eat', need: 'hunger', amount: 90, effects: { hunger: 90, energy: 30 }, sfx: 'eat' }
+  },
+  'hearty-stew': {
+    id: 'hearty-stew',
+    name: 'Hearty Harvest Stew',
+    icon: '🥘',
+    description: 'Rich autumn stew made with market groceries and backyard pumpkin. Fills you right up.',
+    color: '#b85c2b',
+    stackable: true,
+    use: { action: 'eat', label: 'Eat', need: 'hunger', amount: 100, effects: { hunger: 100, energy: 35 }, sfx: 'eat' }
+  },
+  'warm-cocoa': {
+    id: 'warm-cocoa',
+    name: 'Warm Cocoa',
+    icon: '🍫',
+    description: 'Cozy homemade hot cocoa. Great pick-me-up on chilly Maple Lane mornings.',
+    color: '#6b4226',
+    stackable: true,
+    use: { action: 'eat', label: 'Drink', need: 'energy', amount: 40, effects: { hunger: 25, energy: 40 }, sfx: 'eat' }
+  },
+  'tomato-seeds': {
+    id: 'tomato-seeds',
+    name: 'Tomato Seeds',
+    icon: '🌱',
+    description: 'Plant in a backyard garden bed and water to grow Garden Tomatoes (1 day).',
+    color: '#b94134',
+    stackable: true
+  },
+  'herb-seeds': {
+    id: 'herb-seeds',
+    name: 'Herb Seeds',
+    icon: '🌱',
+    description: 'Plant in a backyard garden bed and water to grow Fresh Herbs (1 day).',
+    color: '#4c8b4f',
+    stackable: true
+  },
+  'pumpkin-seeds': {
+    id: 'pumpkin-seeds',
+    name: 'Pumpkin Seeds',
+    icon: '🌱',
+    description: 'Plant in a backyard garden bed and water to grow an Autumn Pumpkin (2 days).',
+    color: '#c97324',
+    stackable: true
+  },
+  tomato: {
+    id: 'tomato',
+    name: 'Garden Tomato',
+    icon: '🍅',
+    description: 'Sun-ripened tomato from your backyard garden. Eat fresh, cook at home, or sell to Vince ($10).',
+    color: '#c93c2e',
+    stackable: true,
+    use: { action: 'eat', label: 'Eat', need: 'hunger', amount: 18, sfx: 'eat' }
+  },
+  herbs: {
+    id: 'herbs',
+    name: 'Fresh Herbs',
+    icon: '🌿',
+    description: 'Fragrant basil & thyme from your backyard garden. Cook with fish or tomatoes, or sell to Vince ($8).',
+    color: '#4a8c4e',
+    stackable: true,
+    use: { action: 'eat', label: 'Snack', need: 'hunger', amount: 8, sfx: 'eat' }
+  },
+  pumpkin: {
+    id: 'pumpkin',
+    name: 'Autumn Pumpkin',
+    icon: '🎃',
+    description: 'A hefty backyard-grown pumpkin. Cook into Hearty Harvest Stew or sell to Vince ($18).',
+    color: '#d47422',
+    stackable: true
   },
   'kyle-parcel': {
     id: 'kyle-parcel',

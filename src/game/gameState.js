@@ -37,6 +37,8 @@ export function gameState(g) {
     parcelDelivery: g.parcelDelivery ? g.parcelDelivery.serialize() : undefined,
     friendship: g.friendship ? g.friendship.serialize() : undefined,
     fishing: g.fishing ? g.fishing.serialize() : undefined,
+    cooking: g.cooking ? g.cooking.serialize() : undefined,
+    garden: g.gardening ? g.gardening.serialize() : undefined,
     questBoard: g.questBoard ? g.questBoard.serialize() : undefined,
     pinnedTaskId: g.getPinnedTask()?.id ?? null,
     dayOne: g.dayOne?.serialize(),

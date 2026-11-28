@@ -23,9 +23,9 @@ All committed assets must be **CC0** or **CC-BY** (credited in `assets/models/CR
 
 ## Phase B — Planned Gameplay Builds
 
-- [ ] **1. Home Cooking & Backyard Gardening**
-  - Cook real meals at your kitchen stove using Market groceries and pond-caught fish (e.g., Pan-Seared Trout, Morning Pancakes, Hearty Stew, Warm Cocoa) for stronger hunger/energy/mood buffs and neighbour gifts.
-  - Add raised garden beds in the yard: plant seeds, water them (rain counts automatically), grow crops over game days, and harvest produce to cook or sell to Vince.
+- [x] **1. Home Cooking & Backyard Gardening**
+  - Cook real meals at your kitchen stove using Market groceries, backyard produce, and pond-caught fish (Home Meal, Morning Pancakes, Garden Salad, Fresh Tomato Soup, Pan-Seared Trout, Hearty Harvest Stew, Warm Cocoa) for stronger hunger/energy buffs and neighbour gifts.
+  - Added 4 cedar raised garden beds in the backyard: buy seeds at Vince's Market, plant & water them (rain counts automatically), grow crops over game days, and harvest produce to cook or sell to Vince.
 - [ ] **2. Photo Gigs, Framed Gallery Photos & Seasonal Odd Jobs**
   - Notice Board photo commissions using the Phone Camera's zoom & filters (ducks, squirrels, golden-hour Maple Lane, neighbours).
   - Hang photos from your Phone Gallery in picture frames inside your house.

@@ -308,8 +308,10 @@ export function createSkills({
 
     // Check if the player has Groceries to cook a full hot home meal!
     let grocerySlot = -1;
-    if (inv && typeof inv.getSlots === 'function') {
-      const slots = inv.getSlots();
+    const slots = inv && typeof inv.getItems === 'function'
+      ? inv.getItems()
+      : (inv && typeof inv.getSlots === 'function' ? inv.getSlots() : null);
+    if (Array.isArray(slots)) {
       for (let i = 0; i < slots.length; i++) {
         if (slots[i] && slots[i].id === 'groceries' && (slots[i].count || 0) > 0) {
           grocerySlot = i;
@@ -318,8 +320,12 @@ export function createSkills({
       }
     }
 
-    if (grocerySlot >= 0 && typeof inv.removeAt === 'function') {
-      inv.removeAt(grocerySlot, 1);
+    const consumeSlot = inv && typeof inv.consume === 'function'
+      ? (idx, n) => inv.consume(idx, n)
+      : (inv && typeof inv.removeAt === 'function' ? (idx, n) => inv.removeAt(idx, n) : null);
+
+    if (grocerySlot >= 0 && consumeSlot) {
+      consumeSlot(grocerySlot, 1);
       if (clockApi && typeof clockApi.advance === 'function') clockApi.advance(COOK_MINUTES);
       if (needsApi && typeof needsApi.add === 'function') {
         needsApi.add('hunger', 75);

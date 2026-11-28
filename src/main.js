@@ -20,6 +20,10 @@ import { createScene } from './world/scene.js';
 import { createSkyEnvMap } from './world/envMap.js';
 import { createRadio } from './systems/radio.js';
 import { createFishing } from './systems/fishing.js';
+import { createCooking } from './systems/cooking.js';
+import { createCookingMenu } from './ui/cookingMenu.js';
+import { createGardening } from './systems/gardening.js';
+import { buildBackyardGarden } from './world/garden.js';
 import { createQuestBoard } from './systems/questBoard.js';
 import { createHomeDecor } from './world/homeDecor.js';
 import { createParcelDelivery } from './systems/parcelDelivery.js';
@@ -258,7 +262,11 @@ const inventory = createInventory({
       if (g.phone) g.phone.open();
       return;
     }
-    if (use && use.need) needs.add(use.need, use.amount || 0);
+    if (use && use.effects && typeof use.effects === 'object') {
+      for (const [needId, amount] of Object.entries(use.effects)) needs.add(needId, amount);
+    } else if (use && use.need) {
+      needs.add(use.need, use.amount || 0);
+    }
     if (use && use.action === 'eat') actions.play('eat');
     if (use && use.sfx) sfx.play(use.sfx);
     save();
@@ -457,7 +465,55 @@ const fishing = createFishing({
 });
 fishing.apply(saveData);
 scene.userData.fishing = fishing;
-Object.assign(g, { fishing, questBoard });
+
+const cooking = createCooking({
+  clock,
+  needs,
+  inventory,
+  skills,
+  friendship,
+  sfx,
+  toast: (msg) => g.hud?.toast?.(msg),
+  save
+});
+cooking.apply(saveData);
+scene.userData.cooking = cooking;
+
+const gardening = createGardening({
+  clock,
+  needs,
+  inventory,
+  money,
+  skills,
+  sfx,
+  toast: (msg) => g.hud?.toast?.(msg),
+  save
+});
+gardening.apply(saveData);
+scene.userData.gardening = gardening;
+buildBackyardGarden(scene, quality, gardening);
+
+const cookingMenu = createCookingMenu({
+  canvas: renderer.domElement,
+  isMobile,
+  isStarted: () => mode.started(),
+  isBlocked: () => mode.busy() || mode.menuOpen({ except: 'cooking' }),
+  onBeforeOpen: () => {
+    if (inventory.isOpen()) inventory.close();
+    if (g.phone?.isOpen?.()) g.phone.close();
+  },
+  cooking,
+  inventory,
+  skills,
+  onCooked: () => actions.play('cook'),
+  onPractice: () => {
+    const ok = skills.cook({ clock, needs, sfx, inventory: null, toast: (msg) => g.hud?.toast?.(msg) });
+    if (ok) actions.play('cook');
+    return ok;
+  }
+});
+mode.attach({ cooking: cookingMenu });
+Object.assign(g, { fishing, cooking, cookingMenu, gardening, questBoard });
 
 const getTasks = () => {
   if (storyQuest.stage === 'done' && mysteryChapter2.stage === 'locked') mysteryChapter2.unlock();
@@ -551,7 +607,20 @@ const dialogue = createDialogue({
   getExtraPages: (id) => {
     friendship.add(id, 8, getNpc(id)?.name);
     if (storyQuest.stage === 'done' && mysteryChapter2.stage === 'locked') mysteryChapter2.unlock();
-    return [...(g.dayOne?.pagesFor(id) ?? []), mysteryChapter2.pageFor(id), parcelDelivery.pageFor(id), questBoard.pageFor(id), fishing.pageFor(id), storyQuest.pageFor(id), neighbourFavour.pageFor(id), snackFavour.pageFor(id), dottiePage(id), dirtyPage(id)].filter(Boolean);
+    return [
+      ...(g.dayOne?.pagesFor(id) ?? []),
+      mysteryChapter2.pageFor(id),
+      parcelDelivery.pageFor(id),
+      questBoard.pageFor(id),
+      fishing.pageFor(id),
+      gardening.pageFor(id),
+      cooking.pageFor(id, getNpc(id)?.name),
+      storyQuest.pageFor(id),
+      neighbourFavour.pageFor(id),
+      snackFavour.pageFor(id),
+      dottiePage(id),
+      dirtyPage(id)
+    ].filter(Boolean);
   },
   canvas: renderer.domElement,
   isMobile,
@@ -561,6 +630,7 @@ const dialogue = createDialogue({
   onBeforeOpen: () => {
     if (inventory.isOpen()) inventory.close();
     if (phone.isOpen()) phone.close();
+    if (cookingMenu.isOpen()) cookingMenu.close();
   },
   getTime: () => clock.getTime(),
   getWeather: () => weather.get()

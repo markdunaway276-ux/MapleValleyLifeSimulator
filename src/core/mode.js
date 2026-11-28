@@ -31,7 +31,7 @@ export const ACTIVITY = Object.freeze({
   WALKING: 'walking'
 });
 
-export const MENUS = Object.freeze(['inventory', 'phone', 'dialogue', 'debug', 'pause']);
+export const MENUS = Object.freeze(['inventory', 'phone', 'dialogue', 'cooking', 'debug', 'pause']);
 
 export function createPlayerMode({ isStarted = () => true } = {}) {
   const parts = {
@@ -42,6 +42,7 @@ export function createPlayerMode({ isStarted = () => true } = {}) {
     inventory: null,
     phone: null,
     dialogue: null,
+    cooking: null,
     debug: null,
     pause: null
   };
@@ -112,6 +113,7 @@ export function createPlayerMode({ isStarted = () => true } = {}) {
     if (menu('inventory')) parts.inventory.close();
     if (menu('phone')) parts.phone.close();
     if (menu('dialogue')) parts.dialogue.close();
+    if (menu('cooking')) parts.cooking.close();
     if (driving()) parts.car.exit();
     if (sitting()) parts.sitter.stand();
   }
