@@ -6,6 +6,7 @@ import { getShop } from '../data/shops.js';
 import { getJob } from '../data/jobs.js';
 import { buyFromShop } from '../systems/shop.js';
 import { FUEL, quoteFill } from '../systems/fuel.js';
+import { contactMaterial } from './contact.js';
 
 /**
  * Maple Lane Fuel & Go: a canopy with two pump islands by the street and a
@@ -137,6 +138,27 @@ function buildPumpDetail(priceStr, glowList) {
       btn.position.set(x + side * 0.008, 1.18, (i - 1) * 0.14);
       g.add(btn);
     });
+
+    // Smooth curved rubber fuel hose & chrome nozzle resting in its holster.
+    const hoseMat = new THREE.MeshStandardMaterial({ color: 0x181b1f, roughness: 0.72, metalness: 0.1 });
+    const nozzleMat = new THREE.MeshStandardMaterial({ color: 0xd4dde6, roughness: 0.22, metalness: 0.85 });
+    const gripMat = new THREE.MeshStandardMaterial({ color: 0x1e242b, roughness: 0.6 });
+    const holster = new THREE.Mesh(new THREE.BoxGeometry(0.055, 0.22, 0.095), frameMat);
+    holster.position.set(x + side * 0.012, 1.32, 0.36);
+    const nozzleBody = new THREE.Mesh(new THREE.BoxGeometry(0.036, 0.12, 0.065), gripMat);
+    nozzleBody.position.set(x + side * 0.035, 1.29, 0.36);
+    const spout = new THREE.Mesh(new THREE.CylinderGeometry(0.011, 0.013, 0.14, 10), nozzleMat);
+    spout.position.set(x + side * 0.035, 1.39, 0.36);
+    spout.rotation.x = -0.25;
+    const curve = new THREE.CatmullRomCurve3([
+      new THREE.Vector3(x + side * 0.015, 1.82, 0.44),
+      new THREE.Vector3(x + side * 0.095, 1.32, 0.49),
+      new THREE.Vector3(x + side * 0.115, 0.72, 0.44),
+      new THREE.Vector3(x + side * 0.075, 0.92, 0.38),
+      new THREE.Vector3(x + side * 0.035, 1.23, 0.36)
+    ]);
+    const hose = new THREE.Mesh(new THREE.TubeGeometry(curve, 20, 0.015, 8, false), hoseMat);
+    g.add(holster, nozzleBody, spout, hose);
   }
   return g;
 }
@@ -339,6 +361,222 @@ function buildCanopyTrim(glowList) {
   const right = left.clone();
   right.position.x = cx + w / 2;
   g.add(front, back, left, right);
+  return g;
+}
+
+/** 8 recessed glowing canopy LED fixtures + soft warm asphalt light pools beneath each island. */
+function buildCanopyDownlights(glowList) {
+  const g = new THREE.Group();
+  g.name = 'gas-canopy-downlights';
+  const housingMat = new THREE.MeshStandardMaterial({ color: 0xcbd5df, roughness: 0.35, metalness: 0.6 });
+  const lensMat = new THREE.MeshStandardMaterial({ color: 0xfff8e8, emissive: 0xfff0cc, emissiveIntensity: 0.5, roughness: 0.2 });
+  glowList.push({ material: lensMat, nightGlow: 1.5, dayGlow: 0.35 });
+  for (const x of [-5.74, 4.36]) {
+    for (const z of [2.6, 5.4, 8.0, 10.8]) {
+      const h = new THREE.Mesh(new THREE.BoxGeometry(0.92, 0.04, 0.56), housingMat);
+      h.position.set(x, 4.68, z);
+      const l = new THREE.Mesh(new THREE.BoxGeometry(0.84, 0.025, 0.48), lensMat);
+      l.position.set(x, 4.655, z);
+      g.add(h, l);
+    }
+  }
+  const pools = [];
+  const poolGeo = new THREE.PlaneGeometry(7.2, 11.4);
+  for (const x of [-5.74, 4.36]) {
+    const mat = new THREE.MeshBasicMaterial({
+      color: 0xffd599, alphaMap: contactMaterial().alphaMap, transparent: true,
+      opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending
+    });
+    const pool = new THREE.Mesh(poolGeo, mat);
+    pool.rotation.x = -Math.PI / 2;
+    pool.position.set(x, 0.022, 6.7);
+    pool.visible = false;
+    g.add(pool);
+    pools.push({ mesh: pool, mat });
+  }
+  return { group: g, pools };
+}
+
+/** Animated cherry & blue-raspberry slushie barrels + rising warm coffee steam wisps. */
+function buildSlushieAndSteam() {
+  const g = new THREE.Group();
+  g.name = 'gas-slushie-and-steam';
+  const paddles = [];
+  const bowlGeo = new THREE.CylinderGeometry(0.115, 0.11, 0.32, 18);
+  const lidMat = new THREE.MeshStandardMaterial({ color: 0x1e242b, roughness: 0.3, metalness: 0.5 });
+  const paddleMat = new THREE.MeshStandardMaterial({ color: 0xf8fafc, roughness: 0.35 });
+  const flavors = [
+    { z: 26.32, color: 0xef4444, emissive: 0x7f1d1d },
+    { z: 26.64, color: 0x38bdf8, emissive: 0x0c4a6e }
+  ];
+  for (const f of flavors) {
+    const bowl = new THREE.Mesh(
+      bowlGeo,
+      new THREE.MeshStandardMaterial({
+        color: f.color, emissive: f.emissive, emissiveIntensity: 0.55,
+        transparent: true, opacity: 0.84, roughness: 0.14
+      })
+    );
+    bowl.position.set(-4.52, 1.56, f.z);
+    const lid = new THREE.Mesh(new THREE.CylinderGeometry(0.125, 0.125, 0.03, 18), lidMat);
+    lid.position.set(-4.52, 1.73, f.z);
+    const paddle = new THREE.Group();
+    paddle.position.set(-4.52, 1.56, f.z);
+    const blade = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.24, 0.018), paddleMat);
+    const blade2 = new THREE.Mesh(new THREE.BoxGeometry(0.018, 0.24, 0.16), paddleMat);
+    paddle.add(blade, blade2);
+    g.add(bowl, lid, paddle);
+    paddles.push(paddle);
+  }
+
+  const puffs = [];
+  const puffGeo = new THREE.SphereGeometry(0.042, 8, 6);
+  for (let i = 0; i < 4; i++) {
+    const mat = new THREE.MeshBasicMaterial({ color: 0xf7f9fc, transparent: true, opacity: 0, depthWrite: false });
+    const mesh = new THREE.Mesh(puffGeo, mat);
+    const baseZ = 24.82 + (i % 2) * 0.22;
+    mesh.position.set(-4.52, 1.62, baseZ);
+    g.add(mesh);
+    puffs.push({ mesh, mat, phase: i * 1.65, baseZ });
+  }
+  return { group: g, paddles, puffs };
+}
+
+/** Curbside Bagged Ice sign, Propane Tank Exchange Cage, and entrance planter boxes. */
+function buildStorefrontProps(glowList) {
+  const g = new THREE.Group();
+  g.name = 'gas-storefront-props';
+
+  // Crisp "BAGGED ICE" emblem on the front face of the ice chest.
+  const { mesh: iceSign, mat: iceMat } = canvasSign(1.25, 0.42, (ctx, w, h) => {
+    ctx.fillStyle = '#0e4c8a';
+    ctx.fillRect(0, 0, w, h);
+    ctx.strokeStyle = '#bae6fd';
+    ctx.lineWidth = 12;
+    ctx.strokeRect(10, 10, w - 20, h - 20);
+    ctx.fillStyle = '#ffffff';
+    ctx.font = 'bold 94px system-ui, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('BAGGED ICE', w / 2, h * 0.48);
+    ctx.fillStyle = '#7dd3fc';
+    ctx.font = 'bold 34px system-ui, sans-serif';
+    ctx.fillText('FRESH · CRYSTAL CLEAR', w / 2, h * 0.82);
+  }, { emissiveIntensity: 0.4 });
+  glowList.push({ material: iceMat, nightGlow: 0.9, dayGlow: 0.3 });
+  iceSign.position.set(6.18, 1.15, 16.22);
+  iceSign.rotation.y = Math.PI;
+  g.add(iceSign);
+
+  // Wire-mesh Propane Tank Exchange Cage stocked with 6 white steel cylinders.
+  const cage = new THREE.Group();
+  cage.position.set(3.55, 0, 16.52);
+  const cageMat = new THREE.MeshStandardMaterial({ color: 0x1e40af, roughness: 0.35, metalness: 0.55 });
+  const tankMat = new THREE.MeshStandardMaterial({ color: 0xf1f5f9, roughness: 0.28, metalness: 0.3 });
+  const frame = new THREE.Mesh(new THREE.BoxGeometry(1.18, 1.38, 0.56), new THREE.MeshStandardMaterial({ color: 0x1e3a8a, wireframe: true }));
+  frame.position.y = 0.69;
+  const roof = new THREE.Mesh(new THREE.BoxGeometry(1.24, 0.08, 0.62), cageMat);
+  roof.position.y = 1.41;
+  const base = new THREE.Mesh(new THREE.BoxGeometry(1.22, 0.06, 0.60), cageMat);
+  base.position.y = 0.03;
+  const { mesh: propSign, mat: propMat } = canvasSign(1.08, 0.22, (ctx, w, h) => {
+    ctx.fillStyle = '#1e3a8a';
+    ctx.fillRect(0, 0, w, h);
+    ctx.fillStyle = '#fbbf24';
+    ctx.font = 'bold 58px system-ui, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('PROPANE EXCHANGE', w / 2, h / 2);
+  }, { emissiveIntensity: 0.35 });
+  glowList.push({ material: propMat, nightGlow: 0.85, dayGlow: 0.25 });
+  propSign.position.set(0, 1.54, -0.29);
+  propSign.rotation.y = Math.PI;
+  cage.add(frame, roof, base, propSign);
+  const cylGeo = new THREE.CylinderGeometry(0.13, 0.13, 0.44, 14);
+  for (let row = 0; row < 2; row++) {
+    for (let col = 0; col < 3; col++) {
+      const tank = new THREE.Mesh(cylGeo, tankMat);
+      tank.position.set(-0.34 + col * 0.34, 0.28 + row * 0.56, 0);
+      cage.add(tank);
+    }
+  }
+  g.add(cage);
+
+  // Two cozy wooden planter boxes flanking the glass front entrance.
+  const woodMat = new THREE.MeshStandardMaterial({ color: 0x6b4c32, roughness: 0.86 });
+  const bushMat = new THREE.MeshStandardMaterial({ color: 0x3f7a4a, roughness: 0.78 });
+  for (const px of [-2.05, -0.08]) {
+    const planter = new THREE.Group();
+    planter.position.set(px, 0, 16.52);
+    const box = new THREE.Mesh(new THREE.BoxGeometry(0.46, 0.44, 0.42), woodMat);
+    box.position.y = 0.22;
+    const shrub = new THREE.Mesh(new THREE.DodecahedronGeometry(0.24, 1), bushMat);
+    shrub.scale.set(1.05, 0.9, 0.95);
+    shrub.position.y = 0.54;
+    planter.add(box, shrub);
+    g.add(planter);
+  }
+  return g;
+}
+
+/** Convenience store overhead aisle signs, convex chrome security mirror, and glowing register screen. */
+function buildStoreInteriorDetails(glowList) {
+  const g = new THREE.Group();
+  g.name = 'gas-store-interior-details';
+  const aisleDefs = [
+    { x: 2.25, z: 20.6, text: 'SNACKS & TREATS' },
+    { x: 2.25, z: 23.8, text: 'SANDWICHES & DRINKS' },
+    { x: 5.35, z: 18.2, text: 'AUTO & FUEL CANS' }
+  ];
+  for (const a of aisleDefs) {
+    const { mesh: faceProto, mat } = canvasSign(1.25, 0.26, (ctx, w, h) => {
+      ctx.fillStyle = '#183344';
+      ctx.fillRect(0, 0, w, h);
+      ctx.strokeStyle = '#f5c542';
+      ctx.lineWidth = 8;
+      ctx.strokeRect(6, 6, w - 12, h - 12);
+      ctx.fillStyle = '#ffffff';
+      ctx.font = 'bold 48px system-ui, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(a.text, w / 2, h / 2);
+    }, { emissiveIntensity: 0.45 });
+    glowList.push({ material: mat, nightGlow: 0.85, dayGlow: 0.4 });
+    const front = faceProto.clone();
+    front.position.set(a.x, 2.85, a.z - 0.012);
+    front.rotation.y = Math.PI;
+    const back = faceProto.clone();
+    back.position.set(a.x, 2.85, a.z + 0.012);
+    g.add(front, back);
+  }
+
+  // Convex chrome security mirror in the upper corner.
+  const mirror = new THREE.Mesh(
+    new THREE.SphereGeometry(0.28, 20, 12, 0, Math.PI * 2, 0, Math.PI * 0.45),
+    new THREE.MeshStandardMaterial({ color: 0xe2e8f0, metalness: 0.96, roughness: 0.05 })
+  );
+  mirror.position.set(-4.85, 3.05, 17.65);
+  mirror.rotation.set(Math.PI * 0.65, Math.PI * 0.25, 0);
+  g.add(mirror);
+
+  // Glowing green LED total readout on the checkout register.
+  const { mesh: regScreen, mat: regMat } = canvasSign(0.26, 0.11, (ctx, w, h) => {
+    ctx.fillStyle = '#07140d';
+    ctx.fillRect(0, 0, w, h);
+    ctx.fillStyle = '#4ade80';
+    ctx.font = 'bold 78px monospace';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('$0.00', w / 2, h * 0.44);
+    ctx.fillStyle = '#86efac';
+    ctx.font = 'bold 34px system-ui, sans-serif';
+    ctx.fillText('THANK YOU', w / 2, h * 0.80);
+  }, { emissiveIntensity: 0.85 });
+  glowList.push({ material: regMat, nightGlow: 1.2, dayGlow: 0.7 });
+  regScreen.position.set(-2.92, 1.48, 20.42);
+  regScreen.rotation.y = Math.PI / 2;
+  g.add(regScreen);
+
   return g;
 }
 
@@ -555,10 +793,19 @@ export function buildGasStation(scene, quality) {
     station.add(plaque);
   }
 
-  // Glowing roadside LED price totem + warm canopy accent trim.
+  // Glowing roadside LED price totem, warm canopy accent trim, recessed downlights & asphalt pools.
   const priceTotem = buildPriceTotem(regPrice, premPrice, glowing);
   priceTotem.position.set(7.53, 2.9, 1.2);
-  station.add(priceTotem, buildCanopyTrim(glowing));
+  const canopyDown = buildCanopyDownlights(glowing);
+  const slushieSteam = buildSlushieAndSteam();
+  station.add(
+    priceTotem,
+    buildCanopyTrim(glowing),
+    canopyDown.group,
+    slushieSteam.group,
+    buildStorefrontProps(glowing),
+    buildStoreInteriorDetails(glowing)
+  );
 
   // Cozy store interior details: coffee bar header sign, entrance welcome mat, and neon OPEN window sign.
   const { mesh: coffeeSign, mat: coffeeSignMat } = canvasSign(1.45, 0.34, (ctx, w, h) => {
@@ -602,6 +849,20 @@ export function buildGasStation(scene, quality) {
   openNeon.rotation.y = Math.PI;
   station.add(openNeon);
 
+  let animTime = 0;
+  station.userData.update = (delta) => {
+    animTime += delta;
+    for (let i = 0; i < slushieSteam.paddles.length; i++) {
+      slushieSteam.paddles[i].rotation.y = animTime * (i % 2 === 0 ? 1.4 : -1.2);
+    }
+    for (const p of slushieSteam.puffs) {
+      const t = (animTime * 0.48 + p.phase) % 1;
+      p.mesh.position.set(-4.52 + Math.sin(animTime * 1.6 + p.phase) * 0.03, 1.62 + t * 0.32, p.baseZ);
+      p.mesh.scale.setScalar(0.6 + t * 0.9);
+      p.mat.opacity = Math.sin(t * Math.PI) * 0.22;
+    }
+  };
+
   let lastMinutes = 600;
   station.userData.updateLighting = (minutes) => {
     if (Number.isFinite(minutes)) lastMinutes = minutes;
@@ -609,6 +870,10 @@ export function buildGasStation(scene, quality) {
     const dawn = 1 - THREE.MathUtils.smoothstep(lastMinutes, 330, 450);
     const night = Math.max(dusk, dawn);
     for (const light of canopyLights) light.intensity = night * 150;
+    for (const p of canopyDown.pools) {
+      p.mat.opacity = night * 0.28;
+      p.mesh.visible = night > 0.01;
+    }
     storeLight.intensity = 20 + night * 12;
     for (const pane of panes) pane.emissiveIntensity = night * 0.45;
     for (const { material, nightGlow, dayGlow } of glowing) {

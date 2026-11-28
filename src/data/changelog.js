@@ -8,6 +8,17 @@
 
 export const CHANGELOG = [
   {
+    version: '0.25',
+    date: '2026-11-28',
+    title: 'Gas Station Hoses, Canopy Glow & Store Details',
+    notes: [
+      'Added smooth hanging rubber fuel hoses and chrome nozzles in holsters on both sides of all 4 fuel pumps.',
+      'Mounted 8 recessed glowing canopy LED light panels with soft warm asphalt light pools that illuminate the forecourt at dusk and night.',
+      'Added glowing cherry & blue-raspberry slushie barrels with spinning swirl paddles plus gentle rising steam wisps above the coffee pots.',
+      'Dressed the storefront with a "BAGGED ICE" emblem, a wire-mesh Propane Exchange Cage stocked with cylinders, entrance planter boxes, overhead aisle signs, a convex chrome security mirror, and a glowing green register readout.'
+    ]
+  },
+  {
     version: '0.24',
     date: '2026-11-28',
     title: 'Maple Lane Fuel & Go Visual Overhaul',

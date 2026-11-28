@@ -157,6 +157,7 @@ export function startLoop(g) {
     scene.userData.cornerShop?.userData.updateFrontage?.(lightingMinutes);
     scene.userData.clinic?.userData.updateLighting?.(lightingMinutes);
     scene.userData.gasStation?.userData.updateLighting?.(lightingMinutes);
+    scene.userData.gasStation?.userData.update?.(delta);
     scene.userData.lightPool?.update(player.position);
     g.prompt.update();
     g.minimap.update(delta);
