@@ -8,6 +8,17 @@
 
 export const CHANGELOG = [
   {
+    version: '0.24',
+    date: '2026-11-28',
+    title: 'Maple Lane Fuel & Go Visual Overhaul',
+    notes: [
+      'Upgraded the gas station with a modern PBR surface polish on fuel pumps, brushed steel trim, glossy coffee/slushie machines, cool-lit drink coolers, and polished store floor tiles.',
+      'Added glowing digital price displays and Regular/Plus/Premium octane buttons on all 4 pumps, plus illuminated Pump #1–#4 canopy plaques.',
+      'Dressed the forecourt with painted parking stalls, yellow pump-island guide lanes, glossy safety bollards, windshield squeegee/trash stations, and a Free Air & Water station.',
+      'Added a glowing double-sided LED Roadside Fuel Price Sign, warm canopy fascia accent lighting, a glowing "FRESH COFFEE & SLUSHIES" bar sign, entrance welcome mat, and a neon "OPEN" window sign.'
+    ]
+  },
+  {
     version: '0.23',
     date: '2026-11-28',
     title: 'Laundromat Doors, Timers & Cozy Waiting Nook',

@@ -60,7 +60,8 @@ const GLOW = {
   Sign: [0.55, 0.06],
   '6twelve_Sign': [1.1, 0.12],
   '6twelve.001': [0.9, 0.1],
-  spotlight: [1.2, 0.2]
+  spotlight: [1.2, 0.2],
+  Emissor_Verde: [1.15, 0.35]
 };
 
 function asphaltMaterial() {
@@ -72,12 +73,281 @@ function asphaltMaterial() {
   return new THREE.MeshStandardMaterial({ map, color: 0xc9c9c4, roughness: 0.96 });
 }
 
+function canvasSign(width, height, drawFn, { emissiveIntensity = 0.7 } = {}) {
+  let mat;
+  if (typeof document !== 'undefined') {
+    const c = document.createElement('canvas');
+    c.width = 512;
+    c.height = Math.round(512 * (height / width));
+    const ctx = c.getContext('2d');
+    drawFn(ctx, c.width, c.height);
+    const tex = new THREE.CanvasTexture(c);
+    tex.colorSpace = THREE.SRGBColorSpace;
+    mat = new THREE.MeshStandardMaterial({
+      map: tex,
+      emissiveMap: tex,
+      emissive: 0xffffff,
+      emissiveIntensity,
+      roughness: 0.22
+    });
+  } else {
+    mat = new THREE.MeshStandardMaterial({ color: 0x16242c, emissive: 0xffffff, emissiveIntensity });
+  }
+  return { mesh: new THREE.Mesh(new THREE.PlaneGeometry(width, height), mat), mat };
+}
+
+/** Glowing digital screen + Regular/Plus/Premium octane buttons on both sides of a fuel pump. */
+function buildPumpDetail(priceStr, glowList) {
+  const g = new THREE.Group();
+  const frameMat = new THREE.MeshStandardMaterial({ color: 0x1a1f26, roughness: 0.25, metalness: 0.55 });
+  const btnColors = [0xf5c542, 0x3b82f6, 0xe63946];
+  const { mesh: screenProto, mat: screenMat } = canvasSign(0.42, 0.22, (ctx, w, h) => {
+    ctx.fillStyle = '#091418';
+    ctx.fillRect(0, 0, w, h);
+    ctx.strokeStyle = '#38bdf8';
+    ctx.lineWidth = 8;
+    ctx.strokeRect(8, 8, w - 16, h - 16);
+    ctx.fillStyle = '#4ade80';
+    ctx.font = 'bold 74px monospace';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(`$${priceStr}/L`, w / 2, h * 0.42);
+    ctx.fillStyle = '#e2f1f8';
+    ctx.font = 'bold 34px system-ui, sans-serif';
+    ctx.fillText('READY · PAY AT PUMP', w / 2, h * 0.78);
+  }, { emissiveIntensity: 0.75 });
+  glowList.push({ material: screenMat, nightGlow: 1.25, dayGlow: 0.55 });
+
+  for (const side of [-1, 1]) {
+    const x = side * 0.43;
+    const rotY = side > 0 ? Math.PI / 2 : -Math.PI / 2;
+    const bezel = new THREE.Mesh(new THREE.BoxGeometry(0.025, 0.26, 0.46), frameMat);
+    bezel.position.set(x, 1.50, 0);
+    const screen = screenProto.clone();
+    screen.position.set(x + side * 0.015, 1.50, 0);
+    screen.rotation.y = rotY;
+    g.add(bezel, screen);
+
+    // 3 illuminated octane grade buttons (Regular / Plus / Premium).
+    btnColors.forEach((col, i) => {
+      const btn = new THREE.Mesh(
+        new THREE.BoxGeometry(0.026, 0.085, 0.11),
+        new THREE.MeshStandardMaterial({ color: col, emissive: col, emissiveIntensity: 0.35, roughness: 0.3 })
+      );
+      btn.position.set(x + side * 0.008, 1.18, (i - 1) * 0.14);
+      g.add(btn);
+    });
+  }
+  return g;
+}
+
+/** Illuminated Pump #1-#4 plaque mounted on canopy pillars. */
+function buildPumpNumberPlaque(num, glowList) {
+  const g = new THREE.Group();
+  const { mesh: faceProto, mat } = canvasSign(0.38, 0.38, (ctx, w, h) => {
+    ctx.fillStyle = '#143347';
+    ctx.fillRect(0, 0, w, h);
+    ctx.strokeStyle = '#f5c542';
+    ctx.lineWidth = 18;
+    ctx.strokeRect(14, 14, w - 28, h - 28);
+    ctx.fillStyle = '#ffffff';
+    ctx.font = 'bold 260px system-ui, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(String(num), w / 2, h / 2 + 12);
+  }, { emissiveIntensity: 0.5 });
+  glowList.push({ material: mat, nightGlow: 1.05, dayGlow: 0.35 });
+  for (const side of [-1, 1]) {
+    const p = faceProto.clone();
+    p.position.x = side * 0.37;
+    p.rotation.y = side > 0 ? Math.PI / 2 : -Math.PI / 2;
+    g.add(p);
+  }
+  return g;
+}
+
+/** Glossy yellow safety bollard with reflective silver band. */
+function buildBollard() {
+  const g = new THREE.Group();
+  const yellow = new THREE.MeshStandardMaterial({ color: 0xeab308, roughness: 0.28, metalness: 0.25 });
+  const stripe = new THREE.MeshStandardMaterial({ color: 0xe2e8f0, roughness: 0.22, metalness: 0.65 });
+  const post = new THREE.Mesh(new THREE.CylinderGeometry(0.085, 0.09, 0.92, 16), yellow);
+  post.position.y = 0.46;
+  const cap = new THREE.Mesh(new THREE.SphereGeometry(0.085, 16, 8, 0, Math.PI * 2, 0, Math.PI / 2), yellow);
+  cap.position.y = 0.92;
+  const band = new THREE.Mesh(new THREE.CylinderGeometry(0.088, 0.088, 0.08, 16), stripe);
+  band.position.y = 0.76;
+  g.add(post, cap, band);
+  return g;
+}
+
+/** Classic forecourt windshield squeegee & trash bin station. */
+function buildSqueegeeBin() {
+  const g = new THREE.Group();
+  const body = new THREE.Mesh(
+    new THREE.BoxGeometry(0.46, 0.86, 0.46),
+    new THREE.MeshStandardMaterial({ color: 0x2a323b, roughness: 0.42, metalness: 0.35 })
+  );
+  body.position.y = 0.43;
+  const hood = new THREE.Mesh(
+    new THREE.BoxGeometry(0.48, 0.24, 0.48),
+    new THREE.MeshStandardMaterial({ color: 0x1d4e6b, roughness: 0.35, metalness: 0.3 })
+  );
+  hood.position.y = 0.98;
+  const bucket = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.09, 0.08, 0.22, 12),
+    new THREE.MeshStandardMaterial({ color: 0x2563eb, roughness: 0.35 })
+  );
+  bucket.position.set(0, 0.72, 0.26);
+  const handle = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.012, 0.012, 0.42, 8),
+    new THREE.MeshStandardMaterial({ color: 0xd8dee4, metalness: 0.7, roughness: 0.3 })
+  );
+  handle.position.set(0, 0.92, 0.26);
+  handle.rotation.x = 0.12;
+  g.add(body, hood, bucket, handle);
+  return g;
+}
+
+/** Blue coin-op Air & Water unit for the side of the forecourt. */
+function buildAirWaterStation(glowList) {
+  const g = new THREE.Group();
+  g.name = 'gas-air-water';
+  const blue = new THREE.MeshStandardMaterial({ color: 0x1d5b96, roughness: 0.3, metalness: 0.45 });
+  const steel = new THREE.MeshStandardMaterial({ color: 0xd2dce6, roughness: 0.24, metalness: 0.8 });
+  const cabinet = new THREE.Mesh(new THREE.BoxGeometry(0.46, 1.28, 0.36), blue);
+  cabinet.position.y = 0.64;
+  const base = new THREE.Mesh(new THREE.BoxGeometry(0.52, 0.08, 0.42), steel);
+  base.position.y = 0.04;
+  const { mesh: plate, mat } = canvasSign(0.38, 0.24, (ctx, w, h) => {
+    ctx.fillStyle = '#0f3052';
+    ctx.fillRect(0, 0, w, h);
+    ctx.strokeStyle = '#60a5fa';
+    ctx.lineWidth = 10;
+    ctx.strokeRect(10, 10, w - 20, h - 20);
+    ctx.fillStyle = '#ffffff';
+    ctx.font = 'bold 74px system-ui, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('AIR & WATER', w / 2, h * 0.40);
+    ctx.fillStyle = '#7dd3fc';
+    ctx.font = 'bold 46px system-ui, sans-serif';
+    ctx.fillText('FREE TIRE AIR', w / 2, h * 0.75);
+  }, { emissiveIntensity: 0.45 });
+  glowList.push({ material: mat, nightGlow: 0.95, dayGlow: 0.35 });
+  plate.position.set(0, 0.96, -0.185);
+  plate.rotation.y = Math.PI;
+  const hose = new THREE.Mesh(new THREE.TorusGeometry(0.14, 0.016, 10, 24), new THREE.MeshStandardMaterial({ color: 0x1a1e24, roughness: 0.75 }));
+  hose.position.set(0.24, 0.72, 0);
+  hose.rotation.y = Math.PI / 2;
+  g.add(cabinet, base, plate, hose);
+  return g;
+}
+
+/** Painted forecourt parking stalls and yellow pump-island guide lanes. */
+function buildForecourtMarkings() {
+  const g = new THREE.Group();
+  g.name = 'gas-forecourt-markings';
+  const white = new THREE.MeshStandardMaterial({ color: 0xe8ece8, roughness: 0.82 });
+  const yellow = new THREE.MeshStandardMaterial({ color: 0xe5b832, roughness: 0.82 });
+  const stripe = (mat, w, d, x, z) => {
+    const m = new THREE.Mesh(new THREE.PlaneGeometry(w, d), mat);
+    m.rotation.x = -Math.PI / 2;
+    m.position.set(x, 0.018, z);
+    g.add(m);
+  };
+  // Yellow guide lines framing both pump islands.
+  for (const x of [-6.75, -4.75, 3.35, 5.35]) {
+    stripe(yellow, 0.12, 9.8, x, 6.7);
+  }
+  // White parking stall lines in front of the convenience store.
+  for (const x of [-4.2, -1.9, 0.6, 2.9]) {
+    stripe(white, 0.11, 2.7, x, 14.9);
+  }
+  stripe(white, 7.2, 0.11, -0.65, 16.25);
+  return g;
+}
+
+/** Glowing double-sided roadside LED fuel price sign. */
+function buildPriceTotem(regPrice, premPrice, glowList) {
+  const g = new THREE.Group();
+  g.name = 'gas-led-price-sign';
+  const backing = new THREE.Mesh(
+    new THREE.BoxGeometry(0.16, 1.55, 1.75),
+    new THREE.MeshStandardMaterial({ color: 0x16222c, roughness: 0.35, metalness: 0.45 })
+  );
+  const { mesh: faceProto, mat } = canvasSign(1.66, 1.46, (ctx, w, h) => {
+    ctx.fillStyle = '#0f1b24';
+    ctx.fillRect(0, 0, w, h);
+    ctx.strokeStyle = '#f59e0b';
+    ctx.lineWidth = 14;
+    ctx.strokeRect(10, 10, w - 20, h - 20);
+    ctx.fillStyle = '#fbbf24';
+    ctx.font = 'bold 46px system-ui, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('MAPLE LANE FUEL & GO', w / 2, 62);
+    ctx.fillStyle = '#182b38';
+    ctx.fillRect(28, 105, w - 56, 115);
+    ctx.fillRect(28, 240, w - 56, 115);
+    ctx.textAlign = 'left';
+    ctx.fillStyle = '#e2f1f8';
+    ctx.font = 'bold 42px system-ui, sans-serif';
+    ctx.fillText('REGULAR', 48, 164);
+    ctx.fillText('PREMIUM', 48, 298);
+    ctx.textAlign = 'right';
+    ctx.fillStyle = '#4ade80';
+    ctx.font = 'bold 64px monospace';
+    ctx.fillText(`$${regPrice}`, w - 48, 164);
+    ctx.fillStyle = '#fbbf24';
+    ctx.fillText(`$${premPrice}`, w - 48, 298);
+    ctx.textAlign = 'center';
+    ctx.fillStyle = '#38bdf8';
+    ctx.font = 'bold 34px system-ui, sans-serif';
+    ctx.fillText('OPEN 24 HOURS · FRESH COFFEE', w / 2, h - 46);
+  }, { emissiveIntensity: 0.65 });
+  glowList.push({ material: mat, nightGlow: 1.35, dayGlow: 0.45 });
+  for (const side of [-1, 1]) {
+    const f = faceProto.clone();
+    f.position.x = side * 0.085;
+    f.rotation.y = side > 0 ? Math.PI / 2 : -Math.PI / 2;
+    g.add(f);
+  }
+  g.add(backing);
+  return g;
+}
+
+/** Subtle glowing accent trim around the canopy fascia. */
+function buildCanopyTrim(glowList) {
+  const g = new THREE.Group();
+  g.name = 'gas-canopy-trim';
+  const trimMat = new THREE.MeshStandardMaterial({
+    color: 0xf59e0b, emissive: 0xffb732, emissiveIntensity: 0.4, roughness: 0.25
+  });
+  glowList.push({ material: trimMat, nightGlow: 1.35, dayGlow: 0.28 });
+  const cx = -0.65;
+  const cz = 6.7;
+  const w = 14.3;
+  const d = 12.2;
+  const y = 4.92;
+  const front = new THREE.Mesh(new THREE.BoxGeometry(w, 0.075, 0.06), trimMat);
+  front.position.set(cx, y, cz - d / 2);
+  const back = front.clone();
+  back.position.z = cz + d / 2;
+  const left = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.075, d), trimMat);
+  left.position.set(cx - w / 2, y, cz);
+  const right = left.clone();
+  right.position.x = cx + w / 2;
+  g.add(front, back, left, right);
+  return g;
+}
+
 /** A couple of red jerry cans on the floor at the end of the front shelves. */
 function gasCans(quality) {
   const group = new THREE.Group();
   group.name = 'gas-cans';
-  const red = new THREE.MeshStandardMaterial({ color: 0xb8261c, roughness: 0.45, metalness: 0.1 });
-  const black = new THREE.MeshStandardMaterial({ color: 0x1d1d1d, roughness: 0.7 });
+  const red = new THREE.MeshStandardMaterial({ color: 0xb8261c, roughness: 0.32, metalness: 0.15 });
+  const black = new THREE.MeshStandardMaterial({ color: 0x1d1d1d, roughness: 0.65 });
   const body = new THREE.BoxGeometry(0.34, 0.4, 0.17);
   const handle = new THREE.BoxGeometry(0.22, 0.04, 0.05);
   const spout = new THREE.CylinderGeometry(0.022, 0.03, 0.16, 10);
@@ -249,6 +519,89 @@ export function buildGasStation(scene, quality) {
 
   const glowing = [];
   const panes = [];
+
+  // Forecourt realism: painted stalls/lanes, safety bollards, squeegee bins, and Air & Water unit.
+  station.add(buildForecourtMarkings());
+  for (const [bx, bz] of [[-5.88, 1.85], [-5.88, 11.55], [4.20, 1.85], [4.20, 11.55]]) {
+    const b = buildBollard();
+    b.position.set(bx, 0, bz);
+    station.add(b);
+  }
+  for (const sx of [-5.74, 4.36]) {
+    const bin = buildSqueegeeBin();
+    bin.position.set(sx, 0, 6.65);
+    station.add(bin);
+  }
+  const airWater = buildAirWaterStation(glowing);
+  airWater.position.set(-6.45, 0, 15.85);
+  station.add(airWater);
+  spot('gas-air-water', -6.45, 1.15, 15.35, 'top off tire air (Free)', (ctx) => {
+    ctx?.sfx?.play?.('vending');
+    ctx?.toast?.('Tires topped off and ready for Maple Lane!');
+    return 'press';
+  }, 'press', 1.75);
+
+  // Digital screens & grade buttons on all 4 fuel pumps + overhead Pump #1-#4 plaques on pillars.
+  const regPrice = FUEL.PRICE_PER_LITRE.toFixed(2);
+  const premPrice = (FUEL.PRICE_PER_LITRE + 0.35).toFixed(2);
+  for (const [px, pz] of [[-5.735, 4.48], [-5.735, 8.825], [4.36, 4.48], [4.36, 8.825]]) {
+    const detail = buildPumpDetail(regPrice, glowing);
+    detail.position.set(px, 0, pz);
+    station.add(detail);
+  }
+  for (const [num, px, pz] of [[1, -5.88, 2.60], [2, -5.88, 10.78], [3, 4.20, 2.60], [4, 4.20, 10.78]]) {
+    const plaque = buildPumpNumberPlaque(num, glowing);
+    plaque.position.set(px, 2.65, pz);
+    station.add(plaque);
+  }
+
+  // Glowing roadside LED price totem + warm canopy accent trim.
+  const priceTotem = buildPriceTotem(regPrice, premPrice, glowing);
+  priceTotem.position.set(7.53, 2.9, 1.2);
+  station.add(priceTotem, buildCanopyTrim(glowing));
+
+  // Cozy store interior details: coffee bar header sign, entrance welcome mat, and neon OPEN window sign.
+  const { mesh: coffeeSign, mat: coffeeSignMat } = canvasSign(1.45, 0.34, (ctx, w, h) => {
+    ctx.fillStyle = '#2d1c12';
+    ctx.fillRect(0, 0, w, h);
+    ctx.strokeStyle = '#f5c542';
+    ctx.lineWidth = 10;
+    ctx.strokeRect(8, 8, w - 16, h - 16);
+    ctx.fillStyle = '#fff5e0';
+    ctx.font = 'bold 46px system-ui, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('FRESH COFFEE & SLUSHIES', w / 2, h / 2);
+  }, { emissiveIntensity: 0.55 });
+  glowing.push({ material: coffeeSignMat, nightGlow: 0.95, dayGlow: 0.45 });
+  coffeeSign.position.set(-4.52, 2.55, 25.8);
+  coffeeSign.rotation.y = Math.PI / 2;
+  station.add(coffeeSign);
+
+  const welcomeMat = new THREE.Mesh(
+    new THREE.BoxGeometry(1.15, 0.018, 0.72),
+    new THREE.MeshStandardMaterial({ color: 0x2a3036, roughness: 0.95 })
+  );
+  welcomeMat.position.set(-1.08, 0.135, 17.68);
+  station.add(welcomeMat);
+
+  const { mesh: openNeon, mat: openNeonMat } = canvasSign(0.74, 0.32, (ctx, w, h) => {
+    ctx.fillStyle = '#11151c';
+    ctx.fillRect(0, 0, w, h);
+    ctx.strokeStyle = '#38bdf8';
+    ctx.lineWidth = 12;
+    ctx.strokeRect(12, 12, w - 24, h - 24);
+    ctx.fillStyle = '#ff4d5a';
+    ctx.font = 'bold 110px system-ui, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('OPEN', w / 2, h / 2 + 4);
+  }, { emissiveIntensity: 0.75 });
+  glowing.push({ material: openNeonMat, nightGlow: 1.5, dayGlow: 0.55 });
+  openNeon.position.set(1.55, 2.05, 16.56);
+  openNeon.rotation.y = Math.PI;
+  station.add(openNeon);
+
   let lastMinutes = 600;
   station.userData.updateLighting = (minutes) => {
     if (Number.isFinite(minutes)) lastMinutes = minutes;
@@ -293,6 +646,26 @@ export function buildGasStation(scene, quality) {
           material.emissive.set(0xffdcaa);
           if (!panes.includes(material)) panes.push(material);
           mesh.castShadow = false;
+        } else if (material.name === 'Fuel_pump') {
+          material.roughness = 0.25;
+          material.metalness = 0.55;
+          if ('envMapIntensity' in material) material.envMapIntensity = 1.15;
+        } else if (/^Metal($|_01|_02|_03|Plates$)/.test(material.name)) {
+          material.roughness = 0.26;
+          material.metalness = 0.72;
+          if ('envMapIntensity' in material) material.envMapIntensity = 1.15;
+        } else if (/^(Coffee_machine|ice_slush_machine|ICE)$/.test(material.name)) {
+          material.roughness = 0.22;
+          material.metalness = 0.45;
+        } else if (/^(Refrigerador|Fridge)/.test(material.name)) {
+          material.roughness = 0.22;
+          material.metalness = 0.42;
+          if (material.map) material.emissiveMap = material.map;
+          material.emissive.set(0xd8f0ff);
+          material.emissiveIntensity = 0.32;
+        } else if (/^(Tiles|Marble)$/.test(material.name)) {
+          material.roughness = 0.30;
+          material.metalness = 0.06;
         }
         const glow = GLOW[material.name];
         if (glow && !glowing.some((g) => g.material === material)) {
