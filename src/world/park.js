@@ -2,6 +2,83 @@ import * as THREE from 'three';
 import { Parts } from './parts.js';
 import { CURB_WIDTH, STREET, SURFACE_Y } from './street.js';
 
+function createWoodChipMaterial(quality) {
+  if (typeof document === 'undefined') {
+    return new THREE.MeshStandardMaterial({ color: 0x8a6140, roughness: 0.94, metalness: 0 });
+  }
+  const size = quality?.shadows ? 512 : 256;
+  const colorCanvas = document.createElement('canvas');
+  colorCanvas.width = colorCanvas.height = size;
+  const ctx = colorCanvas.getContext('2d');
+  const bumpCanvas = document.createElement('canvas');
+  bumpCanvas.width = bumpCanvas.height = size;
+  const bctx = bumpCanvas.getContext('2d');
+
+  // Deep earthy mulch underlayer.
+  ctx.fillStyle = '#4e3522';
+  ctx.fillRect(0, 0, size, size);
+  bctx.fillStyle = '#242424';
+  bctx.fillRect(0, 0, size, size);
+
+  let seed = 918273;
+  const rand = () => ((seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0) / 4294967296);
+  const tones = ['#7d5535', '#966943', '#ab7c51', '#69472c', '#b78b5e', '#865d3b', '#5d3e26'];
+  const count = quality?.shadows ? 1400 : 750;
+  for (let i = 0; i < count; i++) {
+    const x = rand() * size;
+    const y = rand() * size;
+    const w = (size / 64) * (1.2 + rand() * 2.2);
+    const h = (size / 64) * (0.45 + rand() * 0.85);
+    const rot = rand() * Math.PI * 2;
+    const tone = tones[Math.floor(rand() * tones.length)];
+    const lum = Math.round(95 + rand() * 145);
+    // Tile cleanly across edges.
+    for (const ox of [-size, 0, size]) {
+      for (const oy of [-size, 0, size]) {
+        const px = x + ox;
+        const py = y + oy;
+        if (px < -w * 2 || px > size + w * 2 || py < -w * 2 || py > size + w * 2) continue;
+        ctx.save();
+        ctx.translate(px, py);
+        ctx.rotate(rot);
+        ctx.fillStyle = 'rgba(28, 17, 10, 0.35)';
+        ctx.fillRect(-w / 2 + 1.2, -h / 2 + 1.2, w, h);
+        ctx.fillStyle = tone;
+        ctx.fillRect(-w / 2, -h / 2, w, h);
+        // Subtle wood-grain highlight along the chip.
+        ctx.fillStyle = 'rgba(255, 232, 198, 0.14)';
+        ctx.fillRect(-w / 2, -h / 2, w, Math.max(1, h * 0.28));
+        ctx.restore();
+
+        bctx.save();
+        bctx.translate(px, py);
+        bctx.rotate(rot);
+        bctx.fillStyle = `rgb(${lum},${lum},${lum})`;
+        bctx.fillRect(-w / 2, -h / 2, w, h);
+        bctx.restore();
+      }
+    }
+  }
+
+  const map = new THREE.CanvasTexture(colorCanvas);
+  map.wrapS = map.wrapT = THREE.RepeatWrapping;
+  map.repeat.set(6, 4.5);
+  map.colorSpace = THREE.SRGBColorSpace;
+  map.anisotropy = quality?.shadows ? 4 : 2;
+
+  const bumpMap = new THREE.CanvasTexture(bumpCanvas);
+  bumpMap.wrapS = bumpMap.wrapT = THREE.RepeatWrapping;
+  bumpMap.repeat.set(6, 4.5);
+
+  return new THREE.MeshStandardMaterial({
+    map,
+    bumpMap,
+    bumpScale: 0.048,
+    roughness: 0.93,
+    metalness: 0
+  });
+}
+
 export function buildPark(scene, quality, streetMaterials) {
   const layout = STREET.expansion;
   const park = new THREE.Group();
@@ -73,7 +150,7 @@ export function buildPark(scene, quality, streetMaterials) {
   for (const trail of layout.gravel) surface('wooded-gravel-trail', trail, 0.004, 0x9e947e);
   buildPond(park, scene.userData.colliders, quality);
   surface('entrance-plaza', layout.plaza, SURFACE_Y.walk + 0.002, 0xbcb6a6);
-  surface('playground-mulch', layout.playground, SURFACE_Y.walk, 0x896044);
+  surface('playground-mulch', layout.playground, SURFACE_Y.walk, createWoodChipMaterial(quality));
   surface('basketball-asphalt', layout.court, SURFACE_Y.walk, 0x505651);
   surface('court-approach', layout.courtWalk, SURFACE_Y.walk, 0xbcb6a6);
   surface('picnic-walk', layout.picnicWalk, SURFACE_Y.walk, 0xb8a990);
@@ -209,32 +286,8 @@ function buildActivityArea(park, colliders, quality) {
   sign.position.set(68, ground + 1.76, 16.918);
   park.add(sign);
 
-  // Playground tower, stairs, slide and swings on a bordered mulch bed.
-  for (const x of [76.6, 78.1]) for (const z of [19.3, 20.8]) post(x, z, 2.8, metal);
-  box(wood, 1.65, 0.15, 1.65, 77.35, 1.35, 20.05);
-  for (const side of [-1, 1]) {
-    box(red, 1.06, 0.09, 1.85, 77.35 + side * 0.46, 2.83, 20.05, 0, 0, -side * 0.32);
-    box(red, 0.085, 0.55, 1.55, 77.35 + side * 0.76, 1.72, 20.05);
-    box(red, 0.07, 0.22, 2.35, 77.35 + side * 0.37, 0.88, 21.83, 0.54);
-  }
-  box(0xc2a354, 0.72, 0.09, 2.35, 77.35, 0.73, 21.83, 0.54);
-  for (let step = 0; step < 5; step++) {
-    const height = (step + 1) * 0.24;
-    box(wood, 0.83, height, 0.25, 77.35, height / 2, 18.16 + step * 0.25);
-  }
-  obstacle('slide', 77.35, 20.95, 1.7, 5.9);
-  for (const x of [79.8, 83]) for (const side of [-1, 1]) {
-    box(metal, 0.09, 2.47, 0.09, x, 1.17, 22.25 + side * 0.44, -side * 0.35);
-  }
-  box(red, 3.35, 0.11, 0.12, 81.4, 2.3, 22.25);
-  for (const x of [80.65, 82.15]) {
-    for (const side of [-1, 1]) box(metal, 0.022, 1.73, 0.022, x + side * 0.2, 1.4, 22.25);
-    box(wood, 0.47, 0.07, 0.29, x, 0.51, 22.25);
-    obstacle('swing-' + x, x, 22.25, 0.48, 0.32);
-  }
-  for (const x of [79.8, 83]) obstacle('swing-frame-' + x, x, 22.25, 0.16, 1.73);
-  for (const z of [18.05, 25.45]) box(wood, 10, 0.09, 0.1, 79, 0.02, z);
-  box(wood, 0.1, 0.09, 7.5, 83.95, 0.02, 21.75);
+  // --- Playground: galvanized steel & molded plastic tower, slide, swingset, seesaw, and 3D wood chips ---
+  const swingPivots = buildPlaygroundEquipment(park, colliders, quality, ground);
 
   // Painted half court, clear access from the south and a rear ball-stop fence.
   box(0x687968, 4.2, 0.003, 3.6, 99.5, 0.003, 20);
@@ -309,12 +362,181 @@ function buildActivityArea(park, colliders, quality) {
   const fixtures = new THREE.Mesh(parts.merge(), new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.86 }));
   fixtures.castShadow = fixtures.receiveShadow = !!quality.shadows;
   park.add(fixtures);
+  let swayClock = 0;
   return {
     update(minutes) {
+      swayClock += 0.016;
       const dusk = THREE.MathUtils.smoothstep(minutes, 1100, 1160);
       const dawn = 1 - THREE.MathUtils.smoothstep(minutes, 335, 395);
       for (const [index, light] of lights.entries()) light.intensity = (index === 2 ? 12 : 20) * (dusk + dawn);
       lenses.emissiveIntensity = dusk + dawn;
+      // Gentle breeze sway on the hanging swing seats.
+      for (let i = 0; i < swingPivots.length; i++) {
+        swingPivots[i].rotation.x = Math.sin(swayClock * 1.35 + i * 2.1) * 0.045;
+      }
     }
   };
+}
+
+function buildPlaygroundEquipment(park, colliders, quality, ground) {
+  const group = new THREE.Group();
+  group.name = 'playground-equipment';
+  park.add(group);
+  const cast = !!quality?.shadows;
+
+  // Distinct realistic materials: galvanized steel, powder-coated metal, glossy molded plastic, flexible rubber, timber.
+  const galvanizedSteel = new THREE.MeshStandardMaterial({ color: 0x9aa4ac, metalness: 0.80, roughness: 0.28 });
+  const chainMetal = new THREE.MeshStandardMaterial({ color: 0xbac4cc, metalness: 0.86, roughness: 0.24 });
+  const greenPowderMetal = new THREE.MeshStandardMaterial({ color: 0x2f5a47, metalness: 0.46, roughness: 0.30 });
+  const redPowderMetal = new THREE.MeshStandardMaterial({ color: 0xa93629, metalness: 0.44, roughness: 0.30 });
+  const yellowPlastic = new THREE.MeshStandardMaterial({ color: 0xdca024, metalness: 0.04, roughness: 0.22 });
+  const redPlastic = new THREE.MeshStandardMaterial({ color: 0xb8382a, metalness: 0.04, roughness: 0.24 });
+  const rubberSeatMat = new THREE.MeshStandardMaterial({ color: 0x1e2228, metalness: 0.05, roughness: 0.46 });
+  const timberMat = new THREE.MeshStandardMaterial({ color: 0x7c5536, metalness: 0.0, roughness: 0.90 });
+
+  function addMesh(geo, mat, x, y, z, rx = 0, ry = 0, rz = 0, parent = group) {
+    const m = new THREE.Mesh(geo, mat);
+    m.position.set(x, y, z);
+    m.rotation.set(rx, ry, rz);
+    m.castShadow = cast;
+    m.receiveShadow = cast;
+    parent.add(m);
+    return m;
+  }
+  function obstacle(id, x, z, width, depth) {
+    colliders.addHouse({ id: 'park-' + id, x, z, width, depth, rotY: 0 });
+  }
+
+  // --- 1. Timber playground border & 3D scattered wood chips ---
+  const pg = STREET.expansion.playground;
+  const borderH = 0.13;
+  const borderY = ground + borderH / 2 - 0.02;
+  addMesh(new THREE.BoxGeometry(pg.maxX - pg.minX, borderH, 0.14), timberMat, (pg.minX + pg.maxX) / 2, borderY, pg.minZ + 0.07);
+  addMesh(new THREE.BoxGeometry(pg.maxX - pg.minX, borderH, 0.14), timberMat, (pg.minX + pg.maxX) / 2, borderY, pg.maxZ - 0.07);
+  addMesh(new THREE.BoxGeometry(0.14, borderH, pg.maxZ - pg.minZ), timberMat, pg.maxX - 0.07, borderY, (pg.minZ + pg.maxZ) / 2);
+  addMesh(new THREE.BoxGeometry(0.14, borderH, pg.maxZ - pg.minZ), timberMat, pg.minX + 0.07, borderY, (pg.minZ + pg.maxZ) / 2);
+
+  // Scattered 3D wood chips across the mulch bed for tactile surface depth.
+  const chipCount = quality?.shadows ? 180 : 90;
+  const chipGeo = new THREE.BoxGeometry(0.085, 0.012, 0.036);
+  const chipMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.92, metalness: 0 });
+  const chips = new THREE.InstancedMesh(chipGeo, chipMat, chipCount);
+  chips.name = 'playground-wood-chips-3d';
+  chips.receiveShadow = cast;
+  let chipSeed = 4219;
+  const chipRand = () => ((chipSeed = (Math.imul(chipSeed, 1664525) + 1013904223) >>> 0) / 4294967296);
+  const chipColors = [0x8b603c, 0xa2744a, 0x704b2d, 0xb2865a, 0x644329];
+  const dummy = new THREE.Object3D();
+  const cTmp = new THREE.Color();
+  for (let i = 0; i < chipCount; i++) {
+    const cx = pg.minX + 0.25 + chipRand() * (pg.maxX - pg.minX - 0.5);
+    const cz = pg.minZ + 0.25 + chipRand() * (pg.maxZ - pg.minZ - 0.5);
+    dummy.position.set(cx, ground + 0.008 + chipRand() * 0.006, cz);
+    dummy.rotation.set((chipRand() - 0.5) * 0.35, chipRand() * Math.PI * 2, (chipRand() - 0.5) * 0.35);
+    dummy.scale.set(0.7 + chipRand() * 0.8, 0.8 + chipRand() * 0.6, 0.7 + chipRand() * 0.7);
+    dummy.updateMatrix();
+    chips.setMatrixAt(i, dummy.matrix);
+    cTmp.setHex(chipColors[Math.floor(chipRand() * chipColors.length)]);
+    chips.setColorAt(i, cTmp);
+  }
+  chips.instanceMatrix.needsUpdate = true;
+  if (chips.instanceColor) chips.instanceColor.needsUpdate = true;
+  group.add(chips);
+
+  // --- 2. Real Metal & Plastic Swingset ---
+  const swingZ = 22.25;
+  const barY = ground + 2.38;
+  const legGeo = new THREE.CylinderGeometry(0.044, 0.048, 2.58, 10);
+  const collarGeo = new THREE.CylinderGeometry(0.072, 0.072, 0.16, 10);
+  for (const x of [79.8, 83.0]) {
+    for (const side of [-1, 1]) {
+      addMesh(legGeo, galvanizedSteel, x, ground + 1.20, swingZ + side * 0.44, -side * 0.34);
+    }
+    // Cast apex bracket where A-frame meets the top crossbar.
+    addMesh(collarGeo, redPowderMetal, x, barY, swingZ, 0, 0, Math.PI / 2);
+    obstacle('swing-frame-' + x, x, swingZ, 0.18, 1.75);
+  }
+  // Glossy powder-coated tubular top crossbar.
+  addMesh(new THREE.CylinderGeometry(0.052, 0.052, 3.46, 12), redPowderMetal, 81.4, barY, swingZ, 0, 0, Math.PI / 2);
+
+  // Two realistic hanging swings with linked metal chains, plastic grip sleeves, and curved rubber sling seats.
+  const swingPivots = [];
+  const linkGeo = new THREE.TorusGeometry(0.015, 0.0045, 6, 10);
+  const sleeveGeo = new THREE.CylinderGeometry(0.017, 0.017, 0.48, 8);
+  const shackleGeo = new THREE.TorusGeometry(0.032, 0.008, 6, 10);
+
+  for (const sx of [80.65, 82.15]) {
+    const pivot = new THREE.Group();
+    pivot.name = 'playground-swing-pivot';
+    pivot.position.set(sx, barY, swingZ);
+    group.add(pivot);
+    swingPivots.push(pivot);
+
+    for (const side of [-1, 1]) {
+      const lx = side * 0.23;
+      // Steel clevis ring clamped around the crossbar.
+      addMesh(shackleGeo, galvanizedSteel, lx, 0, 0, 0, Math.PI / 2, 0, pivot);
+      // Alternating linked metal chain down to the yellow plastic grip sleeve.
+      for (let k = 0; k < 22; k++) {
+        addMesh(linkGeo, chainMetal, lx, -0.08 - k * 0.056, 0, 0, (k % 2) * (Math.PI / 2), 0, pivot);
+      }
+      // Molded yellow plastic safety grip sleeve on the lower chain.
+      addMesh(sleeveGeo, yellowPlastic, lx, -1.52, 0, 0, 0, 0, pivot);
+      // Metal seat triangle bracket connecting chain to rubber sling.
+      addMesh(new THREE.CylinderGeometry(0.008, 0.008, 0.12, 6), galvanizedSteel, lx, -1.78, 0, 0, 0, -side * 0.25, pivot);
+    }
+
+    // Curved flexible rubber sling seat (3 angled panels forming a true U-sling).
+    addMesh(new THREE.BoxGeometry(0.30, 0.028, 0.22), rubberSeatMat, 0, -1.87, 0, 0, 0, 0, pivot);
+    addMesh(new THREE.BoxGeometry(0.14, 0.028, 0.22), rubberSeatMat, -0.19, -1.83, 0, 0, 0, -0.52, pivot);
+    addMesh(new THREE.BoxGeometry(0.14, 0.028, 0.22), rubberSeatMat, 0.19, -1.83, 0, 0, 0, 0.52, pivot);
+    obstacle('swing-' + sx, sx, swingZ, 0.52, 0.34);
+  }
+
+  // --- 3. Playground Tower, Steel Stairs & Glossy Molded Plastic Slide ---
+  const towerPostGeo = new THREE.CylinderGeometry(0.055, 0.055, 2.85, 10);
+  const capGeo = new THREE.SphereGeometry(0.068, 10, 8);
+  for (const tx of [76.6, 78.1]) {
+    for (const tz of [19.3, 20.8]) {
+      addMesh(towerPostGeo, greenPowderMetal, tx, ground + 1.425, tz);
+      addMesh(capGeo, yellowPlastic, tx, ground + 2.86, tz);
+    }
+  }
+  // Textured deck platform & molded red plastic pitched roof + safety guardrails.
+  addMesh(new THREE.BoxGeometry(1.66, 0.14, 1.66), timberMat, 77.35, ground + 1.35, 20.05);
+  for (const side of [-1, 1]) {
+    addMesh(new THREE.BoxGeometry(1.10, 0.08, 1.88), redPlastic, 77.35 + side * 0.48, ground + 2.84, 20.05, 0, 0, -side * 0.32);
+    // Molded plastic side panels with safety railings.
+    addMesh(new THREE.BoxGeometry(0.075, 0.58, 1.56), redPlastic, 77.35 + side * 0.77, ground + 1.72, 20.05);
+    addMesh(new THREE.CylinderGeometry(0.022, 0.022, 1.56, 8), galvanizedSteel, 77.35 + side * 0.77, ground + 2.08, 20.05, Math.PI / 2, 0, 0);
+    // Glossy molded red plastic slide side rails.
+    addMesh(new THREE.BoxGeometry(0.075, 0.24, 2.38), redPlastic, 77.35 + side * 0.38, ground + 0.90, 21.84, 0.54);
+    // Tubular steel stair handrails.
+    addMesh(new THREE.CylinderGeometry(0.022, 0.022, 1.55, 8), galvanizedSteel, 77.35 + side * 0.44, ground + 1.05, 18.68, -0.78, 0, 0);
+  }
+  // Glossy yellow molded plastic slide chute + curved run-out lip at the bottom.
+  addMesh(new THREE.BoxGeometry(0.72, 0.075, 2.38), yellowPlastic, 77.35, ground + 0.74, 21.84, 0.54);
+  addMesh(new THREE.BoxGeometry(0.72, 0.075, 0.48), yellowPlastic, 77.35, ground + 0.16, 22.98, 0.12);
+  // Perforated steel steps.
+  for (let step = 0; step < 5; step++) {
+    const sy = ground + (step + 1) * 0.25;
+    addMesh(new THREE.BoxGeometry(0.84, 0.055, 0.26), galvanizedSteel, 77.35, sy, 18.18 + step * 0.25);
+  }
+  obstacle('slide', 77.35, 20.95, 1.7, 5.9);
+
+  // --- 4. Molded-Plastic & Steel Seesaw ---
+  const seeX = 75.25;
+  const seeZ = 21.85;
+  addMesh(new THREE.CylinderGeometry(0.045, 0.06, 0.52, 8), galvanizedSteel, seeX, ground + 0.26, seeZ);
+  addMesh(new THREE.BoxGeometry(0.12, 0.09, 2.65), greenPowderMetal, seeX, ground + 0.54, seeZ, 0.16);
+  for (const side of [-1, 1]) {
+    const seatZ = seeZ + side * 1.12;
+    const seatY = ground + 0.58 - side * 0.18;
+    addMesh(new THREE.BoxGeometry(0.30, 0.06, 0.34), redPlastic, seeX, seatY, seatZ, 0.16);
+    addMesh(new THREE.CylinderGeometry(0.018, 0.018, 0.24, 8), yellowPlastic, seeX, seatY + 0.14, seatZ - side * 0.22);
+    addMesh(new THREE.CylinderGeometry(0.018, 0.018, 0.28, 8), yellowPlastic, seeX, seatY + 0.24, seatZ - side * 0.22, 0, 0, Math.PI / 2);
+  }
+  obstacle('seesaw', seeX, seeZ, 0.45, 2.7);
+
+  return swingPivots;
 }
