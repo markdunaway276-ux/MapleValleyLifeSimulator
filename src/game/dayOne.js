@@ -273,19 +273,44 @@ export function createDayOne(g, saveData, beginPlay) {
   const prompt = (verb) => (isMobile ? 'Tap to ' : 'Press E to ') + verb;
   const carrying = () => g.actions?.carrying;
 
+  let bedOpen = false;
+  let bedAnim = null;       // { from, to, start, duration }
+  let pendingHideBox = null; // { box, at }
+  function animateBed(to, delayMs = 0, duration = 480) {
+    const cur = carObject()?.userData?.bedCover ? -carObject().userData.bedCover.rotation.z / 0.92 : (bedOpen ? 1 : 0);
+    bedOpen = to > 0.5;
+    bedAnim = { from: cur, to, start: performance.now() + delayMs, duration };
+  }
+
   const trunkSpot = new THREE.Object3D();
   trunkSpot.name = 'day-one-trunk';
   scene.add(trunkSpot);
   trunkSpot.getPoint = () => trunkTarget(); // the interact path reads the object's getPoint
-  trunkSpot.userData.getPrompt = () => prompt(`take a box (${trunk} left)`);
+  trunkSpot.userData.getPrompt = () => prompt(
+    bedOpen ? `reach in for a box (${trunk} left)` : `open truck bed & take box (${trunk} left)`
+  );
   trunkSpot.userData.interact = (ctx) => {
     if (carrying()) { ctx?.toast?.('Your hands are full.'); return false; }
     if (trunk <= 0) return false;
+    const grabbedIndex = trunk - 1;
     trunk -= 1;
-    if (cargo) cargo.children[trunk].visible = false;
+    const boxMesh = cargo ? cargo.children[grabbedIndex] : null;
+    const needsOpen = !bedOpen;
+    if (needsOpen) {
+      g.sfx?.play?.('click');
+      animateBed(1, 250, 480);
+    }
+    if (boxMesh) {
+      pendingHideBox = { box: boxMesh, at: performance.now() + (needsOpen ? 1020 : 480) };
+    }
+    if (trunk === 0) {
+      window.setTimeout(() => {
+        if (bedOpen && trunk === 0) animateBed(0, 0, 520);
+      }, needsOpen ? 1850 : 1350);
+    }
     g.actions.setCarry('box');
     renderTask();
-    return 'liftBox';
+    return needsOpen ? 'openTruckBed' : 'reachTruckBox';
   };
 
   const pileSpot = new THREE.Object3D();
@@ -486,6 +511,8 @@ export function createDayOne(g, saveData, beginPlay) {
     doorUnlocked = true;
     // Leave boxes already delivered to the living room in place.
     if (cargo) for (const box of cargo.children) box.visible = false;
+    pendingHideBox = null;
+    if (bedOpen) animateBed(0, 0, 420);
     stage = 'done';
     panel.hidden = true;
     ritaLeaves();
@@ -524,8 +551,26 @@ export function createDayOne(g, saveData, beginPlay) {
     draw: intro.draw,
     get opening() { return intro.active; },
     update() {
+      const now = performance.now();
+      if (bedAnim) {
+        const raw = (now - bedAnim.start) / bedAnim.duration;
+        if (raw >= 0) {
+          const t = Math.min(1, raw);
+          const ease = t * t * (3 - 2 * t);
+          carObject()?.userData?.setBedOpen?.(THREE.MathUtils.lerp(bedAnim.from, bedAnim.to, ease));
+          if (t >= 1) bedAnim = null;
+        }
+      }
+      if (pendingHideBox && now >= pendingHideBox.at) {
+        pendingHideBox.box.visible = false;
+        g.sfx?.play?.('pickup');
+        pendingHideBox = null;
+      }
+      if (bedOpen && g.mode.driving() && !bedAnim) {
+        animateBed(0, 0, 420);
+      }
       if (unpacking) {
-        const progress = Math.min(1, (performance.now() - unpacking) / (UNPACK_SECONDS * 1000));
+        const progress = Math.min(1, (now - unpacking) / (UNPACK_SECONDS * 1000));
         // Fold the top moving box's cardboard flaps open as you unpack it.
         const topBox = pileGroup.children[pileGroup.children.length - 1];
         if (topBox && topBox.userData.flaps) {

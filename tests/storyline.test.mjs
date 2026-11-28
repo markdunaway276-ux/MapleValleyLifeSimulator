@@ -166,3 +166,11 @@ test('cutscene exit keeps player oriented toward the NPC instead of turning away
   assert.equal(player.mouseX, 0);
   assert.equal(player.mouseY, 0);
 });
+
+test('truck-bed box grab actions open the bed cover and reveal the held box only when grabbed', () => {
+  assert.ok(ACTIONS.openTruckBed, 'expected openTruckBed action');
+  assert.ok(ACTIONS.reachTruckBox, 'expected reachTruckBox action');
+  assert.ok(ACTIONS.openTruckBed.duration > ACTIONS.reachTruckBox.duration);
+  assert.ok(ACTIONS.openTruckBed.boxFrom > 0.5 && ACTIONS.openTruckBed.boxFrom < 0.85);
+  assert.ok(ACTIONS.reachTruckBox.boxFrom > 0.3 && ACTIONS.reachTruckBox.boxFrom < 0.7);
+});

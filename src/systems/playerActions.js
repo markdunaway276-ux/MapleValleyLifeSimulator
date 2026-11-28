@@ -268,6 +268,33 @@ export const ACTIONS = {
       { t: 0.78, R: REST, L: P(-0.26, -0.42, -0.40, 0.15, 0.15, 0), dip: -0.10 },
       { t: 1, R: REST, dip: 0 }
     ]
+  },
+  openTruckBed: {
+    // Unlatch the rear truck-bed cover, lift it open, reach into the bed, and pull a box into your arms.
+    clip: 'Picking Up', duration: 1.55, both: true, boxFrom: 0.66,
+    keys: [
+      { t: 0, R: REST, dip: 0 },
+      // Reach right hand forward to unlatch the rear cover handle.
+      { t: 0.14, R: P(0.06, -0.24, -0.54, 0.25, -0.1, -0.15), L: P(-0.22, -0.48, -0.36, 0.15, 0, 0), dip: -0.04 },
+      { t: 0.22, R: P(0.08, -0.21, -0.52, 0.15, -0.15, 0.35), L: P(-0.18, -0.30, -0.48, 0.2, 0.1, 0), dip: -0.05 },
+      // Lift the hinged bed cover up and out of the way.
+      { t: 0.42, R: P(0.18, -0.04, -0.48, -0.28, -0.05, 0.1), L: P(-0.18, -0.04, -0.48, -0.28, 0.05, -0.1), dip: 0.03 },
+      // Reach both hands forward and down into the open truck bed to grip the box.
+      { t: 0.64, R: P(0.22, -0.36, -0.66, 0.34, 0.04, 1.15), L: P(-0.22, -0.36, -0.66, 0.34, -0.04, -1.15), dip: -0.14 },
+      { t: 0.72, R: P(0.21, -0.34, -0.60, 0.28, 0.05, 1.25), L: P(-0.21, -0.34, -0.60, 0.28, -0.05, -1.25), dip: -0.12 },
+      // Pull the box out of the bed and settle into carry pose.
+      { t: 1, R: BOX_CARRY, dip: 0 }
+    ]
+  },
+  reachTruckBox: {
+    // Reach into the already-open truck bed, grip the next box, and pull it into your arms.
+    clip: 'Picking Up', duration: 1.05, both: true, boxFrom: 0.46,
+    keys: [
+      { t: 0, R: REST, dip: 0 },
+      { t: 0.44, R: P(0.22, -0.36, -0.66, 0.34, 0.04, 1.15), dip: -0.14 },
+      { t: 0.56, R: P(0.21, -0.34, -0.58, 0.26, 0.05, 1.25), dip: -0.10 },
+      { t: 1, R: BOX_CARRY, dip: 0 }
+    ]
   }
 };
 
@@ -659,8 +686,10 @@ export function createPlayerActions({ camera, appearance = null } = {}) {
         basket.position.set(midX, midY + 0.005, midZ);
         basket.rotation.set(0.1, 0, 0);
       }
-      // The box sits between the palms (it shows only while it is being held).
-      box.visible = carry === 'box' || !!(current && current.name === 'setBoxDown' && propT < 0.7);
+      // The box sits between the palms (it shows only once grabbed, or until set down).
+      const boxFrom = current && current.def.boxFrom != null ? current.def.boxFrom : 0;
+      box.visible = (carry === 'box' && (!current || propT >= boxFrom)) ||
+        !!(current && current.name === 'setBoxDown' && propT < 0.7);
       if (box.visible) {
         box.position.set(midX, midY + 0.02, midZ);
         box.rotation.set(0.05, 0, 0);

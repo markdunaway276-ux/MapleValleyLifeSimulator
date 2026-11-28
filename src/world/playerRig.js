@@ -19,6 +19,9 @@ const ACTION_CLIPS = {
   typing: { key: 'typing', loop: true },
   takeKeys: { key: 'reach', rate: 1.4 },
   liftBox: { key: 'pickup', rate: 2.2 },
+  openTruckBed: { key: 'pickup', rate: 1.5 },
+  reachTruckBox: { key: 'pickup', rate: 2.0 },
+  exitCar: { key: 'door', rate: 1.4 },
   setBoxDown: { key: 'load', rate: 2.2 },
   unpack: { key: 'restock', loop: true }
 };
