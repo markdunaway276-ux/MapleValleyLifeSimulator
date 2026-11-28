@@ -565,7 +565,7 @@ export function createScene(quality) {
     id: 'mailbox',
     kind: 'mailbox',
     object: mailbox,
-    range: 2.0,
+    range: 1.65,
     getPoint: () => mailboxPoint
   });
   scene.userData.mailbox = mailbox;
@@ -580,7 +580,7 @@ export function createScene(quality) {
     id: 'vending',
     kind: 'vending',
     object: vending,
-    range: 2.1,
+    range: 1.65,
     getPoint: () => vendingPoint
   });
   scene.userData.vending = vending;

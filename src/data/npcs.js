@@ -146,10 +146,9 @@ export const NPC_DEFS = [
     dialogueId: 'vince',
     appearance: { skin: 'tan', shirt: 'charcoal', pants: 'denim' },
     look: {
-      body: 'male',
-      hair: 'buzzed',
-      hairColor: 0x3c342e,
-      outfit: { shirt: 0x2f4438, pants: 0x2e3542, shoes: 0x221d1a }
+      body: 'clerk',
+      suitTint: 0x6f9478,
+      hairTint: 0x3b2c22
     },
     radius: NPC_RADIUS,
     noticeRange: 2.8,
@@ -199,10 +198,9 @@ export const NPC_DEFS = [
     dialogueId: 'maya',
     appearance: { skin: 'light', shirt: 'white', pants: 'charcoal' },
     look: {
-      body: 'female',
-      hair: 'buns',
-      hairColor: 0x1d1a18,
-      outfit: { shirt: 0xd8dfd8, pants: 0x2c4a46, shoes: 0x242628, longSleeve: true }
+      body: 'june',
+      suitTint: 0xbcd9d2,
+      hairTint: 0x241d19
     },
     radius: NPC_RADIUS,
     noticeRange: 2.8,
@@ -221,10 +219,9 @@ export const NPC_DEFS = [
     dialogueId: 'marcus',
     appearance: { skin: 'brown', shirt: 'navy', pants: 'denim' },
     look: {
-      body: 'male',
-      hair: 'beard',
-      hairColor: 0x221b17,
-      outfit: { shirt: 0x3b4858, pants: 0x2d323b, shoes: 0x1e1916 }
+      body: 'sam',
+      suitTint: 0x5c708a,
+      hairTint: 0x1e1815
     },
     radius: NPC_RADIUS,
     noticeRange: NPC_NOTICE_RANGE,
@@ -257,10 +254,9 @@ export const NPC_DEFS = [
     dialogueId: 'hank',
     appearance: { skin: 'tan', shirt: 'navy', pants: 'charcoal' },
     look: {
-      body: 'male',
-      hair: 'short',
-      hairColor: 0x5d5852,
-      outfit: { shirt: 0x2b4b73, pants: 0x252b34, shoes: 0x1b1815, longSleeve: true }
+      body: 'clerk',
+      suitTint: 0x5b7da8,
+      hairTint: 0x7b756d
     },
     radius: NPC_RADIUS,
     noticeRange: 2.8,
@@ -277,7 +273,7 @@ export const NPC_DEFS = [
  */
 export const STORY_NPCS = [
   {
-    // Your realtor on moving day. Waits beside your front door with the keys.
+    // Your realtor on moving day. Waits on your front path, 2m clear of both vending machine & mailbox.
     id: 'rita',
     name: 'Rita',
     role: 'realtor',
@@ -286,15 +282,14 @@ export const STORY_NPCS = [
     dialogueId: 'rita',
     appearance: { skin: 'light', shirt: 'navy', pants: 'charcoal' },
     look: {
-      body: 'female',
-      hair: 'long',
-      hairColor: 0x2b1d16,
-      outfit: { shirt: 0x7a2e3a, pants: 0x2e3038, shoes: 0x1e1a18, longSleeve: true }
+      body: 'dottie',
+      suitTint: 0xb04e60,
+      hairTint: 0x3b261c
     },
     radius: NPC_RADIUS,
     noticeRange: 3.6,
     talkRange: NPC_TALK_RANGE,
-    patrol: { z: -4.45, x0: -1.35, x1: -1.35, startX: -1.35, speed: 0 },
+    patrol: { z: -4.40, x0: 0.0, x1: 0.0, startX: 0.0, speed: 0 },
     stationary: { yaw: Math.PI },
     locationHint: 'Waiting by your front path.'
   }

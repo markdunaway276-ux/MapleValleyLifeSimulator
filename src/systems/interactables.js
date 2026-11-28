@@ -161,16 +161,19 @@ export function nearestActionTarget(scene, position, range = INTERACT_RANGE, { d
     const dy = tp.y - py;
     const dz = tp.z - pz;
     const dist = Math.hypot(dx, dy, dz);
-    const maxReach = _reach.get(cand) ?? range;
+    const defaultReach = (!development && cand.userData && cand.userData.isDoor) ? Math.min(range, 2.2) : range;
+    const maxReach = _reach.get(cand) ?? defaultReach;
     if (dist >= maxReach || !hasLineOfReach(world, position, tp)) continue;
     let score = dist;
     if (useAim) {
       const inv = dist > 1e-4 ? 1 / dist : 0;
-      const dot = (dx * fx + dy * fy + dz * fz) * inv;
-      // Ignore triggers behind your back unless you are practically standing on them.
-      if (dot < -0.15 && dist > 0.75) continue;
+      const dot = THREE.MathUtils.clamp((dx * fx + dy * fy + dz * fz) * inv, -1, 1);
+      // Reject peripheral / behind-the-back triggers unless practically touching them.
+      if (dot < 0.42 && dist > 0.72) continue;
+      const angle = Math.acos(dot);
       const isNpc = !!(cand.userData && (cand.userData.isNpc || cand.userData.kind === 'npc'));
-      score = dist - dot * 1.05 - (dot > 0.85 ? 0.25 : 0) - (isNpc && dot > 0.7 ? 0.25 : 0);
+      // Strongly prioritize what the player is directly looking at over closer side objects.
+      score = angle * 3.2 + dist * 0.45 - (isNpc && angle < 0.35 ? 0.25 : 0);
     }
     if (score < bestScore) {
       best = cand;

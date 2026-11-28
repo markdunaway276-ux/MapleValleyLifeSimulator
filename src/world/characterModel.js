@@ -188,6 +188,12 @@ export async function createCharacterModel(look = {}) {
         // The eyebrow texture is pale grey, meant to be tinted; match it to the hair.
         o.material = o.material.clone();
         o.material.color = new THREE.Color(look.hairColor);
+      } else if (custom && look.suitTint != null && /suit/i.test(o.material.name || '')) {
+        o.material = o.material.clone();
+        o.material.color = new THREE.Color(look.suitTint);
+      } else if (custom && look.hairTint != null && /(bob|ponytail|short)/i.test(o.material.name || '')) {
+        o.material = o.material.clone();
+        o.material.color = new THREE.Color(look.hairTint);
       }
     });
     if (hairGltf) attachToHead(root, hairGltf.scene, look.hairColor, look.shadows);
