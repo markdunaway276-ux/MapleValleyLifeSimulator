@@ -12,8 +12,8 @@ All committed assets must be **CC0** or **CC-BY** (credited in `assets/models/CR
   - Upgraded core world surfaces (lawn grass, Maple Lane asphalt road, concrete sidewalks & driveway, trailer park gravel, and player house hardwood floors) with real CC0 albedo, normal, and roughness maps (512 px WebP from Poly Haven) with procedural fallbacks.
 - [x] **Batch 2 — Player House Interior & Decor**
   - Replaced procedural living room, bedroom, kitchen, and decor items (`src/world/interior.js`, `src/world/homeDecor.js`) — sofa, coffee table, reading armchair, dining table & chairs, desk chair, laptop, nightstand, potted houseplant, and wooden bookshelf — with 9 optimized CC0 Poly Haven `.glb` models while preserving all sitting anchors and colliders.
-- [ ] **Batch 3 — Street, Front Yard & Park Props**
-  - Upgrade repeating outdoor props (`src/world/props.js`, `src/world/park.js`, `src/world/frontYard.js`) — benches, picnic tables, trash cans, porch chairs, planters, fire hydrants, and mailboxes.
+- [x] **Batch 3 — Street, Front Yard & Park Props**
+  - Upgraded Maple Lane Park, front yard, and street props (`src/world/park.js`, `src/world/frontYard.js`, `src/world/atmosphere.js`) with 6 CC0 Poly Haven `.glb` models: wooden park benches, picnic tables, galvanized trash cans, planter boxes, front-yard rocking chair, and plaza patio set.
 - [ ] **Batch 4 — Realistic AI Traffic Vehicles**
   - Replace boxy passing cars in `src/world/traffic.js` with 2–3 optimized, unbranded CC0/CC-BY vehicles (sedan, SUV/hatchback, van) with spinning wheels, headlights, and brake lights to match `pickup.glb`.
 - [ ] **Batch 5 — Wildlife (Pond Ducks & Park Squirrels)**

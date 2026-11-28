@@ -8,6 +8,15 @@
 
 export const CHANGELOG = [
   {
+    version: '0.9',
+    date: '2026-11-28',
+    title: 'Realism Pass 3: Street, Yard & Park Props',
+    notes: [
+      'Upgraded Maple Lane Park with realistic wooden picnic tables, painted wooden benches, planter boxes, galvanized trash cans, and a sunny plaza patio set.',
+      'Added realistic curbside benches and trash cans along Maple Lane, plus wooden planter boxes and a cozy porch rocking chair in your front yard.'
+    ]
+  },
+  {
     version: '0.8',
     date: '2026-11-28',
     title: 'Realism Pass 2: Cozy Home Furniture',

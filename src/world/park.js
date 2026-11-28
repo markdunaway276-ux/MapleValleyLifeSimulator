@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { Parts } from './parts.js';
 import { CURB_WIDTH, STREET, SURFACE_Y } from './street.js';
 import { createSeat } from '../systems/sit.js';
+import { placeGltfProp } from './modelProps.js';
 
 function createWoodChipMaterial(quality) {
   if (typeof document === 'undefined') {
@@ -384,6 +385,15 @@ function buildActivityArea(park, colliders, quality, scene) {
   for (const y of [0.19, 1.2, 2.29]) box(metal, 0.055, 0.045, 10, 101.85, y, 20);
   obstacle('court-fence', 101.85, 20, 0.13, 10.1);
 
+  const propFallback = new Parts(true);
+  function fBox(color, w, h, d, x, y, z, rx = 0, ry = 0, rz = 0) {
+    propFallback.box(color, w, h, d, x, ground + y, z, rx, ry, rz);
+  }
+  const parkPropsGlb = new THREE.Group();
+  parkPropsGlb.name = 'park-props-glb';
+  park.add(parkPropsGlb);
+  const parkPropSpecs = [];
+
   for (const z of [30, 37]) {
     for (const x of [96.2, 99.8]) for (const offset of [-1.65, 1.65]) {
       post(x, z + offset, 2.6, wood, 0.17);
@@ -391,29 +401,74 @@ function buildActivityArea(park, colliders, quality, scene) {
     }
     for (const side of [-1, 1]) {
       box(0x43574c, 2.38, 0.15, 4.15, 98 + side * 1.12, 2.78, z, 0, 0, -side * 0.27);
-      box(wood, 1.9, 0.09, 0.28, 98, 0.47, z + side * 0.63);
-      box(metal, 0.09, 0.47, 1.54, 98 + side * 0.69, 0.235, z);
+      fBox(wood, 1.9, 0.09, 0.28, 98, 0.47, z + side * 0.63);
+      fBox(metal, 0.09, 0.47, 1.54, 98 + side * 0.69, 0.235, z);
     }
-    box(wood, 2, 0.09, 0.76, 98, 0.78, z);
+    fBox(wood, 2, 0.09, 0.76, 98, 0.78, z);
     obstacle('picnic-table-' + z, 98, z, 2, 1.54);
+    parkPropSpecs.push({
+      name: 'picnic-table-glb-' + z,
+      url: './assets/models/props/picnic-table.glb',
+      x: 98, y: ground, z, rotY: Math.PI / 2, fitSize: [2.15, 0.84, 1.65]
+    });
   }
 
   for (const [x, z] of [[80, 16.6], [81, 40.7], [90, 40.7]]) {
     const base = z > 40 ? -ground : 0;
-    for (const offset of [-0.66, 0.66]) box(metal, 0.08, 0.47, 0.45, x + offset, base + 0.24, z);
-    for (const offset of [-0.14, 0, 0.14]) box(wood, 1.8, 0.055, 0.12, x, base + 0.49, z + offset);
-    for (const y of [0.71, 0.85]) box(wood, 1.8, 0.105, 0.055, x, base + y, z + 0.21);
+    for (const offset of [-0.66, 0.66]) fBox(metal, 0.08, 0.47, 0.45, x + offset, base + 0.24, z);
+    for (const offset of [-0.14, 0, 0.14]) fBox(wood, 1.8, 0.055, 0.12, x, base + 0.49, z + offset);
+    for (const y of [0.71, 0.85]) fBox(wood, 1.8, 0.105, 0.055, x, base + y, z + 0.21);
     obstacle('bench-' + x, x, z, 1.8, 0.5);
+    parkPropSpecs.push({
+      name: 'park-bench-glb-' + x,
+      url: './assets/models/props/park-bench.glb',
+      x, y: ground + base, z, rotY: Math.PI, fitSize: [1.85, 0.94, 0.62]
+    });
   }
 
   for (const x of [66.35, 82.65]) {
-    box(0x6d5241, 0.52, 0.12, 2.05, x, 0.06, 16.15);
+    fBox(0x6d5241, 0.52, 0.12, 2.05, x, 0.06, 16.15);
     for (const offset of [-0.66, 0, 0.66]) {
-      parts.cylinder(0x506640, 0.16, 0.26, 0.33, x, ground + 0.26, 16.15 + offset);
-      parts.cylinder(0x768650, 0.08, 0.18, 0.23, x + 0.07, ground + 0.4, 16.15 + offset);
+      propFallback.cylinder(0x506640, 0.16, 0.26, 0.33, x, ground + 0.26, 16.15 + offset);
+      propFallback.cylinder(0x768650, 0.08, 0.18, 0.23, x + 0.07, ground + 0.4, 16.15 + offset);
     }
     obstacle('planter-' + x, x, 16.15, 0.52, 2.05);
+    parkPropSpecs.push({
+      name: 'park-planter-glb-' + x,
+      url: './assets/models/props/planter-box.glb',
+      x, y: ground, z: 16.15, rotY: Math.PI / 2, fitSize: [0.65, 0.55, 1.95]
+    });
   }
+
+  const propFallbackMesh = new THREE.Mesh(
+    propFallback.merge(),
+    new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.86 })
+  );
+  propFallbackMesh.name = 'park-props-fallback';
+  propFallbackMesh.castShadow = propFallbackMesh.receiveShadow = !!quality.shadows;
+  park.add(propFallbackMesh);
+
+  let remainingParkProps = parkPropSpecs.length;
+  for (const spec of parkPropSpecs) {
+    placeGltfProp(parkPropsGlb, spec.url, {
+      ...spec,
+      shadows: !!quality.shadows,
+      onLoaded: () => {
+        remainingParkProps -= 1;
+        if (remainingParkProps <= 0) propFallbackMesh.visible = false;
+      }
+    });
+  }
+  // Extra realistic park props: curbside trash cans & sunny plaza patio set.
+  placeGltfProp(parkPropsGlb, './assets/models/props/trash-can.glb', {
+    name: 'park-trash-entrance', x: 68.0, y: ground, z: 15.6, targetHeight: 0.92, shadows: !!quality.shadows
+  });
+  placeGltfProp(parkPropsGlb, './assets/models/props/trash-can.glb', {
+    name: 'park-trash-picnic', x: 95.0, y: ground, z: 33.5, targetHeight: 0.92, shadows: !!quality.shadows
+  });
+  placeGltfProp(parkPropsGlb, './assets/models/props/patio-set.glb', {
+    name: 'park-plaza-patio', x: 76.5, y: ground, z: 18.2, rotY: 0.4, targetHeight: 0.85, shadows: !!quality.shadows
+  });
 
   // Low, warm light around the entrance and first path junction.
   const lights = [];

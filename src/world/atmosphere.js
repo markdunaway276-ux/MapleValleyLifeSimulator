@@ -3,6 +3,7 @@ import { Parts } from './parts.js';
 import { STREET, SURFACE_Y, NORTH_FRONTAGE_OFFSET } from './street.js';
 import { createVertexMaterial } from './surfaces.js';
 import { createContactBlob } from './contact.js';
+import { placeGltfProp } from './modelProps.js';
 
 /**
  * Environmental polish for Maple Lane:
@@ -148,6 +149,37 @@ export function buildStreetDetails(scene, quality = {}) {
   mesh.castShadow = !!quality.shadows;
   mesh.receiveShadow = !!quality.shadows;
   group.add(mesh);
+
+  // Realistic CC0 curbside benches and trash cans along Maple Lane's north sidewalk.
+  const curbBenchSpots = [
+    { name: 'street-bench-market', x: 26.5, z: northWalkOuter + 0.18 },
+    { name: 'street-bench-post', x: 53.5, z: northWalkOuter + 0.18 }
+  ];
+  for (const b of curbBenchSpots) {
+    placeGltfProp(group, './assets/models/props/park-bench.glb', {
+      name: b.name,
+      x: b.x,
+      y: SURFACE_Y.walk,
+      z: b.z,
+      rotY: Math.PI,
+      fitSize: [1.75, 0.92, 0.60],
+      shadows: !!quality.shadows
+    });
+  }
+  const curbTrashSpots = [
+    { name: 'street-trash-market', x: 28.1, z: northWalkOuter + 0.12 },
+    { name: 'street-trash-post', x: 55.2, z: northWalkOuter + 0.12 }
+  ];
+  for (const t of curbTrashSpots) {
+    placeGltfProp(group, './assets/models/props/trash-can.glb', {
+      name: t.name,
+      x: t.x,
+      y: SURFACE_Y.walk,
+      z: t.z,
+      targetHeight: 0.90,
+      shadows: !!quality.shadows
+    });
+  }
 
   scene.add(group);
   return group;
