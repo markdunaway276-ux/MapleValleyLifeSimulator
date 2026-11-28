@@ -26,6 +26,8 @@ import { createGardening } from './systems/gardening.js';
 import { buildBackyardGarden } from './world/garden.js';
 import { createFramedPhotos } from './world/framedPhotos.js';
 import { createOddJobs } from './systems/oddJobs.js';
+import { createTownEvents } from './systems/townEvents.js';
+import { buildTownEventsProps } from './world/townEventsProps.js';
 import { createQuestBoard } from './systems/questBoard.js';
 import { createHomeDecor } from './world/homeDecor.js';
 import { createParcelDelivery } from './systems/parcelDelivery.js';
@@ -465,6 +467,7 @@ const fishing = createFishing({
   save,
   onCatch: (c) => {
     if (c?.id === 'old-locket') questBoard.accept('pond-locket-lead');
+    g.townEvents?.recordDerbyCatch?.(c);
   }
 });
 fishing.apply(saveData);
@@ -542,7 +545,20 @@ const oddJobs = createOddJobs({
 oddJobs.apply(saveData);
 scene.userData.oddJobs = oddJobs;
 
-Object.assign(g, { fishing, cooking, cookingMenu, gardening, framedPhotos, oddJobs, questBoard });
+const townEvents = createTownEvents({
+  clock,
+  inventory,
+  money,
+  friendship,
+  sfx,
+  toast: (msg) => g.hud?.toast?.(msg),
+  save
+});
+townEvents.apply(saveData);
+scene.userData.townEvents = townEvents;
+const townEventsProps = buildTownEventsProps(scene, quality, townEvents);
+
+Object.assign(g, { fishing, cooking, cookingMenu, gardening, framedPhotos, oddJobs, townEvents, townEventsProps, questBoard });
 
 const getTasks = () => {
   if (storyQuest.stage === 'done' && mysteryChapter2.stage === 'locked') mysteryChapter2.unlock();
@@ -615,6 +631,7 @@ const phone = createPhone({
   capturePhoto: (aim) => g.presentation.capture(view.draw, renderer.domElement, aim),
   getPhotoContext: () => ({ hour: ((clock.getTime().minutes / 60) % 24 + 24) % 24 }),
   hangPhoto: (photoId, slotId) => framedPhotos.hangPhoto(photoId, slotId),
+  getTownEvents: () => townEvents.getStatus(),
   getAppearance: () => appearance.get(),
   setAppearance: (slot, id) => appearance.set(slot, id),
   onAppearanceChange: (fn) => appearance.onChange(fn),

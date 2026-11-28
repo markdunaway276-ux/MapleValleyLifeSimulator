@@ -8,6 +8,16 @@
 
 export const CHANGELOG = [
   {
+    version: '0.17',
+    date: '2026-11-28',
+    title: 'Weekly Town Events (Live Calendar)',
+    notes: [
+      "Saturday Park Farmers' Market (8 AM–6 PM): 3 striped pop-up stalls appear in Maple Lane Park Plaza with rotating weekly seeds, homemade treats, and a +20% bonus when selling backyard produce or fish.",
+      'Sunday Pond Fishing Derby (7 AM–7 PM): fish caught at Maple Lane Pond score points on the town leaderboard against Walt, Sam, and Hank — beat 1st place to win $45 and unlock a permanent 3D Golden Trout Trophy inside your house!',
+      'Phone Calendar App now highlights Saturday Market (green dot) and Sunday Derby (gold dot) days with a live weekly events schedule.'
+    ]
+  },
+  {
     version: '0.16',
     date: '2026-11-28',
     title: 'Photo Gigs, Framed Home Photos & Seasonal Odd Jobs',

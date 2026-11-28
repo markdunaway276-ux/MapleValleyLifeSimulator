@@ -563,6 +563,7 @@ export function createPhone({
   capturePhoto = null,
   getPhotoContext = null,
   hangPhoto = null,
+  getTownEvents = null,
   radio = null
 } = {}) {
   ensureStyles();
@@ -703,6 +704,7 @@ export function createPhone({
     capturePhoto,
     getPhotoContext: typeof getPhotoContext === 'function' ? getPhotoContext : null,
     hangPhoto: typeof hangPhoto === 'function' ? hangPhoto : null,
+    getTownEvents: typeof getTownEvents === 'function' ? getTownEvents : null,
     photos,
     radio: radio || null,
     openApp,

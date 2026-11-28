@@ -41,6 +41,7 @@ export function gameState(g) {
     garden: g.gardening ? g.gardening.serialize() : undefined,
     framedPhotos: g.framedPhotos ? g.framedPhotos.serialize() : undefined,
     oddJobs: g.oddJobs ? g.oddJobs.serialize() : undefined,
+    townEvents: g.townEvents ? g.townEvents.serialize() : undefined,
     questBoard: g.questBoard ? g.questBoard.serialize() : undefined,
     pinnedTaskId: g.getPinnedTask()?.id ?? null,
     dayOne: g.dayOne?.serialize(),

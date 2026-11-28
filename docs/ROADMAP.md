@@ -30,9 +30,9 @@ All committed assets must be **CC0** or **CC-BY** (credited in `assets/models/CR
   - Notice Board photo commissions using the Phone Camera's zoom & filters (Park Wildlife Snap for Sam, Golden-Hour Maple Lane for June, Vintage Valley Portrait for Dottie).
   - Hang photos from your Phone Gallery in 3 wooden picture frames inside your house (Living Room, Kitchen, Bedroom), or press E on any frame to cycle photos.
   - Weather-reactive daily odd jobs for neighbours (Snow Shoveling during snowy/cold spells, Yard Cleanup in mild weather, and Supply Haul Runs).
-- [ ] **3. Weekly Town Events (Live Calendar)**
-  - Saturday Park Farmers' Market / Yard Sale with pop-up stalls, rotating decor/treats, and mingling neighbours.
-  - Sunday Pond Fishing Derby with a friendly leaderboard and a trophy for your house.
+- [x] **3. Weekly Town Events (Live Calendar)**
+  - Saturday Park Farmers' Market (8 AM–6 PM) with 3 striped pop-up stalls, rotating weekly seeds & treats, and +20% produce/fish sale bonus.
+  - Sunday Pond Fishing Derby (7 AM–7 PM) with a live leaderboard stand, $45 grand prize, and a permanent 3D Golden Trout Trophy displayed inside your house, plus live event markers in the Phone Calendar app.
 - [ ] **4. Adoptable Pet & Cozy Home Upgrade**
   - Befriend a wandering town cat or dog with treats or fish so it moves into your yard/house, follows you on walks, and naps indoors.
   - Deeper home customization (wall/floor themes, new cozy decor, framed photos).

@@ -53,6 +53,10 @@ export function startLoop(g) {
     g.homeDecor?.update?.(delta);
     g.parcelDelivery?.update?.();
     g.gardening?.syncWithWorld?.({ day: currentTime.day, rain });
+    if (g.townEvents) {
+      g.townEvents.syncWithClock();
+      g.townEventsProps?.sync?.();
+    }
     g.npcs.update(delta, {
       player,
       talkingId: g.dialogue.currentNpc() || g.cutscene?.currentNpc?.() || null,
