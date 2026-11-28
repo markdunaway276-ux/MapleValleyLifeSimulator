@@ -40,6 +40,14 @@ body.mobile #hud-mute {
   width: 40px; height: 40px; min-width: 40px; min-height: 40px;
   font-size: 18px;
 }
+@media (max-height: 500px) {
+  body.mobile #hud-mute {
+    top: max(8px, env(safe-area-inset-top));
+    right: calc(max(10px, env(safe-area-inset-right)) + 170px);
+    width: 36px; height: 36px; min-width: 36px; min-height: 36px;
+    font-size: 16px;
+  }
+}
 `;
 
 function ensureStyles() {

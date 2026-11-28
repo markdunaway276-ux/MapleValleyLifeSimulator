@@ -119,6 +119,14 @@ body.mobile #hud-camera-view {
   width: 40px; height: 40px;
   font-size: 12px;
 }
+@media (max-height: 500px) {
+  body.mobile #hud-camera-view {
+    top: max(8px, env(safe-area-inset-top));
+    right: calc(max(10px, env(safe-area-inset-right)) + 128px);
+    width: 36px; height: 36px;
+    font-size: 11px;
+  }
+}
 `;
   document.head.append(style);
   const toggle = document.createElement('button');

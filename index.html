@@ -15,6 +15,10 @@
     #joystick { position: absolute; z-index: 5; bottom: 28px; left: 28px; width: 112px; height: 112px; background: rgba(255,255,255,0.2); border: 2px solid rgba(255,255,255,0.5); border-radius: 50%; display: none; touch-action: none; }
     #joystick-knob { position: absolute; width: 46px; height: 46px; background: rgba(255,255,255,0.7); border-radius: 50%; top: 33px; left: 33px; }
     .mobile #joystick { display: block; }
+    @media (max-height: 500px) {
+      .mobile #joystick { bottom: 16px; left: 16px; width: 96px; height: 96px; }
+      .mobile #joystick-knob { width: 40px; height: 40px; top: 28px; left: 28px; }
+    }
     #fly-pad { position: absolute; z-index: 5; right: 24px; bottom: 120px; display: none; flex-direction: column; gap: 14px; touch-action: none; }
     .mobile.flying #fly-pad { display: flex; }
     #fly-pad button { width: 72px; height: 72px; border-radius: 50%; font-size: 28px; color: #fff; background: rgba(255,255,255,0.2); border: 2px solid rgba(255,255,255,0.5); touch-action: none; user-select: none; -webkit-user-select: none; }

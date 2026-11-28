@@ -27,6 +27,13 @@ body.mobile #pause-button {
   right: max(10px, env(safe-area-inset-right));
   width: 40px; height: 40px;
 }
+@media (max-height: 500px) {
+  body.mobile #pause-button {
+    top: max(8px, env(safe-area-inset-top));
+    right: calc(max(10px, env(safe-area-inset-right)) + 86px);
+    width: 36px; height: 36px;
+  }
+}
 `;
 
 const money = (n) => '$' + (Math.round(Number(n) || 0)).toLocaleString();

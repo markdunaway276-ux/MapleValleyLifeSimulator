@@ -41,6 +41,14 @@ body.mobile #hud-screenshot {
   width: 40px; height: 40px; min-width: 40px; min-height: 40px;
   font-size: 19px;
 }
+@media (max-height: 500px) {
+  body.mobile #hud-screenshot {
+    top: max(8px, env(safe-area-inset-top));
+    right: calc(max(10px, env(safe-area-inset-right)) + 212px);
+    width: 36px; height: 36px; min-width: 36px; min-height: 36px;
+    font-size: 16px;
+  }
+}
 `;
 
 function ensureStyles() {

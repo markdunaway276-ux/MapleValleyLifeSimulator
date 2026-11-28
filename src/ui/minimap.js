@@ -22,27 +22,38 @@ export const MINIMAP_KEY = 'KeyM';
 export const HUD_MINIMAP_SIZE = 132;
 
 export const MINIMAP_COLORS = {
-  grass: '#3a6b3a',
-  road: '#4c4c52',
-  sidewalk: '#c5c0b4',
-  house: '#d7c4a2',
-  houseStroke: '#8a7354',
-  mainHouse: '#e0c48a',
-  tree: '#1f5a28',
-  mailbox: '#c9a227',
-  vending: '#c43b48',
-  market: '#367d59',
-  laundromat: '#3f7fb8',
-  desk: '#6ea0d8',
-  car: '#3d4a5c',
-  carActive: '#5b7aa6',
-  carNose: '#c9d4e4',
-  player: '#ffe566',
-  playerStroke: '#1a1a12',
-  npc: '#e07a4a',
-  npcStroke: '#3a1c12',
-  north: 'rgba(255,255,255,0.9)',
-  frame: 'rgba(0,0,0,0.35)'
+  grass: '#1b241e',
+  grid: 'rgba(255, 255, 255, 0.04)',
+  park: '#233426',
+  pond: '#1d4856',
+  pondRim: '#3a7284',
+  road: '#2d333b',
+  roadEdge: '#4a5360',
+  roadLine: '#c8a64b',
+  sidewalk: '#454d56',
+  gravel: '#575046',
+  crossing: 'rgba(220, 224, 214, 0.55)',
+  house: '#4b525c',
+  houseStroke: '#737d8a',
+  houseShadow: 'rgba(0, 0, 0, 0.42)',
+  mainHouse: '#9b7944',
+  mainHouseStroke: '#e6c076',
+  tree: 'rgba(42, 86, 52, 0.72)',
+  treeCore: 'rgba(26, 58, 34, 0.85)',
+  mailbox: '#d8b24c',
+  vending: '#d4525c',
+  market: '#46a674',
+  laundromat: '#529ad6',
+  desk: '#7eb2e8',
+  car: '#4c5e74',
+  carActive: '#6892c6',
+  carNose: '#dce6f4',
+  player: '#ffde59',
+  playerStroke: '#121417',
+  npc: '#ee8752',
+  npcStroke: '#22140d',
+  north: '#f2e8d2',
+  frame: 'rgba(0,0,0,0.45)'
 };
 
 const STYLE_ID = 'hud-minimap-styles';
@@ -51,11 +62,13 @@ const CSS = `
 #hud-nav-route {
   position: absolute; z-index: 34; pointer-events: none;
   left: max(12px, env(safe-area-inset-left));
-  bottom: calc(max(16px, env(safe-area-inset-bottom)) + 138px);
-  max-width: min(48vw, 250px); padding: 5px 8px; border-radius: 8px;
-  background: #152734ec; color: #c6fbff; font: 600 12px/1.3 system-ui, sans-serif;
+  bottom: calc(max(16px, env(safe-area-inset-bottom)) + 142px);
+  max-width: min(48vw, 240px); padding: 5px 9px; border-radius: 8px;
+  border: 1px solid rgba(120, 210, 230, 0.35);
+  background: rgba(14, 24, 32, 0.88); color: #c6fbff; font: 600 11px/1.3 system-ui, sans-serif;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
 }
-body.mobile #hud-nav-route { bottom: 310px; }
+body.mobile #hud-nav-route { bottom: 268px; max-width: min(52vw, 200px); }
 .phone-route-status { min-height: 1.3em; margin: 0 0 8px; font-size: 13px; color: #c6fbff; }
 
 #hud-minimap {
@@ -69,9 +82,10 @@ body.mobile #hud-nav-route { bottom: 310px; }
   height: ${HUD_MINIMAP_SIZE}px;
   padding: 3px;
   margin: 0;
-  background: rgba(0, 0, 0, 0.55);
-  border: 1px solid rgba(255, 255, 255, 0.28);
-  border-radius: 10px;
+  background: rgba(12, 15, 19, 0.84);
+  border: 1.5px solid rgba(214, 182, 114, 0.48);
+  border-radius: 14px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.55);
   overflow: hidden;
   pointer-events: auto;
   touch-action: manipulation;
@@ -83,7 +97,7 @@ body.mobile #hud-nav-route { bottom: 310px; }
   display: block;
   width: 100%;
   height: 100%;
-  border-radius: 7px;
+  border-radius: 10px;
   pointer-events: none;
 }
 
@@ -94,30 +108,58 @@ body.mobile #hud-nav-route { bottom: 310px; }
   box-sizing: border-box;
   left: max(12px, env(safe-area-inset-left));
   bottom: max(16px, env(safe-area-inset-bottom));
-  width: 44px; height: 44px; min-width: 44px; min-height: 44px;
+  width: 42px; height: 42px; min-width: 42px; min-height: 42px;
   padding: 0; margin: 0;
-  font: 20px/1 system-ui, sans-serif;
+  font: 19px/1 system-ui, sans-serif;
   color: #fff;
-  background: rgba(0, 0, 0, 0.65);
-  border: 1px solid rgba(255, 255, 255, 0.35);
-  border-radius: 8px;
+  background: rgba(12, 15, 19, 0.8);
+  border: 1px solid rgba(214, 182, 114, 0.45);
+  border-radius: 10px;
   cursor: pointer;
   touch-action: manipulation;
   pointer-events: auto;
   -webkit-tap-highlight-color: transparent;
   align-items: center;
   justify-content: center;
-  opacity: 0.9;
+  opacity: 0.92;
 }
 #hud-minimap-toggle.is-visible { display: flex; }
 #hud-minimap-toggle:hover, #hud-minimap-toggle:focus {
-  opacity: 1; background: rgba(0, 0, 0, 0.85); outline: none;
+  opacity: 1; background: rgba(18, 22, 28, 0.94); outline: none;
 }
 
-/* Sit above the on-screen joystick (bottom: 40px; 120×120). */
-body.mobile #hud-minimap,
+/* Portrait phone: sit cleanly above the on-screen joystick. */
+body.mobile #hud-minimap {
+  bottom: 152px;
+  width: 108px;
+  height: 108px;
+}
 body.mobile #hud-minimap-toggle {
-  bottom: calc(40px + 120px + 12px);
+  bottom: 152px;
+}
+
+/* Landscape phone (short height): dock minimap top-left beside Needs so it never overlaps joystick or Needs. */
+@media (max-height: 500px) {
+  body.mobile #hud-minimap {
+    top: max(8px, env(safe-area-inset-top));
+    bottom: auto;
+    left: calc(max(10px, env(safe-area-inset-left)) + 138px);
+    width: 90px;
+    height: 90px;
+    border-radius: 11px;
+  }
+  body.mobile #hud-minimap-toggle {
+    top: max(8px, env(safe-area-inset-top));
+    bottom: auto;
+    left: calc(max(10px, env(safe-area-inset-left)) + 138px);
+    width: 36px; height: 36px; min-width: 36px; min-height: 36px;
+  }
+  body.mobile #hud-nav-route {
+    top: calc(max(8px, env(safe-area-inset-top)) + 96px);
+    bottom: auto;
+    left: calc(max(10px, env(safe-area-inset-left)) + 138px);
+    max-width: 180px;
+  }
 }
 
 .phone-map {
@@ -125,7 +167,8 @@ body.mobile #hud-minimap-toggle {
   min-height: 180px;
   border-radius: 16px;
   overflow: hidden;
-  background: #1a2a1c;
+  background: #17201a;
+  border: 1px solid rgba(214, 182, 114, 0.35);
   position: relative;
 }
 .phone-map canvas {
@@ -356,33 +399,54 @@ export function drawStaticLayer(ctx, world, view) {
   ctx.fillStyle = C.grass;
   ctx.fillRect(0, 0, view.width, view.height);
 
+  // Subtle tactical coordinate grid for spatial depth.
+  const gridStep = Math.max(18, Math.round(view.width / 8));
+  ctx.strokeStyle = C.grid;
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  for (let gx = gridStep; gx < view.width; gx += gridStep) {
+    ctx.moveTo(gx + 0.5, 0);
+    ctx.lineTo(gx + 0.5, view.height);
+  }
+  for (let gy = gridStep; gy < view.height; gy += gridStep) {
+    ctx.moveTo(0, gy + 0.5);
+    ctx.lineTo(view.width, gy + 0.5);
+  }
+  ctx.stroke();
+
   ctx.fillStyle = C.road;
   ctx.beginPath();
   const roadPoints = [[ROUTE_9.minX, -4], [ROUTE_9.taper, -4], [-half, -routeHalfWidth(-half)],
     [-half, routeHalfWidth(-half)], [ROUTE_9.taper, 4], [ROUTE_9.minX, 4]];
-  for (const [x,z] of roadPoints) { const point=toMap(view,x,cz+z); ctx.lineTo(point.x,point.y); }
+  for (const [x, z] of roadPoints) { const point = toMap(view, x, cz + z); ctx.lineTo(point.x, point.y); }
   ctx.closePath();
   ctx.fill();
+
   const expansion = s.expansion;
   if (expansion) {
     const fill = (rect) => fillRectWorld(ctx, view, rect.minX, rect.maxX, rect.minZ, rect.maxZ);
-    ctx.fillStyle = '#647c4b';
+    ctx.fillStyle = C.park;
     fill(expansion.park);
-    ctx.fillStyle = '#527d83';
     const { minX, minZ, maxX, maxZ } = expansion.pond;
     const pondCenter = toMap(view, (minX + maxX) / 2, (minZ + maxZ) / 2);
+    const rx = (maxX - minX) * view.scale / 2;
+    const ry = (maxZ - minZ) * view.scale / 2;
+    ctx.fillStyle = C.pond;
     ctx.beginPath();
-    ctx.ellipse(pondCenter.x, pondCenter.y, (maxX - minX) * view.scale / 2,
-      (maxZ - minZ) * view.scale / 2, 0, 0, Math.PI * 2);
+    ctx.ellipse(pondCenter.x, pondCenter.y, rx, ry, 0, 0, Math.PI * 2);
     ctx.fill();
+    ctx.strokeStyle = C.pondRim;
+    ctx.lineWidth = 1.25;
+    ctx.stroke();
+
     ctx.fillStyle = C.road;
     for (const road of expansion.roads) fill(road);
     ctx.fillStyle = C.sidewalk;
     fill(expansion.southSidewalk);
     for (const path of expansion.paths) fill(path);
-    ctx.fillStyle = '#b8a68a';
+    ctx.fillStyle = C.gravel;
     for (const trail of expansion.gravel) fill(trail);
-    ctx.fillStyle = '#dedbca';
+    ctx.fillStyle = C.crossing;
     fill(expansion.crossing);
   }
 
@@ -392,38 +456,68 @@ export function drawStaticLayer(ctx, world, view) {
 
   ctx.fillStyle = C.road;
   fillRectWorld(ctx, view, -half, half, cz - roadHalf, cz + roadHalf);
+
+  // Subtle road curb edges.
+  ctx.fillStyle = C.roadEdge;
+  const edgeW = Math.max(0.12, 0.8 / view.scale);
+  fillRectWorld(ctx, view, -half, half, cz - roadHalf, cz - roadHalf + edgeW);
+  fillRectWorld(ctx, view, -half, half, cz + roadHalf - edgeW, cz + roadHalf);
+
+  // Dashed amber centre line along Maple Lane.
+  const cLeft = toMap(view, -half, cz);
+  const cRight = toMap(view, half, cz);
+  ctx.save();
+  ctx.strokeStyle = C.roadLine;
+  ctx.lineWidth = Math.max(1, 0.28 * view.scale);
+  ctx.setLineDash([Math.max(4, 3.2 * view.scale), Math.max(3, 2.6 * view.scale)]);
+  ctx.beginPath();
+  ctx.moveTo(cLeft.x, cLeft.y);
+  ctx.lineTo(cRight.x, cRight.y);
+  ctx.stroke();
+  ctx.restore();
+
   if (s.parkingLaneWidth) {
-    ctx.fillStyle = '#a9a9a0';
-    const stripe = Math.max(0.08, 0.6 / view.scale);
+    ctx.fillStyle = 'rgba(180, 186, 194, 0.35)';
+    const stripe = Math.max(0.08, 0.5 / view.scale);
     const parkingEdge = roadHalf - s.parkingLaneWidth;
     for (const z of [cz - parkingEdge, cz + parkingEdge]) {
       fillRectWorld(ctx, view, -half, half, z - stripe / 2, z + stripe / 2);
     }
   }
 
-  ctx.fillStyle = '#dedbca';
+  ctx.fillStyle = C.crossing;
   for (const x of s.crossings ?? []) fillRectWorld(ctx, view, x - 1.1, x + 1.1, cz - roadHalf, cz + roadHalf);
 
+  // Buildings with soft drop shadow and crisp roof outline.
   const houses = (world && world.houses) || [];
   for (let i = 0; i < houses.length; i++) {
     const h = houses[i];
-    ctx.fillStyle = h.main ? C.mainHouse : C.house;
-    fillRectWorld(ctx, view, h.minX, h.maxX, h.minZ, h.maxZ);
     const a = toMap(view, h.minX, h.maxZ);
     const c = toMap(view, h.maxX, h.minZ);
-    ctx.strokeStyle = C.houseStroke;
-    ctx.lineWidth = 1;
-    ctx.strokeRect(a.x + 0.5, a.y + 0.5, Math.max(1, c.x - a.x - 1), Math.max(1, c.y - a.y - 1));
+    const w = Math.max(2, c.x - a.x);
+    const ht = Math.max(2, c.y - a.y);
+    ctx.fillStyle = C.houseShadow;
+    ctx.fillRect(a.x + 1.5, a.y + 2, w, ht);
+    ctx.fillStyle = h.main ? C.mainHouse : C.house;
+    ctx.fillRect(a.x, a.y, w, ht);
+    ctx.strokeStyle = h.main ? C.mainHouseStroke : C.houseStroke;
+    ctx.lineWidth = h.main ? 1.4 : 1;
+    ctx.strokeRect(a.x + 0.5, a.y + 0.5, Math.max(1, w - 1), Math.max(1, ht - 1));
   }
 
+  // Layered translucent tree canopies.
   const trees = (world && world.trees) || [];
-  ctx.fillStyle = C.tree;
   for (let i = 0; i < trees.length; i++) {
     const t = trees[i];
     const p = toMap(view, t.x, t.z);
-    const r = Math.max(2, (t.radius || 1.2) * view.scale);
+    const r = Math.max(2.2, (t.radius || 1.2) * view.scale);
+    ctx.fillStyle = C.tree;
     ctx.beginPath();
     ctx.arc(p.x, p.y, r, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = C.treeCore;
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, r * 0.48, 0, Math.PI * 2);
     ctx.fill();
   }
 
@@ -433,12 +527,16 @@ export function drawStaticLayer(ctx, world, view) {
     drawMarker(ctx, view, markers[i]);
   }
 
-  // North tick
+  // Sleek dark compass pill at top-center.
+  ctx.fillStyle = 'rgba(10, 13, 16, 0.78)';
+  ctx.beginPath();
+  ctx.arc(view.width / 2, 9, 7, 0, Math.PI * 2);
+  ctx.fill();
   ctx.fillStyle = C.north;
-  ctx.font = '600 10px system-ui, sans-serif';
+  ctx.font = '700 9px system-ui, sans-serif';
   ctx.textAlign = 'center';
-  ctx.textBaseline = 'top';
-  ctx.fillText('N', view.width / 2, 2);
+  ctx.textBaseline = 'middle';
+  ctx.fillText('N', view.width / 2, 9.5);
 }
 
 function drawMarker(ctx, view, m) {
@@ -459,11 +557,14 @@ function drawMarker(ctx, view, m) {
     ctx.restore();
     return;
   }
-  const r = m.kind === 'desk' ? Math.max(2.5, 1.6 * (view.scale / 4)) : Math.max(2.4, 2 * (view.scale / 4) + 1.2);
+  const r = m.kind === 'desk' ? Math.max(2.6, 1.6 * (view.scale / 4)) : Math.max(2.8, 2 * (view.scale / 4) + 1.4);
   ctx.beginPath();
   ctx.arc(p.x, p.y, r, 0, Math.PI * 2);
   ctx.fillStyle = C[m.kind] ?? C.desk;
   ctx.fill();
+  ctx.strokeStyle = 'rgba(12, 15, 18, 0.85)';
+  ctx.lineWidth = 1;
+  ctx.stroke();
 }
 
 export function drawPlayerArrow(ctx, player, view) {

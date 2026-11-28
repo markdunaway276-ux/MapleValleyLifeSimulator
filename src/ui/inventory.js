@@ -40,6 +40,15 @@ body.mobile #inventory-toggle.is-visible {
   padding: 0 8px;
   font-size: 12px;
 }
+@media (max-height: 500px) {
+  body.mobile #inventory-toggle.is-visible {
+    top: max(8px, env(safe-area-inset-top));
+    right: max(10px, env(safe-area-inset-right));
+    min-width: 38px;
+    height: 36px;
+    font-size: 11px;
+  }
+}
 #inventory-toggle:hover, #inventory-toggle:focus {
   background: rgba(0, 0, 0, 0.85);
   outline: none;
