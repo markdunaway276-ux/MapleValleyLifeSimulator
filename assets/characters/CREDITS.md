@@ -44,3 +44,7 @@ The user's own character, made in Blender with MakeHuman / MPFB. The MakeHuman s
 ## npc-sam.glb, npc-june.glb, npc-dottie.glb, npc-clerk.glb (neighbours)
 
 Made with the same MakeHuman / MPFB rig as the player (MPFB add-on run headless, then `tools/convert_makehuman.py ... keep`). Assets used, all CC0 MakeHuman system assets: skins middleage_caucasian_male, young_african_female, old_caucasian_female, young_asian_male; hair short02, ponytail01, bob02, short04; clothes male_casualsuit05, female_sportsuit01, female_elegantsuit01, male_worksuit01, shoes01, shoes04, shoes05; eyebrow001/004/006/010, eyelashes01/03, low-poly eyes.
+
+## fp-hands.glb (first-person hands)
+
+"First Person hands rigged" by DavidFischer — https://sketchfab.com/3d-models/first-person-hands-rigged-547a45535f0c4fe787948f7a7a6a88db — licensed CC BY 4.0 (http://creativecommons.org/licenses/by/4.0/). Changes for Maple Lane: re-textured (skin colour, normal and roughness maps baked to match the player's skin, pink nails), hand UVs enlarged; in game only the hands and wrists are shown, with finger poses driven by `src/systems/fpHands.js`.

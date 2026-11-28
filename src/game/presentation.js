@@ -2,6 +2,8 @@ import * as THREE from 'three';
 import { bevelBox } from '../world/shapes.js';
 import { HIDDEN_FROM_FP_LAYER } from '../world/playerBody.js';
 import { addPhoneGrip } from './phoneGrip.js';
+import { attachPhoneHand } from './phoneHand.js';
+import { loadGltf } from '../world/gltf.js';
 
 const RAISE_SECONDS = 0.42;
 const FOCUS_SECONDS = 0.28;
@@ -82,7 +84,9 @@ export function createPresentation({ camera, scene, mode, playerBody, actionRig 
   gripMaterial.emissiveIntensity = 0;
   const fallbackGrip = new THREE.Group();
   third.phone.add(fallbackGrip);
+  const simpleGripStart = first.phone.children.length;
   const poseThumbs = [addPhoneGrip(first.phone, gripMaterial, true), addPhoneGrip(fallbackGrip, gripMaterial, false)];
+  const simpleGrip = first.phone.children.slice(simpleGripStart);
 
   const sleeve = new THREE.Mesh(new THREE.CylinderGeometry(0.030, 0.037, 0.102, 10), arm.sleeve);
   sleeve.position.set(0.063, -0.142, -0.044);
@@ -95,6 +99,8 @@ export function createPresentation({ camera, scene, mode, playerBody, actionRig 
   wristSkin.rotation.copy(sleeve.rotation);
   first.phone.add(wristSkin);
   camera.add(first.phone);
+  // The realistic hand replaces the simple-shape grip (and its wrist) once loaded.
+  const phoneHand = attachPhoneHand(first.phone, { load: loadGltf, hide: [...simpleGrip, wristSkin] });
 
   // The handset stays attached to the wrist throughout the raise.
   const wrist = new THREE.Group();
@@ -212,10 +218,12 @@ body.mobile #hud-camera-view {
     thumbOffset.x = THREE.MathUtils.lerp(thumbOffset.x, pressing ? (touch.x - 1) * SCREEN_WIDTH : 0, settle);
     thumbOffset.y = THREE.MathUtils.lerp(thumbOffset.y, pressing ? (0.78 - touch.y) * SCREEN_HEIGHT : 0, settle);
     for (const poseThumb of poseThumbs) poseThumb(thumbOffset.x, thumbOffset.y, pressing);
+    if (raise > 0) phoneHand.pose(thumbOffset.x, thumbOffset.y, pressing);
     const evening = THREE.MathUtils.smoothstep(minutes, 18 * 60, 20 * 60);
     const morning = 1 - THREE.MathUtils.smoothstep(minutes, 5 * 60, 7 * 60);
     gripMaterial.color.copy(arm.material.color);
     gripMaterial.emissiveIntensity = glow * (evening + morning) * 0.42;
+    phoneHand.setSkin(arm.material.color.getHex(), gripMaterial.emissiveIntensity);
     const walk = canUseThird() && !open && moved > 0.001;
     if (walk) stride += moved * 6;
     swing = THREE.MathUtils.lerp(swing, walk ? 0.38 : 0, 1 - Math.exp(-15 * delta));

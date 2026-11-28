@@ -18,12 +18,29 @@ export const CHANGELOG = [
     ]
   },
   {
-    version: '0.12',
+    version: '0.12.2',
     date: '2026-11-28',
     title: 'First-Person Rigged Body & Smooth Boot',
     notes: [
       'Looking down in first-person now shows your real rigged 3D character (torso, arms, clothes, and shoes) instead of the blocky placeholder body.',
       'Removed the extra blocky door from the pickup truck and throttled background asset loading for a smoother, faster startup.'
+    ]
+  },
+  {
+    version: '0.12.1',
+    date: '2026-11-28',
+    title: 'Real Hands on Your Phone',
+    notes: [
+      'Your phone is now held by the same realistic hand: palm on the back, fingers curled around the left edge, and your thumb reaching onto the screen as you tap.'
+    ]
+  },
+  {
+    version: '0.12',
+    date: '2026-11-28',
+    title: 'Real First-Person Hands',
+    notes: [
+      'Your first-person hands are now a detailed, textured 3D model with knuckles, nails and natural skin colour that follows your skin choice.',
+      'Fingers move with what you do: they grip doors, baskets and the steering wheel, make a fist to knock, point to press buttons, open to wave, close around your new keys and tap while typing.'
     ]
   },
   {
