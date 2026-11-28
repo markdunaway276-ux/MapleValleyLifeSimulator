@@ -47,6 +47,16 @@ export function blendHandPose(a, b, k) {
   return out;
 }
 
+/** The hand texture is baked for the light skin option (#e0b896); tint it toward `hex`. */
+const BAKED_SKIN = new THREE.Color(0xe0b896);
+export function skinTint(target, hex) {
+  const want = new THREE.Color(hex);
+  return target.setRGB(
+    Math.min(1.6, want.r / BAKED_SKIN.r),
+    Math.min(1.6, want.g / BAKED_SKIN.g),
+    Math.min(1.6, want.b / BAKED_SKIN.b));
+}
+
 const plain = (name) => String(name || '').replace(/[^A-Za-z0-9_]/g, '');
 
 function findBone(root, pattern) {
@@ -213,5 +223,32 @@ export function makeHand(side) {
   }
   setPose(HAND_POSES.relaxed);
 
-  return { object: holder, setPose, side: S };
+  // --- thumb reach (CCD IK): bend the thumb so its tip lands on a world point ---
+  const thumbJoints = chains.thumb.joints.map((jt) => jt.bone);
+  const thumbTip = bone(new RegExp(`^thumb03${S}_end`)) || thumbJoints[thumbJoints.length - 1];
+  const _jp = new THREE.Vector3(), _tp = new THREE.Vector3(), _to = new THREE.Vector3();
+  const _qw = new THREE.Quaternion(), _qj = new THREE.Quaternion(), _qp = new THREE.Quaternion();
+  function thumbTo(target, iterations = 8) {
+    if (!thumbJoints.length) return;
+    holder.updateMatrixWorld(true);
+    for (let it = 0; it < iterations; it++) {
+      for (let n = thumbJoints.length - 1; n >= 0; n--) {
+        const j = thumbJoints[n];
+        j.getWorldPosition(_jp);
+        thumbTip.getWorldPosition(_tp);
+        const a = _tp.sub(_jp).normalize();
+        const b = _to.copy(target).sub(_jp).normalize();
+        const angle = a.angleTo(b);
+        if (angle < 1e-4) continue;
+        _qw.setFromUnitVectors(a, b);
+        if (angle > 0.35) _qw.slerp(new THREE.Quaternion(), 1 - 0.35 / angle);
+        j.getWorldQuaternion(_qj);
+        j.parent.getWorldQuaternion(_qp);
+        j.quaternion.copy(_qp.invert().multiply(_qw.multiply(_qj)));
+        j.updateMatrixWorld(true);
+      }
+    }
+  }
+
+  return { object: holder, setPose, thumbTo, side: S };
 }
