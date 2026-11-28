@@ -385,7 +385,13 @@ function buildActivityArea(park, colliders, quality, scene) {
   for (const y of [0.19, 1.2, 2.29]) box(metal, 0.055, 0.045, 10, 101.85, y, 20);
   obstacle('court-fence', 101.85, 20, 0.13, 10.1);
 
-  const propFallback = new Parts(true);
+  // One fallback per prop (picked by fbFor), hidden only when that prop's GLB loads.
+  const propFallbacks = new Map();
+  let propFallback = null;
+  const fbFor = (key) => {
+    if (!propFallbacks.has(key)) propFallbacks.set(key, new Parts(true));
+    propFallback = propFallbacks.get(key);
+  };
   function fBox(color, w, h, d, x, y, z, rx = 0, ry = 0, rz = 0) {
     propFallback.box(color, w, h, d, x, ground + y, z, rx, ry, rz);
   }
@@ -395,6 +401,7 @@ function buildActivityArea(park, colliders, quality, scene) {
   const parkPropSpecs = [];
 
   for (const z of [30, 37]) {
+    fbFor('picnic-table-glb-' + z);
     for (const x of [96.2, 99.8]) for (const offset of [-1.65, 1.65]) {
       post(x, z + offset, 2.6, wood, 0.17);
       obstacle('shelter-' + x + '-' + (z + offset), x, z + offset, 0.2, 0.2);
@@ -414,6 +421,7 @@ function buildActivityArea(park, colliders, quality, scene) {
   }
 
   for (const [x, z] of [[80, 16.6], [81, 40.7], [90, 40.7]]) {
+    fbFor('park-bench-glb-' + x);
     const base = z > 40 ? -ground : 0;
     for (const offset of [-0.66, 0.66]) fBox(metal, 0.08, 0.47, 0.45, x + offset, base + 0.24, z);
     for (const offset of [-0.14, 0, 0.14]) fBox(wood, 1.8, 0.055, 0.12, x, base + 0.49, z + offset);
@@ -427,6 +435,7 @@ function buildActivityArea(park, colliders, quality, scene) {
   }
 
   for (const x of [66.35, 82.65]) {
+    fbFor('park-planter-glb-' + x);
     fBox(0x6d5241, 0.52, 0.12, 2.05, x, 0.06, 16.15);
     for (const offset of [-0.66, 0, 0.66]) {
       propFallback.cylinder(0x506640, 0.16, 0.26, 0.33, x, ground + 0.26, 16.15 + offset);
@@ -440,26 +449,22 @@ function buildActivityArea(park, colliders, quality, scene) {
     });
   }
 
-  const propFallbackMesh = new THREE.Mesh(
-    propFallback.merge(),
-    new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.86 })
-  );
-  propFallbackMesh.name = 'park-props-fallback';
-  propFallbackMesh.castShadow = propFallbackMesh.receiveShadow = !!quality.shadows;
-  park.add(propFallbackMesh);
-
-  let remainingParkProps = parkPropSpecs.length;
+  const propFallbackMat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.86 });
+  const propFallbackMeshes = new Map();
+  for (const [key, partsForKey] of propFallbacks) {
+    const m = new THREE.Mesh(partsForKey.merge(), propFallbackMat);
+    m.name = 'park-props-fallback-' + key;
+    m.castShadow = m.receiveShadow = !!quality.shadows;
+    park.add(m);
+    propFallbackMeshes.set(key, m);
+  }
   for (const spec of parkPropSpecs) {
     placeGltfProp(parkPropsGlb, spec.url, {
       ...spec,
       shadows: !!quality.shadows,
-      onLoaded: () => {
-        remainingParkProps -= 1;
-        if (remainingParkProps <= 0) propFallbackMesh.visible = false;
-      }
+      hideOnLoad: propFallbackMeshes.get(spec.name) || null
     });
   }
-  // Extra realistic park props: curbside trash cans & sunny plaza patio set.
   placeGltfProp(parkPropsGlb, './assets/models/props/trash-can.glb', {
     name: 'park-trash-entrance', x: 68.0, y: ground, z: 15.6, targetHeight: 0.92, shadows: !!quality.shadows
   });
