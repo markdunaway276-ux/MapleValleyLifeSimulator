@@ -19,6 +19,8 @@ import { createCarInterior } from './world/carInterior.js';
 import { createScene } from './world/scene.js';
 import { createSkyEnvMap } from './world/envMap.js';
 import { createRadio } from './systems/radio.js';
+import { createFishing } from './systems/fishing.js';
+import { createQuestBoard } from './systems/questBoard.js';
 import { createHomeDecor } from './world/homeDecor.js';
 import { createParcelDelivery } from './systems/parcelDelivery.js';
 import { createMysteryChapter2 } from './systems/mysteryChapter2.js';
@@ -423,9 +425,51 @@ const parcelDelivery = createParcelDelivery({
   save,
   saved: saveData.parcelDelivery
 });
+const questBoard = createQuestBoard({
+  inventory,
+  money,
+  needs,
+  sfx,
+  toast: (msg) => g.hud?.toast?.(msg),
+  save,
+  friendship,
+  getPhotoCount: () => {
+    try {
+      const raw = JSON.parse(localStorage.getItem('mapleValleyLife_phonePhotos') || '[]');
+      return Array.isArray(raw) ? raw.length : 0;
+    } catch { return 0; }
+  }
+});
+questBoard.apply(saveData);
+scene.userData.questBoard = questBoard;
+
+const fishing = createFishing({
+  clock,
+  needs,
+  inventory,
+  money,
+  sfx,
+  toast: (msg) => g.hud?.toast?.(msg),
+  save,
+  onCatch: (c) => {
+    if (c?.id === 'old-locket') questBoard.accept('pond-locket-lead');
+  }
+});
+fishing.apply(saveData);
+scene.userData.fishing = fishing;
+Object.assign(g, { fishing, questBoard });
+
 const getTasks = () => {
   if (storyQuest.stage === 'done' && mysteryChapter2.stage === 'locked') mysteryChapter2.unlock();
-  return [parcelDelivery.task(), mysteryChapter2.task(), storyQuest.task(), neighbourFavour.task(), snackFavour.task(), ...laundry.tasks()].filter(Boolean);
+  return [
+    parcelDelivery.task(),
+    mysteryChapter2.task(),
+    storyQuest.task(),
+    ...questBoard.getTasks(),
+    neighbourFavour.task(),
+    snackFavour.task(),
+    ...laundry.tasks()
+  ].filter(Boolean);
 };
 let pinnedTaskId = saveData.pinnedTaskId ?? null;
 const getPinnedTask = () => pinnedTaskId
@@ -507,7 +551,7 @@ const dialogue = createDialogue({
   getExtraPages: (id) => {
     friendship.add(id, 8, getNpc(id)?.name);
     if (storyQuest.stage === 'done' && mysteryChapter2.stage === 'locked') mysteryChapter2.unlock();
-    return [...(g.dayOne?.pagesFor(id) ?? []), mysteryChapter2.pageFor(id), parcelDelivery.pageFor(id), storyQuest.pageFor(id), neighbourFavour.pageFor(id), snackFavour.pageFor(id), dottiePage(id), dirtyPage(id)].filter(Boolean);
+    return [...(g.dayOne?.pagesFor(id) ?? []), mysteryChapter2.pageFor(id), parcelDelivery.pageFor(id), questBoard.pageFor(id), fishing.pageFor(id), storyQuest.pageFor(id), neighbourFavour.pageFor(id), snackFavour.pageFor(id), dottiePage(id), dirtyPage(id)].filter(Boolean);
   },
   canvas: renderer.domElement,
   isMobile,

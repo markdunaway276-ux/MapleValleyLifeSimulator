@@ -439,6 +439,82 @@ test('Phase 3: Friendship tiers grow & send proactive daily texts, and Maple Lan
   parkApi.update(720);
 });
 
+test('Part 3: Pond Fishing catches fish/locket, sells to Vince, and open-ended multi-source Quest Board runs across sources', async () => {
+  const { createFishing } = await import('../src/systems/fishing.js');
+  const { createQuestBoard } = await import('../src/systems/questBoard.js');
+  const { buildPark } = await import('../src/world/park.js');
+
+  const items = [];
+  const inventory = {
+    getItems: () => items,
+    has: (id) => items.some(it => it.id === id),
+    add(def, qty = 1) {
+      const existing = def.stackable ? items.find(it => it.id === def.id) : null;
+      if (existing) existing.count += qty;
+      else items.push({ ...def, count: qty });
+      return true;
+    },
+    consume(idx, qty = 1) {
+      if (!items[idx]) return false;
+      items[idx].count -= qty;
+      if (items[idx].count <= 0) items.splice(idx, 1);
+      return true;
+    }
+  };
+  let cash = 0;
+  const money = { add: (n) => { cash += n; }, get: () => cash };
+  let energy = 80;
+  let mood = 60;
+  const needs = {
+    get: () => ({ energy, mood }),
+    change: (k, d) => { if (k === 'energy') energy += d; if (k === 'mood') mood += d; }
+  };
+
+  const qb = createQuestBoard({ inventory, money, needs, getPhotoCount: () => 1 });
+  const posted = qb.interactBoard();
+  assert.equal(posted.id, 'board-fresh-trout');
+  assert.equal(qb.getTasks()[0].sourceLabel, 'Notice Board');
+
+  let rollIdx = 0;
+  const rolls = [0.60, 0.99];
+  const fishing = createFishing({
+    needs,
+    inventory,
+    money,
+    rng: () => rolls[rollIdx++] ?? 0.1,
+    onCatch: (c) => { if (c.id === 'old-locket') qb.accept('pond-locket-lead'); }
+  });
+  const c1 = fishing.cast();
+  assert.equal(c1.id, 'trout');
+  const c2 = fishing.cast();
+  assert.equal(c2.id, 'old-locket');
+  assert.equal(qb.isActive('pond-locket-lead'), true);
+
+  const vinceQuestPage = qb.pageFor('vince');
+  assert.ok(vinceQuestPage && vinceQuestPage.action);
+  vinceQuestPage.action.run();
+  assert.equal(qb.isCompleted('board-fresh-trout'), true);
+  assert.equal(cash, 28);
+
+  const waltPage = qb.pageFor('walt');
+  assert.ok(waltPage && waltPage.action);
+  waltPage.action.run();
+  assert.equal(qb.isCompleted('pond-locket-lead'), true);
+  assert.equal(cash, 63);
+
+  fishing.cast();
+  const sellPage = fishing.pageFor('vince');
+  assert.ok(sellPage && sellPage.action);
+  sellPage.action.run();
+  assert.equal(cash, 72);
+
+  const scene = new THREE.Scene();
+  scene.userData = { colliders: { addHouse() {}, addTree() {} }, interactables: [] };
+  const mat = new THREE.MeshBasicMaterial();
+  buildPark(scene, { shadows: false }, { road: mat, walk: mat, curb: mat });
+  assert.ok(scene.userData.interactables.some(e => e.id === 'park-fishing-spot'));
+});
+
 
 
 

@@ -16,6 +16,7 @@ export const CHANGELOG = [
       'Neighbours pop open colorful umbrellas when it rains, and playful squirrels scurry around Maple Lane Park.',
       'Phone Camera now supports 1×/1.5×/2× zoom, live film filters (Warm Film, Golden, Cozy B&W), and a 12-photo Gallery.',
       'New Maple FM Radio phone app with 3 cozy procedural stations (press R while driving to cycle stations) plus pond & breeze ambience.',
+      'Pond Fishing at Maple Lane Park: cast from the footbridge for valley fish (sellable to Vince) or rare clues, plus an interactive Community Notice Board inside the Post Office with open-ended multi-source quests.',
       'Major graphics polish: sky reflections, 3D lighting relief on siding/brick/roofs, 3D grass & leaves, Fresnel pond water, 3D parallax mountains, and live Look Presets in Settings.'
     ]
   },

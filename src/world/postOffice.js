@@ -541,9 +541,25 @@ export function buildPostOffice(scene, quality) {
   // Community cork bulletin board on the east wall above the writing desk.
   addBox(darkOak, 0.06, 1.12, 1.72, HALF_W - 0.34, 1.90, -2.55);
   const cork = makeBulletinBoard(1.62, 1.02);
+  cork.name = 'post-notice-board';
   cork.position.set(HALF_W - 0.375, 1.90, -2.55);
   cork.rotation.y = -Math.PI / 2;
+  cork.userData.prompt = 'check Community Notice Board';
+  cork.userData.interact = (ctx) => {
+    if (ctx?.scene?.userData?.questBoard?.interactBoard) {
+      return !!ctx.scene.userData.questBoard.interactBoard();
+    }
+    ctx?.toast?.('Community Notice Board: Local postings and odd jobs.');
+    return true;
+  };
   root.add(cork);
+  data.interactables?.push({
+    id: 'post-notice-board',
+    kind: 'board',
+    object: cork,
+    range: 2.6,
+    getPoint: () => ({ x: POST_OFFICE.x + HALF_W - 0.85, y: 1.5, z: POST_OFFICE.frontZ - 2.55 })
+  });
 
   // --- Warm Ceiling Fluorescent Troffer Panels & Interior Lighting ---
   const trofferMat = new THREE.MeshStandardMaterial({
