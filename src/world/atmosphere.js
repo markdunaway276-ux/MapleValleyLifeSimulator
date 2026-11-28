@@ -159,11 +159,13 @@ export function buildStreetDetails(scene, quality = {}) {
  */
 export function updateWetSurfaces(scene, rainAmount) {
   const wet = Math.max(0, Math.min(1, Number(rainAmount) || 0));
-  const road = scene?.getObjectByName?.('road');
-  if (road?.material) {
-    road.material.roughness = 0.90 - wet * 0.64;
-    const c = 1 - wet * 0.28;
-    road.material.color.setRGB(c, c, c * (1 + wet * 0.04));
+  for (const name of ['road', 'country-asphalt']) {
+    const road = scene?.getObjectByName?.(name);
+    if (road?.material) {
+      road.material.roughness = 0.90 - wet * 0.64;
+      const c = 1 - wet * 0.28;
+      road.material.color.setRGB(c, c, c * (1 + wet * 0.04));
+    }
   }
   const walk = scene?.getObjectByName?.('sidewalk-north');
   if (walk?.material) {

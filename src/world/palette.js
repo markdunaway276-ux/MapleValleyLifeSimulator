@@ -26,8 +26,8 @@ export const LOOK = {
    * a texel, -0.0003 (about 3 cm of depth) plus a 0.03 normal offset shows no acne and no peter-panning.
    */
   shadow: { type: 'PCFSoft', mapSize: 2048, extent: 38, near: 1, far: 110, bias: -0.0003, normalBias: 0.03, radius: 2.5 },
-  /** Fog starts and ends this fraction of the camera far plane away for deeper atmospheric haze. */
-  fog: { near: 0.34, far: 0.94 },
+  /** Fog starts and ends this fraction of the camera far plane away for gentle horizon haze. */
+  fog: { near: 0.50, far: 1.08 },
   /**
    * Gritty small-town film grade, applied after tone mapping (post.js). Bright,
    * readable daylight with crisp S-curve contrast, subtle cool-slate shadows,

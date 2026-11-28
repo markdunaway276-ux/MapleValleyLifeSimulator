@@ -2,11 +2,54 @@ import * as THREE from 'three';
 import { loadGltf } from './gltf.js';
 import { STREET, SURFACE_Y } from './street.js';
 import { ROUTE_9, routeHalfWidth, routeDriveAreas } from './route9.js';
+import { GROUND } from './palette.js';
+import { useWorldGrit } from './surfaces.js';
 
 const directory = './assets/models/scenery/';
 let treeLibrary;
 const windTime = { value: 0 };
 const windStrength = { value: 0.035 };
+
+// Roadside deer animation state (grazes peacefully, then lifts head & watches passing cars).
+let deerState = null;
+
+function updateDeer(delta, focusPos) {
+  if (!deerState) return;
+  const dt = Math.max(0, Math.min(0.1, Number(delta) || 0));
+  deerState.time += dt;
+  const { pivot, body, baseYaw } = deerState;
+
+  let dist = Infinity;
+  let targetYaw = baseYaw;
+  if (focusPos) {
+    const dx = focusPos.x - pivot.position.x;
+    const dz = focusPos.z - pivot.position.z;
+    dist = Math.hypot(dx, dz);
+    if (dist < 32) {
+      targetYaw = Math.atan2(dx, dz);
+    }
+  }
+
+  // Alert when a car/player passes within 28 m; otherwise graze peacefully in cycles.
+  const alertTarget = dist < 28 ? 1 : 0;
+  deerState.alert += (alertTarget - deerState.alert) * Math.min(1, dt * (alertTarget ? 5.5 : 1.6));
+
+  // Periodic grazing dip when calm: leans forward to eat grass, nibbles, then occasionally glances up.
+  const cycle = Math.sin(deerState.time * 0.42);
+  const wantGraze = THREE.MathUtils.smoothstep(cycle, -0.35, 0.35);
+  const graze = wantGraze * (1 - deerState.alert);
+  const nibble = graze > 0.45 ? Math.sin(deerState.time * 7.2) * 0.038 * graze : 0;
+  const alertLift = -0.07 * deerState.alert;
+
+  body.rotation.x = graze * 0.46 + nibble + alertLift;
+  body.position.y = -graze * 0.09 + Math.sin(deerState.time * 2.1) * 0.006;
+
+  // Smoothly turn toward the passing car when alerted, or back toward the road when calm.
+  let diff = targetYaw - pivot.rotation.y;
+  while (diff > Math.PI) diff -= Math.PI * 2;
+  while (diff < -Math.PI) diff += Math.PI * 2;
+  pivot.rotation.y += diff * Math.min(1, dt * (alertTarget ? 4.2 : 1.4));
+}
 
 function treeModels() {
   return treeLibrary ??= loadGltf(directory + 'trees.glb').then(({scene}) => {
@@ -33,9 +76,10 @@ function treeModels() {
   });
 }
 
-export function updateScenery(delta, rain) {
+export function updateScenery(delta, rain, focusPos = null) {
   windTime.value += delta;
   windStrength.value = 0.035 + rain * 0.035;
+  updateDeer(delta, focusPos);
 }
 
 export function replaceTownTrees(trees, placements) {
@@ -145,7 +189,12 @@ export function buildApproachRoad(scene, quality) {
   scene.add(root);
   const center = STREET.roadCenterZ;
   (scene.userData.driveAreas ??= []).push(...routeDriveAreas(center));
-  function ribbon(name, color, edge, y, ranges) {
+
+  // Match the town road's dark asphalt colour & gritty surface so Route 9 blends seamlessly.
+  const townAsphaltHex = (GROUND.road[0] << 16) | (GROUND.road[1] << 8) | GROUND.road[2];
+  const townLineHex = (GROUND.line[0] << 16) | (GROUND.line[1] << 8) | GROUND.line[2];
+
+  function ribbon(name, color, edge, y, ranges, { roughness = 0.92, grit = 0.85 } = {}) {
     const vertices = [];
     for (const [a, b] of ranges) {
       const [l, r] = edge(a);
@@ -155,7 +204,7 @@ export function buildApproachRoad(scene, quality) {
     const geometry = new THREE.BufferGeometry();
     const colors = [];
     const base = new THREE.Color(color);
-    const verge = new THREE.Color(0x6e7650);
+    const verge = new THREE.Color(0x4b5642);
     const tint = new THREE.Color();
     for (let i = 0; i < vertices.length; i += 3) {
       const fade = THREE.MathUtils.smoothstep(vertices[i], ROUTE_9.minX, ROUTE_9.minX + 14);
@@ -165,22 +214,26 @@ export function buildApproachRoad(scene, quality) {
     geometry.setAttribute('color',new THREE.Float32BufferAttribute(colors,3));
     geometry.setAttribute('position',new THREE.Float32BufferAttribute(vertices,3));
     geometry.computeVertexNormals();
-    const mesh = new THREE.Mesh(geometry,new THREE.MeshStandardMaterial({vertexColors:true,roughness:0.95}));
+    const mat = useWorldGrit(
+      new THREE.MeshStandardMaterial({ vertexColors: true, roughness, metalness: 0 }),
+      { strength: grit, groundGrime: 0 }
+    );
+    const mesh = new THREE.Mesh(geometry, mat);
     mesh.name = name;
     mesh.receiveShadow = quality.shadows;
     root.add(mesh);
   }
   const spans = [[ROUTE_9.minX, ROUTE_9.minX + 14], [ROUTE_9.minX + 14, ROUTE_9.taper], [ROUTE_9.taper, ROUTE_9.maxX]];
   const surface = SURFACE_Y.road;
-  ribbon('gravel-shoulders',0x918877, x => [-routeHalfWidth(x)-0.85, routeHalfWidth(x)+0.85],surface-0.007,spans);
-  ribbon('country-asphalt',0x50524e, x => [-routeHalfWidth(x),routeHalfWidth(x)],surface,spans);
-  for (const side of [-1,1]) ribbon('white-edge-lines',0xe1dfd3,x => {
+  ribbon('gravel-shoulders', 0x625d53, x => [-routeHalfWidth(x)-0.85, routeHalfWidth(x)+0.85], surface-0.007, spans, { roughness: 0.96, grit: 1.05 });
+  ribbon('country-asphalt', townAsphaltHex, x => [-routeHalfWidth(x), routeHalfWidth(x)], surface, spans, { roughness: 0.90, grit: 0.95 });
+  for (const side of [-1,1]) ribbon('white-edge-lines', 0xbab8aa, x => {
     const edge = side*(routeHalfWidth(x)-0.29);
     return [edge-0.065,edge+0.065];
-  },surface+0.002,spans);
+  }, surface+0.002, spans, { roughness: 0.92, grit: 0.7 });
   const dashes = [];
   for(let x = -297; x < -45; x += 7) dashes.push([x,Math.min(x+3,-44)]);
-  ribbon('yellow-center-line',0xd8b45b,()=>[-0.075,0.075],surface+0.002,dashes);
+  ribbon('yellow-center-line', townLineHex, ()=>[-0.075,0.075], surface+0.002, dashes, { roughness: 0.92, grit: 0.7 });
   welcomeSign(root,center+8);
   addForest(root, quality);
   loadGltf(directory+'road-signs.glb').then(({scene:model})=>{
@@ -194,10 +247,16 @@ export function buildApproachRoad(scene, quality) {
     }
   }).catch(()=>{});
   loadGltf(directory+'deer.glb').then(({scene:model})=>{
-    model.position.set(-170,0,center+10.5);
+    const pivot = new THREE.Group();
+    pivot.name = 'route9-deer';
+    pivot.position.set(-170, 0, center + 10.5);
+    pivot.rotation.y = Math.PI;
+    const body = new THREE.Group();
     model.scale.setScalar(1.6);
-    model.rotation.y=Math.PI;
-    root.add(model);
+    body.add(model);
+    pivot.add(body);
+    root.add(pivot);
+    deerState = { pivot, body, baseYaw: Math.PI, time: 0.9, alert: 0 };
   }).catch(()=>{});
   loadGltf(directory+'kenney-fence-wide.glb').then(({scene:model})=>{
     const size = new THREE.Box3().setFromObject(model).getSize(new THREE.Vector3());
