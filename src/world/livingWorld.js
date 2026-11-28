@@ -245,12 +245,13 @@ export function buildLivingWorld(scene, quality = {}) {
       }
 
       // 2) Pickup tailpipe exhaust wisps when driving.
-      exhaustMesh.visible = !!car && driving;
+      const carObj = typeof car?.localToWorld === 'function' ? car : (typeof car?.object?.localToWorld === 'function' ? car.object : null);
+      exhaustMesh.visible = !!carObj && driving;
       if (exhaustMesh.visible) {
         exhaustMat.opacity = 0.18;
         // Rear-left tailpipe in pickup local space (-2.38, 0.36, -0.58)
         exhaustWorld.set(-2.38, 0.36, -0.58);
-        car.localToWorld(exhaustWorld);
+        carObj.localToWorld(exhaustWorld);
         for (let i = 0; i < exhaustCount; i++) {
           const ep = exhaustPuffs[i];
           ep.age += dt * 1.35;

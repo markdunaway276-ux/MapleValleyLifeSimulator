@@ -125,11 +125,11 @@ export function startLoop(g) {
     scene.userData.livingWorld?.update(delta, {
       minutes: time.minutes,
       rain,
-      car: scene.userData.car,
+      car: g.car?.object || null,
       driving: mode.driving(),
       tvOn: !!g.tvSet?.isOn?.()
     });
-    scene.userData.car?.userData?.updateHeadlights?.(time.minutes, rain, mode.driving());
+    g.car?.object?.userData?.updateHeadlights?.(time.minutes, rain, mode.driving());
     scene.userData.frontYard?.update(time.totalMinutes);
     scene.userData.streetlights.update(time.minutes, rain);
     scene.userData.park.update(time.minutes, delta, g.dayNight.lastSample);

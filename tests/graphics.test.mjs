@@ -178,4 +178,11 @@ test('living world bundle and live Look Presets work cleanly across time, rain, 
   assert.equal(lw.group.getObjectByName('rain-puddles').visible, true);
   assert.equal(lw.group.getObjectByName('sky-birds').visible, false);
   assert.ok(lw.group.getObjectByName('tv-wall-glow').intensity > 2);
+
+  // Driving with either a Three.js Object3D or car API wrapper never throws and activates exhaust.
+  const carMesh = new THREE.Group();
+  lw.update(0.05, { minutes: 12 * 60, rain: 0, car: carMesh, driving: true, tvOn: false });
+  assert.equal(lw.group.getObjectByName('pickup-exhaust').visible, true);
+  lw.update(0.05, { minutes: 12 * 60, rain: 0, car: { object: carMesh }, driving: true, tvOn: false });
+  assert.equal(lw.group.getObjectByName('pickup-exhaust').visible, true);
 });
