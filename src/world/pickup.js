@@ -70,54 +70,10 @@ export function createPlayerPickup({ shadows }) {
     tailgate.rotation.z = clamped * (Math.PI * 0.5);
   };
 
-  // Hinged 3D driver-side cab door pivoted at the front A-pillar (x = 0.86, y = 0.86, z = -0.88).
-  // Rotating positive around Y swings the rear edge (-X) smoothly outward toward -Z.
-  const driverDoor = new THREE.Group();
-  driverDoor.name = 'pickup-driver-door';
-  driverDoor.position.set(0.86, 0.86, -0.88);
-  driverDoor.visible = false;
-  const doorOuter = new THREE.Mesh(new THREE.BoxGeometry(1.02, 0.62, 0.055), gatePaintMat);
-  doorOuter.position.set(-0.51, 0, 0);
-  doorOuter.castShadow = doorOuter.receiveShadow = !!shadows;
-  const doorCard = new THREE.Mesh(new THREE.BoxGeometry(0.96, 0.56, 0.03), gateLinerMat);
-  doorCard.position.set(-0.51, 0, 0.035);
-  const doorHandle = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.036, 0.035), latchMat);
-  doorHandle.position.set(-0.84, 0.16, -0.04);
-  const mirrorArm = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.05, 0.14), gateLinerMat);
-  mirrorArm.position.set(-0.14, 0.30, -0.09);
-  const mirrorHead = new THREE.Mesh(new THREE.BoxGeometry(0.09, 0.14, 0.16), gatePaintMat);
-  mirrorHead.position.set(-0.14, 0.34, -0.18);
-  const winGlassMat = new THREE.MeshStandardMaterial({
-    color: 0x9ec0d4, roughness: 0.12, metalness: 0.25, transparent: true, opacity: 0.42
-  });
-  const doorWindow = new THREE.Mesh(new THREE.BoxGeometry(0.84, 0.42, 0.018), winGlassMat);
-  doorWindow.position.set(-0.52, 0.50, 0.01);
-  const frameTop = new THREE.Mesh(new THREE.BoxGeometry(0.90, 0.04, 0.045), gatePaintMat);
-  frameTop.position.set(-0.52, 0.72, 0);
-  const frameRear = new THREE.Mesh(new THREE.BoxGeometry(0.045, 0.46, 0.045), gatePaintMat);
-  frameRear.position.set(-0.98, 0.51, 0);
-  driverDoor.add(doorOuter, doorCard, doorHandle, mirrorArm, mirrorHead, doorWindow, frameTop, frameRear);
-  car.add(driverDoor);
-  car.userData.driverDoor = driverDoor;
-  car.userData.setDriverDoorOpen = (ratio) => {
-    const clamped = Math.max(0, Math.min(1, Number(ratio) || 0));
-    driverDoor.rotation.y = clamped * 1.05;
-  };
-
-  let doorAnim = null;
-  car.userData.animateDriverDoor = (to, delayMs = 0, duration = 480) => {
-    const cur = driverDoor.rotation.y / 1.05;
-    doorAnim = { from: cur, to: Math.max(0, Math.min(1, to)), start: performance.now() + delayMs, duration };
-  };
-  car.userData.updateDoorAnim = () => {
-    if (!doorAnim) return;
-    const raw = (performance.now() - doorAnim.start) / doorAnim.duration;
-    if (raw < 0) return;
-    const t = Math.min(1, raw);
-    const ease = t * t * (3 - 2 * t);
-    car.userData.setDriverDoorOpen(THREE.MathUtils.lerp(doorAnim.from, doorAnim.to, ease));
-    if (t >= 1) doorAnim = null;
-  };
+  // Keep driver-door animation hooks as safe no-ops while using the real sculpted GLB cab door.
+  car.userData.setDriverDoorOpen = () => {};
+  car.userData.animateDriverDoor = () => {};
+  car.userData.updateDoorAnim = () => {};
 
   function stripStaticTailgate(mesh) {
     const geom = mesh.geometry;
@@ -134,11 +90,9 @@ export function createPlayerPickup({ shadows }) {
       const cx = (pos.getX(i0) + pos.getX(i1) + pos.getX(i2)) / 3;
       const cy = (pos.getY(i0) + pos.getY(i1) + pos.getY(i2)) / 3;
       const cz = (pos.getZ(i0) + pos.getZ(i1) + pos.getZ(i2)) / 3;
-      // 1. Static tailgate panel between the taillights (|z| < 0.705) above the rear bumper (y > 0.85).
+      // Static tailgate panel between the taillights (|z| < 0.705) above the rear bumper (y > 0.85).
       const isStaticTailgate = cx < -2.37 && cy > 0.85 && Math.abs(cz) < 0.705;
-      // 2. Static outer driver cab door skin (z < -0.82) replaced by the hinged 3D pickup-driver-door.
-      const isStaticDriverDoor = cz < -0.82 && cx > -0.14 && cx < 0.86 && cy > 0.55 && cy < 1.24;
-      if (isStaticTailgate || isStaticDriverDoor) {
+      if (isStaticTailgate) {
         removed++;
         continue;
       }
@@ -258,7 +212,6 @@ export function createPlayerPickup({ shadows }) {
     cargo.visible = true;
     bedCover.visible = true;
     tailgate.visible = true;
-    driverDoor.visible = true;
   }, error => {
     console.warn('Pickup model unavailable; using the fallback vehicle:', error);
   });
