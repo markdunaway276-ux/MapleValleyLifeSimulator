@@ -22,37 +22,37 @@ export const MINIMAP_KEY = 'KeyM';
 export const HUD_MINIMAP_SIZE = 132;
 
 export const MINIMAP_COLORS = {
-  grass: '#1b241e',
-  grid: 'rgba(255, 255, 255, 0.04)',
-  park: '#233426',
-  pond: '#1d4856',
-  pondRim: '#3a7284',
-  road: '#2d333b',
-  roadEdge: '#4a5360',
-  roadLine: '#c8a64b',
-  sidewalk: '#454d56',
-  gravel: '#575046',
-  crossing: 'rgba(220, 224, 214, 0.55)',
-  house: '#4b525c',
-  houseStroke: '#737d8a',
-  houseShadow: 'rgba(0, 0, 0, 0.42)',
-  mainHouse: '#9b7944',
-  mainHouseStroke: '#e6c076',
-  tree: 'rgba(42, 86, 52, 0.72)',
-  treeCore: 'rgba(26, 58, 34, 0.85)',
-  mailbox: '#d8b24c',
-  vending: '#d4525c',
-  market: '#46a674',
-  laundromat: '#529ad6',
+  grass: '#25352b',
+  grid: 'rgba(255, 255, 255, 0.05)',
+  park: '#314f38',
+  pond: '#2a708c',
+  pondRim: '#5ba2bd',
+  road: '#3d4550',
+  roadEdge: '#707d8e',
+  roadLine: '#e6c45a',
+  sidewalk: '#616d7a',
+  gravel: '#736a5e',
+  crossing: 'rgba(236, 240, 232, 0.72)',
+  house: '#636d7a',
+  houseStroke: '#96a2b2',
+  houseShadow: 'rgba(0, 0, 0, 0.48)',
+  mainHouse: '#c49647',
+  mainHouseStroke: '#ffe18a',
+  tree: 'rgba(54, 112, 66, 0.76)',
+  treeCore: 'rgba(34, 78, 44, 0.88)',
+  mailbox: '#f0c44d',
+  vending: '#e55b65',
+  market: '#46c484',
+  laundromat: '#5bb2f2',
   desk: '#7eb2e8',
-  car: '#4c5e74',
-  carActive: '#6892c6',
-  carNose: '#dce6f4',
-  player: '#ffde59',
-  playerStroke: '#121417',
-  npc: '#ee8752',
-  npcStroke: '#22140d',
-  north: '#f2e8d2',
+  car: '#607692',
+  carActive: '#66a8f5',
+  carNose: '#eef4fc',
+  player: '#ffe156',
+  playerStroke: '#101419',
+  npc: '#ff965a',
+  npcStroke: '#1d120c',
+  north: '#f5ecd8',
   frame: 'rgba(0,0,0,0.45)'
 };
 
@@ -386,6 +386,25 @@ export function worldBounds(world) {
   return b;
 }
 
+/** Tight Maple Lane town bounds (excludes the 300m Route 9 west highway tail). */
+export function townBounds(world) {
+  const s = (world && world.street) || STREET;
+  const half = (s.length || STREET.length) / 2;
+  const cz = s.roadCenterZ !== undefined ? s.roadCenterZ : STREET.roadCenterZ;
+  const b = { minX: -half - 4, maxX: half + 18, minZ: cz - 24, maxZ: cz + 26 };
+  const houses = (world && world.houses) || [];
+  for (let i = 0; i < houses.length; i++) {
+    const h = houses[i];
+    if (h.maxX < -60) continue;
+    if (h.minX < b.minX) b.minX = h.minX;
+    if (h.maxX > b.maxX) b.maxX = h.maxX;
+    if (h.minZ < b.minZ) b.minZ = h.minZ;
+    if (h.maxZ > b.maxZ) b.maxZ = h.maxZ;
+  }
+  b.minX -= 3; b.maxX += 3; b.minZ -= 3; b.maxZ += 3;
+  return b;
+}
+
 /** North-up view: world +Z is up on the canvas, +X is right. */
 export function makeMinimapView(bounds, width, height, pad = 8) {
   const bw = Math.max(0.001, bounds.maxX - bounds.minX);
@@ -469,7 +488,7 @@ function drawNavPin(ctx, x, y, color, radius = 6.5, label = null) {
   }
 }
 
-export function drawStaticLayer(ctx, world, view, { theme = 'hud', pins = [] } = {}) {
+export function drawStaticLayer(ctx, world, view, { theme = 'hud', pins = [], tilt3D = false } = {}) {
   const isNav = theme === 'nav';
   const C = isNav ? NAV_MAP_COLORS : MINIMAP_COLORS;
   const s = (world && world.street) || STREET;
@@ -577,37 +596,86 @@ export function drawStaticLayer(ctx, world, view, { theme = 'hud', pins = [] } =
   ctx.fillStyle = C.crossing;
   for (const x of s.crossings ?? []) fillRectWorld(ctx, view, x - 1.1, x + 1.1, cz - roadHalf, cz + roadHalf);
 
-  // Buildings with soft drop shadow and crisp roof outline.
-  const houses = (world && world.houses) || [];
+  // Buildings: 3D extruded blocks with shaded walls & raised roofs in 3D map mode,
+  // or crisp 2D roof footprints with drop shadows on the HUD minimap.
+  const houses = ((world && world.houses) || []).slice();
+  if (tilt3D) houses.sort((a, b) => (b.minZ || 0) - (a.minZ || 0));
   for (let i = 0; i < houses.length; i++) {
     const h = houses[i];
     const a = toMap(view, h.minX, h.maxZ);
     const c = toMap(view, h.maxX, h.minZ);
     const w = Math.max(2, c.x - a.x);
     const ht = Math.max(2, c.y - a.y);
-    ctx.fillStyle = C.houseShadow;
-    ctx.fillRect(a.x + 1.5, a.y + 2, w, ht);
-    ctx.fillStyle = h.main ? C.mainHouse : C.house;
-    ctx.fillRect(a.x, a.y, w, ht);
-    ctx.strokeStyle = h.main ? C.mainHouseStroke : C.houseStroke;
-    ctx.lineWidth = h.main ? 1.4 : 1;
-    ctx.strokeRect(a.x + 0.5, a.y + 0.5, Math.max(1, w - 1), Math.max(1, ht - 1));
+    if (tilt3D) {
+      const ext = Math.max(5, Math.min(18, (h.main ? 2.4 : 2.0) * view.scale));
+      // Soft ground shadow
+      ctx.fillStyle = 'rgba(24, 34, 48, 0.18)';
+      ctx.fillRect(a.x + ext * 0.42, a.y + ext * 0.28, w, ht);
+      // South-facing extruded front wall
+      ctx.fillStyle = h.main ? '#cfa24e' : '#b4beca';
+      ctx.fillRect(a.x, a.y + ht - ext, w, ext);
+      // Subtle right-side depth bevel
+      ctx.fillStyle = h.main ? '#dfba6e' : '#c6cfd9';
+      ctx.beginPath();
+      ctx.moveTo(a.x + w, a.y - ext);
+      ctx.lineTo(a.x + w + ext * 0.22, a.y - ext * 0.72);
+      ctx.lineTo(a.x + w + ext * 0.22, a.y + ht);
+      ctx.lineTo(a.x + w, a.y + ht);
+      ctx.closePath();
+      ctx.fill();
+      // Raised 3D roof face
+      ctx.fillStyle = h.main ? '#fae9c5' : '#e6ebf0';
+      ctx.fillRect(a.x, a.y - ext, w, ht);
+      ctx.strokeStyle = h.main ? '#c9973b' : '#aeb8c4';
+      ctx.lineWidth = h.main ? 1.5 : 1.1;
+      ctx.strokeRect(a.x + 0.5, a.y - ext + 0.5, Math.max(1, w - 1), Math.max(1, ht - 1));
+      // Subtle gable roof ridge line
+      ctx.strokeStyle = h.main ? 'rgba(184, 134, 42, 0.45)' : 'rgba(120, 134, 150, 0.35)';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(a.x + 3, a.y - ext + ht * 0.5);
+      ctx.lineTo(a.x + w - 3, a.y - ext + ht * 0.5);
+      ctx.stroke();
+    } else {
+      ctx.fillStyle = C.houseShadow;
+      ctx.fillRect(a.x + 1.5, a.y + 2, w, ht);
+      ctx.fillStyle = h.main ? C.mainHouse : C.house;
+      ctx.fillRect(a.x, a.y, w, ht);
+      ctx.strokeStyle = h.main ? C.mainHouseStroke : C.houseStroke;
+      ctx.lineWidth = h.main ? 1.4 : 1;
+      ctx.strokeRect(a.x + 0.5, a.y + 0.5, Math.max(1, w - 1), Math.max(1, ht - 1));
+    }
   }
 
-  // Layered translucent tree canopies.
+  // Layered translucent tree canopies (with 3D lifted dome + ground shadow in 3D mode).
   const trees = (world && world.trees) || [];
   for (let i = 0; i < trees.length; i++) {
     const t = trees[i];
     const p = toMap(view, t.x, t.z);
     const r = Math.max(2.2, (t.radius || 1.2) * view.scale);
-    ctx.fillStyle = C.tree;
-    ctx.beginPath();
-    ctx.arc(p.x, p.y, r, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.fillStyle = C.treeCore;
-    ctx.beginPath();
-    ctx.arc(p.x, p.y, r * 0.48, 0, Math.PI * 2);
-    ctx.fill();
+    if (tilt3D) {
+      ctx.fillStyle = 'rgba(24, 44, 28, 0.16)';
+      ctx.beginPath();
+      ctx.ellipse(p.x + 2.2, p.y + 2.2, r * 0.95, r * 0.65, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = C.tree;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y - 3, r, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = C.treeCore;
+      ctx.beginPath();
+      ctx.arc(p.x - r * 0.18, p.y - 3 - r * 0.18, r * 0.55, 0, Math.PI * 2);
+      ctx.fill();
+    } else {
+      ctx.fillStyle = C.tree;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, r, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = C.treeCore;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, r * 0.48, 0, Math.PI * 2);
+      ctx.fill();
+    }
   }
 
   if (isNav) {
@@ -684,19 +752,40 @@ export function drawPlayerArrow(ctx, player, view) {
   const fwd = playerForward(player);
   // Canvas angle: 0 is up (north). yaw 0 looks south (down the canvas).
   const angle = Math.atan2(fwd.x, fwd.z);
-  const size = Math.max(6, Math.min(14, view.width * 0.07));
+  const size = Math.max(9, Math.min(16, view.width * 0.085));
+  const pulse = 0.5 + 0.5 * Math.sin((typeof performance !== 'undefined' ? performance.now() : 0) * 0.005);
   ctx.save();
   ctx.translate(p.x, p.y);
+  // Soft directional field-of-view cone so heading is instantly readable.
+  ctx.save();
+  ctx.rotate(angle);
+  const coneGrad = ctx.createRadialGradient(0, 0, 2, 0, 0, size * 2.6);
+  coneGrad.addColorStop(0, 'rgba(102, 224, 255, 0.42)');
+  coneGrad.addColorStop(1, 'rgba(102, 224, 255, 0)');
+  ctx.fillStyle = coneGrad;
+  ctx.beginPath();
+  ctx.moveTo(0, 0);
+  ctx.arc(0, 0, size * 2.6, -Math.PI * 0.5 - 0.52, -Math.PI * 0.5 + 0.52);
+  ctx.closePath();
+  ctx.fill();
+  ctx.restore();
+  // Pulsing outer ring so you spot yourself on the HUD minimap in a split second.
+  ctx.strokeStyle = `rgba(102, 224, 255, ${0.28 + pulse * 0.42})`;
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.arc(0, 0, size * (1.05 + pulse * 0.45), 0, Math.PI * 2);
+  ctx.stroke();
+  // Crisp white-haloed golden directional arrow.
   ctx.rotate(angle);
   ctx.beginPath();
   ctx.moveTo(0, -size);
-  ctx.lineTo(size * 0.55, size * 0.65);
-  ctx.lineTo(0, size * 0.3);
-  ctx.lineTo(-size * 0.55, size * 0.65);
+  ctx.lineTo(size * 0.62, size * 0.7);
+  ctx.lineTo(0, size * 0.32);
+  ctx.lineTo(-size * 0.62, size * 0.7);
   ctx.closePath();
   ctx.fillStyle = C.player;
-  ctx.strokeStyle = C.playerStroke;
-  ctx.lineWidth = 1;
+  ctx.strokeStyle = '#ffffff';
+  ctx.lineWidth = 2;
   ctx.fill();
   ctx.stroke();
   ctx.restore();
@@ -707,35 +796,45 @@ function drawNavPlayerDot(ctx, player, view) {
   const p = toMap(view, player.position.x, player.position.z);
   const fwd = playerForward(player);
   const angle = Math.atan2(fwd.x, fwd.z);
+  const pulse = 0.5 + 0.5 * Math.sin((typeof performance !== 'undefined' ? performance.now() : 0) * 0.005);
   ctx.save();
   ctx.translate(p.x, p.y);
   // Translucent blue directional heading cone
   ctx.save();
   ctx.rotate(angle);
-  const coneGrad = ctx.createRadialGradient(0, 0, 2, 0, 0, 26);
-  coneGrad.addColorStop(0, 'rgba(26, 115, 232, 0.38)');
+  const coneGrad = ctx.createRadialGradient(0, 0, 2, 0, 0, 36);
+  coneGrad.addColorStop(0, 'rgba(26, 115, 232, 0.46)');
   coneGrad.addColorStop(1, 'rgba(26, 115, 232, 0)');
   ctx.fillStyle = coneGrad;
   ctx.beginPath();
   ctx.moveTo(0, 0);
-  ctx.arc(0, 0, 26, -Math.PI * 0.5 - 0.55, -Math.PI * 0.5 + 0.55);
+  ctx.arc(0, 0, 36, -Math.PI * 0.5 - 0.55, -Math.PI * 0.5 + 0.55);
   ctx.closePath();
   ctx.fill();
   ctx.restore();
-  // Soft accuracy halo
-  ctx.fillStyle = 'rgba(26, 115, 232, 0.18)';
+  // Animated pulsing accuracy halo
+  ctx.fillStyle = `rgba(26, 115, 232, ${0.14 + pulse * 0.14})`;
   ctx.beginPath();
-  ctx.arc(0, 0, 12, 0, Math.PI * 2);
+  ctx.arc(0, 0, 14 + pulse * 7, 0, Math.PI * 2);
   ctx.fill();
+  ctx.strokeStyle = `rgba(26, 115, 232, ${0.35 + pulse * 0.35})`;
+  ctx.lineWidth = 1.6;
+  ctx.stroke();
   // Crisp white border + vivid blue GPS dot
   ctx.fillStyle = '#1a73e8';
   ctx.strokeStyle = '#ffffff';
-  ctx.lineWidth = 2.5;
+  ctx.lineWidth = 3;
   ctx.beginPath();
-  ctx.arc(0, 0, 6, 0, Math.PI * 2);
+  ctx.arc(0, 0, 7.5, 0, Math.PI * 2);
   ctx.fill();
   ctx.stroke();
   ctx.restore();
+  // Clean "You" halo label right below the blue dot so your location jumps right out.
+  drawHaloLabel(ctx, 'You', p.x, p.y + 15, {
+    font: '700 10.5px system-ui, sans-serif',
+    color: '#1557b0',
+    halo: 'rgba(255,255,255,0.96)'
+  });
 }
 
 export function drawVehicles(ctx, vehicles, view) {
@@ -784,6 +883,8 @@ export function createMinimapSurface({
   getRoute = null,
   getPins = null,
   theme = 'hud',
+  followPlayer = false,
+  viewRadius = 32,
   cssWidth,
   cssHeight,
   pixelRatio = 1
@@ -797,8 +898,28 @@ export function createMinimapSurface({
   let staticCanvas = makeOffscreen(1, 1);
   let view = null;
   let world = null;
+  let zoom = isNav ? 1.35 : 1.0;
+  let tilt3D = isNav;
+  let customCenter = null; // { x, z } when user pans or recenters on phone map
   let paints = 0;
   let staticPaints = 0;
+
+  function activeBounds() {
+    const player = typeof getPlayer === 'function' ? getPlayer() : getPlayer;
+    if (followPlayer && player && player.position) {
+      const r = Math.max(14, viewRadius / zoom);
+      const px = player.position.x;
+      const pz = player.position.z;
+      return { minX: px - r, maxX: px + r, minZ: pz - r, maxZ: pz + r };
+    }
+    const base = townBounds(world || {});
+    if (zoom <= 1.02 && !customCenter) return base;
+    const cx = customCenter ? customCenter.x : (player?.position ? player.position.x * 0.45 : (base.minX + base.maxX) * 0.5);
+    const cz = customCenter ? customCenter.z : (player?.position ? player.position.z * 0.45 : (base.minZ + base.maxZ) * 0.5);
+    const hw = ((base.maxX - base.minX) * 0.5) / zoom;
+    const hh = ((base.maxZ - base.minZ) * 0.5) / zoom;
+    return { minX: cx - hw, maxX: cx + hw, minZ: cz - hh, maxZ: cz + hh };
+  }
 
   function resize(width, height, ratio) {
     cssW = Math.max(1, width || cssW);
@@ -819,20 +940,31 @@ export function createMinimapSurface({
     const pw = dest ? dest.width : Math.max(1, Math.round(cssW * dpr));
     const ph = dest ? dest.height : Math.max(1, Math.round(cssH * dpr));
     staticCanvas = makeOffscreen(pw, ph);
-    view = makeMinimapView(worldBounds(world || {}), pw, ph, Math.max(6, 8 * dpr));
+    view = makeMinimapView(activeBounds(), pw, ph, followPlayer ? 2 : Math.max(6, 8 * dpr));
     const sctx = staticCanvas.getContext && staticCanvas.getContext('2d');
-    if (sctx) drawStaticLayer(sctx, world, view, { theme, pins });
+    if (sctx && !followPlayer) drawStaticLayer(sctx, world, view, { theme, pins, tilt3D });
     staticPaints++;
     redraw();
   }
 
   function redraw() {
-    if (!dest || !view) return;
+    if (!dest) return;
     const ctx = dest.getContext && dest.getContext('2d');
     if (!ctx) return;
-    ctx.setTransform(1, 0, 0, 1, 0, 0);
-    ctx.clearRect(0, 0, dest.width, dest.height);
-    if (staticCanvas) ctx.drawImage(staticCanvas, 0, 0);
+    const pw = dest.width || Math.max(1, Math.round(cssW * dpr));
+    const ph = dest.height || Math.max(1, Math.round(cssH * dpr));
+    if (followPlayer) {
+      if (!world) world = typeof getWorld === 'function' ? getWorld() : getWorld;
+      view = makeMinimapView(activeBounds(), pw, ph, 2);
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      ctx.clearRect(0, 0, pw, ph);
+      drawStaticLayer(ctx, world, view, { theme, pins: [] });
+    } else {
+      if (!view) return;
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      ctx.clearRect(0, 0, pw, ph);
+      if (staticCanvas) ctx.drawImage(staticCanvas, 0, 0);
+    }
     const player = typeof getPlayer === 'function' ? getPlayer() : getPlayer;
     const npcs = typeof getNpcs === 'function' ? getNpcs() : getNpcs;
     const vehicles = typeof getVehicles === 'function' ? getVehicles() : getVehicles;
@@ -847,12 +979,12 @@ export function createMinimapSurface({
         const pos = n && (n.position || n);
         if (!pos || pos.x == null || pos.z == null) continue;
         const p = toMap(view, pos.x, pos.z);
-        const r = isNav ? 3.8 : Math.max(2.6, 2.2 * (view.scale / 4) + 1.2);
+        const r = isNav ? 4.2 : Math.max(3.2, 2.2 * (view.scale / 4) + 1.4);
         ctx.beginPath();
         ctx.arc(p.x, p.y, r, 0, Math.PI * 2);
         ctx.fillStyle = palette.npc;
         ctx.strokeStyle = palette.npcStroke;
-        ctx.lineWidth = isNav ? 1.5 : 1;
+        ctx.lineWidth = isNav ? 1.5 : 1.2;
         ctx.fill();
         ctx.stroke();
       }
@@ -870,21 +1002,22 @@ export function createMinimapSurface({
         }
         ctx.lineCap = 'round';
         ctx.lineJoin = 'round';
-        ctx.strokeStyle = isNav ? '#1557b0' : '#15323a';
-        ctx.lineWidth = isNav ? 6.5 : 4;
+        ctx.strokeStyle = isNav ? '#1557b0' : '#102a33';
+        ctx.lineWidth = isNav ? 7 : 5;
         ctx.stroke();
         ctx.strokeStyle = isNav ? '#4285f4' : '#6de8f1';
-        ctx.lineWidth = isNav ? 4 : 2;
+        ctx.lineWidth = isNav ? 4.5 : 2.6;
         ctx.stroke();
       }
       if (isNav) {
-        drawNavPin(ctx, goal.x, goal.y, route.arrived ? '#1e8e3e' : '#ea4335', 7.5);
+        drawNavPin(ctx, goal.x, goal.y, route.arrived ? '#1e8e3e' : '#ea4335', 8);
       } else {
         ctx.beginPath();
-        ctx.arc(goal.x, goal.y, 4, 0, Math.PI * 2);
+        ctx.arc(goal.x, goal.y, 5, 0, Math.PI * 2);
         ctx.fillStyle = route.arrived ? '#a8f0a2' : '#6de8f1';
         ctx.fill();
-        ctx.strokeStyle = '#15323a';
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = 1.5;
         ctx.stroke();
       }
       ctx.restore();
@@ -894,6 +1027,37 @@ export function createMinimapSurface({
     paints++;
   }
 
+  function setZoom(next) {
+    zoom = Math.max(0.85, Math.min(3.6, Number(next) || 1));
+    rebuild();
+  }
+  function zoomIn() { setZoom(zoom * 1.35); }
+  function zoomOut() { setZoom(zoom / 1.35); }
+  function panBy(dxCanvasPx, dyCanvasPx) {
+    if (!view || !view.scale) return;
+    const base = townBounds(world || {});
+    if (!customCenter) {
+      const b = activeBounds();
+      customCenter = { x: (b.minX + b.maxX) * 0.5, z: (b.minZ + b.maxZ) * 0.5 };
+    }
+    customCenter.x = Math.max(base.minX - 18, Math.min(base.maxX + 18, customCenter.x - dxCanvasPx / view.scale));
+    customCenter.z = Math.max(base.minZ - 14, Math.min(base.maxZ + 14, customCenter.z + dyCanvasPx / view.scale));
+    rebuild();
+  }
+  function toggle3D() {
+    tilt3D = !tilt3D;
+    rebuild();
+    return tilt3D;
+  }
+  function recenterOnPlayer() {
+    const player = typeof getPlayer === 'function' ? getPlayer() : getPlayer;
+    if (player?.position) {
+      customCenter = { x: player.position.x, z: player.position.z };
+      zoom = Math.max(zoom, 1.85);
+      rebuild();
+    }
+  }
+
   resize(cssW, cssH, dpr);
 
   return {
@@ -901,6 +1065,14 @@ export function createMinimapSurface({
     resize,
     rebuild,
     redraw,
+    setZoom,
+    zoomIn,
+    zoomOut,
+    panBy,
+    toggle3D,
+    is3D: () => tilt3D,
+    recenterOnPlayer,
+    getZoom: () => zoom,
     getView: () => view,
     getWorldSnap: () => world,
     paintCount: () => paints,
@@ -980,6 +1152,8 @@ export function createHudMinimap({
     getNpcs,
     getVehicles,
     getRoute,
+    followPlayer: true,
+    viewRadius: 30,
     cssWidth: HUD_MINIMAP_SIZE,
     cssHeight: HUD_MINIMAP_SIZE,
     pixelRatio
@@ -1139,17 +1313,25 @@ export function createHudMinimap({
     showPhoneRoute = onRoute;
     refreshRoute();
 
-    const onCanvasClick = (e) => {
+    canvas.style.touchAction = 'none';
+    canvas.style.cursor = 'grab';
+
+    const pointers = new Map();
+    let dragDist = 0;
+    let lastPinchDist = 0;
+    let lastPos = null;
+
+    const pickPinAt = (clientX, clientY) => {
       if (typeof onPickPin !== 'function') return;
       const v = surface.getView();
       if (!v) return;
       const rect = canvas.getBoundingClientRect();
       if (!rect.width || !rect.height) return;
-      const cx = (e.clientX - rect.left) * (canvas.width / rect.width);
-      const cy = (e.clientY - rect.top) * (canvas.height / rect.height);
+      const cx = (clientX - rect.left) * (canvas.width / rect.width);
+      const cy = (clientY - rect.top) * (canvas.height / rect.height);
       const pins = getNavPins();
       let best = null;
-      let bestD = 34 * (canvas.width / Math.max(1, rect.width));
+      let bestD = 36 * (canvas.width / Math.max(1, rect.width));
       for (let i = 0; i < pins.length; i++) {
         const pt = toMap(v, pins[i].x, pins[i].z);
         const d = Math.hypot(pt.x - cx, (pt.y - 6) - cy);
@@ -1157,7 +1339,76 @@ export function createHudMinimap({
       }
       if (best) onPickPin(best.id);
     };
-    canvas.addEventListener('click', onCanvasClick);
+
+    const onPointerDown = (e) => {
+      e.stopPropagation();
+      pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      if (typeof canvas.setPointerCapture === 'function') {
+        try { canvas.setPointerCapture(e.pointerId); } catch {}
+      }
+      if (pointers.size === 1) {
+        dragDist = 0;
+        lastPos = { x: e.clientX, y: e.clientY };
+        canvas.style.cursor = 'grabbing';
+      } else if (pointers.size === 2) {
+        const pts = [...pointers.values()];
+        lastPinchDist = Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y);
+        dragDist = 99;
+      }
+    };
+
+    const onPointerMove = (e) => {
+      if (!pointers.has(e.pointerId)) return;
+      e.stopPropagation();
+      pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      if (pointers.size === 2) {
+        const pts = [...pointers.values()];
+        const dist = Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y);
+        if (lastPinchDist > 8 && dist > 8) {
+          surface.setZoom(surface.getZoom() * (dist / lastPinchDist));
+        }
+        lastPinchDist = dist;
+        return;
+      }
+      if (pointers.size === 1 && lastPos) {
+        const dx = e.clientX - lastPos.x;
+        const dy = e.clientY - lastPos.y;
+        dragDist += Math.hypot(dx, dy);
+        lastPos = { x: e.clientX, y: e.clientY };
+        const rect = canvas.getBoundingClientRect();
+        const sx = rect.width ? (canvas.width / rect.width) : 1;
+        const sy = rect.height ? (canvas.height / rect.height) : 1;
+        surface.panBy(dx * sx, dy * sy);
+      }
+    };
+
+    const onPointerUp = (e) => {
+      const wasSingle = pointers.size === 1;
+      pointers.delete(e.pointerId);
+      if (pointers.size === 0) {
+        canvas.style.cursor = 'grab';
+        lastPos = null;
+        lastPinchDist = 0;
+        if (wasSingle && dragDist < 8) pickPinAt(e.clientX, e.clientY);
+      } else if (pointers.size === 1) {
+        const [remaining] = pointers.values();
+        lastPos = { x: remaining.x, y: remaining.y };
+        lastPinchDist = 0;
+      }
+    };
+
+    const onWheel = (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      const factor = e.deltaY < 0 ? 1.15 : 1 / 1.15;
+      surface.setZoom(surface.getZoom() * factor);
+    };
+
+    canvas.addEventListener('pointerdown', onPointerDown);
+    canvas.addEventListener('pointermove', onPointerMove);
+    canvas.addEventListener('pointerup', onPointerUp);
+    canvas.addEventListener('pointercancel', onPointerUp);
+    canvas.addEventListener('wheel', onWheel, { passive: false });
 
     function fit() {
       const w = Math.max(parent.clientWidth || 0, fallbackW);
@@ -1172,8 +1423,12 @@ export function createHudMinimap({
     }
     surface.redraw();
 
-    return () => {
-      canvas.removeEventListener('click', onCanvasClick);
+    const cleanup = () => {
+      canvas.removeEventListener('pointerdown', onPointerDown);
+      canvas.removeEventListener('pointermove', onPointerMove);
+      canvas.removeEventListener('pointerup', onPointerUp);
+      canvas.removeEventListener('pointercancel', onPointerUp);
+      canvas.removeEventListener('wheel', onWheel);
       if (ro) ro.disconnect();
       if (phoneSurface === surface) {
         phoneSurface = null;
@@ -1181,6 +1436,12 @@ export function createHudMinimap({
       }
       canvas.remove();
     };
+    cleanup.zoomIn = () => surface.zoomIn();
+    cleanup.zoomOut = () => surface.zoomOut();
+    cleanup.recenter = () => surface.recenterOnPlayer();
+    cleanup.toggle3D = () => surface.toggle3D();
+    cleanup.is3D = () => surface.is3D();
+    return cleanup;
   }
 
   function started() {

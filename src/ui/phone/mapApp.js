@@ -273,6 +273,31 @@ const CSS = `
   white-space: nowrap;
   border: 0;
 }
+.nmap-controls {
+  position: absolute;
+  right: 9px;
+  bottom: 92px;
+  z-index: 4;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.nmap-ctrl-btn {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(255, 255, 255, 0.96);
+  color: #3c4043;
+  font: 700 15px/1 system-ui, sans-serif;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.22);
+}
+.nmap-ctrl-btn:hover { background: #ffffff; color: #1a73e8; }
+.nmap-ctrl-btn.is-recenter { font-size: 14px; color: #1a73e8; }
 `;
 
 function ensureStyles() {
@@ -542,12 +567,42 @@ export function renderMapApp(screen, ctx = {}) {
     renderSheet();
   });
 
-  root.append(srSelect, mapWrap, topOverlay, sheet);
+  // Floating right-side 3D toggle, zoom (+ / −), & recenter-on-me controls
+  const controls = document.createElement('div');
+  controls.className = 'nmap-controls';
+  const tiltBtn = document.createElement('button');
+  tiltBtn.type = 'button';
+  tiltBtn.className = 'nmap-ctrl-btn is-recenter';
+  tiltBtn.style.fontSize = '11px';
+  tiltBtn.textContent = '3D';
+  tiltBtn.title = 'Toggle 3D buildings view';
+  tiltBtn.setAttribute('aria-label', 'Toggle 3D map view');
+  const zoomInBtn = document.createElement('button');
+  zoomInBtn.type = 'button';
+  zoomInBtn.className = 'nmap-ctrl-btn';
+  zoomInBtn.textContent = '+';
+  zoomInBtn.title = 'Zoom in';
+  zoomInBtn.setAttribute('aria-label', 'Zoom in');
+  const zoomOutBtn = document.createElement('button');
+  zoomOutBtn.type = 'button';
+  zoomOutBtn.className = 'nmap-ctrl-btn';
+  zoomOutBtn.textContent = '−';
+  zoomOutBtn.title = 'Zoom out';
+  zoomOutBtn.setAttribute('aria-label', 'Zoom out');
+  const recenterBtn = document.createElement('button');
+  recenterBtn.type = 'button';
+  recenterBtn.className = 'nmap-ctrl-btn is-recenter';
+  recenterBtn.textContent = '◎';
+  recenterBtn.title = 'Center on my location';
+  recenterBtn.setAttribute('aria-label', 'Center on my location');
+  controls.append(tiltBtn, zoomInBtn, zoomOutBtn, recenterBtn);
+
+  root.append(srSelect, mapWrap, topOverlay, controls, sheet);
   screen.appendChild(root);
   renderSheet();
 
   if (ctx && typeof ctx.attachMap === 'function') {
-    return ctx.attachMap(
+    const detach = ctx.attachMap(
       mapWrap,
       (label) => {
         if (routeLabel !== label) {
@@ -560,6 +615,14 @@ export function renderMapApp(screen, ctx = {}) {
         if (found) selectPlace(found, false);
       }
     );
+    tiltBtn.addEventListener('click', () => {
+      const on = detach?.toggle3D?.();
+      tiltBtn.textContent = on ? '3D' : '2D';
+    });
+    zoomInBtn.addEventListener('click', () => detach?.zoomIn?.());
+    zoomOutBtn.addEventListener('click', () => detach?.zoomOut?.());
+    recenterBtn.addEventListener('click', () => detach?.recenter?.());
+    return detach;
   }
   return null;
 }

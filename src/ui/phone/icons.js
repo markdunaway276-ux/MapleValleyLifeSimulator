@@ -58,6 +58,11 @@ export const APP_ICON_META = Object.freeze({
     fg: '#ecfff9',
     svg: `${SVG_OPEN}<rect x="4" y="3" width="16" height="18" rx="2.5"/><path d="M8.5 9l1.5 1.5L13 7.5"/><line x1="8.5" y1="14.5" x2="15.5" y2="14.5"/><line x1="8.5" y1="17.5" x2="13.5" y2="17.5"/>${SVG_CLOSE}`
   },
+  home: {
+    bg: 'linear-gradient(145deg, #b8663d, #7c3f21)',
+    fg: '#fff5ee',
+    svg: `${SVG_OPEN}<path d="M3 10.5L12 3l9 7.5"/><path d="M5 9.5V20h14V9.5"/><path d="M9.5 20v-6h5v6"/>${SVG_CLOSE}`
+  },
   calendar: {
     bg: 'linear-gradient(145deg, #3e61ad, #253d75)',
     fg: '#eef4ff',

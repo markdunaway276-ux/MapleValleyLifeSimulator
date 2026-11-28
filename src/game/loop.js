@@ -50,6 +50,8 @@ export function startLoop(g) {
     const snowfall = g.weather.snowAmount ? g.weather.snowAmount() : 0;
     const deerFocus = g.dayOne?.opening ? g.car?.object?.position : (mode.driving() ? g.car?.object?.position : player.position);
     updateScenery(delta, rain, deerFocus);
+    g.homeDecor?.update?.(delta);
+    g.parcelDelivery?.update?.();
     g.npcs.update(delta, {
       player,
       talkingId: g.dialogue.currentNpc() || g.cutscene?.currentNpc?.() || null,

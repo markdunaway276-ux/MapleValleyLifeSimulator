@@ -296,3 +296,118 @@ test('phone Messages, Style, and Map apps support two-way threads, smooth HiDPI 
   assert.equal(NAV_MAP_COLORS.player, '#1a73e8');
 });
 
+test('Phase 1: Hair & Shoes style slots, Grocery home cooking, and 3D Home Decor catalogue work cleanly', async () => {
+  const { APPEARANCE_SLOTS, DEFAULT_APPEARANCE } = await import('../src/data/appearance.js');
+  const slotIds = APPEARANCE_SLOTS.map((s) => s.id);
+  assert.ok(slotIds.includes('hair') && slotIds.includes('shoes'));
+  assert.equal(DEFAULT_APPEARANCE.hair, 'espresso');
+  assert.equal(DEFAULT_APPEARANCE.shoes, 'charcoal');
+
+  const { createSkills } = await import('../src/systems/skills.js');
+  let hunger = 20;
+  let mood = 40;
+  let removedSlot = -1;
+  const skills = createSkills({});
+  const cooked = skills.cook({
+    needs: { get: (k) => (k === 'hunger' ? hunger : mood), add: (k, d) => { if (k === 'hunger') hunger += d; if (k === 'mood') mood += d; } },
+    inventory: {
+      getSlots: () => [{ id: 'groceries', count: 1 }],
+      removeAt: (idx) => { removedSlot = idx; }
+    }
+  });
+  assert.equal(cooked, true);
+  assert.equal(removedSlot, 0);
+  assert.equal(hunger, 95);
+  assert.equal(mood, 58);
+
+  const { createHomeDecor } = await import('../src/world/homeDecor.js');
+  const scene = new THREE.Scene();
+  const decor = createHomeDecor({ scene, shadows: false });
+  assert.equal(decor.has('living-rug'), false);
+  let balance = 50;
+  const res = decor.buy('living-rug', {
+    money: { spend: (amt) => { if (balance < amt) return false; balance -= amt; return true; } }
+  });
+  assert.equal(res.ok, true);
+  assert.equal(decor.has('living-rug'), true);
+  assert.equal(balance, 25);
+  assert.deepEqual(decor.serialize(), ['living-rug']);
+});
+
+test('Phase 2: Hank Post Office Parcel Delivery shift runs 3 stops, pays tips + route bonus, and tracks completed routes', async () => {
+  const { createParcelDelivery, DELIVERY_STOPS, ROUTE_BONUS } = await import('../src/systems/parcelDelivery.js');
+  const scene = new THREE.Scene();
+  scene.userData = { interactables: [] };
+  let earned = 0;
+  let carried = null;
+  const delivery = createParcelDelivery({
+    scene,
+    money: { add: (amt) => { earned += amt; } },
+    actions: { get carrying() { return carried; }, setCarry: (v) => { carried = v; }, play() {} },
+    isDayOneUnloadActive: () => false
+  });
+  const hankOffer = delivery.pageFor('hank');
+  assert.ok(hankOffer && hankOffer.action);
+  assert.equal(hankOffer.action.run(), true);
+  assert.equal(delivery.active, true);
+  assert.equal(delivery.task().npcId, DELIVERY_STOPS[0].id);
+
+  // Deliver all 3 parcels by grabbing each from the pickup bed and handing to the recipient.
+  const bedEntry = scene.userData.interactables.find((e) => e.id === 'pickup-bed-utility');
+  assert.ok(bedEntry);
+  for (let i = 0; i < DELIVERY_STOPS.length; i++) {
+    const action = bedEntry.object.userData.interact({});
+    assert.ok(action === 'openTruckBed' || action === 'reachTruckBox');
+    const recipientPage = delivery.pageFor(DELIVERY_STOPS[i].id);
+    assert.ok(recipientPage && recipientPage.action);
+    assert.equal(recipientPage.action.run(), true);
+  }
+  const expectedPay = DELIVERY_STOPS.reduce((sum, s) => sum + s.pay + s.tip, 0) + ROUTE_BONUS;
+  assert.equal(earned, expectedPay);
+  assert.equal(delivery.active, false);
+  assert.equal(delivery.completedRoutes, 1);
+});
+
+test('Phase 4: Chapter 2 (PO Box #14) progresses locked -> hank -> maya -> walt -> done, texts inbox, and pays $50 reward', async () => {
+  const { createMysteryChapter2, CHAPTER2_REWARD } = await import('../src/systems/mysteryChapter2.js');
+  let cash = 0;
+  let mood = 50;
+  const msgs = [];
+  const bag = [];
+  const ch2 = createMysteryChapter2({
+    money: { add: (n) => { cash += n; } },
+    needs: { add: (k, d) => { if (k === 'mood') mood += d; } },
+    inventory: { add: (item) => bag.push(item) },
+    inbox: { add: (m) => msgs.push(m) }
+  });
+  assert.equal(ch2.stage, 'locked');
+  assert.equal(ch2.task(), null);
+
+  assert.equal(ch2.unlock(), true);
+  assert.equal(ch2.stage, 'hank');
+  assert.equal(msgs.length, 1);
+
+  const hankPage = ch2.pageFor('hank');
+  assert.ok(hankPage && hankPage.action);
+  assert.equal(hankPage.action.run(), true);
+  assert.equal(ch2.stage, 'maya');
+  assert.equal(bag[0].id, 'kyle-parcel');
+
+  const mayaPage = ch2.pageFor('maya');
+  assert.ok(mayaPage && mayaPage.action);
+  assert.equal(mayaPage.action.run(), true);
+  assert.equal(ch2.stage, 'walt');
+
+  const waltPage = ch2.pageFor('walt');
+  assert.ok(waltPage && waltPage.action);
+  assert.equal(waltPage.action.run(), true);
+  assert.equal(ch2.stage, 'done');
+  assert.equal(ch2.task().complete, true);
+  assert.equal(cash, CHAPTER2_REWARD);
+  assert.equal(mood, 80);
+  assert.equal(msgs.length, 3);
+});
+
+
+
+

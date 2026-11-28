@@ -303,7 +303,40 @@ export function createSkills({
     const needsApi = ctx.needs || needs;
     const clockApi = ctx.clock || clock;
     const sfxApi = ctx.sfx || sfx;
+    const inv = ctx.inventory || null;
     const toastFn = typeof ctx.toast === 'function' ? ctx.toast : toast;
+
+    // Check if the player has Groceries to cook a full hot home meal!
+    let grocerySlot = -1;
+    if (inv && typeof inv.getSlots === 'function') {
+      const slots = inv.getSlots();
+      for (let i = 0; i < slots.length; i++) {
+        if (slots[i] && slots[i].id === 'groceries' && (slots[i].count || 0) > 0) {
+          grocerySlot = i;
+          break;
+        }
+      }
+    }
+
+    if (grocerySlot >= 0 && typeof inv.removeAt === 'function') {
+      inv.removeAt(grocerySlot, 1);
+      if (clockApi && typeof clockApi.advance === 'function') clockApi.advance(COOK_MINUTES);
+      if (needsApi && typeof needsApi.add === 'function') {
+        needsApi.add('hunger', 75);
+        needsApi.add('mood', 18);
+      }
+      addXp('cooking', XP_COOK + 10);
+      if (sfxApi && typeof sfxApi.play === 'function') sfxApi.play('eat');
+      if (typeof toastFn === 'function') toastFn('Cooked a hot home meal! (+75 Hunger, +18 Mood)');
+      if (typeof save === 'function') save();
+      if (typeof window !== 'undefined' && typeof window.dispatchEvent === 'function') {
+        window.dispatchEvent(new CustomEvent('maple-cooked', {
+          detail: { minutes: COOK_MINUTES, meal: true, hunger: 75, mood: 18, xp: XP_COOK + 10 }
+        }));
+      }
+      return true;
+    }
+
     const hunger = needsApi && typeof needsApi.get === 'function' ? Number(needsApi.get('hunger')) : Infinity;
     if (Number.isFinite(hunger) && hunger < COOK_HUNGER_COST) {
       if (typeof toastFn === 'function') toastFn(COOK_HUNGRY);
@@ -317,7 +350,7 @@ export function createSkills({
     if (typeof save === 'function') save();
     if (typeof window !== 'undefined' && typeof window.dispatchEvent === 'function') {
       window.dispatchEvent(new CustomEvent('maple-cooked', {
-        detail: { minutes: COOK_MINUTES, hunger: COOK_HUNGER_COST, xp: XP_COOK }
+        detail: { minutes: COOK_MINUTES, meal: false, hunger: COOK_HUNGER_COST, xp: XP_COOK }
       }));
     }
     return true;

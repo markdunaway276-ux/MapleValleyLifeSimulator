@@ -193,6 +193,8 @@ export function drawStylePreview(canvas, appearance, slots = APPEARANCE_SLOTS) {
   const skin = getOptionColor('skin', state.skin, slots);
   const shirt = getOptionColor('shirt', state.shirt, slots);
   const pants = getOptionColor('pants', state.pants, slots);
+  const hair = getOptionColor('hair', state.hair, slots);
+  const shoes = getOptionColor('shoes', state.shoes, slots);
 
   const skinHi = shadeHex(skin, 0.16);
   const skinLo = shadeHex(skin, -0.18);
@@ -200,6 +202,8 @@ export function drawStylePreview(canvas, appearance, slots = APPEARANCE_SLOTS) {
   const shirtLo = shadeHex(shirt, -0.22);
   const pantsHi = shadeHex(pants, 0.14);
   const pantsLo = shadeHex(pants, -0.24);
+  const hairHi = shadeHex(hair, 0.18);
+  const hairLo = shadeHex(hair, -0.26);
 
   ctx.clearRect(0, 0, w, h);
 
@@ -240,7 +244,7 @@ export function drawStylePreview(canvas, appearance, slots = APPEARANCE_SLOTS) {
     const sx = cx + dir * 21 * s;
     ctx.save();
     // Upper shoe
-    ctx.fillStyle = '#2d333d';
+    ctx.fillStyle = shoes;
     ctx.beginPath();
     ctx.moveTo(sx - 10 * s * dir, ankleY - 2 * s);
     ctx.quadraticCurveTo(sx + 13 * s * dir, ankleY + 1 * s, sx + 16 * s * dir, ankleY + 11 * s);
@@ -417,9 +421,9 @@ export function drawStylePreview(canvas, appearance, slots = APPEARANCE_SLOTS) {
 
   // --- 7. Stylized Hair with Crown Highlight ---
   const hairGrad = ctx.createLinearGradient(cx, headCy - 30 * s, cx, headCy - 2 * s);
-  hairGrad.addColorStop(0, '#46372d');
-  hairGrad.addColorStop(0.55, '#2e231c');
-  hairGrad.addColorStop(1, '#211914');
+  hairGrad.addColorStop(0, hairHi);
+  hairGrad.addColorStop(0.55, hair);
+  hairGrad.addColorStop(1, hairLo);
   ctx.fillStyle = hairGrad;
   ctx.beginPath();
   ctx.moveTo(cx - 22 * s, headCy - 2 * s);
@@ -444,7 +448,7 @@ export function drawStylePreview(canvas, appearance, slots = APPEARANCE_SLOTS) {
     const ex = cx + dir * 8.2 * s;
     const ey = headCy + 1.5 * s;
     // Eyebrow
-    ctx.strokeStyle = '#2d221b';
+    ctx.strokeStyle = hairLo;
     ctx.lineWidth = 1.9 * s;
     ctx.beginPath();
     ctx.moveTo(ex - 4.2 * s, ey - 5.2 * s);
