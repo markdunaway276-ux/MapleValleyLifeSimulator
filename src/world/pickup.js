@@ -45,22 +45,23 @@ export function createPlayerPickup({ shadows }) {
     bedCover.rotation.z = -clamped * 0.92;
   };
 
-  // Hinged 3D tailgate pivoted along the lower rear sill (x = -2.53, y = 0.88).
-  // Rotating positive around Z folds the tailgate down flat into a horizontal loading platform.
+  // Hinged 3D tailgate pivoted along the lower rear sill (x = -2.51, y = 0.86).
+  // Sized cleanly between the rear taillights (|z| < 0.71) so rotating +90° around Z
+  // folds the real tailgate down flat with zero static tailgate ghost left behind.
   const tailgate = new THREE.Group();
   tailgate.name = 'pickup-tailgate';
-  tailgate.position.set(-2.53, 0.88, 0);
+  tailgate.position.set(-2.51, 0.86, 0);
   tailgate.visible = false;
   const gatePaintMat = new THREE.MeshStandardMaterial({ color: BODY_PAINT, roughness: 0.46, metalness: 0.22 });
   const gateLinerMat = new THREE.MeshStandardMaterial({ color: 0x242629, roughness: 0.86, metalness: 0.08 });
-  const gateOuter = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.43, 1.56), gatePaintMat);
-  gateOuter.position.set(-0.02, 0.215, 0);
+  const gateOuter = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.48, 1.43), gatePaintMat);
+  gateOuter.position.set(-0.02, 0.24, 0);
   gateOuter.castShadow = gateOuter.receiveShadow = !!shadows;
-  const gateInner = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.40, 1.50), gateLinerMat);
-  gateInner.position.set(0.02, 0.215, 0);
+  const gateInner = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.45, 1.38), gateLinerMat);
+  gateInner.position.set(0.02, 0.24, 0);
   gateInner.receiveShadow = !!shadows;
   const gateHandle = new THREE.Mesh(new THREE.BoxGeometry(0.035, 0.045, 0.24), latchMat);
-  gateHandle.position.set(-0.06, 0.36, 0);
+  gateHandle.position.set(-0.06, 0.40, 0);
   tailgate.add(gateOuter, gateInner, gateHandle);
   car.add(tailgate);
   car.userData.tailgate = tailgate;
@@ -68,6 +69,33 @@ export function createPlayerPickup({ shadows }) {
     const clamped = Math.max(0, Math.min(1, Number(ratio) || 0));
     tailgate.rotation.z = clamped * (Math.PI * 0.5);
   };
+
+  function stripStaticTailgate(mesh) {
+    const geom = mesh.geometry;
+    const pos = geom?.attributes?.position;
+    if (!pos) return;
+    const idx = geom.index;
+    const triCount = idx ? Math.floor(idx.count / 3) : Math.floor(pos.count / 3);
+    const keep = [];
+    let removed = 0;
+    for (let t = 0; t < triCount; t++) {
+      const i0 = idx ? idx.getX(t * 3) : t * 3;
+      const i1 = idx ? idx.getX(t * 3 + 1) : t * 3 + 1;
+      const i2 = idx ? idx.getX(t * 3 + 2) : t * 3 + 2;
+      const cx = (pos.getX(i0) + pos.getX(i1) + pos.getX(i2)) / 3;
+      const cy = (pos.getY(i0) + pos.getY(i1) + pos.getY(i2)) / 3;
+      const cz = (pos.getZ(i0) + pos.getZ(i1) + pos.getZ(i2)) / 3;
+      // Static tailgate panel sits between the taillights (|z| < 0.705) above the rear bumper (y > 0.85).
+      if (cx < -2.37 && cy > 0.85 && Math.abs(cz) < 0.705) {
+        removed++;
+        continue;
+      }
+      keep.push(i0, i1, i2);
+    }
+    if (removed > 0) {
+      geom.setIndex(keep);
+    }
+  }
 
   loadGltf('assets/models/vehicles/pickup.glb', ({ scene: pickup }) => {
     const body = pickup.getObjectByName('truck-body');
@@ -83,7 +111,13 @@ export function createPlayerPickup({ shadows }) {
       if (!object.isMesh) return;
       object.castShadow = shadows && !object.material.transparent;
       object.receiveShadow = shadows;
-      if (object.material.name === 'body') object.material.color.setHex(BODY_PAINT);
+      if (object.material.name === 'body') {
+        object.material.color.setHex(BODY_PAINT);
+        stripStaticTailgate(object);
+      }
+      if (object.material.name === 'black_m' || object.material.name === 'material') {
+        stripStaticTailgate(object);
+      }
       if (object.material.name === 'interior') object.material.color.setHex(0x303031);
       if (object.material.name === 'd_glass') glass.add(object.material);
     });
