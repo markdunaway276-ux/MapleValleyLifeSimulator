@@ -174,3 +174,11 @@ test('truck-bed box grab actions open the bed cover and reveal the held box only
   assert.ok(ACTIONS.openTruckBed.boxFrom > 0.5 && ACTIONS.openTruckBed.boxFrom < 0.85);
   assert.ok(ACTIONS.reachTruckBox.boxFrom > 0.3 && ACTIONS.reachTruckBox.boxFrom < 0.7);
 });
+
+test('setOpeningDeerBeat is exported for Route 9 deer focus choreography', async () => {
+  const { setOpeningDeerBeat, updateScenery } = await import('../src/world/scenery.js');
+  assert.equal(typeof setOpeningDeerBeat, 'function');
+  setOpeningDeerBeat(18.5);
+  updateScenery(0.016, 0, { x: -175, z: 0 });
+  setOpeningDeerBeat(null);
+});

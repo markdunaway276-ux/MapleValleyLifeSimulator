@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { CAR_SPAWN, poseCarWheels } from '../world/props.js';
 import { STREET } from '../world/street.js';
+import { setOpeningDeerBeat } from '../world/scenery.js';
 import { warmOpening } from './loadingGate.js';
 
 const LENGTH = 52;
@@ -101,6 +102,7 @@ export function createRoadTrip(g, onFinish, wave) {
     window.setTimeout(()=>{ overlay.hidden=true; },650);
     g.sfx.setCar(false);
     music?.stop();
+    setOpeningDeerBeat(null);
     park();
     wave(0,time);
     g.clock.setTime(8*60+30);
@@ -111,6 +113,7 @@ export function createRoadTrip(g, onFinish, wave) {
     const inside = INSIDE(at);
     const oldFov = camera.fov;
     const frameAt = !reduced ? at : at < 7 ? 3 : at < 17 ? 12 : at < 24 ? 20 : at < 32 ? 30 : at < 44 ? 40 : 52;
+    setOpeningDeerBeat(frameAt);
     const x = distanceAt(frameAt);
     const turn = smooth(frameAt,44,49);
     const lane = STREET.roadCenterZ + 1.32;
@@ -146,8 +149,23 @@ export function createRoadTrip(g, onFinish, wave) {
         camera.position.set(x-16+8*k,23-13*k,z-9);
         camera.lookAt(x+7,0.4,z);
       } else if(at<24) {
-        camera.position.set(-170,1.48,lane+10.2);
-        camera.lookAt(x+2,0.75,z);
+        // Hero focus shot on the roadside deer bending down to grab & eat grass, then panning to the passing pickup.
+        const dolly = smooth(frameAt, 17, 24);
+        const panToTruck = smooth(frameAt, 20.0, 22.4);
+        const deerZ = STREET.roadCenterZ + 10.5;
+        camera.position.set(
+          THREE.MathUtils.lerp(-166.5, -167.2, dolly),
+          THREE.MathUtils.lerp(1.06, 1.24, dolly),
+          THREE.MathUtils.lerp(deerZ + 1.55, deerZ + 0.9, dolly)
+        );
+        const deerFocusX = -170.0;
+        const deerFocusY = THREE.MathUtils.lerp(0.76, 1.04, smooth(frameAt, 18.8, 20.4));
+        const deerFocusZ = deerZ - 0.15;
+        camera.lookAt(
+          THREE.MathUtils.lerp(deerFocusX, x + 2.5, panToTruck),
+          THREE.MathUtils.lerp(deerFocusY, 0.85, panToTruck),
+          THREE.MathUtils.lerp(deerFocusZ, z, panToTruck)
+        );
       } else {
         const k=smooth(at,32,44);
         camera.position.set(x-12+10*k,5+12*Math.sin(Math.PI*k),z-7+3*k);

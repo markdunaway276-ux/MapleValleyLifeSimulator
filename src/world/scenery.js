@@ -10,14 +10,19 @@ let treeLibrary;
 const windTime = { value: 0 };
 const windStrength = { value: 0.035 };
 
-// Roadside deer animation state (grazes peacefully, then lifts head & watches passing cars).
+// Roadside deer animation state (grazes peacefully, grabs grass, chews, then watches passing cars).
 let deerState = null;
+let openingDeerBeat = null;
+
+export function setOpeningDeerBeat(at) {
+  openingDeerBeat = (typeof at === 'number' && Number.isFinite(at)) ? at : null;
+}
 
 function updateDeer(delta, focusPos) {
   if (!deerState) return;
   const dt = Math.max(0, Math.min(0.1, Number(delta) || 0));
   deerState.time += dt;
-  const { pivot, body, baseYaw } = deerState;
+  const { pivot, body, baseYaw, mouthBlade, grassTuft } = deerState;
 
   let dist = Infinity;
   let targetYaw = baseYaw;
@@ -25,30 +30,73 @@ function updateDeer(delta, focusPos) {
     const dx = focusPos.x - pivot.position.x;
     const dz = focusPos.z - pivot.position.z;
     dist = Math.hypot(dx, dz);
-    if (dist < 32) {
-      targetYaw = Math.atan2(dx, dz);
-    }
+    if (dist < 32) targetYaw = Math.atan2(dx, dz);
   }
 
-  // Alert when a car/player passes within 28 m; otherwise graze peacefully in cycles.
-  const alertTarget = dist < 28 ? 1 : 0;
-  deerState.alert += (alertTarget - deerState.alert) * Math.min(1, dt * (alertTarget ? 5.5 : 1.6));
+  let graze = 0;
+  let nibble = 0;
+  let chew = 0;
+  let bladeAmt = 0;
+  let alert = 0;
+  let yawLerp = 2.0;
 
-  // Periodic grazing dip when calm: leans forward to eat grass, nibbles, then occasionally glances up.
-  const cycle = Math.sin(deerState.time * 0.42);
-  const wantGraze = THREE.MathUtils.smoothstep(cycle, -0.35, 0.35);
-  const graze = wantGraze * (1 - deerState.alert);
-  const nibble = graze > 0.45 ? Math.sin(deerState.time * 7.2) * 0.038 * graze : 0;
-  const alertLift = -0.07 * deerState.alert;
+  if (openingDeerBeat != null && openingDeerBeat >= 16.5 && openingDeerBeat <= 24.5) {
+    // Choreographed focus beat during the Route 9 opening shot (at = 17..24).
+    const t = openingDeerBeat;
+    const bendDown = THREE.MathUtils.smoothstep(t, 16.9, 18.0);
+    const liftUp = THREE.MathUtils.smoothstep(t, 19.2, 20.5);
+    graze = bendDown * (1 - liftUp);
+    // Two distinct nibbles while muzzle is in the grass tuft (18.0..19.2).
+    const inGrass = THREE.MathUtils.smoothstep(t, 17.9, 18.2) * (1 - THREE.MathUtils.smoothstep(t, 19.0, 19.3));
+    nibble = Math.sin((t - 18.0) * 10.5) * 0.048 * inGrass;
+    // Visible grass sprig grabbed at ~18.7, held & chewed as head lifts, then swallowed by ~21.6.
+    const grabbed = THREE.MathUtils.smoothstep(t, 18.55, 18.85);
+    const eaten = THREE.MathUtils.smoothstep(t, 20.8, 21.7);
+    bladeAmt = grabbed * (1 - eaten);
+    chew = Math.sin(t * 11.5) * 0.024 * bladeAmt * liftUp;
+    // Turn head toward the approaching pickup once lifted (20.1..24).
+    alert = THREE.MathUtils.smoothstep(t, 20.1, 21.3);
+    if (alert < 0.05) targetYaw = baseYaw;
+    yawLerp = alert > 0.05 ? 4.5 : 3.0;
+  } else {
+    // Autonomous grazing & car-watching cycle during normal gameplay.
+    const alertTarget = dist < 28 ? 1 : 0;
+    deerState.alert += (alertTarget - deerState.alert) * Math.min(1, dt * (alertTarget ? 5.5 : 1.6));
+    alert = deerState.alert;
+    const cycle = Math.sin(deerState.time * 0.42);
+    const wantGraze = THREE.MathUtils.smoothstep(cycle, -0.35, 0.35);
+    graze = wantGraze * (1 - alert);
+    nibble = graze > 0.45 ? Math.sin(deerState.time * 7.2) * 0.038 * graze : 0;
+    // Briefly show a grass blade right after lifting its head from grazing.
+    const justLifted = THREE.MathUtils.smoothstep(cycle, -0.55, -0.25) * (1 - wantGraze) * (1 - alert);
+    bladeAmt = justLifted;
+    chew = Math.sin(deerState.time * 10.5) * 0.02 * bladeAmt;
+    yawLerp = alertTarget ? 4.2 : 1.4;
+  }
 
-  body.rotation.x = graze * 0.46 + nibble + alertLift;
-  body.position.y = -graze * 0.09 + Math.sin(deerState.time * 2.1) * 0.006;
+  const alertLift = -0.07 * alert;
+  body.rotation.x = graze * 0.54 + nibble + chew + alertLift;
+  body.position.y = -graze * 0.11 + Math.sin(deerState.time * 2.1) * 0.006;
 
-  // Smoothly turn toward the passing car when alerted, or back toward the road when calm.
+  if (mouthBlade) {
+    mouthBlade.visible = bladeAmt > 0.04;
+    if (mouthBlade.visible) {
+      mouthBlade.scale.set(1, 0.45 + bladeAmt * 0.65, 1);
+      mouthBlade.rotation.z = Math.sin(deerState.time * 9.5) * 0.16;
+      mouthBlade.rotation.x = 0.25 + Math.cos(deerState.time * 8.2) * 0.12;
+    }
+  }
+  if (grassTuft) {
+    // Rustle the grass tuft slightly when the deer is nibbling it.
+    const rustle = graze > 0.6 ? Math.sin(deerState.time * 13.0) * 0.08 * graze : Math.sin(deerState.time * 1.6) * 0.02;
+    grassTuft.rotation.z = rustle;
+  }
+
+  // Smoothly turn toward the passing car when alerted, or back toward the grazing profile when calm.
   let diff = targetYaw - pivot.rotation.y;
   while (diff > Math.PI) diff -= Math.PI * 2;
   while (diff < -Math.PI) diff += Math.PI * 2;
-  pivot.rotation.y += diff * Math.min(1, dt * (alertTarget ? 4.2 : 1.4));
+  pivot.rotation.y += diff * Math.min(1, dt * yawLerp);
 }
 
 function treeModels() {
@@ -110,6 +158,7 @@ function addForest(root, quality) {
   for (const side of [-1, 1]) for (let band = 0; band < (quality.shadows ? 3 : 2); band++) {
     for (let x = -298; x < -60; x += 4 + random() * 3) {
       if (side === -1 && x > -194 && x < -147) continue;
+      if (side === 1 && band === 0 && x > -176 && x < -162) continue;
       const type = types[Math.floor(random() * (band ? 4 : types.length))];
       const placement = new THREE.Object3D();
       placement.position.set(x, 0, center + side * (routeHalfWidth(x) + 4 + random() * 3 + band * 7));
@@ -250,13 +299,47 @@ export function buildApproachRoad(scene, quality) {
     const pivot = new THREE.Group();
     pivot.name = 'route9-deer';
     pivot.position.set(-170, 0, center + 10.5);
-    pivot.rotation.y = Math.PI;
+    const baseYaw = Math.PI * 0.78;
+    pivot.rotation.y = baseYaw;
     const body = new THREE.Group();
     model.scale.setScalar(1.6);
     body.add(model);
+
+    // Lush 3D grass tuft on the ground right where the deer dips its muzzle to graze.
+    const bladeMat = new THREE.MeshStandardMaterial({ color: 0x5c8338, roughness: 0.85, side: THREE.DoubleSide });
+    const brightBladeMat = new THREE.MeshStandardMaterial({ color: 0x769f44, roughness: 0.82, side: THREE.DoubleSide });
+    const grassTuft = new THREE.Group();
+    grassTuft.name = 'deer-grass-tuft';
+    grassTuft.position.set(0, 0, 0.94);
+    for (let i = 0; i < 11; i++) {
+      const angle = (i / 11) * Math.PI * 2 + (i % 2) * 0.2;
+      const h = 0.24 + (i % 3) * 0.08;
+      const blade = new THREE.Mesh(
+        new THREE.ConeGeometry(0.024, h, 4),
+        i % 3 === 0 ? brightBladeMat : bladeMat
+      );
+      blade.position.set(Math.cos(angle) * 0.14, h * 0.45, Math.sin(angle) * 0.14);
+      blade.rotation.set(Math.sin(angle) * 0.32, angle, -Math.cos(angle) * 0.32);
+      grassTuft.add(blade);
+    }
+    pivot.add(grassTuft);
+
+    // Visible grass sprig dangling from the deer's muzzle as it lifts its head and chews.
+    const mouthBlade = new THREE.Group();
+    mouthBlade.name = 'deer-mouth-blade';
+    mouthBlade.position.set(0, 1.14, 0.58);
+    mouthBlade.visible = false;
+    for (const [ox, rz, len] of [[-0.014, 0.26, 0.20], [0.002, -0.08, 0.24], [0.016, -0.32, 0.18]]) {
+      const sprig = new THREE.Mesh(new THREE.ConeGeometry(0.012, len, 4), brightBladeMat);
+      sprig.position.set(ox, -len * 0.45, 0.03);
+      sprig.rotation.set(0.28, 0, rz + Math.PI);
+      mouthBlade.add(sprig);
+    }
+    body.add(mouthBlade);
+
     pivot.add(body);
     root.add(pivot);
-    deerState = { pivot, body, baseYaw: Math.PI, time: 0.9, alert: 0 };
+    deerState = { pivot, body, baseYaw, mouthBlade, grassTuft, time: 0.9, alert: 0 };
   }).catch(()=>{});
   loadGltf(directory+'kenney-fence-wide.glb').then(({scene:model})=>{
     const size = new THREE.Box3().setFromObject(model).getSize(new THREE.Vector3());
